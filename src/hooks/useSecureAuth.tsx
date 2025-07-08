@@ -14,28 +14,32 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const storedUser = getStoredUser();
-      const storedToken = getStoredToken();
-      
-      if (storedUser && storedToken) {
-        if (storedUser.username && storedUser.role) {
-          setUser(storedUser);
-          // Set the Supabase session from stored token
-          await supabase.auth.setSession({ access_token: storedToken, refresh_token: 'dummy_refresh_token' });
-          setCurrentUserContext(storedUser).catch(err => console.error("Failed to set user context on init:", err));
-        } else {
-          removeStoredUser(); // This will also remove the token
-          logSecurityEvent('INVALID_STORED_USER_DATA');
+    const initializeAuth = async () => { // Định nghĩa một hàm async bên trong useEffect
+      try {
+        const storedUser = getStoredUser();
+        const storedToken = getStoredToken();
+        
+        if (storedUser && storedToken) {
+          if (storedUser.username && storedUser.role) {
+            setUser(storedUser);
+            // Set the Supabase session from stored token
+            await supabase.auth.setSession({ access_token: storedToken, refresh_token: 'dummy_refresh_token' });
+            setCurrentUserContext(storedUser).catch(err => console.error("Failed to set user context on init:", err));
+          } else {
+            removeStoredUser(); // This will also remove the token
+            logSecurityEvent('INVALID_STORED_USER_DATA');
+          }
         }
+      } catch (error) {
+        console.error("Failed to initialize auth state:", error);
+        removeStoredUser();
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to initialize auth state:", error);
-      removeStoredUser();
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    initializeAuth(); // Gọi hàm async này
   }, []);
 
   const login = useCallback(async (username: string, password: string): Promise<LoginResult> => {
