@@ -20,22 +20,9 @@ export default defineConfig(async ({ mode }) => {
   plugins.push(
     VitePWA({
       registerType: 'autoUpdate',
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/itoapoyrxxmtbbuolfhk\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
-              }
-            }
-          }
-        ]
-      },
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ['logo.png', 'logo192.png', 'logo512.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Hệ thống Thông báo TS',
