@@ -16,32 +16,22 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
         const storedUser = getStoredUser();
-        const storedToken = getStoredToken();
-        
-        if (storedUser && storedToken) {
-          if (storedUser.username && storedUser.role) {
-            setUser(storedUser);
-            
-            // Set the auth header for all future requests
-            supabase.auth.onAuthStateChange((event, session) => {
-              if (event === 'SIGNED_OUT') {
-                removeStoredUser();
-                removeStoredToken();
-              }
-            });
-            
-            // Set the user context for database RLS policies
-            await setCurrentUserContext(storedUser)
-              .catch(err => console.error("Failed to set user context on init:", err));
-          } else {
-            removeStoredUser(); // This will also remove the token
-            logSecurityEvent('INVALID_STORED_USER_DATA');
-          }
+
+        if (session && storedUser) {
+          setUser(storedUser);
+          await setCurrentUserContext(storedUser)
+            .catch(err => console.error("Failed to set user context on init:", err));
+        } else if (!session) {
+          removeStoredUser();
+          removeStoredToken();
+          setUser(null);
         }
       } catch (error) {
         console.error("Failed to initialize auth state:", error);
         removeStoredUser();
+        removeStoredToken();
         setUser(null);
       } finally {
         setLoading(false);
@@ -49,6 +39,18 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
     };
 
     initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        setUser(null);
+        removeStoredUser();
+        removeStoredToken();
+        localStorage.removeItem('loggedInStaff');
+        localStorage.removeItem('currentUser');
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = useCallback(async (username: string, password: string): Promise<LoginResult> => {
@@ -70,17 +72,21 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
       }
 
       if (loggedInUser && token) {
-        // Store user data and token in localStorage
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: token,
+          refresh_token: token,
+        });
+
+        if (sessionError) {
+          logSecurityEvent('SESSION_SET_ERROR', { error: sessionError.message });
+          return { error: 'Không thể thiết lập phiên đăng nhập.' };
+        }
+
         storeUser(loggedInUser);
         storeToken(token);
-        
-        // Set user in state
         setUser(loggedInUser);
-        
-        // Set the user context for database RLS policies
         await setCurrentUserContext(loggedInUser);
         
-        // Also store user info in localStorage for other components
         localStorage.setItem('loggedInStaff', JSON.stringify(loggedInUser));
         localStorage.setItem('currentUser', JSON.stringify({
           username: loggedInUser.username,
@@ -100,19 +106,10 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
   const logout = useCallback(() => {
     logSecurityEvent('LOGOUT', { username: user?.username });
     
-    // Clear all auth data
-    setUser(null);
-    removeStoredUser();
-    removeStoredToken();
-    localStorage.removeItem('loggedInStaff');
-    localStorage.removeItem('currentUser');
-    
-    // Sign out from Supabase client
     supabase.auth.signOut().catch(err => {
       console.error("Error during sign out:", err);
     });
     
-    // Redirect to login page
     window.location.href = '/login';
   }, [user]);
 
