@@ -1,5 +1,13 @@
+/// <reference types="https://deno.land/x/types/index.d.ts" />
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,23 +34,68 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: staff, error } = await supabaseAdmin
+    // Get staff information
+    const { data: staff, error: fetchError } = await supabaseAdmin
       .from('staff')
-      .select('account_status')
+      .select('account_status, failed_login_attempts, last_failed_login, locked_at')
       .ilike('username', username.toLowerCase().trim())
       .maybeSingle();
 
-    if (error) {
-      console.error('Error fetching staff status:', error);
-      return new Response(JSON.stringify({ isLocked: false, error: 'Could not verify account status' }), {
+    if (fetchError) {
+      console.error('Database fetch error:', fetchError);
+      return new Response(JSON.stringify({ error: 'Database error' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
-    const isLocked = staff?.account_status === 'locked';
+    if (!staff) {
+      return new Response(JSON.stringify({ 
+        isLocked: false, 
+        failedAttempts: 0 
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
 
-    return new Response(JSON.stringify({ isLocked }), {
+    // Check if account is locked
+    const isLocked = staff.account_status === 'locked';
+    const failedAttempts = staff.failed_login_attempts || 0;
+    
+    // Calculate when user can retry (24 hours after last failed attempt)
+    let canRetryAt = null;
+    if (staff.last_failed_login && failedAttempts >= 3) {
+      const lastAttempt = new Date(staff.last_failed_login);
+      canRetryAt = new Date(lastAttempt.getTime() + 24 * 60 * 60 * 1000);
+      
+      // If 24 hours have passed, reset failed attempts
+      if (new Date() > canRetryAt) {
+        await supabaseAdmin
+          .from('staff')
+          .update({ 
+            failed_login_attempts: 0,
+            account_status: 'active',
+            last_failed_login: null,
+            locked_at: null
+          })
+          .eq('username', username.toLowerCase().trim());
+        
+        return new Response(JSON.stringify({ 
+          isLocked: false, 
+          failedAttempts: 0 
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+    }
+
+    return new Response(JSON.stringify({ 
+      isLocked,
+      failedAttempts,
+      canRetryAt: canRetryAt ? canRetryAt.toISOString() : null
+    }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });

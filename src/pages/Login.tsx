@@ -30,19 +30,18 @@ const Login = () => {
         return;
       }
       
-      const { isLocked, error: checkError } = await checkAccountStatus(debouncedUsername);
+      try {
+        const result = await checkAccountStatus(debouncedUsername);
 
-      if (checkError) {
-        console.error('Status check failed:', checkError);
-        return;
-      }
-
-      if (isLocked) {
-        setError('Tài khoản của bạn đã bị khóa. Hãy liên hệ Admin để được mở khóa.');
-        setIsAccountLocked(true);
-        setShowForm(false);
-      } else {
-        if (isAccountLocked) handleTryAnotherAccount();
+        if (result.isLocked) {
+          setError('Tài khoản của bạn đã bị khóa. Hãy liên hệ Admin để được mở khóa.');
+          setIsAccountLocked(true);
+          setShowForm(false);
+        } else {
+          if (isAccountLocked) handleTryAnotherAccount();
+        }
+      } catch (error) {
+        console.error('Status check failed:', error);
       }
     };
 

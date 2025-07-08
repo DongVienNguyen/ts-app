@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Key, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Lock, Eye, EyeOff } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { resetPassword } from '@/services/secureAuthService';
 import { toast } from 'sonner';
+import Layout from '@/components/Layout';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
@@ -24,41 +24,61 @@ const ResetPassword = () => {
     confirm: false
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    
+    if (!user) {
+      toast.error('Bạn cần đăng nhập để đổi mật khẩu');
+      return;
+    }
+
+    if (!formData.currentPassword || !formData.newPassword || !formData.confirmPassword) {
+      toast.error('Vui lòng điền đầy đủ thông tin');
+      return;
+    }
 
     if (formData.newPassword !== formData.confirmPassword) {
-      setError('Mật khẩu mới và xác nhận mật khẩu không khớp');
+      toast.error('Mật khẩu mới và xác nhận mật khẩu không khớp');
       return;
     }
 
     if (formData.newPassword.length < 6) {
-      setError('Mật khẩu mới phải có ít nhất 6 ký tự');
+      toast.error('Mật khẩu mới phải có ít nhất 6 ký tự');
       return;
     }
 
-    if (!user) {
-      setError('Bạn cần đăng nhập để đổi mật khẩu');
+    if (formData.currentPassword === formData.newPassword) {
+      toast.error('Mật khẩu mới phải khác mật khẩu hiện tại');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const result = await resetPassword(user.username, formData.currentPassword, formData.newPassword);
-      
+      const result = await resetPassword(
+        user.username,
+        formData.currentPassword,
+        formData.newPassword
+      );
+
       if (result.success) {
         toast.success('Đổi mật khẩu thành công!');
-        navigate('/');
+        setFormData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+        // Optionally redirect to home page
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
       } else {
-        setError(result.error || 'Đổi mật khẩu thất bại');
+        toast.error(result.error || 'Không thể đổi mật khẩu');
       }
     } catch (error) {
-      console.error('Reset password error:', error);
-      setError('Đã xảy ra lỗi trong quá trình đổi mật khẩu');
+      console.error('Password reset error:', error);
+      toast.error('Đã xảy ra lỗi khi đổi mật khẩu');
     }
 
     setIsLoading(false);
@@ -71,64 +91,45 @@ const ResetPassword = () => {
     }));
   };
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-gray-600 mb-4">Bạn cần đăng nhập để đổi mật khẩu</p>
-              <Button onClick={() => navigate('/login')}>
-                Đăng nhập
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
-              <Key className="w-8 h-8 text-white" />
-            </div>
+    <Layout>
+      <div className="max-w-md mx-auto">
+        <div className="mb-6">
+          <Button 
+            onClick={() => navigate(-1)}
+            variant="outline"
+            className="mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Quay lại
+          </Button>
+          
+          <div className="flex items-center space-x-3 mb-2">
+            <Lock className="w-8 h-8 text-blue-600" />
+            <h1 className="text-3xl font-bold">Đổi mật khẩu</h1>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Đổi mật khẩu
-          </h2>
           <p className="text-gray-600">
-            Nhập mật khẩu hiện tại và mật khẩu mới
+            Thay đổi mật khẩu của bạn để bảo mật tài khoản
           </p>
         </div>
 
-        <Card className="shadow-lg border-0">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-xl text-center">Thông tin mật khẩu</CardTitle>
+            <CardTitle>Thông tin mật khẩu</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
+          <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="currentPassword">Mật khẩu hiện tại</Label>
+                <Label htmlFor="currentPassword">Mật khẩu hiện tại *</Label>
                 <div className="relative">
                   <Input
                     id="currentPassword"
-                    type={showPasswords.current ? "text" : "password"}
+                    type={showPasswords.current ? 'text' : 'password'}
                     value={formData.currentPassword}
                     onChange={(e) => setFormData(prev => ({ ...prev, currentPassword: e.target.value }))}
                     placeholder="Nhập mật khẩu hiện tại"
                     required
                     disabled={isLoading}
-                    className="pr-10"
                   />
                   <Button
                     type="button"
@@ -139,26 +140,26 @@ const ResetPassword = () => {
                     disabled={isLoading}
                   >
                     {showPasswords.current ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
+                      <EyeOff className="h-4 w-4" />
                     ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
+                      <Eye className="h-4 w-4" />
                     )}
                   </Button>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="newPassword">Mật khẩu mới</Label>
+                <Label htmlFor="newPassword">Mật khẩu mới *</Label>
                 <div className="relative">
                   <Input
                     id="newPassword"
-                    type={showPasswords.new ? "text" : "password"}
+                    type={showPasswords.new ? 'text' : 'password'}
                     value={formData.newPassword}
                     onChange={(e) => setFormData(prev => ({ ...prev, newPassword: e.target.value }))}
-                    placeholder="Nhập mật khẩu mới"
+                    placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)"
                     required
                     disabled={isLoading}
-                    className="pr-10"
+                    minLength={6}
                   />
                   <Button
                     type="button"
@@ -169,26 +170,26 @@ const ResetPassword = () => {
                     disabled={isLoading}
                   >
                     {showPasswords.new ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
+                      <EyeOff className="h-4 w-4" />
                     ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
+                      <Eye className="h-4 w-4" />
                     )}
                   </Button>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Xác nhận mật khẩu mới</Label>
+                <Label htmlFor="confirmPassword">Xác nhận mật khẩu mới *</Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
-                    type={showPasswords.confirm ? "text" : "password"}
+                    type={showPasswords.confirm ? 'text' : 'password'}
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                     placeholder="Nhập lại mật khẩu mới"
                     required
                     disabled={isLoading}
-                    className="pr-10"
+                    minLength={6}
                   />
                   <Button
                     type="button"
@@ -199,48 +200,42 @@ const ResetPassword = () => {
                     disabled={isLoading}
                   >
                     {showPasswords.confirm ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
+                      <EyeOff className="h-4 w-4" />
                     ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
+                      <Eye className="h-4 w-4" />
                     )}
                   </Button>
                 </div>
               </div>
 
-              <div className="flex space-x-3">
-                <Button 
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate('/')}
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Quay lại
-                </Button>
-                <Button 
-                  type="submit" 
-                  className="flex-1 bg-blue-600 hover:bg-blue-700" 
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>Đang xử lý...</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <Key className="w-4 h-4" />
-                      <span>Đổi mật khẩu</span>
-                    </div>
-                  )}
-                </Button>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-medium text-blue-900 mb-2">Yêu cầu mật khẩu:</h3>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Ít nhất 6 ký tự</li>
+                  <li>• Khác với mật khẩu hiện tại</li>
+                  <li>• Nên sử dụng kết hợp chữ và số</li>
+                </ul>
               </div>
+
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Đang xử lý...</span>
+                  </div>
+                ) : (
+                  'Đổi mật khẩu'
+                )}
+              </Button>
             </form>
           </CardContent>
         </Card>
       </div>
-    </div>
+    </Layout>
   );
 };
 

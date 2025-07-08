@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Button } from './ui/button';
 import { Download, X } from 'lucide-react';
+import { Button } from './ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export function PWAInstallPrompt() {
@@ -8,22 +8,24 @@ export function PWAInstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
+    // Show prompt after 10 seconds if can install and not dismissed
     if (canInstall) {
-      // Show prompt after 10 seconds if user hasn't dismissed it
-      const timer = setTimeout(() => {
-        const dismissed = localStorage.getItem('pwa-install-dismissed');
-        if (!dismissed) {
+      const dismissed = localStorage.getItem('pwa-install-dismissed');
+      if (!dismissed) {
+        const timer = setTimeout(() => {
           setShowPrompt(true);
-        }
-      }, 10000);
+        }, 10000);
 
-      return () => clearTimeout(timer);
+        return () => clearTimeout(timer);
+      }
     }
   }, [canInstall]);
 
   const handleInstall = async () => {
-    await triggerInstall();
-    setShowPrompt(false);
+    const success = await triggerInstall();
+    if (success) {
+      setShowPrompt(false);
+    }
   };
 
   const handleDismiss = () => {
@@ -43,10 +45,16 @@ export function PWAInstallPrompt() {
         </div>
         <div className="flex-1">
           <p className="font-semibold">Cài đặt ứng dụng</p>
-          <p className="text-sm text-muted-foreground">Cài đặt ứng dụng để truy cập nhanh hơn và sử dụng offline.</p>
+          <p className="text-sm text-muted-foreground">
+            Cài đặt ứng dụng để truy cập nhanh hơn và sử dụng offline.
+          </p>
           <div className="flex space-x-2 mt-3">
-            <Button onClick={handleInstall} size="sm">Cài đặt</Button>
-            <Button onClick={handleDismiss} variant="ghost" size="sm">Để sau</Button>
+            <Button onClick={handleInstall} size="sm">
+              Cài đặt
+            </Button>
+            <Button onClick={handleDismiss} variant="ghost" size="sm">
+              Để sau
+            </Button>
           </div>
         </div>
         <Button onClick={handleDismiss} variant="ghost" size="icon" className="h-7 w-7">
