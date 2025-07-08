@@ -26,7 +26,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  console.log('[Service Worker] Push Received.');
   const pushData = event.data?.json() ?? {};
 
   const title = pushData.title || 'Thông báo mới';
@@ -41,7 +40,6 @@ self.addEventListener('push', (event) => {
 });
 
 self.addEventListener('notificationclick', (event) => {
-  console.log('[Service Worker] Notification click Received.');
   event.notification.close();
 
   const urlToOpen = new URL(event.notification.data?.url || '/', self.location.origin).href;
