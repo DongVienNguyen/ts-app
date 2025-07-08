@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
-// Xóa bỏ import VAPID_PUBLIC_KEY từ '@/config'
 import { toast } from 'sonner';
+import { Json } from '@/integrations/supabase/types'; // Import Json type
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -71,7 +71,7 @@ export async function subscribeUserToPush(username: string) {
     console.log("Đang gửi subscription lên Supabase...");
     const { error: upsertError } = await supabase
       .from('push_subscriptions')
-      .upsert({ username: username, subscription: subscription.toJSON() }, { onConflict: 'username' });
+      .upsert({ username: username, subscription: subscription.toJSON() as Json }, { onConflict: 'username' });
 
     if (upsertError) {
       console.error('Lỗi khi lưu push subscription vào Supabase:', upsertError);
