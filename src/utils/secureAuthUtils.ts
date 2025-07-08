@@ -1,64 +1,73 @@
+export interface SecurityEvent {
+  type: string;
+  data: any;
+  timestamp: string;
+}
 
-import { Staff } from '@/types/auth';
-
-// Remove sensitive data from logs
-export const sanitizeForLog = (data: any): any => {
-  if (!data) return data;
-  
-  const sanitized = { ...data };
-  
-  // Remove sensitive fields
-  if (sanitized.password) delete sanitized.password;
-  if (sanitized.failed_login_attempts) delete sanitized.failed_login_attempts;
-  if (sanitized.last_failed_login) delete sanitized.last_failed_login;
-  if (sanitized.locked_at) delete sanitized.locked_at;
-  
-  return sanitized;
-};
-
-// Secure user data for client side
-export const sanitizeUserForClient = (user: any): Staff | null => {
-  if (!user) return null;
-  
-  return {
-    id: user.id,
-    username: user.username,
-    staff_name: user.staff_name,
-    role: user.role as 'admin' | 'user',
-    department: user.department,
-    account_status: user.account_status as 'active' | 'locked'
+export function logSecurityEvent(eventType: string, data: any): void {
+  const event: SecurityEvent = {
+    type: eventType,
+    data,
+    timestamp: new Date().toISOString(),
   };
-};
-
-// Rate limiting helper (simple implementation)
-const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
-
-export const checkRateLimit = (identifier: string, maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000): boolean => {
-  const now = Date.now();
-  const attempts = loginAttempts.get(identifier);
   
-  if (!attempts) {
-    loginAttempts.set(identifier, { count: 1, lastAttempt: now });
-    return true;
+  // Log to console in development
+  if (import.meta.env.DEV) {
+    console.log(`🔒 Security Event [${eventType}]:`, data);
   }
   
-  // Reset if outside window
-  if (now - attempts.lastAttempt > windowMs) {
-    loginAttempts.set(identifier, { count: 1, lastAttempt: now });
-    return true;
+  // In production, you might want to send this to a logging service
+  // For now, we'll just store it locally for debugging
+  try {
+    const events = getStoredSecurityEvents();
+    events.push(event);
+    
+    // Keep only the last 100 events to prevent storage bloat
+    if (events.length > 100) {
+      events.splice(0, events.length - 100);
+    }
+    
+    localStorage.setItem('security_events', JSON.stringify(events));
+  } catch (error) {
+    console.error('Failed to store security event:', error);
   }
-  
-  if (attempts.count >= maxAttempts) {
+}
+
+export function getStoredSecurityEvents(): SecurityEvent[] {
+  try {
+    const stored = localStorage.getItem('security_events');
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Failed to get stored security events:', error);
+    return [];
+  }
+}
+
+export function clearSecurityEvents(): void {
+  try {
+    localStorage.removeItem('security_events');
+  } catch (error) {
+    console.error('Failed to clear security events:', error);
+  }
+}
+
+export function validateUsername(username: string): boolean {
+  // Basic username validation
+  if (!username || username.length < 3) {
     return false;
   }
   
-  attempts.count++;
-  attempts.lastAttempt = now;
-  return true;
-};
+  // Check for basic security patterns
+  const dangerousPatterns = [
+    /[<>]/,  // HTML tags
+    /['"]/,  // Quotes
+    /[;]/,   // SQL injection attempts
+  ];
+  
+  return !dangerousPatterns.some(pattern => pattern.test(username));
+}
 
-// Security logging (without sensitive data)
-export const logSecurityEvent = (event: string, details: any = {}) => {
-  const sanitizedDetails = sanitizeForLog(details);
-  console.log(`[SECURITY] ${event}:`, sanitizedDetails);
-};
+export function validatePassword(password: string): boolean {
+  // Basic password validation
+  return password && password.length >= 6;
+}

@@ -23,6 +23,18 @@ const Index = () => {
     }
   }, [user, loading, navigate]);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to login in useEffect
+  }
+
   return (
     <Layout>
       <div className="space-y-4">
@@ -34,52 +46,66 @@ const Index = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader>
-              <CardTitle>Đơn hàng</CardTitle>
+              <CardTitle>Thông báo Mượn/Xuất</CardTitle>
             </CardHeader>
             <CardContent>
-              <p>Đơn hàng mới</p>
+              <p>Quản lý thông báo mượn và xuất tài sản</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Đơn hàng</CardTitle>
+              <CardTitle>Danh sách TS cần lấy</CardTitle>
             </CardHeader>
             <CardContent>
-              <p>Đơn hàng mới</p>
+              <p>Xem danh sách tài sản cần lấy hàng ngày</p>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Đơn hàng</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>Đơn hàng mới</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Đơn hàng</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>Đơn hàng mới</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Đơn hàng</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>Đơn hàng mới</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Đơn hàng</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>Đơn hàng mới</p>
-            </CardContent>
-          </Card>
+          {isNqOrAdmin(user) && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Nhắc nhở Tài sản</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>Quản lý nhắc nhở tài sản đến hạn</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Nhắc nhở CRC</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>Quản lý nhắc nhở duyệt CRC</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Báo cáo Tài sản</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>Xem báo cáo tài sản đã mượn</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tài sản Khác</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>Quản lý tài sản, thùng khác gửi kho</p>
+                </CardContent>
+              </Card>
+            </>
+          )}
+          {isAdmin(user) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Quản lý Dữ liệu</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>Quản lý dữ liệu hệ thống</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </Layout>

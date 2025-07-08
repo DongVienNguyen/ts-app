@@ -6,17 +6,17 @@ const TOKEN_STORAGE_KEY = 'secure_token';
 export function storeUser(user: Staff): void {
   try {
     localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-  } catch (e) {
-    console.error("Error storing user in localStorage", e);
+  } catch (error) {
+    console.error('Failed to store user:', error);
   }
 }
 
 export function getStoredUser(): Staff | null {
   try {
-    const stored = localStorage.getItem(USER_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch (e) {
-    console.error("Error getting user from localStorage", e);
+    const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+    return storedUser ? JSON.parse(storedUser) : null;
+  } catch (error) {
+    console.error('Failed to get stored user:', error);
     return null;
   }
 }
@@ -24,25 +24,24 @@ export function getStoredUser(): Staff | null {
 export function removeStoredUser(): void {
   try {
     localStorage.removeItem(USER_STORAGE_KEY);
-    localStorage.removeItem(TOKEN_STORAGE_KEY); // Also remove token for consistency
-  } catch (e) {
-    console.error("Error removing user and token from localStorage", e);
+  } catch (error) {
+    console.error('Failed to remove stored user:', error);
   }
 }
 
 export function storeToken(token: string): void {
   try {
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
-  } catch (e) {
-    console.error("Error storing token in localStorage", e);
+  } catch (error) {
+    console.error('Failed to store token:', error);
   }
 }
 
 export function getStoredToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_STORAGE_KEY);
-  } catch (e) {
-    console.error("Error getting token from localStorage", e);
+  } catch (error) {
+    console.error('Failed to get stored token:', error);
     return null;
   }
 }
@@ -50,7 +49,15 @@ export function getStoredToken(): string | null {
 export function removeStoredToken(): void {
   try {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
-  } catch (e) {
-    console.error("Error removing token from localStorage", e);
+  } catch (error) {
+    console.error('Failed to remove stored token:', error);
   }
+}
+
+export function clearAllAuthData(): void {
+  removeStoredUser();
+  removeStoredToken();
+  // Clear any other auth-related data
+  localStorage.removeItem('loggedInStaff');
+  localStorage.removeItem('currentUser');
 }
