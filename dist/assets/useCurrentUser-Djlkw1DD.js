@@ -1,1 +1,0 @@
-import{r as s}from"./index-DpfqfBid.js";const c=()=>{const[o,n]=s.useState(null),e=async()=>{try{const r=localStorage.getItem("loggedInStaff");if(r){const t=JSON.parse(r);n(t),console.log("Current user loaded:",t)}}catch(r){console.error("Error loading current user:",r)}};return s.useEffect(()=>{e()},[]),{currentUser:o,loadCurrentUser:e}};export{c as u};
