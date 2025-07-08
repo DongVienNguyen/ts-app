@@ -6,6 +6,7 @@ import { setCurrentUserContext } from '@/utils/otherAssetUtils';
 import { validateInput } from '@/utils/inputValidation';
 import { logSecurityEvent } from '@/utils/secureAuthUtils';
 import { supabase } from '@/integrations/supabase/client';
+import { Session } from '@supabase/supabase-js'; // Thêm import này
 
 const SecureAuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -39,7 +40,7 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
                 created_at: new Date().toISOString(),
                 role: storedUser.role || 'authenticated'
               }
-            });
+            } as Session); // Ép kiểu thành Session
             setCurrentUserContext(storedUser).catch(err => console.error("Failed to set user context on init:", err));
           } else {
             removeStoredUser(); // This will also remove the token
@@ -98,7 +99,7 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
             created_at: new Date().toISOString(),
             role: loggedInUser.role || 'authenticated'
           }
-        });
+        } as Session); // Ép kiểu thành Session
         return { error: null };
       } else {
         return { error: 'Đăng nhập thất bại không xác định' };
