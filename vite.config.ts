@@ -20,9 +20,9 @@ export default defineConfig(async ({ mode }) => {
   plugins.push(
     VitePWA({
       registerType: 'autoUpdate',
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'sw.ts',
+      devOptions: {
+        enabled: true
+      },
       includeAssets: ['logo.png', 'logo192.png', 'logo512.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Hệ thống Thông báo TS',
