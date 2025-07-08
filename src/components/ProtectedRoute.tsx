@@ -1,6 +1,8 @@
+import React from 'react';
 import { useSecureAuth } from '@/hooks/useSecureAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { Staff } from '@/types/auth';
+import { toast } from 'sonner';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,6 +11,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, isAuthorized }: ProtectedRouteProps) {
   const { user, loading } = useSecureAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -19,11 +22,14 @@ export function ProtectedRoute({ children, isAuthorized }: ProtectedRouteProps) 
   }
 
   if (!user) {
+    // Save the current location to redirect back after login
+    sessionStorage.setItem('redirectAfterLogin', location.pathname);
     return <Navigate to="/login" replace />;
   }
 
   if (isAuthorized && !isAuthorized(user)) {
-    // If user is not authorized, redirect to the home page.
+    // If user is not authorized, show a toast and redirect to the home page
+    toast.error("Bạn không có quyền truy cập trang này");
     return <Navigate to="/" replace />;
   }
 

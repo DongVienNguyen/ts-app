@@ -8,9 +8,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { LoginHeader } from '@/components/LoginHeader';
 import { LoginForm } from '@/components/LoginForm';
 import { AccountLockedMessage } from '@/components/AccountLockedMessage';
-// import { DemoCredentials } from '@/components/DemoCredentials'; // Removed import
 import { useDebounce } from '@/hooks/useDebounce';
 import { checkAccountStatus } from '@/services/secureAuthService';
+import { toast } from 'sonner';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -22,6 +22,7 @@ const Login = () => {
   const [showForm, setShowForm] = useState(true);
   const debouncedUsername = useDebounce(credentials.username, 500);
 
+  // Check if account is locked when username changes
   useEffect(() => {
     const verifyAccountStatus = async () => {
       if (!debouncedUsername) {
@@ -48,6 +49,7 @@ const Login = () => {
     verifyAccountStatus();
   }, [debouncedUsername]);
 
+  // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
       if (user.department === "NQ") {
@@ -74,6 +76,9 @@ const Login = () => {
           setIsAccountLocked(true);
           setShowForm(false);
         }
+      } else {
+        // Login successful - navigation will happen in the useEffect above
+        toast.success("Đăng nhập thành công!");
       }
     } catch (error) {
       console.error('💥 Login submit error:', error);
@@ -130,8 +135,6 @@ const Login = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* <DemoCredentials /> Removed this line */}
       </div>
     </div>
   );

@@ -1,12 +1,11 @@
 import { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { AuthContextType, Staff, LoginResult } from '@/types/auth';
-import { getStoredUser, storeUser, removeStoredUser, getStoredToken, storeToken } from '@/utils/authUtils';
+import { getStoredUser, storeUser, removeStoredUser, getStoredToken, storeToken, removeStoredToken } from '@/utils/authUtils';
 import { secureLoginUser } from '@/services/secureAuthService';
 import { setCurrentUserContext } from '@/utils/otherAssetUtils';
 import { validateInput } from '@/utils/inputValidation';
 import { logSecurityEvent } from '@/utils/secureAuthUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { Session } from '@supabase/supabase-js'; // Thêm import này
 
 const SecureAuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -23,25 +22,18 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
         if (storedUser && storedToken) {
           if (storedUser.username && storedUser.role) {
             setUser(storedUser);
-            // NOTE: setAccessToken is deprecated. setSession requires a refresh_token and a Supabase User object.
-            // This is a temporary fix for compile errors. Ideally, secureLoginUser should provide a refresh_token
-            // and a Supabase User object, or the auth flow should be re-evaluated.
-            await supabase.auth.setSession({
-              access_token: storedToken,
-              refresh_token: 'dummy_refresh_token', // Placeholder for type compatibility
-              expires_in: 3600, // Placeholder
-              token_type: 'bearer', // Placeholder
-              user: { // Minimal user object to satisfy AuthSession type
-                id: storedUser.id || 'unknown-id',
-                email: storedUser.username || 'unknown@example.com',
-                app_metadata: {},
-                user_metadata: {},
-                aud: 'authenticated',
-                created_at: new Date().toISOString(),
-                role: storedUser.role || 'authenticated'
+            
+            // Set the auth header for all future requests
+            supabase.auth.onAuthStateChange((event, session) => {
+              if (event === 'SIGNED_OUT') {
+                removeStoredUser();
+                removeStoredToken();
               }
-            } as Session); // Ép kiểu thành Session
-            setCurrentUserContext(storedUser).catch(err => console.error("Failed to set user context on init:", err));
+            });
+            
+            // Set the user context for database RLS policies
+            await setCurrentUserContext(storedUser)
+              .catch(err => console.error("Failed to set user context on init:", err));
           } else {
             removeStoredUser(); // This will also remove the token
             logSecurityEvent('INVALID_STORED_USER_DATA');
@@ -78,28 +70,23 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
       }
 
       if (loggedInUser && token) {
-        await setCurrentUserContext(loggedInUser);
-        setUser(loggedInUser);
+        // Store user data and token in localStorage
         storeUser(loggedInUser);
         storeToken(token);
-        // NOTE: setAccessToken is deprecated. setSession requires a refresh_token and a Supabase User object.
-        // This is a temporary fix for compile errors. Ideally, secureLoginUser should provide a refresh_token
-        // and a Supabase User object, or the auth flow should be re-evaluated.
-        await supabase.auth.setSession({
-          access_token: token,
-          refresh_token: 'dummy_refresh_token', // Placeholder for type compatibility
-          expires_in: 3600, // Placeholder
-          token_type: 'bearer', // Placeholder
-          user: { // Minimal user object to satisfy AuthSession type
-            id: loggedInUser.id || 'unknown-id',
-            email: loggedInUser.username || 'unknown@example.com',
-            app_metadata: {},
-            user_metadata: {},
-            aud: 'authenticated',
-            created_at: new Date().toISOString(),
-            role: loggedInUser.role || 'authenticated'
-          }
-        } as Session); // Ép kiểu thành Session
+        
+        // Set user in state
+        setUser(loggedInUser);
+        
+        // Set the user context for database RLS policies
+        await setCurrentUserContext(loggedInUser);
+        
+        // Also store user info in localStorage for other components
+        localStorage.setItem('loggedInStaff', JSON.stringify(loggedInUser));
+        localStorage.setItem('currentUser', JSON.stringify({
+          username: loggedInUser.username,
+          role: loggedInUser.role
+        }));
+        
         return { error: null };
       } else {
         return { error: 'Đăng nhập thất bại không xác định' };
@@ -112,9 +99,20 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
 
   const logout = useCallback(() => {
     logSecurityEvent('LOGOUT', { username: user?.username });
+    
+    // Clear all auth data
     setUser(null);
-    removeStoredUser(); // This also removes the token
-    supabase.auth.signOut(); // Sign out from Supabase client
+    removeStoredUser();
+    removeStoredToken();
+    localStorage.removeItem('loggedInStaff');
+    localStorage.removeItem('currentUser');
+    
+    // Sign out from Supabase client
+    supabase.auth.signOut().catch(err => {
+      console.error("Error during sign out:", err);
+    });
+    
+    // Redirect to login page
     window.location.href = '/login';
   }, [user]);
 

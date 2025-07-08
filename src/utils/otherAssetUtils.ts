@@ -16,10 +16,13 @@ export const setCurrentUserContext = async (user: Staff) => { // Change user: an
   }
 
   try {
+    console.log('Setting user context for:', user.username);
+    
+    // Set the user context for database RLS policies
     const promises = [
       supabase.rpc('set_config', {
-        setting_name: 'app.current_user',
-        new_value: validateInput.sanitizeString(user.username),
+        setting_name: 'request.jwt.claims',
+        new_value: JSON.stringify({ username: user.username, role: user.role }),
         is_local: false
       }),
       supabase.rpc('set_config', {
@@ -34,15 +37,18 @@ export const setCurrentUserContext = async (user: Staff) => { // Change user: an
     
     if (hasErrors) {
       logSecurityEvent('USER_CONTEXT_SET_ERROR', { username: user.username });
+      console.error('Error setting user context:', results);
       return false;
     }
     
+    console.log('User context set successfully for:', user.username);
     return true;
   } catch (error) {
     logSecurityEvent('USER_CONTEXT_SET_EXCEPTION', { 
       username: user.username, 
       error: (error as Error).message 
     });
+    console.error('Exception setting user context:', error);
     return false;
   }
 };

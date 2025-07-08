@@ -35,16 +35,21 @@ async function invokeEdgeFunction(functionName: string, body: object): Promise<{
 
 export async function secureLoginUser(username: string, password: string): Promise<SecureLoginResult> {
   try {
-    const { data, error } = await invokeEdgeFunction('login-user', { username, password });
+    logSecurityEvent('LOGIN_ATTEMPT', { username });
+    
+    const { data, error } = await invokeEdgeFunction('login-user', { 
+      username: username.toLowerCase().trim(), 
+      password 
+    });
 
     if (error) {
       logSecurityEvent('LOGIN_FUNCTION_INVOKE_ERROR', { error });
       return { user: null, token: null, error: 'Lỗi khi gọi hàm đăng nhập' };
     }
 
-    if (data.error) {
+    if (!data.success) {
       logSecurityEvent('LOGIN_FUNCTION_LOGIC_ERROR', { username, error: data.error });
-      return { user: null, token: null, error: data.error };
+      return { user: null, token: null, error: data.error || 'Đăng nhập thất bại' };
     }
     
     if (!data.user || !data.token) {
@@ -52,6 +57,7 @@ export async function secureLoginUser(username: string, password: string): Promi
       return { user: null, token: null, error: 'Phản hồi đăng nhập không hợp lệ từ máy chủ.' };
     }
 
+    logSecurityEvent('LOGIN_SUCCESS', { username, role: data.user.role });
     return { user: data.user, token: data.token, error: null };
   } catch (error) {
     logSecurityEvent('LOGIN_EXCEPTION', { error: (error as Error).message });
@@ -66,7 +72,9 @@ interface AccountStatusResult {
 
 export async function checkAccountStatus(username: string): Promise<AccountStatusResult> {
   try {
-    const { data, error } = await invokeEdgeFunction('check-account-status', { username });
+    const { data, error } = await invokeEdgeFunction('check-account-status', { 
+      username: username.toLowerCase().trim() 
+    });
 
     if (error) {
       logSecurityEvent('CHECK_ACCOUNT_STATUS_INVOKE_ERROR', { username, error });
