@@ -26,7 +26,7 @@ export function NotificationPermissionPrompt() {
   }, [user]);
 
   const handleEnable = async () => {
-    if (!user) return;
+    if (!user || !user.username) return;
     const permission = await requestNotificationPermission();
     if (permission === 'granted') {
       await subscribeUserToPush(user.username);

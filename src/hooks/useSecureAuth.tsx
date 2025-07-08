@@ -15,15 +15,15 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     const initializeAuth = async () => {
+      setLoading(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
         const storedUser = getStoredUser();
+        const storedToken = getStoredToken();
 
-        if (session && storedUser) {
+        if (storedUser && storedToken) {
           setUser(storedUser);
-          await setCurrentUserContext(storedUser)
-            .catch(err => console.error("Failed to set user context on init:", err));
-        } else if (!session) {
+          await setCurrentUserContext(storedUser);
+        } else {
           removeStoredUser();
           removeStoredToken();
           setUser(null);
@@ -40,8 +40,8 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
 
     initializeAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
         setUser(null);
         removeStoredUser();
         removeStoredToken();
@@ -72,16 +72,6 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
       }
 
       if (loggedInUser && token) {
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: token,
-          refresh_token: token,
-        });
-
-        if (sessionError) {
-          logSecurityEvent('SESSION_SET_ERROR', { error: sessionError.message });
-          return { error: 'Không thể thiết lập phiên đăng nhập.' };
-        }
-
         storeUser(loggedInUser);
         storeToken(token);
         setUser(loggedInUser);
@@ -106,10 +96,18 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
   const logout = useCallback(() => {
     logSecurityEvent('LOGOUT', { username: user?.username });
     
+    // This will trigger the onAuthStateChange listener to clear state across tabs
     supabase.auth.signOut().catch(err => {
       console.error("Error during sign out:", err);
     });
     
+    // Manually clear state for immediate UI update
+    setUser(null);
+    removeStoredUser();
+    removeStoredToken();
+    localStorage.removeItem('loggedInStaff');
+    localStorage.removeItem('currentUser');
+
     window.location.href = '/login';
   }, [user]);
 

@@ -1,87 +1,94 @@
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { Json } from '@/integrations/supabase/types'; // Import Json type
+import { getStoredUser } from '@/utils/authUtils';
+import { VAPID_PUBLIC_KEY } from '@/config';
+import { logSecurityEvent } from './secureAuthUtils';
+import { Json } from '@/integrations/supabase/types';
 
 function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
+
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
 }
 
-export async function requestNotificationPermission() {
-  if ('Notification' in window) {
-    return await Notification.requestPermission();
+export async function requestNotificationPermission(): Promise<NotificationPermission> {
+  if (!('Notification' in window)) {
+    console.warn('This browser does not support notifications.');
+    return 'denied';
   }
-  return 'denied';
+  const permission = await Notification.requestPermission();
+  logSecurityEvent('NOTIFICATION_PERMISSION_REQUEST', { status: permission });
+  return permission;
 }
 
 export async function subscribeUserToPush(username: string) {
   console.log("--- Bắt đầu quá trình đăng ký Push Notification ---");
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    toast.error("Trình duyệt không hỗ trợ thông báo đẩy.");
-    return;
+  
+  const user = getStoredUser();
+  if (!user || !user.username || user.username !== username) {
+    const errorMsg = 'Lỗi xác thực hoặc không tìm thấy người dùng, không thể đăng ký push. Lỗi: No stored user found or username mismatch!';
+    console.error(errorMsg);
+    logSecurityEvent('PUSH_SUBSCRIPTION_FAIL', { reason: 'No stored user or username mismatch' });
+    throw new Error(errorMsg);
   }
 
   try {
-    // Wait until we have a valid user session from Supabase client
-    const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
-    if (userError || !authUser) {
-      console.error("Lỗi xác thực hoặc không tìm thấy người dùng, không thể đăng ký push. Lỗi:", userError?.message);
-      toast.error("Lỗi xác thực, không thể bật thông báo đẩy.");
-      return;
-    }
-    console.log("Xác thực người dùng thành công, tiến hành đăng ký push.");
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        console.log('Người dùng đã đăng ký push notifications:', subscription);
+        const { data, error } = await supabase
+          .from('push_subscriptions')
+          .select('username')
+          .eq('username', username)
+          .eq('subscription', subscription.toJSON() as Json)
+          .single();
 
-    const swRegistration = await navigator.serviceWorker.ready;
-    let subscription = await swRegistration.pushManager.getSubscription();
-
-    // Lấy VAPID_PUBLIC_KEY từ biến môi trường của Vite
-    const applicationServerKey = urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY);
-
-    if (subscription) {
-      const currentKey = subscription.options.applicationServerKey ?
-        btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.options.applicationServerKey)))
-          .replace(/\+/g, '-')
-          .replace(/\//g, '_')
-          .replace(/=+$/, '') : null;
-
-      if (currentKey !== import.meta.env.VITE_VAPID_PUBLIC_KEY) { // So sánh với biến môi trường
-        console.log("Phát hiện VAPID key khác. Hủy đăng ký cũ và tạo đăng ký mới.");
-        await subscription.unsubscribe();
-        subscription = null; // Set to null to re-subscribe
+        if (data && !error) {
+          console.log('Existing subscription is valid for current user.');
+          return;
+        } else {
+          console.warn('Existing subscription found but not for current user or DB error, re-subscribing.');
+          await subscription.unsubscribe();
+        }
       }
-    }
 
-    if (!subscription) {
-      console.log("Đang tiến hành đăng ký mới với Push Service...");
-      subscription = await swRegistration.pushManager.subscribe({
+      subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: applicationServerKey,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
-      console.log("Đăng ký mới thành công:", subscription);
-    } else {
-      console.log("Người dùng đã được đăng ký:", subscription);
-    }
 
-    console.log("Đang gửi subscription lên Supabase...");
-    const { error: upsertError } = await supabase
-      .from('push_subscriptions')
-      .upsert({ username: username, subscription: subscription.toJSON() as Json }, { onConflict: 'username' });
+      console.log('Đăng ký push notification thành công:', subscription);
+      logSecurityEvent('PUSH_SUBSCRIPTION_SUCCESS', { username: user.username });
 
-    if (upsertError) {
-      console.error('Lỗi khi lưu push subscription vào Supabase:', upsertError);
-      toast.error(`Không thể lưu cài đặt thông báo: ${upsertError.message}`);
-    } else {
-      console.log('Lưu push subscription thành công.');
-      localStorage.setItem(`pushSubscribed_${username}`, 'true');
+      const subscriptionJson: Json = subscription.toJSON() as Json; 
+
+      const { error: dbError } = await supabase
+        .from('push_subscriptions')
+        .insert({ 
+          username: user.username, 
+          subscription: subscriptionJson 
+        });
+
+      if (dbError) {
+        console.error('Lỗi khi lưu subscription vào DB:', dbError);
+        logSecurityEvent('PUSH_DB_SAVE_FAIL', { username: user.username, error: dbError.message });
+      } else {
+        console.log('Lưu subscription vào DB thành công.');
+      }
     }
   } catch (error) {
     console.error('Lỗi trong quá trình đăng ký push notification:', error);
-    toast.error("Đã xảy ra lỗi khi bật thông báo đẩy.");
+    logSecurityEvent('PUSH_SUBSCRIPTION_EXCEPTION', { username: user.username, error: (error as Error).message });
   }
 }
