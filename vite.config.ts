@@ -11,16 +11,8 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-    preserveSymlinks: true,
   },
   build: {
     sourcemap: false,
-  },
-  server: {
-    fs: {
-      // Allow serving files from one level up to the project root
-      // which is necessary for pnpm's symlinked dependency structure.
-      allow: ['..'],
-    },
   },
 })

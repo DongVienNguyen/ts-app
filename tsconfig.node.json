@@ -6,15 +6,13 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
     "isolatedModules": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "typeRoots": ["./node_modules", "./node_modules/@types"]
+    "resolveJsonModule": true
   },
   "include": ["vite.config.ts"]
 }
