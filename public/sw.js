@@ -1,11 +1,9 @@
+// Service Worker for Push Notifications
 const CACHE_NAME = 'asset-management-v1';
 const urlsToCache = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  '/manifest.json',
   '/icon-192x192.png',
-  '/icon-512x512.png'
+  '/manifest.json'
 ];
 
 // Install event
@@ -44,10 +42,102 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event
+// Push event handler
+self.addEventListener('push', (event) => {
+  console.log('📨 Push notification received:', event);
+  
+  let notificationData = {
+    title: 'Asset Management System',
+    body: 'You have a new notification',
+    icon: '/icon-192x192.png',
+    badge: '/icon-192x192.png',
+    tag: 'default',
+    requireInteraction: false,
+    actions: [
+      {
+        action: 'view',
+        title: 'View'
+      },
+      {
+        action: 'dismiss',
+        title: 'Dismiss'
+      }
+    ]
+  };
+
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      console.log('📋 Push payload:', payload);
+      
+      notificationData = {
+        ...notificationData,
+        ...payload,
+        icon: payload.icon || '/icon-192x192.png',
+        badge: payload.badge || '/icon-192x192.png'
+      };
+    } catch (error) {
+      console.error('❌ Error parsing push payload:', error);
+      notificationData.body = event.data.text() || notificationData.body;
+    }
+  }
+
+  const notificationPromise = self.registration.showNotification(
+    notificationData.title,
+    {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      tag: notificationData.tag,
+      requireInteraction: notificationData.requireInteraction,
+      actions: notificationData.actions,
+      data: notificationData.data || {}
+    }
+  );
+
+  event.waitUntil(notificationPromise);
+});
+
+// Notification click handler
+self.addEventListener('notificationclick', (event) => {
+  console.log('🖱️ Notification clicked:', event);
+  
+  event.notification.close();
+
+  if (event.action === 'dismiss') {
+    return;
+  }
+
+  // Handle notification click
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Try to focus existing window
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        
+        // Open new window if no existing window found
+        if (clients.openWindow) {
+          const targetUrl = event.notification.data?.url || '/';
+          return clients.openWindow(targetUrl);
+        }
+      })
+  );
+});
+
+// Notification close handler
+self.addEventListener('notificationclose', (event) => {
+  console.log('❌ Notification closed:', event);
+  // You can track notification dismissals here if needed
+});
+
+// Fetch event for caching (optional)
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
+  // Only cache GET requests
+  if (event.request.method !== 'GET') {
     return;
   }
 
@@ -60,175 +150,26 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Push event for notifications
-self.addEventListener('push', (event) => {
-  console.log('📨 Push notification received:', event);
-  
-  let notificationData = {
-    title: 'Thông báo mới',
-    body: 'Bạn có thông báo mới từ hệ thống quản lý tài sản',
-    icon: '/icon-192x192.png',
-    badge: '/icon-192x192.png',
-    tag: 'asset-notification',
-    requireInteraction: true,
-    actions: [
-      {
-        action: 'view',
-        title: 'Xem chi tiết',
-        icon: '/icon-192x192.png'
-      },
-      {
-        action: 'dismiss',
-        title: 'Đóng',
-        icon: '/icon-192x192.png'
-      }
-    ]
-  };
-
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      console.log('📋 Push data:', data);
-      
-      notificationData = {
-        ...notificationData,
-        title: data.title || notificationData.title,
-        body: data.body || data.message || notificationData.body,
-        tag: data.tag || notificationData.tag,
-        data: data
-      };
-    } catch (error) {
-      console.error('❌ Error parsing push data:', error);
-    }
-  }
-
-  event.waitUntil(
-    self.registration.showNotification(notificationData.title, notificationData)
-      .then(() => {
-        console.log('✅ Notification displayed successfully');
-      })
-      .catch((error) => {
-        console.error('❌ Error showing notification:', error);
-      })
-  );
-});
-
-// Notification click event
-self.addEventListener('notificationclick', (event) => {
-  console.log('🖱️ Notification clicked:', event);
-  
-  event.notification.close();
-
-  if (event.action === 'view') {
-    // Open the app
-    event.waitUntil(
-      clients.openWindow('/')
-        .then((windowClient) => {
-          console.log('🪟 App window opened');
-          return windowClient;
-        })
-        .catch((error) => {
-          console.error('❌ Error opening window:', error);
-        })
-    );
-  } else if (event.action === 'dismiss') {
-    // Just close the notification
-    console.log('❌ Notification dismissed');
-  } else {
-    // Default action - open app
-    event.waitUntil(
-      clients.matchAll({ type: 'window' })
-        .then((clientList) => {
-          // Check if app is already open
-          for (let client of clientList) {
-            if (client.url === '/' && 'focus' in client) {
-              console.log('🎯 Focusing existing window');
-              return client.focus();
-            }
-          }
-          
-          // Open new window if app is not open
-          if (clients.openWindow) {
-            console.log('🆕 Opening new window');
-            return clients.openWindow('/');
-          }
-        })
-        .catch((error) => {
-          console.error('❌ Error handling notification click:', error);
-        })
-    );
-  }
-});
-
-// Background sync for offline functionality
+// Background sync (for offline functionality)
 self.addEventListener('sync', (event) => {
-  console.log('🔄 Background sync triggered:', event.tag);
+  console.log('🔄 Background sync:', event);
   
-  if (event.tag === 'asset-sync') {
+  if (event.tag === 'background-sync') {
     event.waitUntil(
-      // Handle offline asset submissions
-      syncAssetData()
-        .then(() => {
-          console.log('✅ Asset data synced successfully');
-        })
-        .catch((error) => {
-          console.error('❌ Error syncing asset data:', error);
-        })
+      // Handle background sync tasks here
+      Promise.resolve()
     );
   }
 });
 
-// Function to sync asset data when back online
-async function syncAssetData() {
-  try {
-    // Get pending submissions from IndexedDB or localStorage
-    const pendingSubmissions = JSON.parse(localStorage.getItem('pendingAssetSubmissions') || '[]');
-    
-    if (pendingSubmissions.length === 0) {
-      console.log('📭 No pending submissions to sync');
-      return;
-    }
-
-    console.log(`📤 Syncing ${pendingSubmissions.length} pending submissions...`);
-
-    // Process each pending submission
-    for (const submission of pendingSubmissions) {
-      try {
-        const response = await fetch('/api/asset-transactions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(submission)
-        });
-
-        if (response.ok) {
-          console.log('✅ Submission synced:', submission.id);
-        } else {
-          console.error('❌ Failed to sync submission:', submission.id);
-        }
-      } catch (error) {
-        console.error('❌ Error syncing individual submission:', error);
-      }
-    }
-
-    // Clear pending submissions after sync
-    localStorage.removeItem('pendingAssetSubmissions');
-    console.log('🧹 Cleared pending submissions');
-
-  } catch (error) {
-    console.error('❌ Error in syncAssetData:', error);
-  }
-}
-
-// Handle messages from main thread
-self.addEventListener('message', (event) => {
-  console.log('💬 Message received in SW:', event.data);
-  
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('⏭️ Skipping waiting...');
-    self.skipWaiting();
-  }
+// Error handler
+self.addEventListener('error', (event) => {
+  console.error('❌ Service Worker error:', event);
 });
 
-console.log('🎉 Service Worker script loaded successfully');
+// Unhandled rejection handler
+self.addEventListener('unhandledrejection', (event) => {
+  console.error('❌ Service Worker unhandled rejection:', event);
+});
+
+console.log('🎯 Service Worker loaded and ready for push notifications');

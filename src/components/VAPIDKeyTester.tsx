@@ -3,30 +3,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Key, CheckCircle, XCircle, AlertTriangle, Copy, Eye, EyeOff } from 'lucide-react';
+import { Key, CheckCircle, XCircle, AlertTriangle, Copy, Eye, EyeOff, TestTube } from 'lucide-react';
 import { toast } from 'sonner';
 import { VAPID_PUBLIC_KEY } from '@/config';
-import { supabase } from '@/integrations/supabase/client';
+import { sendPushNotification, hasActivePushSubscription } from '@/utils/pushNotificationUtils';
+import { useSecureAuth } from '@/contexts/AuthContext';
 
 export const VAPIDKeyTester = () => {
+  const { user } = useSecureAuth();
   const [vapidStatus, setVapidStatus] = useState<{
     publicKeyConfigured: boolean;
     publicKeyValid: boolean;
     serverKeysConfigured: boolean;
+    userHasSubscription: boolean;
   }>({
     publicKeyConfigured: false,
     publicKeyValid: false,
-    serverKeysConfigured: false
+    serverKeysConfigured: false,
+    userHasSubscription: false
   });
   
   const [showPublicKey, setShowPublicKey] = useState(false);
   const [isTestingServer, setIsTestingServer] = useState(false);
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
 
   useEffect(() => {
     checkVapidConfiguration();
-  }, []);
+  }, [user]);
 
-  const checkVapidConfiguration = () => {
+  const checkVapidConfiguration = async () => {
     console.log('🔍 Checking VAPID configuration...');
     
     // Check if public key is configured
@@ -38,51 +43,51 @@ export const VAPIDKeyTester = () => {
       VAPID_PUBLIC_KEY.length <= 90 &&
       /^[A-Za-z0-9_-]+$/.test(VAPID_PUBLIC_KEY);
 
+    // Check if user has active subscription
+    let userHasSubscription = false;
+    if (user?.username) {
+      userHasSubscription = await hasActivePushSubscription(user.username);
+    }
+
     setVapidStatus({
       publicKeyConfigured,
       publicKeyValid,
-      serverKeysConfigured: false // Will be tested via server call
+      serverKeysConfigured: false, // Will be tested via server call
+      userHasSubscription
     });
 
     console.log('📊 VAPID Status:', {
       publicKeyConfigured,
       publicKeyValid,
+      userHasSubscription,
       publicKey: publicKeyConfigured ? `${VAPID_PUBLIC_KEY.substring(0, 20)}...` : 'Not configured'
     });
   };
 
   const testServerVapidKeys = async () => {
+    if (!user?.username) {
+      toast.error('❌ User not authenticated');
+      return;
+    }
+
     setIsTestingServer(true);
     try {
       console.log('🧪 Testing server VAPID keys...');
       
-      // Test by trying to send a test push notification via Supabase edge function
-      const { data, error } = await supabase.functions.invoke('send-push-notification', {
-        body: {
-          username: 'test-user',
-          payload: {
-            title: 'VAPID Test',
-            body: 'Testing server VAPID configuration',
-            tag: 'vapid-test'
-          }
-        }
+      // Test by trying to send a test push notification
+      const success = await sendPushNotification(user.username, {
+        title: 'VAPID Test',
+        body: 'Testing server VAPID configuration',
+        tag: 'vapid-test',
+        icon: '/icon-192x192.png'
       });
 
-      if (error) {
-        console.error('❌ Server VAPID test error:', error);
-        
-        // Check if error is related to VAPID configuration
-        if (error.message?.includes('VAPID') || error.message?.includes('Push notifications are not configured')) {
-          setVapidStatus(prev => ({ ...prev, serverKeysConfigured: false }));
-          toast.error('❌ Server VAPID keys not configured properly');
-        } else {
-          // Other errors might be OK (like no subscriptions found)
-          setVapidStatus(prev => ({ ...prev, serverKeysConfigured: true }));
-          toast.success('✅ Server VAPID keys appear to be configured');
-        }
-      } else {
+      if (success) {
         setVapidStatus(prev => ({ ...prev, serverKeysConfigured: true }));
         toast.success('✅ Server VAPID keys configured correctly!');
+      } else {
+        setVapidStatus(prev => ({ ...prev, serverKeysConfigured: false }));
+        toast.error('❌ Server VAPID keys not configured properly');
       }
     } catch (error) {
       console.error('❌ Error testing server VAPID keys:', error);
@@ -90,6 +95,40 @@ export const VAPIDKeyTester = () => {
       toast.error('❌ Could not test server VAPID keys');
     } finally {
       setIsTestingServer(false);
+    }
+  };
+
+  const testPushNotification = async () => {
+    if (!user?.username) {
+      toast.error('❌ User not authenticated');
+      return;
+    }
+
+    setIsTestingNotification(true);
+    try {
+      console.log('🔔 Testing push notification...');
+      
+      const success = await sendPushNotification(user.username, {
+        title: '🧪 Test Notification',
+        body: 'This is a test push notification to verify your setup is working correctly.',
+        tag: 'test-notification',
+        icon: '/icon-192x192.png',
+        data: {
+          url: '/',
+          timestamp: Date.now()
+        }
+      });
+
+      if (success) {
+        toast.success('✅ Test notification sent! Check your notifications.');
+      } else {
+        toast.error('❌ Failed to send test notification');
+      }
+    } catch (error) {
+      console.error('❌ Error sending test notification:', error);
+      toast.error('❌ Could not send test notification');
+    } finally {
+      setIsTestingNotification(false);
     }
   };
 
@@ -125,7 +164,7 @@ export const VAPIDKeyTester = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Configuration Status */}
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-4 gap-4">
           <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="font-semibold mb-2">Client Public Key</h3>
             {getStatusBadge(vapidStatus.publicKeyConfigured, "Configured")}
@@ -143,10 +182,18 @@ export const VAPIDKeyTester = () => {
           </div>
           
           <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="font-semibold mb-2">User Subscription</h3>
+            {getStatusBadge(vapidStatus.userHasSubscription, "Active")}
+            <p className="text-xs text-gray-600 mt-1">
+              Current user has push subscription
+            </p>
+          </div>
+          
+          <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="font-semibold mb-2">Server Keys</h3>
             <Badge className="bg-yellow-100 text-yellow-800">
               <AlertTriangle className="w-3 h-3 mr-1" />
-              Manual Setup Required
+              Test Required
             </Badge>
             <p className="text-xs text-gray-600 mt-1">
               Configure in Supabase Console
@@ -182,6 +229,27 @@ export const VAPIDKeyTester = () => {
           </div>
         )}
 
+        {/* Test Buttons */}
+        <div className="flex flex-wrap gap-4 justify-center">
+          <Button
+            onClick={testServerVapidKeys}
+            disabled={isTestingServer || !vapidStatus.publicKeyValid}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {isTestingServer ? 'Testing...' : 'Test Server Configuration'}
+          </Button>
+          
+          <Button
+            onClick={testPushNotification}
+            disabled={isTestingNotification || !vapidStatus.userHasSubscription}
+            variant="outline"
+            className="border-green-600 text-green-600 hover:bg-green-50"
+          >
+            <TestTube className="w-4 h-4 mr-2" />
+            {isTestingNotification ? 'Sending...' : 'Send Test Notification'}
+          </Button>
+        </div>
+
         {/* Setup Instructions */}
         <Alert>
           <AlertTriangle className="h-4 w-4" />
@@ -193,10 +261,10 @@ export const VAPIDKeyTester = () => {
                   <strong>Supabase Console:</strong> Go to Settings → Edge Functions → Manage Secrets
                 </li>
                 <li>
-                  <strong>Add VAPID_PUBLIC_KEY:</strong> {VAPID_PUBLIC_KEY || 'BJXegHxCxgCVDlkSoXyJLmclrK7SUmfFvbM7HVX_Z9N0mgUINCL9L1BIULcc0rL1GjjXH0IM7joIcUi4f8h4zqY'}
+                  <strong>Add VAPID_PUBLIC_KEY:</strong> {VAPID_PUBLIC_KEY || 'BLc4xRzKlP5EQ9vEGTVpsVu2cygGUh02aeczkgR4Cw0i3hVoVGVUYp1zKJT2kGHRkMv2yrIeN0zOjMiXKcBVm2Y'}
                 </li>
                 <li>
-                  <strong>Add VAPID_PRIVATE_KEY:</strong> bgDuwB3uG2gpmw7Z9-wmHN9pb037r0uEJ56gJiXkZwk
+                  <strong>Add VAPID_PRIVATE_KEY:</strong> (Generate matching private key)
                 </li>
                 <li>
                   <strong>Add VAPID_SUBJECT:</strong> mailto:admin@yourcompany.com
@@ -205,17 +273,6 @@ export const VAPIDKeyTester = () => {
             </div>
           </AlertDescription>
         </Alert>
-
-        {/* Test Button */}
-        <div className="flex justify-center">
-          <Button
-            onClick={testServerVapidKeys}
-            disabled={isTestingServer || !vapidStatus.publicKeyValid}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {isTestingServer ? 'Testing...' : 'Test Server Configuration'}
-          </Button>
-        </div>
 
         {/* Status Summary */}
         <div className="bg-gray-50 p-4 rounded-lg">
@@ -238,41 +295,28 @@ export const VAPIDKeyTester = () => {
               <span>Key format validation: {vapidStatus.publicKeyValid ? 'Valid' : 'Invalid'}</span>
             </div>
             <div className="flex items-center space-x-2">
+              {vapidStatus.userHasSubscription ? (
+                <CheckCircle className="w-4 h-4 text-green-600" />
+              ) : (
+                <XCircle className="w-4 h-4 text-red-600" />
+              )}
+              <span>User subscription: {vapidStatus.userHasSubscription ? 'Active' : 'Not subscribed'}</span>
+            </div>
+            <div className="flex items-center space-x-2">
               <AlertTriangle className="w-4 h-4 text-yellow-600" />
               <span>Server-side keys: Manual setup required in Supabase Console</span>
             </div>
           </div>
         </div>
 
-        {/* VAPID Key Issue Warning */}
-        <Alert className="border-orange-200 bg-orange-50">
-          <AlertTriangle className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="text-orange-800">
-            <div className="space-y-2">
-              <p className="font-semibold">⚠️ Push Notification Registration Issues Detected</p>
-              <p className="text-sm">
-                The browser is rejecting push notification registration with "AbortError". This typically means:
-              </p>
-              <ul className="list-disc list-inside text-sm space-y-1 ml-4">
-                <li><strong>VAPID keys mismatch:</strong> Client and server keys don't match</li>
-                <li><strong>Invalid VAPID keys:</strong> Keys may be corrupted or incorrectly formatted</li>
-                <li><strong>Development environment:</strong> Some push services don't work on localhost</li>
-                <li><strong>Browser restrictions:</strong> Chrome may block push notifications in development</li>
-              </ul>
-              <p className="text-sm font-medium mt-2">
-                💡 <strong>Recommendation:</strong> Test on HTTPS production environment for reliable push notifications.
-              </p>
-            </div>
-          </AlertDescription>
-        </Alert>
-
         {/* Next Steps */}
         {vapidStatus.publicKeyConfigured && vapidStatus.publicKeyValid && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <h3 className="font-semibold text-green-800 mb-2">✅ Client Configuration Ready!</h3>
             <p className="text-sm text-green-700">
-              Your client-side VAPID key is properly configured. Complete the server setup in Supabase Console 
-              to enable full push notification functionality.
+              Your client-side VAPID key is properly configured. 
+              {!vapidStatus.userHasSubscription && " Enable push notifications in the navigation menu to subscribe."}
+              {vapidStatus.userHasSubscription && " You can now test push notifications using the button above."}
             </p>
           </div>
         )}
