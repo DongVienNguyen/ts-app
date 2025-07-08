@@ -21,10 +21,12 @@ import { Link } from 'react-router-dom';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { NotificationBell } from './NotificationBell';
 import { requestNotificationPermission, subscribeUserToPush } from '@/utils/pushNotificationUtils';
+import { toast } from 'sonner';
 
 export function NavigationHeader() {
   const { user, logout } = useSecureAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -32,12 +34,67 @@ export function NavigationHeader() {
 
   const handleEnableNotifications = async () => {
     if (!user || !user.username) return;
-    const permission = await requestNotificationPermission();
-    if (permission === 'granted') {
-      await subscribeUserToPush(user.username);
-      alert('Đã bật thông báo đẩy thành công! Bạn sẽ nhận được thông báo ngay cả khi đã đóng ứng dụng.');
-    } else {
-      alert('Bạn đã không cấp quyền nhận thông báo. Tính năng sẽ không hoạt động.');
+    
+    setIsEnablingNotifications(true);
+    
+    try {
+      console.log('🔔 Bắt đầu quá trình bật thông báo...');
+      
+      // Check if we're in development
+      const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      if (isDevelopment) {
+        toast.info('🚧 Development Mode', {
+          description: 'Push notifications may be limited on localhost. Full functionality available on HTTPS production.',
+          duration: 5000
+        });
+      }
+      
+      const permission = await requestNotificationPermission();
+      
+      if (permission === 'granted') {
+        console.log('✅ Quyền thông báo đã được cấp');
+        
+        const subscriptionSuccess = await subscribeUserToPush(user.username);
+        
+        if (subscriptionSuccess) {
+          if (isDevelopment) {
+            toast.success('🔔 Notifications Enabled (Development Mode)', {
+              description: 'Local notifications are working. For full push notifications, deploy to HTTPS production environment.',
+              duration: 8000
+            });
+          } else {
+            toast.success('🔔 Push Notifications Enabled!', {
+              description: 'You will now receive notifications about asset reminders and important updates, even when the app is closed.',
+              duration: 5000
+            });
+          }
+        } else {
+          // Even if push subscription failed, we can still do local notifications
+          toast.warning('⚠️ Limited Notification Support', {
+            description: 'Push notifications unavailable, but you will receive notifications when the app is open.',
+            duration: 6000
+          });
+        }
+      } else if (permission === 'denied') {
+        toast.error('❌ Notifications Blocked', {
+          description: 'You have denied notification permissions. Please enable them in your browser settings to receive alerts.',
+          duration: 8000
+        });
+      } else {
+        toast.warning('⚠️ Notification Permission Required', {
+          description: 'Please allow notifications to receive important asset reminders and updates.',
+          duration: 5000
+        });
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi bật thông báo:', error);
+      toast.error('❌ Notification Setup Failed', {
+        description: 'There was an error setting up notifications. Please try again or contact support.',
+        duration: 5000
+      });
+    } finally {
+      setIsEnablingNotifications(false);
     }
   };
 
@@ -115,7 +172,7 @@ export function NavigationHeader() {
               </DropdownMenu>
             </div>
 
-            {/* Mobile Menu - Updated to slide from left */}
+            {/* Mobile Menu */}
             <div className="md:hidden">
               <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                 <SheetTrigger asChild>
@@ -171,9 +228,14 @@ export function NavigationHeader() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleEnableNotifications}>
+                <DropdownMenuItem 
+                  onClick={handleEnableNotifications}
+                  disabled={isEnablingNotifications}
+                >
                   <Smartphone className="mr-2 h-4 w-4" />
-                  <span>Bật thông báo đẩy</span>
+                  <span>
+                    {isEnablingNotifications ? 'Đang bật...' : 'Bật thông báo đẩy'}
+                  </span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>

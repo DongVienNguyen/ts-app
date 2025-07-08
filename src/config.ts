@@ -1,5 +1,5 @@
 // Application Configuration
-export const VAPID_PUBLIC_KEY = import.meta.env.VITE_APP_VAPID_PUBLIC_KEY || 'BNGxnKrXHCJwOKqF8XQzQjdtV2Qm9LpYzKjHgFdSaWcRtYuIoPqWeRtYuIoPqWeRtYuIoPqWeRtYuIoPqWeRtYu';
+export const VAPID_PUBLIC_KEY = import.meta.env.VITE_APP_VAPID_PUBLIC_KEY || 'BLc4xRzKlP5EQ9vEGTVpsVu2cygGUh02aeczkgR4Cw0i3hVoVGVUYp1zKJT2kGHRkMv2yrIeN0zOjMiXKcBVm2Y';
 
 // Development environment check
 export const isDevelopment = import.meta.env.DEV;
