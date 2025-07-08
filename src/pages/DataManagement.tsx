@@ -25,6 +25,7 @@ import { SecurityDocumentation } from '@/components/SecurityDocumentation';
 import { SecurityImplementationSummary } from '@/components/SecurityImplementationSummary';
 import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
 import { AccountManagementTab } from '@/components/data-management/AccountManagementTab';
+import { VAPIDKeyTester } from '@/components/VAPIDKeyTester';
 
 const DataManagement = () => {
   const [selectedEntity, setSelectedEntity] = useState<string>('asset_transactions');
@@ -531,6 +532,7 @@ const DataManagement = () => {
           </TabsContent>
 
           <TabsContent value="push-notifications" className="mt-6 space-y-6">
+            <VAPIDKeyTester />
             <PushNotificationTester />
           </TabsContent>
 

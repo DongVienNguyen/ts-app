@@ -1,6 +1,5 @@
 import React from 'react';
 import { NavigationHeader } from './NavigationHeader';
-import { requestNotificationPermission, subscribeUserToPush, checkPushNotificationSupport } from '@/utils/pushNotificationUtils';
 
 interface LayoutProps {
   children: React.ReactNode;

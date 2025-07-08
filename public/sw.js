@@ -6,6 +6,8 @@ const urlsToCache = [
   '/manifest.json'
 ];
 
+console.log('Service Worker script loading...');
+
 // Install event
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing...');
@@ -18,6 +20,9 @@ self.addEventListener('install', (event) => {
       .then(() => {
         console.log('Service Worker installed successfully');
         return self.skipWaiting();
+      })
+      .catch((error) => {
+        console.error('Service Worker install failed:', error);
       })
   );
 });
@@ -38,6 +43,8 @@ self.addEventListener('activate', (event) => {
     }).then(() => {
       console.log('Service Worker activated successfully');
       return self.clients.claim();
+    }).catch((error) => {
+      console.error('Service Worker activation failed:', error);
     })
   );
 });
@@ -49,6 +56,10 @@ self.addEventListener('fetch', (event) => {
       .then((response) => {
         // Return cached version or fetch from network
         return response || fetch(event.request);
+      })
+      .catch((error) => {
+        console.error('Fetch failed:', error);
+        throw error;
       })
   );
 });
@@ -85,6 +96,7 @@ self.addEventListener('push', (event) => {
         ...notificationData,
         ...payload
       };
+      console.log('Push payload parsed:', notificationData);
     } catch (error) {
       console.error('Error parsing push payload:', error);
       notificationData.body = event.data.text() || notificationData.body;
@@ -102,7 +114,11 @@ self.addEventListener('push', (event) => {
       actions: notificationData.actions,
       data: notificationData.data || {}
     }
-  );
+  ).then(() => {
+    console.log('Notification displayed successfully');
+  }).catch((error) => {
+    console.error('Failed to display notification:', error);
+  });
 
   event.waitUntil(promiseChain);
 });
@@ -134,6 +150,8 @@ self.addEventListener('notificationclick', (event) => {
     if (clients.openWindow) {
       return clients.openWindow('/');
     }
+  }).catch((error) => {
+    console.error('Error handling notification click:', error);
   });
 
   event.waitUntil(promiseChain);
@@ -146,7 +164,11 @@ self.addEventListener('sync', (event) => {
   if (event.tag === 'background-sync') {
     event.waitUntil(
       // Perform background sync operations here
-      Promise.resolve()
+      Promise.resolve().then(() => {
+        console.log('Background sync completed');
+      }).catch((error) => {
+        console.error('Background sync failed:', error);
+      })
     );
   }
 });
@@ -158,6 +180,15 @@ self.addEventListener('error', (event) => {
 
 self.addEventListener('unhandledrejection', (event) => {
   console.error('Service Worker unhandled rejection:', event.reason);
+});
+
+// Message handling
+self.addEventListener('message', (event) => {
+  console.log('Service Worker received message:', event.data);
+  
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 console.log('Service Worker script loaded successfully');

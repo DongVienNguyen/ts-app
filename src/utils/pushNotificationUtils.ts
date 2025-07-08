@@ -57,18 +57,45 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
     
     console.log('VAPID Public Key được tải từ .env.local:', VAPID_PUBLIC_KEY);
 
+    // Validate VAPID key format
+    if (!isValidVAPIDKey(VAPID_PUBLIC_KEY)) {
+      console.error('VAPID Public Key không hợp lệ - format không đúng');
+      return false;
+    }
+
     // Register service worker if not already registered
     let registration;
     try {
+      // Wait a bit for service worker to be ready
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/'
+        scope: '/',
+        updateViaCache: 'none'
       });
+      
       console.log('Service Worker đã đăng ký thành công:', registration);
+      
+      // Wait for service worker to be active
+      if (registration.installing) {
+        await new Promise(resolve => {
+          registration.installing!.addEventListener('statechange', () => {
+            if (registration.installing!.state === 'activated') {
+              resolve(true);
+            }
+          });
+        });
+      }
     } catch (swError) {
       console.error('Lỗi đăng ký Service Worker:', swError);
       // Try to get existing registration
-      registration = await navigator.serviceWorker.ready;
-      console.log('Sử dụng Service Worker có sẵn:', registration);
+      try {
+        registration = await navigator.serviceWorker.ready;
+        console.log('Sử dụng Service Worker có sẵn:', registration);
+      } catch (readyError) {
+        console.error('Không thể lấy Service Worker ready:', readyError);
+        return false;
+      }
     }
 
     // Wait for service worker to be ready
@@ -79,27 +106,55 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
     const existingSubscription = await registration.pushManager.getSubscription();
     if (existingSubscription) {
       console.log('Đã có subscription, đang hủy subscription cũ...');
-      await existingSubscription.unsubscribe();
+      try {
+        await existingSubscription.unsubscribe();
+        console.log('Đã hủy subscription cũ thành công');
+      } catch (unsubError) {
+        console.warn('Không thể hủy subscription cũ:', unsubError);
+      }
     }
 
     // Convert VAPID key
     let applicationServerKey;
     try {
       applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-      console.log('VAPID key đã được chuyển đổi thành công');
+      console.log('VAPID key đã được chuyển đổi thành công, length:', applicationServerKey.length);
     } catch (keyError) {
       console.error('Lỗi chuyển đổi VAPID key:', keyError);
       return false;
     }
 
-    // Subscribe to push notifications
+    // Subscribe to push notifications with retry logic
     console.log('Đang tiến hành đăng ký mới với Push Service...');
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: applicationServerKey
-    });
+    let subscription;
+    let retryCount = 0;
+    const maxRetries = 3;
 
-    console.log('Đăng ký Push Notification thành công:', subscription);
+    while (retryCount < maxRetries) {
+      try {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey
+        });
+        console.log('Đăng ký Push Notification thành công:', subscription);
+        break;
+      } catch (subscribeError) {
+        retryCount++;
+        console.error(`Lần thử ${retryCount}/${maxRetries} - Lỗi đăng ký push:`, subscribeError);
+        
+        if (retryCount >= maxRetries) {
+          throw subscribeError;
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+      }
+    }
+
+    if (!subscription) {
+      console.error('Không thể tạo push subscription sau nhiều lần thử');
+      return false;
+    }
 
     // Save subscription to database
     console.log('Đang lưu subscription vào database...');
@@ -128,7 +183,8 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
         body: 'Bạn sẽ nhận được thông báo về tài sản đến hạn và các cập nhật quan trọng.',
         icon: '/icon-192x192.png',
         badge: '/icon-192x192.png',
-        tag: 'test-notification'
+        tag: 'test-notification',
+        requireInteraction: false
       });
       console.log('✅ Test notification đã được gửi');
     } catch (testError) {
@@ -141,14 +197,17 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
     
     // Provide more specific error messages
     if (error.name === 'AbortError') {
-      console.error('Chi tiết lỗi: Push service từ chối đăng ký. Có thể do:');
-      console.error('1. VAPID key không hợp lệ');
-      console.error('2. Push service không khả dụng');
+      console.error('Chi tiết lỗi AbortError: Push service từ chối đăng ký. Có thể do:');
+      console.error('1. VAPID key không hợp lệ hoặc đã hết hạn');
+      console.error('2. Push service không khả dụng (FCM/Mozilla)');
       console.error('3. Trình duyệt chặn push notifications');
+      console.error('4. Service Worker chưa sẵn sàng');
     } else if (error.name === 'NotSupportedError') {
       console.error('Chi tiết lỗi: Push notifications không được hỗ trợ');
     } else if (error.name === 'NotAllowedError') {
       console.error('Chi tiết lỗi: Người dùng đã từ chối quyền thông báo');
+    } else if (error.name === 'InvalidStateError') {
+      console.error('Chi tiết lỗi: Service Worker trong trạng thái không hợp lệ');
     }
     
     return false;
@@ -184,6 +243,16 @@ export async function unsubscribeFromPush(username: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Lỗi khi hủy đăng ký push notifications:', error);
+    return false;
+  }
+}
+
+function isValidVAPIDKey(key: string): boolean {
+  try {
+    // VAPID key should be base64url encoded and 65 bytes when decoded
+    const decoded = urlBase64ToUint8Array(key);
+    return decoded.length === 65;
+  } catch (error) {
     return false;
   }
 }
@@ -255,6 +324,9 @@ export function checkPushNotificationSupport(): {
   if (!VAPID_PUBLIC_KEY) {
     supported = false;
     reasons.push('VAPID Public Key chưa được cấu hình');
+  } else if (!isValidVAPIDKey(VAPID_PUBLIC_KEY)) {
+    supported = false;
+    reasons.push('VAPID Public Key không hợp lệ');
   }
 
   if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
