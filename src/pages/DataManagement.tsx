@@ -15,7 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import JSZip from 'jszip';
 import DateInput from '@/components/DateInput';
 import { toCSV, fromCSV } from '@/utils/csvUtils';
-import { PushNotificationTester } from '@/components/PushNotificationTester';
+import PushNotificationTester from '@/components/PushNotificationTester';
 import { entityConfig } from '@/config/entityConfig';
 import { StatisticsTab } from '@/components/data-management/StatisticsTab';
 import { EditDialog } from '@/components/data-management/EditDialog';

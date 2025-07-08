@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bell, CheckCircle, XCircle, AlertTriangle, Smartphone, Settings } from 'lucide-react';
-import { useSecureAuth } from '@/contexts/AuthContext';
+import { Bell, BellOff, TestTube, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { 
   requestNotificationPermission, 
   subscribeUserToPush, 
@@ -12,67 +11,45 @@ import {
   checkPushNotificationSupport 
 } from '@/utils/pushNotificationUtils';
 import { supabase } from '@/integrations/supabase/client';
+import { useSecureAuth } from '@/contexts/AuthContext';
 
-export function PushNotificationTester() {
-  const { user } = useSecureAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+const PushNotificationTester = () => {
+  const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [supportInfo, setSupportInfo] = useState<{ supported: boolean; reasons: string[] }>({ supported: true, reasons: [] });
+  const [isLoading, setIsLoading] = useState(false);
+  const [supportInfo, setSupportInfo] = useState<{supported: boolean; reasons: string[]}>({
+    supported: false,
+    reasons: []
+  });
+  const { user } = useSecureAuth();
 
   useEffect(() => {
-    // Check support
+    // Check initial permission status
+    if ('Notification' in window) {
+      setPermission(Notification.permission);
+    }
+
+    // Check push notification support
     const support = checkPushNotificationSupport();
     setSupportInfo(support);
-
-    // Check current permission
-    if ('Notification' in window) {
-      setNotificationPermission(Notification.permission);
-    }
-
-    // Check if already subscribed
-    checkSubscriptionStatus();
-  }, [user]);
-
-  const checkSubscriptionStatus = async () => {
-    if (!user?.username) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('push_subscriptions')
-        .select('*')
-        .eq('username', user.username)
-        .single();
-
-      if (!error && data) {
-        setIsSubscribed(true);
-      } else {
-        setIsSubscribed(false);
-      }
-    } catch (error) {
-      console.log('No existing subscription found');
-      setIsSubscribed(false);
-    }
-  };
+    console.log('🔍 Push notification support:', support);
+  }, []);
 
   const handleRequestPermission = async () => {
     setIsLoading(true);
-    setMessage(null);
-
     try {
-      const permission = await requestNotificationPermission();
-      setNotificationPermission(permission);
-
-      if (permission === 'granted') {
-        setMessage({ type: 'success', text: 'Quyền thông báo đã được cấp thành công!' });
-      } else if (permission === 'denied') {
-        setMessage({ type: 'error', text: 'Quyền thông báo đã bị từ chối. Vui lòng bật thủ công trong cài đặt trình duyệt.' });
+      console.log('📱 Requesting notification permission...');
+      const newPermission = await requestNotificationPermission();
+      setPermission(newPermission);
+      
+      if (newPermission === 'granted') {
+        toast.success('✅ Quyền thông báo đã được cấp!');
       } else {
-        setMessage({ type: 'info', text: 'Quyền thông báo chưa được quyết định.' });
+        toast.error('❌ Quyền thông báo bị từ chối');
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Lỗi khi yêu cầu quyền thông báo.' });
+      console.error('❌ Error requesting permission:', error);
+      toast.error('Lỗi khi yêu cầu quyền thông báo');
     } finally {
       setIsLoading(false);
     }
@@ -80,236 +57,233 @@ export function PushNotificationTester() {
 
   const handleSubscribe = async () => {
     if (!user?.username) {
-      setMessage({ type: 'error', text: 'Vui lòng đăng nhập để đăng ký thông báo.' });
+      toast.error('Vui lòng đăng nhập để đăng ký thông báo');
       return;
     }
 
     setIsLoading(true);
-    setMessage(null);
-
     try {
+      console.log('🔔 Subscribing to push notifications...');
       const success = await subscribeUserToPush(user.username);
       
       if (success) {
         setIsSubscribed(true);
-        setMessage({ type: 'success', text: 'Đăng ký thông báo đẩy thành công! Bạn sẽ nhận được thông báo về tài sản đến hạn.' });
+        toast.success('🎉 Đã đăng ký thông báo đẩy thành công!');
       } else {
-        setMessage({ type: 'error', text: 'Không thể đăng ký thông báo đẩy. Vui lòng kiểm tra console để biết chi tiết.' });
+        toast.error('❌ Không thể đăng ký thông báo đẩy');
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Lỗi khi đăng ký thông báo đẩy.' });
+      console.error('❌ Error subscribing:', error);
+      toast.error('Lỗi khi đăng ký thông báo đẩy');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleUnsubscribe = async () => {
-    if (!user?.username) return;
+    if (!user?.username) {
+      toast.error('Vui lòng đăng nhập');
+      return;
+    }
 
     setIsLoading(true);
-    setMessage(null);
-
     try {
+      console.log('🔕 Unsubscribing from push notifications...');
       const success = await unsubscribeFromPush(user.username);
       
       if (success) {
         setIsSubscribed(false);
-        setMessage({ type: 'success', text: 'Đã hủy đăng ký thông báo đẩy thành công.' });
+        toast.success('✅ Đã hủy đăng ký thông báo đẩy');
       } else {
-        setMessage({ type: 'error', text: 'Không thể hủy đăng ký thông báo đẩy.' });
+        toast.error('❌ Không thể hủy đăng ký');
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Lỗi khi hủy đăng ký thông báo đẩy.' });
+      console.error('❌ Error unsubscribing:', error);
+      toast.error('Lỗi khi hủy đăng ký');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleTestNotification = async () => {
-    if (!user?.username) return;
+    if (!user?.username) {
+      toast.error('Vui lòng đăng nhập để test thông báo');
+      return;
+    }
 
     setIsLoading(true);
-    setMessage(null);
-
     try {
-      const { error } = await supabase.functions.invoke('send-push-notification', {
+      console.log('🧪 Testing push notification...');
+      
+      const { data, error } = await supabase.functions.invoke('send-push-notification', {
         body: {
           username: user.username,
           payload: {
-            title: '🧪 Test Notification',
+            title: '🧪 Test Push Notification',
             body: 'Đây là thông báo test từ hệ thống quản lý tài sản!',
             icon: '/icon-192x192.png',
             badge: '/icon-192x192.png',
             tag: 'test-notification',
             data: {
               url: '/',
-              type: 'test'
+              timestamp: new Date().toISOString()
             }
           }
         }
       });
 
       if (error) {
-        throw error;
+        console.error('❌ Error sending test notification:', error);
+        toast.error('Lỗi khi gửi thông báo test: ' + error.message);
+      } else {
+        console.log('✅ Test notification sent:', data);
+        toast.success('🎉 Thông báo test đã được gửi!');
       }
-
-      setMessage({ type: 'success', text: 'Đã gửi thông báo test thành công! Kiểm tra thông báo trên thiết bị của bạn.' });
-    } catch (error: any) {
-      console.error('Error sending test notification:', error);
-      setMessage({ type: 'error', text: `Lỗi gửi thông báo test: ${error.message}` });
+    } catch (error) {
+      console.error('❌ Error testing notification:', error);
+      toast.error('Lỗi khi test thông báo');
     } finally {
       setIsLoading(false);
     }
   };
 
   const getPermissionBadge = () => {
-    switch (notificationPermission) {
+    switch (permission) {
       case 'granted':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle className="w-3 h-3 mr-1" />Đã cấp</Badge>;
       case 'denied':
         return <Badge className="bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Bị từ chối</Badge>;
       default:
-        return <Badge className="bg-yellow-100 text-yellow-800"><AlertTriangle className="w-3 h-3 mr-1" />Chưa quyết định</Badge>;
-    }
-  };
-
-  const getSubscriptionBadge = () => {
-    if (isSubscribed) {
-      return <Badge className="bg-blue-100 text-blue-800"><Bell className="w-3 h-3 mr-1" />Đã đăng ký</Badge>;
-    } else {
-      return <Badge className="bg-gray-100 text-gray-800"><Bell className="w-3 h-3 mr-1" />Chưa đăng ký</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800"><AlertCircle className="w-3 h-3 mr-1" />Chưa yêu cầu</Badge>;
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Smartphone className="w-6 h-6" />
-            <span>Push Notification Tester</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Support Status */}
-          <div>
-            <h3 className="font-semibold mb-3">Trạng thái hỗ trợ</h3>
-            <div className="space-y-2">
-              {supportInfo.supported ? (
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-green-700">Push Notifications được hỗ trợ</span>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <XCircle className="w-4 h-4 text-red-600" />
-                    <span className="text-red-700">Push Notifications không được hỗ trợ</span>
-                  </div>
-                  <ul className="ml-6 text-sm text-red-600">
-                    {supportInfo.reasons.map((reason, index) => (
-                      <li key={index}>• {reason}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Bell className="w-5 h-5 text-blue-600" />
+          <span>🧪 Test Push Notifications</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Support Status */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h3 className="font-semibold mb-2 flex items-center">
+            <AlertCircle className="w-4 h-4 mr-2" />
+            Trạng thái hỗ trợ
+          </h3>
+          {supportInfo.supported ? (
+            <div className="text-green-700">
+              <CheckCircle className="w-4 h-4 inline mr-2" />
+              Push Notifications được hỗ trợ ✅
             </div>
-          </div>
-
-          {/* Current Status */}
-          <div>
-            <h3 className="font-semibold mb-3">Trạng thái hiện tại</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span>Quyền thông báo:</span>
-                {getPermissionBadge()}
-              </div>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span>Trạng thái đăng ký:</span>
-                {getSubscriptionBadge()}
-              </div>
+          ) : (
+            <div className="text-red-700">
+              <XCircle className="w-4 h-4 inline mr-2" />
+              Push Notifications không được hỗ trợ:
+              <ul className="list-disc list-inside mt-2 text-sm">
+                {supportInfo.reasons.map((reason, index) => (
+                  <li key={index}>{reason}</li>
+                ))}
+              </ul>
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* Actions */}
+        {/* Permission Status */}
+        <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-semibold mb-3">Hành động</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <Button
-                onClick={handleRequestPermission}
-                disabled={isLoading || notificationPermission === 'granted'}
-                variant="outline"
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                Yêu cầu quyền
-              </Button>
-
-              <Button
-                onClick={handleSubscribe}
-                disabled={isLoading || notificationPermission !== 'granted' || isSubscribed}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Bell className="w-4 h-4 mr-2" />
-                Đăng ký
-              </Button>
-
-              <Button
-                onClick={handleUnsubscribe}
-                disabled={isLoading || !isSubscribed}
-                variant="destructive"
-              >
-                <XCircle className="w-4 h-4 mr-2" />
-                Hủy đăng ký
-              </Button>
-
-              <Button
-                onClick={handleTestNotification}
-                disabled={isLoading || !isSubscribed}
-                variant="outline"
-              >
-                <Bell className="w-4 h-4 mr-2" />
-                Test thông báo
-              </Button>
-            </div>
+            <h3 className="font-semibold">Quyền thông báo:</h3>
+            <p className="text-sm text-gray-600">Trạng thái quyền của trình duyệt</p>
           </div>
+          {getPermissionBadge()}
+        </div>
 
-          {/* Message */}
-          {message && (
-            <Alert variant={message.type === 'error' ? 'destructive' : 'default'} 
-                  className={message.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 
-                            message.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-800' : ''}>
-              <AlertDescription>{message.text}</AlertDescription>
-            </Alert>
+        {/* Subscription Status */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold">Trạng thái đăng ký:</h3>
+            <p className="text-sm text-gray-600">Đăng ký nhận thông báo đẩy</p>
+          </div>
+          <Badge className={isSubscribed ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+            {isSubscribed ? (
+              <><Bell className="w-3 h-3 mr-1" />Đã đăng ký</>
+            ) : (
+              <><BellOff className="w-3 h-3 mr-1" />Chưa đăng ký</>
+            )}
+          </Badge>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          {permission !== 'granted' && (
+            <Button 
+              onClick={handleRequestPermission}
+              disabled={isLoading || !supportInfo.supported}
+              className="w-full"
+            >
+              <Bell className="w-4 h-4 mr-2" />
+              {isLoading ? 'Đang yêu cầu...' : 'Yêu cầu quyền thông báo'}
+            </Button>
           )}
 
-          {/* Instructions */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-semibold text-blue-800 mb-2">Hướng dẫn sử dụng:</h4>
-            <ol className="text-sm text-blue-700 space-y-1">
-              <li>1. Nhấn "Yêu cầu quyền" để xin quyền thông báo từ trình duyệt</li>
-              <li>2. Nhấn "Đăng ký" để đăng ký nhận thông báo đẩy</li>
-              <li>3. Nhấn "Test thông báo" để kiểm tra thông báo hoạt động</li>
-              <li>4. Bạn sẽ nhận được thông báo ngay cả khi đóng trình duyệt</li>
-            </ol>
-          </div>
-
-          {/* Debug Info */}
-          {process.env.NODE_ENV === 'development' && (
-            <details className="bg-gray-50 border rounded-lg p-4">
-              <summary className="font-semibold cursor-pointer">Debug Information</summary>
-              <div className="mt-2 text-sm space-y-1">
-                <div>User: {user?.username || 'Not logged in'}</div>
-                <div>Permission: {notificationPermission}</div>
-                <div>Subscribed: {isSubscribed ? 'Yes' : 'No'}</div>
-                <div>Support: {supportInfo.supported ? 'Yes' : 'No'}</div>
-                <div>HTTPS: {window.location.protocol === 'https:' ? 'Yes' : 'No'}</div>
-                <div>Service Worker: {'serviceWorker' in navigator ? 'Supported' : 'Not supported'}</div>
-                <div>Push Manager: {'PushManager' in window ? 'Supported' : 'Not supported'}</div>
-              </div>
-            </details>
+          {permission === 'granted' && !isSubscribed && (
+            <Button 
+              onClick={handleSubscribe}
+              disabled={isLoading || !user?.username}
+              className="w-full bg-green-600 hover:bg-green-700"
+            >
+              <Bell className="w-4 h-4 mr-2" />
+              {isLoading ? 'Đang đăng ký...' : 'Đăng ký thông báo đẩy'}
+            </Button>
           )}
-        </CardContent>
-      </Card>
-    </div>
+
+          {isSubscribed && (
+            <Button 
+              onClick={handleUnsubscribe}
+              disabled={isLoading}
+              variant="outline"
+              className="w-full"
+            >
+              <BellOff className="w-4 h-4 mr-2" />
+              {isLoading ? 'Đang hủy...' : 'Hủy đăng ký'}
+            </Button>
+          )}
+
+          {isSubscribed && (
+            <Button 
+              onClick={handleTestNotification}
+              disabled={isLoading}
+              variant="outline"
+              className="w-full border-blue-200 text-blue-600 hover:bg-blue-50"
+            >
+              <TestTube className="w-4 h-4 mr-2" />
+              {isLoading ? 'Đang gửi...' : 'Gửi thông báo test'}
+            </Button>
+          )}
+        </div>
+
+        {/* User Info */}
+        {user?.username && (
+          <div className="bg-blue-50 p-3 rounded-lg text-sm">
+            <strong>Người dùng:</strong> {user.username}
+          </div>
+        )}
+
+        {/* Instructions */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <h4 className="font-semibold text-yellow-800 mb-2">📋 Hướng dẫn:</h4>
+          <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
+            <li>Nhấn "Yêu cầu quyền thông báo" và cho phép</li>
+            <li>Nhấn "Đăng ký thông báo đẩy" để đăng ký</li>
+            <li>Nhấn "Gửi thông báo test" để kiểm tra</li>
+            <li>Kiểm tra thông báo xuất hiện trên màn hình</li>
+          </ol>
+        </div>
+      </CardContent>
+    </Card>
   );
-}
+};
+
+export default PushNotificationTester;
