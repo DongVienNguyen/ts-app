@@ -105,10 +105,10 @@ importers:
         specifier: ^1.1.4
         version: 1.2.7(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@supabase/supabase-js':
-        specifier: ^2.50.1
+        specifier: 2.50.3
         version: 2.50.3
       '@tanstack/react-query':
-        specifier: ^5.56.2
+        specifier: ^5.63.0
         version: 5.81.5(react@18.3.1)
       bcryptjs:
         specifier: ^3.0.2
@@ -123,7 +123,7 @@ importers:
         specifier: ^1.0.0
         version: 1.1.1(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       date-fns:
-        specifier: ^3.6.0
+        specifier: 3.6.0
         version: 3.6.0
       embla-carousel-react:
         specifier: ^8.3.0
@@ -135,8 +135,8 @@ importers:
         specifier: ^3.10.1
         version: 3.10.1
       lucide-react:
-        specifier: ^0.462.0
-        version: 0.462.0(react@18.3.1)
+        specifier: ^0.470.0
+        version: 0.470.0(react@18.3.1)
       next-themes:
         specifier: ^0.3.0
         version: 0.3.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -144,7 +144,7 @@ importers:
         specifier: ^18.3.1
         version: 18.3.1
       react-day-picker:
-        specifier: ^8.10.0
+        specifier: 8.10.1
         version: 8.10.1(date-fns@3.6.0)(react@18.3.1)
       react-dom:
         specifier: ^18.3.1
@@ -156,7 +156,7 @@ importers:
         specifier: ^2.1.3
         version: 2.1.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
-        specifier: ^6.26.2
+        specifier: ^6.2.6
         version: 6.30.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       recharts:
         specifier: ^2.12.7
@@ -176,6 +176,9 @@ importers:
       web-push:
         specifier: ^3.6.7
         version: 3.6.7
+      workbox-precaching:
+        specifier: ^7.3.0
+        version: 7.3.0
       zod:
         specifier: ^3.23.8
         version: 3.25.75
@@ -196,8 +199,8 @@ importers:
         specifier: ^18.3.0
         version: 18.3.7(@types/react@18.3.23)
       '@vitejs/plugin-react-swc':
-        specifier: ^3.5.0
-        version: 3.10.2(vite@5.4.19(@types/node@22.16.0)(terser@5.43.1))
+        specifier: 3.7.0
+        version: 3.7.0(vite@5.4.2(@types/node@22.16.0)(terser@5.43.1))
       autoprefixer:
         specifier: ^10.4.20
         version: 10.4.21(postcss@8.5.6)
@@ -215,12 +218,12 @@ importers:
         version: 15.15.0
       lovable-tagger:
         specifier: ^1.1.7
-        version: 1.1.8(vite@5.4.19(@types/node@22.16.0)(terser@5.43.1))
+        version: 1.1.8(vite@5.4.2(@types/node@22.16.0)(terser@5.43.1))
       postcss:
         specifier: ^8.4.47
         version: 8.5.6
       tailwindcss:
-        specifier: ^3.4.11
+        specifier: ^3.4.12
         version: 3.4.17
       typescript:
         specifier: ^5.5.3
@@ -229,8 +232,8 @@ importers:
         specifier: ^8.0.1
         version: 8.36.0(eslint@9.30.1(jiti@1.21.7))(typescript@5.8.3)
       vite:
-        specifier: ^5.4.1
-        version: 5.4.19(@types/node@22.16.0)(terser@5.43.1)
+        specifier: 5.4.2
+        version: 5.4.2(@types/node@22.16.0)(terser@5.43.1)
 
 packages:
 
@@ -1358,9 +1361,6 @@ packages:
     resolution: {integrity: sha512-O3rHJzAQKamUz1fvE0Qaw0xSFqsA/yafi2iqeE0pvdFtCO1viYx8QL6f3Ln/aCCTLxs68SLf0KPM9eSeM8yBnA==}
     engines: {node: '>=14.0.0'}
 
-  '@rolldown/pluginutils@1.0.0-beta.11':
-    resolution: {integrity: sha512-L/gAA/hyCSuzTF1ftlzUSI/IKr2POHsv1Dd78GfqkR83KMNuswWD61JxGV2L7nRwBBBSDr6R1gCkdTmoN7W4ag==}
-
   '@rollup/rollup-android-arm-eabi@4.44.2':
     resolution: {integrity: sha512-g0dF8P1e2QYPOj1gu7s/3LVP6kze9A7m6x0BZ9iTdXK8N5c2V7cpBKHV3/9A4Zd8xxavdhK0t4PnqjkqVmUc9Q==}
     cpu: [arm]
@@ -1610,6 +1610,9 @@ packages:
   '@types/node@22.16.0':
     resolution: {integrity: sha512-B2egV9wALML1JCpv3VQoQ+yesQKAmNMBIAY7OteVrikcOcAkWm+dGL6qpeCktPjAv6N1JLnhbNiqS35UpFyBsQ==}
 
+  '@types/node@24.0.10':
+    resolution: {integrity: sha512-ENHwaH+JIRTDIEEbDK6QSQntAYGtbvdDXnMXnZaZ6k13Du1dPMmprkEHIL7ok2Wl2aZevetwTAb5S+7yIF+enA==}
+
   '@types/phoenix@1.6.6':
     resolution: {integrity: sha512-PIzZZlEppgrpoT2QgbnDU+MMzuR6BbCjllj0bM70lWoejMeNJAxCchxnv7J3XFkI8MpygtRpzXrIlmWUBclP5A==}
 
@@ -1689,10 +1692,10 @@ packages:
     resolution: {integrity: sha512-vZrhV2lRPWDuGoxcmrzRZyxAggPL+qp3WzUrlZD+slFueDiYHxeBa34dUXPuC0RmGKzl4lS5kFJYvKCq9cnNDA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@vitejs/plugin-react-swc@3.10.2':
-    resolution: {integrity: sha512-xD3Rdvrt5LgANug7WekBn1KhcvLn1H3jNBfJRL3reeOIua/WnZOEV5qi5qIBq5T8R0jUDmRtxuvk4bPhzGHDWw==}
+  '@vitejs/plugin-react-swc@3.7.0':
+    resolution: {integrity: sha512-yrknSb3Dci6svCd/qhHqhFPDSw0QtjumcqdKMoNNzmOl5lMXTTiqzjWtG4Qask2HdvvzaNgSunbQGet8/GrKdA==}
     peerDependencies:
-      vite: ^4 || ^5 || ^6 || ^7.0.0-beta.0
+      vite: ^4 || ^5
 
   '@xmldom/xmldom@0.8.10':
     resolution: {integrity: sha512-2WALfTl4xo2SkGCYRt6rDTFfk9R1czmBvUQy12gK2KuRKIpWEhcbbzy8EZXtz/jkRqHX8bFEc6FC1HjX4TUWYw==}
@@ -2374,10 +2377,10 @@ packages:
     resolution: {integrity: sha512-QIXZUBJUx+2zHUdQujWejBkcD9+cs94tLn0+YL8UrCh+D5sCXZ4c7LaEH48pNwRY3MLDgqUFyhlCyjJPf1WP0A==}
     engines: {node: 20 || >=22}
 
-  lucide-react@0.462.0:
-    resolution: {integrity: sha512-NTL7EbAao9IFtuSivSZgrAh4fZd09Lr+6MTkqIxuHaH2nnYiYIzXPo06cOxHg9wKLdj6LL8TByG4qpePqwgx/g==}
+  lucide-react@0.470.0:
+    resolution: {integrity: sha512-tqYODeoB3qU5gxH33IbL7IcF05EYYzsZQJqdM9HGGHwmoJMPvVLPHO6Plu6HNAfntucZQ41taEw6aUpwOtaoXg==}
     peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   magic-string@0.30.17:
     resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
@@ -2928,6 +2931,9 @@ packages:
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
+  undici-types@7.8.0:
+    resolution: {integrity: sha512-9UJ2xGDvQ43tYyVMpuHlsgApydB8ZKfVYTsLDhXkFL/6gfkp+U8xTGdh8pMJv1SpZna0zxG1DwsKZsreLbXBxw==}
+
   universalify@2.0.1:
     resolution: {integrity: sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==}
     engines: {node: '>= 10.0.0'}
@@ -2982,8 +2988,8 @@ packages:
   victory-vendor@36.9.2:
     resolution: {integrity: sha512-PnpQQMuxlwYdocC8fIJqVXvkeViHYzotI+NJrCuav0ZYFoq912ZHBk3mCeuj+5/VpodOjPe1z0Fk2ihgzlXqjQ==}
 
-  vite@5.4.19:
-    resolution: {integrity: sha512-qO3aKv3HoQC8QKiNSTuUM1l9o/XX3+c+VTgLHbJWHZGeTPVAg2XwazI9UWzoxjIJCGCV2zU60uqMzjeLZuULqA==}
+  vite@5.4.2:
+    resolution: {integrity: sha512-dDrQTRHp5C1fTFzcSaMxjk6vdpKvT+2/mIdE07Gw2ykehT49O0z/VHS3zZ8iV/Gh8BJJKHWOe5RjaNrW5xf/GA==}
     engines: {node: ^18.0.0 || >=20.0.0}
     hasBin: true
     peerDependencies:
@@ -3032,6 +3038,18 @@ packages:
   word-wrap@1.2.5:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
     engines: {node: '>=0.10.0'}
+
+  workbox-core@7.3.0:
+    resolution: {integrity: sha512-Z+mYrErfh4t3zi7NVTvOuACB0A/jA3bgxUN3PwtAVHvfEsZxV9Iju580VEETug3zYJRc0Dmii/aixI/Uxj8fmw==}
+
+  workbox-precaching@7.3.0:
+    resolution: {integrity: sha512-ckp/3t0msgXclVAYaNndAGeAoWQUv7Rwc4fdhWL69CCAb2UHo3Cef0KIUctqfQj1p8h6aGyz3w8Cy3Ihq9OmIw==}
+
+  workbox-routing@7.3.0:
+    resolution: {integrity: sha512-ZUlysUVn5ZUzMOmQN3bqu+gK98vNfgX/gSTZ127izJg/pMMy4LryAthnYtjuqcjkN4HEAx1mdgxNiKJMZQM76A==}
+
+  workbox-strategies@7.3.0:
+    resolution: {integrity: sha512-tmZydug+qzDFATwX7QiEL5Hdf7FrkhjaF9db1CbB39sDmEZJg3l9ayDvPxy8Y18C3Y66Nrr9kkN1f/RlkDgllg==}
 
   wrap-ansi@7.0.0:
     resolution: {integrity: sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==}
@@ -4166,8 +4184,6 @@ snapshots:
 
   '@remix-run/router@1.23.0': {}
 
-  '@rolldown/pluginutils@1.0.0-beta.11': {}
-
   '@rollup/rollup-android-arm-eabi@4.44.2':
     optional: true
 
@@ -4374,6 +4390,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@types/node@24.0.10':
+    dependencies:
+      undici-types: 7.8.0
+
   '@types/phoenix@1.6.6': {}
 
   '@types/prop-types@15.7.15': {}
@@ -4391,7 +4411,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 22.16.0
+      '@types/node': 24.0.10
 
   '@typescript-eslint/eslint-plugin@8.36.0(@typescript-eslint/parser@8.36.0(eslint@9.30.1(jiti@1.21.7))(typescript@5.8.3))(eslint@9.30.1(jiti@1.21.7))(typescript@5.8.3)':
     dependencies:
@@ -4485,11 +4505,10 @@ snapshots:
       '@typescript-eslint/types': 8.36.0
       eslint-visitor-keys: 4.2.1
 
-  '@vitejs/plugin-react-swc@3.10.2(vite@5.4.19(@types/node@22.16.0)(terser@5.43.1))':
+  '@vitejs/plugin-react-swc@3.7.0(vite@5.4.2(@types/node@22.16.0)(terser@5.43.1))':
     dependencies:
-      '@rolldown/pluginutils': 1.0.0-beta.11
       '@swc/core': 1.12.9
-      vite: 5.4.19(@types/node@22.16.0)(terser@5.43.1)
+      vite: 5.4.2(@types/node@22.16.0)(terser@5.43.1)
     transitivePeerDependencies:
       - '@swc/helpers'
 
@@ -5167,7 +5186,7 @@ snapshots:
     dependencies:
       js-tokens: 4.0.0
 
-  lovable-tagger@1.1.8(vite@5.4.19(@types/node@22.16.0)(terser@5.43.1)):
+  lovable-tagger@1.1.8(vite@5.4.2(@types/node@22.16.0)(terser@5.43.1)):
     dependencies:
       '@babel/parser': 7.28.0
       '@babel/types': 7.28.0
@@ -5175,7 +5194,7 @@ snapshots:
       estree-walker: 3.0.3
       magic-string: 0.30.17
       tailwindcss: 3.4.17
-      vite: 5.4.19(@types/node@22.16.0)(terser@5.43.1)
+      vite: 5.4.2(@types/node@22.16.0)(terser@5.43.1)
     transitivePeerDependencies:
       - ts-node
 
@@ -5183,7 +5202,7 @@ snapshots:
 
   lru-cache@11.1.0: {}
 
-  lucide-react@0.462.0(react@18.3.1):
+  lucide-react@0.470.0(react@18.3.1):
     dependencies:
       react: 18.3.1
 
@@ -5764,6 +5783,8 @@ snapshots:
 
   undici-types@6.21.0: {}
 
+  undici-types@7.8.0: {}
+
   universalify@2.0.1: {}
 
   untildify@4.0.0: {}
@@ -5825,7 +5846,7 @@ snapshots:
       d3-time: 3.1.0
       d3-timer: 3.0.1
 
-  vite@5.4.19(@types/node@22.16.0)(terser@5.43.1):
+  vite@5.4.2(@types/node@22.16.0)(terser@5.43.1):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.5.6
@@ -5857,6 +5878,22 @@ snapshots:
       isexe: 2.0.0
 
   word-wrap@1.2.5: {}
+
+  workbox-core@7.3.0: {}
+
+  workbox-precaching@7.3.0:
+    dependencies:
+      workbox-core: 7.3.0
+      workbox-routing: 7.3.0
+      workbox-strategies: 7.3.0
+
+  workbox-routing@7.3.0:
+    dependencies:
+      workbox-core: 7.3.0
+
+  workbox-strategies@7.3.0:
+    dependencies:
+      workbox-core: 7.3.0
 
   wrap-ansi@7.0.0:
     dependencies:
