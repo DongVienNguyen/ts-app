@@ -15,7 +15,7 @@ import { useAssetReminderOperations } from '@/hooks/useAssetReminderOperations';
 import { useAssetReminderEmail } from '@/hooks/useAssetReminderEmail';
 import { sendPushNotification } from '@/services/notificationService';
 import { supabase } from '@/integrations/supabase/client';
-import { AssetReminder } from '@/types/staff'; // Import AssetReminder from types/staff
+import { AssetReminder } from '@/types/staff';
 
 const AssetReminders = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -27,7 +27,7 @@ const AssetReminders = () => {
   const {
     reminders,
     sentReminders,
-    staff, // This staff object should contain all properties (cbqln, cbkh, ldpcrc, cbcrc, quycrc)
+    staff,
     currentUser,
     isLoading,
     loadData
@@ -45,7 +45,7 @@ const AssetReminders = () => {
     isDateDueOrOverdue,
     sendSingleReminder,
     sendReminders
-  } = useAssetReminderEmail(staff, loadData, showMessage); // Pass the complete staff object
+  } = useAssetReminderEmail(staff, loadData, showMessage);
 
   const createNotification = async (recipientUsername: string, title: string, message: string) => {
     if (!recipientUsername) return;
@@ -54,12 +54,12 @@ const AssetReminders = () => {
       title,
       message,
       notification_type: 'asset_reminder',
-    });
+    } as any); // Cast to any to resolve type mismatch
   };
 
   const handleSendSingleReminder = async (reminder: AssetReminder) => {
     const success = await sendSingleReminder(reminder);
-    if (success) { // Check boolean return value
+    if (success) {
       const cbkhUser = staff.cbkh.find(s => s.ten_nv === reminder.cbkh);
       const cbqlnUser = staff.cbqln.find(s => s.ten_nv === reminder.cbqln);
       const message = `Tài sản "${reminder.ten_ts}" đã đến hạn.`;
@@ -68,11 +68,11 @@ const AssetReminders = () => {
           body: message,
           url: '/asset-reminders'
       };
-      if (cbkhUser) {
+      if (cbkhUser?.email) {
         createNotification(cbkhUser.email, 'Nhắc nhở tài sản', message);
         sendPushNotification(cbkhUser.email, payload);
       }
-      if (cbqlnUser) {
+      if (cbqlnUser?.email) {
         createNotification(cbqlnUser.email, 'Nhắc nhở tài sản', message);
         sendPushNotification(cbqlnUser.email, payload);
       }
@@ -82,7 +82,7 @@ const AssetReminders = () => {
   const handleSendAllReminders = async () => {
     const dueReminders = reminders.filter(r => isDateDueOrOverdue(r.ngay_den_han));
     const success = await sendReminders(dueReminders);
-    if (success) { // Check boolean return value
+    if (success) {
       for (const reminder of dueReminders) {
         const cbkhUser = staff.cbkh.find(s => s.ten_nv === reminder.cbkh);
         const cbqlnUser = staff.cbqln.find(s => s.ten_nv === reminder.cbqln);
@@ -92,11 +92,11 @@ const AssetReminders = () => {
             body: message,
             url: '/asset-reminders'
         };
-        if (cbkhUser) {
+        if (cbkhUser?.email) {
             createNotification(cbkhUser.email, 'Nhắc nhở tài sản', message);
             sendPushNotification(cbkhUser.email, payload);
         }
-        if (cbqlnUser) {
+        if (cbqlnUser?.email) {
             createNotification(cbqlnUser.email, 'Nhắc nhở tài sản', message);
             sendPushNotification(cbqlnUser.email, payload);
         }

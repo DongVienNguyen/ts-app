@@ -1,10 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
-import { sendAssetReminderEmail } from '@/services/notifications/assetNotificationService'; // Corrected import path
-import { StaffMember, AssetReminder, Staff } from '@/types/staff'; // Corrected import
+import { sendAssetReminderEmail } from '@/services/notifications/assetNotificationService';
+import { StaffMember, AssetReminder, Staff } from '@/types/staff';
 
 export const useAssetReminderEmail = (staff: Staff, loadData: () => Promise<void>, showMessage: (params: { type: 'success' | 'error' | 'info'; text: string }) => void) => {
   const [isSending, setIsSending] = useState(false);
@@ -15,12 +13,10 @@ export const useAssetReminderEmail = (staff: Staff, loadData: () => Promise<void
     const currentYear = today.getFullYear();
     const reminderDate = new Date(currentYear, month - 1, day);
 
-    // If the reminder date has already passed this year, check for next year
     if (reminderDate < today && (today.getMonth() > month - 1 || (today.getMonth() === month - 1 && today.getDate() > day))) {
       reminderDate.setFullYear(currentYear + 1);
     }
 
-    // Set both dates to start of day for accurate comparison
     today.setHours(0, 0, 0, 0);
     reminderDate.setHours(0, 0, 0, 0);
 
@@ -48,7 +44,6 @@ export const useAssetReminderEmail = (staff: Staff, loadData: () => Promise<void
       const emailResult = await sendAssetReminderEmail(recipientEmails, emailSubject, emailBody);
 
       if (emailResult.success) {
-        // Mark as sent and record in sent_asset_reminders
         await supabase.from('asset_reminders').update({ is_sent: true }).eq('id', reminder.id);
         await supabase.from('sent_asset_reminders').insert({
           ten_ts: reminder.ten_ts,
@@ -56,8 +51,8 @@ export const useAssetReminderEmail = (staff: Staff, loadData: () => Promise<void
           cbqln: reminder.cbqln,
           cbkh: reminder.cbkh,
           is_sent: true,
-          sent_date: format(new Date(), 'yyyy-MM-dd') // Record actual sent date
-        });
+          sent_date: format(new Date(), 'yyyy-MM-dd')
+        } as any); // Cast to any to resolve type mismatch
         showMessage({ type: 'success', text: `Đã gửi nhắc nhở cho "${reminder.ten_ts}" thành công.` });
         await loadData();
         return true;
@@ -77,13 +72,13 @@ export const useAssetReminderEmail = (staff: Staff, loadData: () => Promise<void
   const sendReminders = async (remindersToSend: AssetReminder[]): Promise<boolean> => {
     if (remindersToSend.length === 0) {
       showMessage({ type: 'info', text: "Không có nhắc nhở nào đến hạn để gửi." });
-      return true; // No reminders to send, so it's "successful" in that sense
+      return true;
     }
 
     setIsSending(true);
     let allSuccess = true;
     for (const reminder of remindersToSend) {
-      const success = await sendSingleReminder(reminder); // Reuse single send logic
+      const success = await sendSingleReminder(reminder);
       if (!success) {
         allSuccess = false;
       }

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner'; // Changed import from useToast to toast from sonner
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 interface AssetHistory {
@@ -13,7 +13,7 @@ interface AssetHistory {
   asset_name: string;
   change_type: string;
   changed_by: string;
-  change_reason: string;
+  change_reason: string | null;
   old_data: any;
   new_data: any;
   created_at: string;
@@ -26,9 +26,7 @@ interface AssetHistoryManagerProps {
 const AssetHistoryManager: React.FC<AssetHistoryManagerProps> = ({ user }) => {
   const [historyData, setHistoryData] = useState<AssetHistory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  // const { toast } = useToast(); // Removed this line
 
-  // Function to load history data from the independent archive table
   const loadHistoryData = async () => {
     if (!user || user.role !== 'admin') {
       console.log('User is not admin, skipping history load');
@@ -39,7 +37,6 @@ const AssetHistoryManager: React.FC<AssetHistoryManagerProps> = ({ user }) => {
     console.log('=== LOADING HISTORY FROM ARCHIVE TABLE ===');
     
     try {
-      // Direct query to asset_history_archive table
       console.log('Querying asset_history_archive directly...');
       
       const { data, error, count } = await supabase
@@ -64,27 +61,25 @@ const AssetHistoryManager: React.FC<AssetHistoryManagerProps> = ({ user }) => {
       if (data && data.length > 0) {
         console.log('Sample record:', data[0]);
       }
-      setHistoryData(data || []);
+      setHistoryData((data as AssetHistory[]) || []);
       
     } catch (error) {
       console.error('=== LOAD ARCHIVE HISTORY ERROR ===');
       console.error('Error:', error);
       
-      toast.error("Không thể tải lịch sử: " + (error as Error).message); // Changed toast usage
+      toast.error("Không thể tải lịch sử: " + (error as Error).message);
       setHistoryData([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Function to delete a history record
   const deleteHistoryRecord = async (historyId: string, assetName: string) => {
     if (!user || user.role !== 'admin') {
-      toast.error("Chỉ admin mới có thể xóa lịch sử"); // Changed toast usage
+      toast.error("Chỉ admin mới có thể xóa lịch sử");
       return;
     }
 
-    // Confirm deletion
     if (!window.confirm(`Bạn có chắc chắn muốn xóa bản ghi lịch sử của "${assetName}"?`)) {
       return;
     }
@@ -105,27 +100,22 @@ const AssetHistoryManager: React.FC<AssetHistoryManagerProps> = ({ user }) => {
       }
 
       console.log('History record deleted successfully');
-
-      // Refresh the history data
       await loadHistoryData();
-
-      toast.success("Xóa bản ghi lịch sử thành công"); // Changed toast usage
+      toast.success("Xóa bản ghi lịch sử thành công");
 
     } catch (error) {
       console.error('=== DELETE HISTORY ERROR ===');
       console.error('Error:', error);
-      toast.error("Không thể xóa bản ghi lịch sử: " + (error as Error).message); // Changed toast usage
+      toast.error("Không thể xóa bản ghi lịch sử: " + (error as Error).message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Load data on component mount và khi user thay đổi
   useEffect(() => {
     loadHistoryData();
   }, [user]);
 
-  // Manual refresh function
   const handleRefresh = () => {
     console.log('=== MANUAL REFRESH TRIGGERED ===');
     loadHistoryData();
@@ -221,7 +211,7 @@ const AssetHistoryManager: React.FC<AssetHistoryManagerProps> = ({ user }) => {
                           variant="outline"
                           onClick={() => {
                             console.log('History detail:', history);
-                            toast.info(`Chi tiết lịch sử: ${history.change_type} bởi ${history.changed_by}`); // Changed toast usage
+                            toast.info(`Chi tiết lịch sử: ${history.change_type} bởi ${history.changed_by}`);
                           }}
                         >
                           <Info className="w-4 h-4" />

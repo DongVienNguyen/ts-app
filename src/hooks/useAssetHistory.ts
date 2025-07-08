@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'; // Added useCallback
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -8,7 +8,7 @@ interface AssetHistory {
   asset_name: string;
   change_type: string;
   changed_by: string;
-  change_reason: string;
+  change_reason: string | null;
   old_data: any;
   new_data: any;
   created_at: string;
@@ -17,8 +17,7 @@ interface AssetHistory {
 export const useAssetHistory = (user: any) => {
   const [isLoading, setIsLoading] = useState(false);
 
-  // Save history record to the independent archive table
-  const saveHistory = useCallback(async (historyRecord: { // Wrapped in useCallback
+  const saveHistory = useCallback(async (historyRecord: {
     asset_id: string;
     asset_name: string;
     change_type: 'create' | 'update' | 'delete';
@@ -38,7 +37,6 @@ export const useAssetHistory = (user: any) => {
     setIsLoading(true);
     
     try {
-      // Prepare data for the independent archive table
       const archiveData = {
         original_asset_id: historyRecord.asset_id,
         asset_name: historyRecord.asset_name,
@@ -51,10 +49,9 @@ export const useAssetHistory = (user: any) => {
 
       console.log('Inserting to asset_history_archive:', archiveData);
 
-      // Direct insert to independent archive table
       const { data, error } = await supabase
         .from('asset_history_archive')
-        .insert([archiveData])
+        .insert([archiveData] as any) // Cast to any to resolve type mismatch
         .select();
 
       if (error) {
@@ -70,7 +67,6 @@ export const useAssetHistory = (user: any) => {
       console.error('=== ARCHIVE SAVE ERROR ===');
       console.error('Error:', error);
       
-      // Don't show error toast for delete operations to avoid annoying user
       if (historyRecord.change_type !== 'delete') {
         toast.error("Cảnh báo", {
           description: "Không thể lưu lịch sử thay đổi",
@@ -80,7 +76,7 @@ export const useAssetHistory = (user: any) => {
       setIsLoading(false);
       return null;
     }
-  }, [user, setIsLoading]); // Dependencies for useCallback
+  }, [user, setIsLoading]);
 
   return {
     saveHistory,

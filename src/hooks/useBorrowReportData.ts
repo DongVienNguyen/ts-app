@@ -2,18 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { getAssetTransactions } from '@/services/assetService';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { Tables } from '@/integrations/supabase/types';
 
-interface Transaction {
-  id: string;
-  staff_code: string;
-  transaction_date: string;
-  parts_day: string;
-  room: string;
-  transaction_type: string;
-  asset_year: number;
-  asset_code: number;
-  note: string;
-}
+type Transaction = Tables<'asset_transactions'>;
 
 interface DateRange {
   start: string;
@@ -37,7 +28,7 @@ export const useBorrowReportData = () => {
       setIsLoading(true);
       try {
         const data = await getAssetTransactions();
-        const borrowTransactions = data.filter(t => t.transaction_type === 'Mượn TS');
+        const borrowTransactions = (data as Transaction[]).filter(t => t.transaction_type === 'Mượn TS');
         setAllTransactions(borrowTransactions);
       } catch (error) {
         console.error("Error fetching borrow report data:", error);

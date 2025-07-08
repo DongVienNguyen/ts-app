@@ -22,15 +22,11 @@ const CRCReminders = () => {
     reminders,
     sentReminders,
     isLoading,
-    error,
     loadAllData,
     refreshData
   } = useCRCData();
 
   const [currentUser, setCurrentUser] = useState<{ role: string; username: string } | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sentSearchTerm, setSentSearchTerm] = useState('');
-  const [editingReminder, setEditingReminder] = useState<any>(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   
   const [loaiCRC, setLoaiCRC] = useState('');
@@ -38,6 +34,7 @@ const CRCReminders = () => {
   const [selectedLDPCRC, setSelectedLDPCRC] = useState('');
   const [selectedCBCRC, setSelectedCBCRC] = useState('');
   const [selectedQuyLCRC, setSelectedQuyLCRC] = useState('');
+  const [editingReminder, setEditingReminder] = useState<any>(null);
 
   useEffect(() => {
     loadCurrentUser();
@@ -75,11 +72,11 @@ const CRCReminders = () => {
       };
 
       if (editingReminder) {
-        const { error } = await supabase.from('crc_reminders').update(reminderData).eq('id', editingReminder.id);
+        const { error } = await supabase.from('crc_reminders').update(reminderData as any).eq('id', editingReminder.id);
         if (error) throw error;
         setMessage({ type: 'success', text: "Cập nhật nhắc nhở CRC thành công" });
       } else {
-        const { error } = await supabase.from('crc_reminders').insert([reminderData]);
+        const { error } = await supabase.from('crc_reminders').insert([reminderData] as any);
         if (error) throw error;
         setMessage({ type: 'success', text: "Thêm nhắc nhở CRC thành công" });
       }
@@ -141,7 +138,7 @@ const CRCReminders = () => {
       title,
       message,
       notification_type: 'crc_reminder',
-    });
+    } as any); // Cast to any to resolve type mismatch
   };
 
   const sendSingleReminder = async (reminder: any) => {
@@ -187,8 +184,10 @@ const CRCReminders = () => {
             url: '/crc-reminders'
         };
         for (const recipient of recipientsInfo) {
-          createNotification(recipient.email, 'Nhắc nhở duyệt CRC', notifMessage);
-          sendPushNotification(recipient.email, pushPayload);
+          if (recipient) {
+            createNotification(recipient.email, 'Nhắc nhở duyệt CRC', notifMessage);
+            sendPushNotification(recipient.email, pushPayload);
+          }
         }
 
         setMessage({ type: 'success', text: "Đã gửi email và chuyển sang danh sách đã gửi" });
@@ -228,7 +227,7 @@ const CRCReminders = () => {
   const handleDeleteAllSentCRCReminders = async () => {
     setMessage({ type: '', text: '' });
     try {
-      const { error } = await supabase.from('sent_crc_reminders').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all by matching a non-existent ID
+      const { error } = await supabase.from('sent_crc_reminders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (error) throw error;
       setMessage({ type: 'success', text: "Đã xóa tất cả nhắc nhở CRC đã gửi thành công." });
       refreshData();
@@ -236,8 +235,6 @@ const CRCReminders = () => {
       setMessage({ type: 'error', text: `Không thể xóa tất cả nhắc nhở CRC đã gửi: ${error.message}` });
     }
   };
-
-  const exportToCSV = () => { /* ... existing logic ... */ };
 
   const filteredReminders = reminders.filter(r => [r.loai_bt_crc, r.ldpcrc, r.cbcrc, r.quycrc].some(val => val?.toLowerCase().includes(searchTerm.toLowerCase())));
   const filteredSentReminders = sentReminders.filter(r => [r.loai_bt_crc, r.ldpcrc, r.cbcrc, r.quycrc].some(val => val?.toLowerCase().includes(sentSearchTerm.toLowerCase())));

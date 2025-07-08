@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Staff, StaffMember } from '@/types/staff'; // Import Staff and StaffMember types
+import { Staff, StaffMember } from '@/types/staff';
 
 export const useStaffData = () => {
   const [staff, setStaff] = useState<Staff>({
@@ -39,15 +39,14 @@ export const useStaffData = () => {
       if (quycrcError) throw quycrcError;
 
       setStaff({
-        cbqln: cbqlnData || [],
-        cbkh: cbkhData || [],
-        ldpcrc: ldpcrcData || [],
-        cbcrc: cbcrcData || [],
-        quycrc: quycrcData || [],
+        cbqln: (cbqlnData as StaffMember[]) || [],
+        cbkh: (cbkhData as StaffMember[]) || [],
+        ldpcrc: (ldpcrcData as StaffMember[]) || [],
+        cbcrc: (cbcrcData as StaffMember[]) || [],
+        quycrc: (quycrcData as StaffMember[]) || [],
       });
     } catch (error) {
       console.error('Error loading staff data:', error);
-      // Optionally, set an error state or show a toast
     }
   };
 

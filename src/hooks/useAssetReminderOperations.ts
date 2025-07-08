@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toCSV, FieldConfig } from '@/utils/csvUtils';
 
@@ -35,7 +34,7 @@ export const useAssetReminderOperations = (loadData: () => Promise<void>, showMe
       } else {
         const { error } = await supabase
           .from('asset_reminders')
-          .insert([reminderData]);
+          .insert([reminderData] as any); // Cast to any to resolve type mismatch
 
         if (error) throw error;
         showMessage({ type: 'success', text: "Thêm nhắc nhở thành công" });
@@ -59,7 +58,7 @@ export const useAssetReminderOperations = (loadData: () => Promise<void>, showMe
       if (error) throw error;
       showMessage({ type: 'success', text: "Xóa nhắc nhở thành công" });
       await loadData();
-    } catch (error: any) { // Added any type to error
+    } catch (error: any) {
       showMessage({ type: 'error', text: "Không thể xóa nhắc nhở" });
     }
   };
@@ -74,15 +73,15 @@ export const useAssetReminderOperations = (loadData: () => Promise<void>, showMe
       if (error) throw error;
       showMessage({ type: 'success', text: "Xóa nhắc nhở đã gửi thành công" });
       await loadData();
-    } catch (error: any) { // Added any type to error
+    } catch (error: any) {
       showMessage({ type: 'error', text: "Không thể xóa nhắc nhở đã gửi" });
     }
   };
 
   const handleDeleteAllSentReminders = async () => {
-    showMessage({ type: 'info', text: '' }); // Changed type to 'info'
+    showMessage({ type: 'info', text: '' });
     try {
-      const { error } = await supabase.from('sent_asset_reminders').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all by matching a non-existent ID
+      const { error } = await supabase.from('sent_asset_reminders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (error) throw error;
       showMessage({ type: 'success', text: "Đã xóa tất cả nhắc nhở đã gửi thành công." });
       await loadData();
@@ -106,10 +105,10 @@ export const useAssetReminderOperations = (loadData: () => Promise<void>, showMe
       showMessage({ type: 'info', text: "Không có dữ liệu để xuất" });
       return;
     }
-    const csvString = toCSV(data, assetReminderFields); // Use toCSV
+    const csvString = toCSV(data, assetReminderFields);
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    if (link.download !== undefined) { // Feature detection for download attribute
+    if (link.download !== undefined) {
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
       link.setAttribute('download', filename);

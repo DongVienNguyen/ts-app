@@ -13,21 +13,15 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useSecureAuth } from '@/hooks/useSecureAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Tables } from '@/integrations/supabase/types';
 
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  notification_type: string;
-  is_read: boolean;
-  created_at: string;
-}
+type Notification = Tables<'notifications'>;
 
 export function NotificationBell() {
   const { user } = useSecureAuth();
   const queryClient = useQueryClient();
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (): Promise<Notification[]> => {
     if (!user) return [];
     const { data, error } = await supabase
       .from('notifications')
@@ -40,7 +34,7 @@ export function NotificationBell() {
       console.error('Error fetching notifications:', error);
       return [];
     }
-    return data || [];
+    return (data as Notification[]) || [];
   };
 
   const { data: notifications = [] } = useQuery<Notification[]>({
@@ -158,7 +152,7 @@ export function NotificationBell() {
               </div>
               <p className="text-sm text-gray-600 mt-1 whitespace-normal">{notification.message}</p>
               <span className="text-xs text-gray-400 mt-2">
-                {new Date(notification.created_at).toLocaleString('vi-VN')}
+                {new Date(notification.created_at!).toLocaleString('vi-VN')}
               </span>
             </DropdownMenuItem>
           ))

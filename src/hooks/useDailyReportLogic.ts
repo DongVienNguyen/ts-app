@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getAssetTransactions, AssetTransactionFilters } from '@/services/assetService';
@@ -10,10 +10,11 @@ import {
   getDefaultEndDate
 } from '@/utils/dateUtils';
 import { groupTransactions, getFilterDisplayTextUtil } from '@/utils/reportUtils';
-import { Transaction } from '@/types/asset'; // Import the new interface
+import { Tables } from '@/integrations/supabase/types';
+
+type Transaction = Tables<'asset_transactions'>;
 
 export const useDailyReportLogic = () => {
-  // UI State
   const [isExporting, setIsExporting] = useState(false);
   const [showGrouped, setShowGrouped] = useState(true);
   const [filterType, setFilterType] = useState('qln_pgd_next_day');
@@ -27,7 +28,6 @@ export const useDailyReportLogic = () => {
 
   const ITEMS_PER_PAGE = 10;
 
-  // Initialize date values once using useState with a function initializer
   const [gmtPlus7Date] = useState(() => getGMTPlus7Date());
   const [morningTargetDate] = useState(() => getDateBasedOnTime());
   const [nextWorkingDayDate] = useState(() => getNextWorkingDay(gmtPlus7Date));
@@ -39,7 +39,6 @@ export const useDailyReportLogic = () => {
     nextWorkingDayFormatted: formatToDDMMYYYY(nextWorkingDayDate),
   }), [gmtPlus7Date, morningTargetDate, nextWorkingDayDate]);
 
-  // Derive filters based on filterType and customFilters
   const currentQueryFilters = useMemo(() => {
     const filters: AssetTransactionFilters = {};
     const todayStr = gmtPlus7Date.toISOString().split('T')[0];
@@ -85,7 +84,6 @@ export const useDailyReportLogic = () => {
     return filters;
   }, [filterType, customFilters, gmtPlus7Date, morningTargetDate, nextWorkingDayDate]);
 
-  // Effect to initialize custom filter dates
   useEffect(() => {
     setCustomFilters({
       start: gmtPlus7Date.toISOString().split('T')[0],
@@ -94,21 +92,17 @@ export const useDailyReportLogic = () => {
     });
   }, [gmtPlus7Date, defaultEndDate]);
 
-  // Data fetching with React Query
   const { data: transactions = [], isLoading } = useQuery<Transaction[], Error>({
     queryKey: ['assetTransactions', currentQueryFilters],
-    queryFn: () => getAssetTransactions(currentQueryFilters),
+    queryFn: async () => (await getAssetTransactions(currentQueryFilters)) as Transaction[],
     enabled: !!currentQueryFilters.startDate,
     staleTime: 5 * 60 * 1000,
-    // onError is removed in Tanstack Query v5. Errors are handled by checking `error` property.
   });
   
-  // Reset page number when transactions data changes
   useEffect(() => {
     setCurrentPage(1);
   }, [transactions]);
 
-  // Scroll effect for mobile
   useEffect(() => {
     const isMobile = window.innerWidth < 768;
     if (isMobile && transactions.length > 0 && resultsRef.current) {
@@ -118,7 +112,6 @@ export const useDailyReportLogic = () => {
     }
   }, [transactions]);
 
-  // Handler for the custom filter button
   const handleCustomFilter = () => {
     if (customFilters.start && customFilters.end) {
       setFilterType('custom');
