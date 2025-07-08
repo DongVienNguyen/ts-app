@@ -18,40 +18,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   global: {
     headers: {
       'X-Client-Info': 'asset-management-app'
-    },
-    fetch: (url, options: RequestInit = {}) => {
-      console.log('🌐 Supabase fetch:', url);
-      
-      // Add timeout and better error handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
-      return fetch(url, {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          ...options.headers,
-          // Remove Cache-Control header as it causes CORS issues with edge functions
-        },
-      })
-      .then(response => {
-        clearTimeout(timeoutId);
-        console.log('✅ Supabase response:', response.status, response.statusText);
-        return response;
-      })
-      .catch(error => {
-        clearTimeout(timeoutId);
-        console.error('❌ Supabase fetch error:', error);
-        
-        // Provide more specific error messages
-        if (error.name === 'AbortError') {
-          throw new Error('Request timeout - please check your internet connection');
-        } else if (error.message.includes('fetch failed')) {
-          throw new Error('Network error - please check your internet connection and try again');
-        } else {
-          throw error;
-        }
-      });
     }
   },
   db: {
