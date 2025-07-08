@@ -9,27 +9,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      devOptions: {
-        enabled: true,
-        type: 'module',
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.origin === 'https://itoapoyrxxmtbbuolfhk.supabase.co',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              networkTimeoutSeconds: 10,
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-        ],
-      },
-      // PWA manifest options
+      // Using the default 'generateSW' strategy without complex workbox options
+      // to ensure a clean build. We can add runtime caching back later if needed.
       manifest: {
         name: 'Asset Management App',
         short_name: 'AssetApp',
