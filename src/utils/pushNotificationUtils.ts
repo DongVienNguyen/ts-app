@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { VAPID_PUBLIC_KEY } from '@/config';
+// Xóa bỏ import VAPID_PUBLIC_KEY từ '@/config'
 import { toast } from 'sonner';
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -40,7 +40,8 @@ export async function subscribeUserToPush(username: string) {
     const swRegistration = await navigator.serviceWorker.ready;
     let subscription = await swRegistration.pushManager.getSubscription();
 
-    const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+    // Lấy VAPID_PUBLIC_KEY từ biến môi trường của Vite
+    const applicationServerKey = urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY);
 
     if (subscription) {
       const currentKey = subscription.options.applicationServerKey ?
@@ -49,7 +50,7 @@ export async function subscribeUserToPush(username: string) {
           .replace(/\//g, '_')
           .replace(/=+$/, '') : null;
 
-      if (currentKey !== VAPID_PUBLIC_KEY) {
+      if (currentKey !== import.meta.env.VITE_VAPID_PUBLIC_KEY) { // So sánh với biến môi trường
         console.log("Phát hiện VAPID key khác. Hủy đăng ký cũ và tạo đăng ký mới.");
         await subscription.unsubscribe();
         subscription = null; // Set to null to re-subscribe
