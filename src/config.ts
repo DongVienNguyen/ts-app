@@ -1,3 +1,8 @@
-export const SUPABASE_URL = "https://itoapoyrxxmtbbuolfhk.supabase.co";
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b2Fwb3lyeHhtdGJidW9sZmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2ODQ2NDgsImV4cCI6MjA2NjI2MDY0OH0.qT7L0MDAH-qArxaoMSkCYmVYAcwdEzbXWB1PayxD_rk";
-export const VAPID_PUBLIC_KEY = "BPjyXf2rFH9n3YSr3afmw4fsiNXJfBcQfpufyxiDiXCXpZqG5IHOcdXPUeLCrrJTsbPSOIuXNzN9Mwoa7WxTAw8"; // IMPORTANT: Replace with your actual VAPID public key
+// Ensure VITE_APP_VAPID_PUBLIC_KEY is defined in your .env file
+export const VAPID_PUBLIC_KEY = import.meta.env.VITE_APP_VAPID_PUBLIC_KEY || '';
+
+if (!VAPID_PUBLIC_KEY) {
+  console.error("VAPID Public Key is not defined. Please set VITE_APP_VAPID_PUBLIC_KEY in your .env file.");
+} else {
+  console.log("VAPID Public Key loaded via import.meta.env:", VAPID_PUBLIC_KEY);
+}

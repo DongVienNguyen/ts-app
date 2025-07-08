@@ -1,6 +1,5 @@
 import { Staff } from '@/types/auth';
 import { logSecurityEvent } from '@/utils/secureAuthUtils';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/config';
 
 interface SecureLoginResult {
   user: Staff | null;
@@ -10,12 +9,12 @@ interface SecureLoginResult {
 
 async function invokeEdgeFunction(functionName: string, body: object): Promise<{ data: any, error: any }> {
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
       },
       body: JSON.stringify(body),
     });
