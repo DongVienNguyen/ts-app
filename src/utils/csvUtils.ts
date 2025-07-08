@@ -1,92 +1,240 @@
-export interface FieldConfig { // Added export
+export interface FieldConfig {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'boolean';
+  type: 'text' | 'number' | 'date' | 'boolean' | 'select' | 'textarea';
+  options?: string[];
+  required?: boolean;
 }
 
-export const toCSV = (data: any[], fields: FieldConfig[]): string => {
-  if (!data || data.length === 0) {
-    return fields.map(f => f.key).join(','); // Just headers if no data
-  }
-
-  const headers = fields.map(f => f.key);
-  const csvRows = [];
-
-  // Add headers
-  csvRows.push(headers.map(header => `"${header.replace(/"/g, '""')}"`).join(','));
-
-  // Add data rows
-  for (const item of data) {
-    const row = fields.map(field => {
-      let value = item[field.key];
-      if (value === null || value === undefined) {
-        return '';
-      }
+export function toCSV(data: any[], fields: FieldConfig[]): string {
+  if (!data || data.length === 0) return '';
+  
+  const headers = fields.map(field => field.label);
+  const rows = data.map(item => 
+    fields.map(field => {
+      const value = item[field.key];
       if (field.type === 'date' && value) {
-        const dateObj = new Date(value);
-        if (!isNaN(dateObj.getTime())) { // Check if it's a valid date
-          value = dateObj.toISOString().split('T')[0];
-        } else {
-          value = ''; // Return empty string for invalid dates
-        }
+        return new Date(value).toLocaleDateString('vi-VN');
+      }
+      if (field.type === 'boolean') {
+        return value ? 'Có' : 'Không';
+      }
+      return value || '';
+    })
+  );
+  
+  return [headers, ...rows].map(row => 
+    row.map(cell => {
+      const cellStr = String(cell);
+      if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+        return `"${cellStr.replace(/"/g, '""')}"`;
+      }
+      return cellStr;
+    }).join(',')
+  ).join('\n');
+}
+
+export function fromCSV(csvText: string, fields: FieldConfig[]): any[] {
+  const lines = csvText.split('\n').filter(line => line.trim());
+  if (lines.length <= 1) return [];
+  
+  const dataLines = lines.slice(1);
+  return dataLines.map(line => {
+    const values = parseCSVLine(line);
+    const item: any = {};
+    
+    fields.forEach((field, index) => {
+      const value = values[index];
+      if (field.type === 'number') {
+        item[field.key] = value ? Number(value) : null;
       } else if (field.type === 'boolean') {
-        value = value ? 'true' : 'false';
+        item[field.key] = value === 'Có' || value === 'true';
+      } else if (field.type === 'date') {
+        item[field.key] = value ? new Date(value).toISOString() : null;
+      } else {
+        item[field.key] = value || null;
       }
-      // Escape double quotes and wrap in quotes
-      return `"${String(value).replace(/"/g, '""')}"`;
-    }).join(',');
-    csvRows.push(row);
+    });
+    
+    return item;
+  });
+}
+
+export function downloadCSV(data: any[], filename: string, headers?: string[]) {
+  if (!data || data.length === 0) {
+    console.warn('No data to export');
+    return;
   }
 
-  return csvRows.join('\n');
-};
-
-export const fromCSV = (csvString: string, fields: FieldConfig[]): any[] => {
-  const lines = csvString.split(/\r?\n/).filter(line => line.trim() !== '');
-  if (lines.length < 2) { // Need at least header and one data row
-    return [];
-  }
-
-  // Use the provided fields' keys as the definitive headers for parsing
-  const headerKeys = fields.map(f => f.key);
-  const result = [];
-
-  // Skip the first line (actual CSV headers, which might be labels or different order)
-  // and rely on `fields` for mapping.
-  for (let i = 1; i < lines.length; i++) {
-    const currentLine = lines[i];
-    // Basic CSV parsing: split by comma, handle quoted fields
-    const values = currentLine.match(/(?:\"(?:[^"]|\"\")*\"|[^,])+/g);
-
-    if (!values) continue;
-
-    const obj: Record<string, any> = {};
-    for (let j = 0; j < headerKeys.length && j < values.length; j++) {
-      let value = values[j].trim();
-      // Remove surrounding quotes and unescape internal quotes
-      if (value.startsWith('"') && value.endsWith('"')) {
-        value = value.substring(1, value.length - 1).replace(/\"\"/g, '"');
-      }
-
-      const field = fields.find(f => f.key === headerKeys[j]);
-      if (field) {
-        switch (field.type) {
-          case 'number':
-            obj[field.key] = parseFloat(value) || null;
-            break;
-          case 'boolean':
-            obj[field.key] = value.toLowerCase() === 'true';
-            break;
-          case 'date':
-            // Supabase expects ISO 8601 format (YYYY-MM-DD) for date columns
-            obj[field.key] = value ? new Date(value).toISOString().split('T')[0] : null;
-            break;
-          default:
-            obj[field.key] = value;
+  // Get headers from first object if not provided
+  const csvHeaders = headers || Object.keys(data[0]);
+  
+  // Create CSV content
+  const csvContent = [
+    // Headers row
+    csvHeaders.join(','),
+    // Data rows
+    ...data.map(row => 
+      csvHeaders.map(header => {
+        const value = row[header];
+        // Handle values that contain commas, quotes, or newlines
+        if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+          return `"${value.replace(/"/g, '""')}"`;
         }
-      }
-    }
-    result.push(obj);
+        return value || '';
+      }).join(',')
+    )
+  ].join('\n');
+
+  // Create and download file
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
+}
+
+export function parseCSV(csvText: string): any[] {
+  const lines = csvText.split('\n').filter(line => line.trim());
+  if (lines.length === 0) return [];
+
+  const headers = parseCSVLine(lines[0]);
+  const data = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    if (values.length === headers.length) {
+      const row: any = {};
+      headers.forEach((header, index) => {
+        row[header] = values[index];
+      });
+      data.push(row);
+    }
+  }
+
+  return data;
+}
+
+function parseCSVLine(line: string): string[] {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  let i = 0;
+
+  while (i < line.length) {
+    const char = line[i];
+    
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        // Escaped quote
+        current += '"';
+        i += 2;
+      } else {
+        // Toggle quote state
+        inQuotes = !inQuotes;
+        i++;
+      }
+    } else if (char === ',' && !inQuotes) {
+      // Field separator
+      result.push(current);
+      current = '';
+      i++;
+    } else {
+      current += char;
+      i++;
+    }
+  }
+  
+  result.push(current);
   return result;
-};
+}
+
+export function exportTableToCSV(tableId: string, filename: string) {
+  const table = document.getElementById(tableId);
+  if (!table) {
+    console.error(`Table with id "${tableId}" not found`);
+    return;
+  }
+
+  const rows = table.querySelectorAll('tr');
+  const csvData = [];
+
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('th, td');
+    const rowData = Array.from(cells).map(cell => {
+      const text = cell.textContent || '';
+      // Handle values that contain commas, quotes, or newlines
+      if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+        return `"${text.replace(/"/g, '""')}"`;
+      }
+      return text;
+    });
+    csvData.push(rowData.join(','));
+  });
+
+  const csvContent = csvData.join('\n');
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+}
+
+export function convertArrayToCSV(data: any[], headers?: string[]): string {
+  if (!data || data.length === 0) {
+    return '';
+  }
+
+  const csvHeaders = headers || Object.keys(data[0]);
+  
+  const csvContent = [
+    // Headers row
+    csvHeaders.join(','),
+    // Data rows
+    ...data.map(row => 
+      csvHeaders.map(header => {
+        const value = row[header];
+        // Handle values that contain commas, quotes, or newlines
+        if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value || '';
+      }).join(',')
+    )
+  ].join('\n');
+
+  return csvContent;
+}
+
+export function downloadDataAsCSV(data: any[], filename: string, headers?: string[]) {
+  const csvContent = convertArrayToCSV(data, headers);
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+}

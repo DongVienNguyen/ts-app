@@ -1,28 +1,15 @@
-import { useState, useEffect } from 'react';
-import { Staff } from '@/types/auth'; // Import Staff type
+import { useSecureAuth } from '@/contexts/AuthContext';
 
-export const useCurrentUser = () => {
-  const [currentUser, setCurrentUser] = useState<Staff | null>(null); // Use Staff type here
-
-  const loadCurrentUser = async () => {
-    try {
-      const userStr = localStorage.getItem('loggedInStaff'); // Corrected key from 'currentUser'
-      if (userStr) {
-        const user: Staff = JSON.parse(userStr); // Cast to Staff type
-        setCurrentUser(user);
-        console.log('Current user loaded:', user);
-      }
-    } catch (error) {
-      console.error('Error loading current user:', error);
-    }
-  };
-
-  useEffect(() => {
-    loadCurrentUser();
-  }, []);
-
+export function useCurrentUser() {
+  const { user, loading } = useSecureAuth();
+  
   return {
-    currentUser,
-    loadCurrentUser
+    user,
+    currentUser: user, // Add this for backward compatibility
+    loading,
+    isAuthenticated: !!user,
+    isAdmin: user?.role === 'admin',
+    isNqUser: user?.department === 'NQ',
+    isNqOrAdmin: user?.role === 'admin' || user?.department === 'NQ',
   };
-};
+}

@@ -1,149 +1,219 @@
-import { format, parse, isValid } from 'date-fns';
+import { format, parse, isValid, addDays, subDays, startOfDay, endOfDay } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
-/**
- * Parses a date string in "dd-MM" format and returns a Date object for the current year.
- * @param dateStr The date string in "dd-MM" format.
- * @returns A Date object or null if invalid.
- */
-export const parseDayMonthString = (dateStr: string): Date | null => {
-  if (!/^\d{2}-\d{2}$/.test(dateStr)) return null;
-  const date = parse(dateStr, 'dd-MM', new Date());
-  return isValid(date) ? date : null;
-};
-
-/**
- * Checks if a date string (dd-MM) is today or in the past.
- * @param dateStr The date string in "dd-MM" format.
- * @returns True if the date is due or overdue, false otherwise.
- */
-export const isDayMonthDueOrOverdue = (dateStr: string): boolean => {
-  try {
-    const dueDate = parseDayMonthString(dateStr);
-    if (!dueDate) return false;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day
-    dueDate.setHours(0, 0, 0, 0); // Reset time to start of day
-    
-    return dueDate <= today;
-  } catch (error) {
-    console.error('Error parsing date:', dateStr, error);
-    return false;
-  }
-};
-
-/**
- * Formats a date string (like YYYY-MM-DD) or a Date object into dd/MM/yyyy format.
- * Handles timezone offsets to prevent off-by-one day errors.
- * @param date The date string or Date object.
- * @returns The formatted date string or an empty string if invalid.
- */
-export const formatToDDMMYYYY = (date: string | Date | undefined | null): string => {
-  if (!date) return '';
+export function formatDate(date: Date | string, formatStr: string = 'dd/MM/yyyy'): string {
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    if (!isValid(dateObj)) return '';
-    // Add timezone offset to prevent off-by-one day errors
-    const correctedDate = new Date(dateObj.valueOf() + dateObj.getTimezoneOffset() * 60 * 1000);
-    return format(correctedDate, 'dd/MM/yyyy');
+    if (!isValid(dateObj)) {
+      return '';
+    }
+    return format(dateObj, formatStr, { locale: vi });
   } catch (error) {
-    console.error('Error formatting date:', date, error);
+    console.error('Error formatting date:', error);
     return '';
   }
-};
+}
 
-// --- Helper Functions for Asset Entry Date ---
+export function formatToDDMMYYYY(date: Date | string | null): string {
+  if (!date) return '';
+  return formatDate(date, 'dd/MM/yyyy');
+}
 
-/** Gets the current date in GMT+7 timezone. */
-export const getGMTPlus7Date = () => new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" }));
-
-/**
- * Calculates the next working day (skips Saturday and Sunday).
- * @param date The starting date.
- * @returns The next working day as a Date object.
- */
-export const getNextWorkingDay = (date: Date): Date => {
-  const day = date.getDay();
-  let nextDay = new Date(date);
-  if (day === 5) nextDay.setDate(date.getDate() + 3); // Friday -> Monday
-  else if (day === 6) nextDay.setDate(date.getDate() + 2); // Saturday -> Monday
-  else nextDay.setDate(date.getDate() + 1);
-  return nextDay;
-};
-
-/**
- * Helper to get the effective date, skipping weekends by moving to the next Monday.
- * @param date The starting date.
- * @returns The date if it's a weekday, or the next Monday if it's a weekend.
- */
-const getEffectiveDate = (date: Date): Date => {
-    const effectiveDate = new Date(date);
-    const day = effectiveDate.getDay();
-    if (day === 6) { // Saturday
-        effectiveDate.setDate(effectiveDate.getDate() + 2);
-    } else if (day === 0) { // Sunday
-        effectiveDate.setDate(effectiveDate.getDate() + 1);
+export function formatDateTime(date: Date | string, formatStr: string = 'dd/MM/yyyy HH:mm'): string {
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (!isValid(dateObj)) {
+      return '';
     }
-    return effectiveDate;
-};
+    return format(dateObj, formatStr, { locale: vi });
+  } catch (error) {
+    console.error('Error formatting datetime:', error);
+    return '';
+  }
+}
 
-/**
- * Determines the default transaction date and disabled date range based on the current time.
- * @returns An object with `defaultDate` (YYYY-MM-DD) and `disabledBefore` (Date object).
- */
-export const getTransactionDateRules = () => {
-  const now = getGMTPlus7Date();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
+export function getGMTPlus7Date(): Date {
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + (7 * 3600000));
+}
 
-  // Time window for "Chiều" shift: 08:00 - 12:45
-  const isMorningWindow = (hours >= 8) && (hours < 12 || (hours === 12 && minutes <= 45));
-  //                                                      ^ Changed 'hour' to 'hours'
-  let defaultDate: Date;
-
-  if (isMorningWindow) {
-    // In the morning window, the default is the current working day.
-    defaultDate = getEffectiveDate(now);
-  } else {
-    // Outside the morning window, the default is the next working day.
-    defaultDate = getNextWorkingDay(now);
+export function getNextWorkingDay(date: Date): Date {
+  const nextDay = addDays(date, 1);
+  const dayOfWeek = nextDay.getDay();
+  
+  // If it's Saturday (6) or Sunday (0), move to Monday
+  if (dayOfWeek === 6) {
+    return addDays(nextDay, 2);
+  } else if (dayOfWeek === 0) {
+    return addDays(nextDay, 1);
   }
   
-  // Users cannot select any day before the calculated default date.
-  const disabledBefore = new Date(defaultDate);
-  disabledBefore.setHours(0, 0, 0, 0);
+  return nextDay;
+}
 
+export function getDateBasedOnTime(): Date {
+  const now = getGMTPlus7Date();
+  const hour = now.getHours();
+  
+  // If after 13:00, return next working day, otherwise return today
+  if (hour >= 13) {
+    return getNextWorkingDay(now);
+  }
+  
+  return now;
+}
+
+export function getDefaultEndDate(): Date {
+  return addDays(getGMTPlus7Date(), 7);
+}
+
+export function getTransactionDateRules() {
+  const now = getGMTPlus7Date();
+  const defaultDate = formatDateForInput(now);
+  const disabledBefore = subDays(now, 30);
+  
   return {
-    defaultDate: format(defaultDate, 'yyyy-MM-dd'),
-    disabledBefore: disabledBefore,
+    defaultDate,
+    disabledBefore
   };
-};
+}
 
+export function isDayMonthDueOrOverdue(dateStr: string): boolean {
+  if (!dateStr) return false;
+  
+  try {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    
+    // Parse DD-MM format
+    const [day, month] = dateStr.split('-').map(Number);
+    if (!day || !month || month > 12 || day > 31) return false;
+    
+    // Create date for current year
+    const targetDate = new Date(currentYear, month - 1, day);
+    
+    // If the date has passed this year, check next year
+    if (targetDate < now) {
+      const nextYearDate = new Date(currentYear + 1, month - 1, day);
+      return nextYearDate <= addDays(now, 30); // Due within 30 days
+    }
+    
+    return targetDate <= addDays(now, 30); // Due within 30 days
+  } catch (error) {
+    console.error('Error checking due date:', error);
+    return false;
+  }
+}
 
-// --- New Helper Functions for Daily Report ---
+export function parseDate(dateStr: string, formatStr: string = 'dd/MM/yyyy'): Date | null {
+  try {
+    const parsed = parse(dateStr, formatStr, new Date(), { locale: vi });
+    return isValid(parsed) ? parsed : null;
+  } catch (error) {
+    console.error('Error parsing date:', error);
+    return null;
+  }
+}
 
-/**
- * Determines the target date for the morning report based on the current time.
- * If it's after 08:06 AM, it returns the next working day. Otherwise, it returns the current day.
- * @returns The target date as a Date object.
- */
-export const getDateBasedOnTime = (): Date => {
-  const gmtPlus7 = getGMTPlus7Date();
-  const hours = gmtPlus7.getHours();
-  const minutes = gmtPlus7.getMinutes();
-  const isAfter0806 = hours > 8 || (hours === 8 && minutes >= 6);
-  return isAfter0806 ? getNextWorkingDay(gmtPlus7) : gmtPlus7;
-};
+export function isValidDateString(dateStr: string, formatStr: string = 'dd/MM/yyyy'): boolean {
+  try {
+    const parsed = parse(dateStr, formatStr, new Date(), { locale: vi });
+    return isValid(parsed);
+  } catch (error) {
+    return false;
+  }
+}
 
-/**
- * Calculates the default end date for custom filters, which is the next working day.
- * @returns The default end date as a Date object.
- */
-export const getDefaultEndDate = (): Date => {
-  const gmtPlus7 = getGMTPlus7Date();
-  const tomorrow = new Date(gmtPlus7);
-  tomorrow.setDate(gmtPlus7.getDate() + 1);
-  if (tomorrow.getDay() === 6) tomorrow.setDate(tomorrow.getDate() + 2); // If tomorrow is Saturday, set to Monday
-  else if (tomorrow.getDay() === 0) tomorrow.setDate(tomorrow.getDate() + 1); // If tomorrow is Sunday, set to Monday
-  return tomorrow;
-};
+export function getCurrentDate(): string {
+  return formatDate(new Date());
+}
+
+export function getCurrentDateTime(): string {
+  return formatDateTime(new Date());
+}
+
+export function addDaysToDate(date: Date | string, days: number): Date {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return addDays(dateObj, days);
+}
+
+export function subtractDaysFromDate(date: Date | string, days: number): Date {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return subDays(dateObj, days);
+}
+
+export function getStartOfDay(date: Date | string): Date {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return startOfDay(dateObj);
+}
+
+export function getEndOfDay(date: Date | string): Date {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return endOfDay(dateObj);
+}
+
+export function formatDateForInput(date: Date | string): string {
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (!isValid(dateObj)) {
+      return '';
+    }
+    return format(dateObj, 'yyyy-MM-dd');
+  } catch (error) {
+    console.error('Error formatting date for input:', error);
+    return '';
+  }
+}
+
+export function formatDateTimeForInput(date: Date | string): string {
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    if (!isValid(dateObj)) {
+      return '';
+    }
+    return format(dateObj, "yyyy-MM-dd'T'HH:mm");
+  } catch (error) {
+    console.error('Error formatting datetime for input:', error);
+    return '';
+  }
+}
+
+export function isDateInPast(date: Date | string): boolean {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return dateObj < new Date();
+}
+
+export function isDateInFuture(date: Date | string): boolean {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return dateObj > new Date();
+}
+
+export function getDaysDifference(date1: Date | string, date2: Date | string): number {
+  const dateObj1 = typeof date1 === 'string' ? new Date(date1) : date1;
+  const dateObj2 = typeof date2 === 'string' ? new Date(date2) : date2;
+  
+  const timeDiff = dateObj2.getTime() - dateObj1.getTime();
+  return Math.ceil(timeDiff / (1000 * 3600 * 24));
+}
+
+export function formatRelativeTime(date: Date | string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  const diffInMs = now.getTime() - dateObj.getTime();
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+  if (diffInMinutes < 1) {
+    return 'Vừa xong';
+  } else if (diffInMinutes < 60) {
+    return `${diffInMinutes} phút trước`;
+  } else if (diffInHours < 24) {
+    return `${diffInHours} giờ trước`;
+  } else if (diffInDays < 7) {
+    return `${diffInDays} ngày trước`;
+  } else {
+    return formatDate(dateObj);
+  }
+}
