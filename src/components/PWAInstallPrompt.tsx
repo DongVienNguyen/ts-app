@@ -1,43 +1,58 @@
-import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Download, X } from 'lucide-react';
-import { useState } from 'react';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export function PWAInstallPrompt() {
   const { canInstall, triggerInstall } = usePWAInstall();
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
 
-  const handleInstallClick = () => {
-    triggerInstall();
-    setIsDismissed(true);
+  useEffect(() => {
+    if (canInstall) {
+      // Show prompt after 10 seconds if user hasn't dismissed it
+      const timer = setTimeout(() => {
+        const dismissed = localStorage.getItem('pwa-install-dismissed');
+        if (!dismissed) {
+          setShowPrompt(true);
+        }
+      }, 10000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [canInstall]);
+
+  const handleInstall = async () => {
+    await triggerInstall();
+    setShowPrompt(false);
   };
 
-  if (!canInstall || isDismissed) {
+  const handleDismiss = () => {
+    localStorage.setItem('pwa-install-dismissed', 'true');
+    setShowPrompt(false);
+  };
+
+  if (!showPrompt || !canInstall) {
     return null;
   }
 
-  // Simple check for iOS Safari to show different instructions
-  const isIosSafari = /iP(ad|hone|od).+Version\/[\d\.]+.*Safari/i.test(navigator.userAgent) && !/CriOS/i.test(navigator.userAgent);
-
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-secondary text-secondary-foreground p-3 shadow-lg flex items-center justify-center text-center animate-slide-in-up">
-      <div className="flex items-center space-x-4">
-        <Download className="h-5 w-5 hidden sm:block" />
-        <p className="text-sm font-medium">
-          {isIosSafari 
-            ? "Để có trải nghiệm tốt nhất, hãy thêm ứng dụng vào Màn hình chính."
-            : "Cài đặt ứng dụng để truy cập nhanh và sử dụng ngoại tuyến."
-          }
-        </p>
-        {!isIosSafari && (
-          <Button onClick={handleInstallClick} size="sm">
-            Cài đặt
-          </Button>
-        )}
+    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-sm z-50 bg-background p-4 rounded-lg shadow-lg border animate-slide-in-up">
+      <div className="flex items-start space-x-3">
+        <div className="flex-shrink-0 pt-1">
+          <Download className="h-6 w-6 text-primary" />
+        </div>
+        <div className="flex-1">
+          <p className="font-semibold">Cài đặt ứng dụng</p>
+          <p className="text-sm text-muted-foreground">Cài đặt ứng dụng để truy cập nhanh hơn và sử dụng offline.</p>
+          <div className="flex space-x-2 mt-3">
+            <Button onClick={handleInstall} size="sm">Cài đặt</Button>
+            <Button onClick={handleDismiss} variant="ghost" size="sm">Để sau</Button>
+          </div>
+        </div>
+        <Button onClick={handleDismiss} variant="ghost" size="icon" className="h-7 w-7">
+          <X className="h-4 w-4" />
+        </Button>
       </div>
-      <Button onClick={() => setIsDismissed(true)} variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8">
-        <X className="h-4 w-4" />
-      </Button>
     </div>
   );
 }

@@ -1,93 +1,85 @@
-import { Staff } from '@/types/auth';
+import { supabase } from '@/integrations/supabase/client';
+import { Staff, LoginResponse } from '@/types/auth';
 import { logSecurityEvent } from '@/utils/secureAuthUtils';
 
-interface SecureLoginResult {
-  user: Staff | null;
-  token: string | null;
-  error: string | null;
-}
-
-async function invokeEdgeFunction(functionName: string, body: object): Promise<{ data: any, error: any }> {
-  try {
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Edge function ${functionName} returned status ${response.status}: ${errorBody}`);
-      return { data: null, error: `Edge Function returned a non-2xx status code: ${response.status}` };
-    }
-
-    const data = await response.json();
-    return { data, error: null };
-  } catch (e) {
-    return { data: null, error: (e as Error).message };
-  }
-}
-
-export async function secureLoginUser(username: string, password: string): Promise<SecureLoginResult> {
+export async function secureLoginUser(username: string, password: string): Promise<LoginResponse> {
   try {
     logSecurityEvent('LOGIN_ATTEMPT', { username });
-    
-    const { data, error } = await invokeEdgeFunction('login-user', { 
-      username: username.toLowerCase().trim(), 
-      password 
+
+    // Call the login edge function
+    const { data, error } = await supabase.functions.invoke('login-user', {
+      body: { username, password }
     });
 
     if (error) {
-      logSecurityEvent('LOGIN_FUNCTION_INVOKE_ERROR', { error });
-      return { user: null, token: null, error: 'Lỗi khi gọi hàm đăng nhập' };
+      logSecurityEvent('LOGIN_ERROR', { username, error: error.message });
+      return { success: false, error: 'Lỗi kết nối đến server' };
     }
 
-    if (!data.success) {
-      logSecurityEvent('LOGIN_FUNCTION_LOGIC_ERROR', { username, error: data.error });
-      return { user: null, token: null, error: data.error || 'Đăng nhập thất bại' };
+    if (data.success && data.user && data.token) {
+      logSecurityEvent('LOGIN_SUCCESS', { username });
+      return {
+        success: true,
+        user: data.user as Staff,
+        token: data.token
+      };
+    } else {
+      logSecurityEvent('LOGIN_FAILED', { username, reason: data.error });
+      return {
+        success: false,
+        error: data.error || 'Đăng nhập thất bại'
+      };
     }
-    
-    if (!data.user || !data.token) {
-      logSecurityEvent('LOGIN_INVALID_RESPONSE', { username });
-      return { user: null, token: null, error: 'Phản hồi đăng nhập không hợp lệ từ máy chủ.' };
-    }
-
-    logSecurityEvent('LOGIN_SUCCESS', { username, role: data.user.role });
-    return { user: data.user, token: data.token, error: null };
   } catch (error) {
-    logSecurityEvent('LOGIN_EXCEPTION', { error: (error as Error).message });
-    return { user: null, token: null, error: 'Đã xảy ra lỗi không mong muốn trong quá trình đăng nhập.' };
+    console.error('Login error:', error);
+    logSecurityEvent('LOGIN_EXCEPTION', { username, error: error instanceof Error ? error.message : 'Unknown error' });
+    return {
+      success: false,
+      error: 'Đã xảy ra lỗi trong quá trình đăng nhập'
+    };
   }
 }
 
-interface AccountStatusResult {
-  isLocked: boolean;
-  error: string | null;
-}
-
-export async function checkAccountStatus(username: string): Promise<AccountStatusResult> {
+export async function checkAccountStatus(username: string): Promise<{ isLocked: boolean; error?: string }> {
   try {
-    const { data, error } = await invokeEdgeFunction('check-account-status', { 
-      username: username.toLowerCase().trim() 
+    const { data, error } = await supabase.functions.invoke('check-account-status', {
+      body: { username }
     });
 
     if (error) {
-      logSecurityEvent('CHECK_ACCOUNT_STATUS_INVOKE_ERROR', { username, error });
-      return { isLocked: false, error: 'Lỗi khi kiểm tra trạng thái tài khoản' };
+      return { isLocked: false, error: error.message };
     }
 
-    if (data.error) {
-      logSecurityEvent('CHECK_ACCOUNT_STATUS_LOGIC_ERROR', { username, error: data.error });
-      return { isLocked: false, error: data.error };
-    }
-
-    return { isLocked: data.isLocked, error: null };
+    return { isLocked: data.isLocked || false };
   } catch (error) {
-    logSecurityEvent('CHECK_ACCOUNT_STATUS_EXCEPTION', { username, error: (error as Error).message });
-    return { isLocked: false, error: 'Đã xảy ra lỗi không mong muốn khi kiểm tra trạng thái tài khoản.' };
+    console.error('Account status check error:', error);
+    return { isLocked: false, error: 'Lỗi kiểm tra trạng thái tài khoản' };
+  }
+}
+
+export async function resetPassword(username: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    logSecurityEvent('PASSWORD_RESET_ATTEMPT', { username });
+
+    const { data, error } = await supabase.functions.invoke('reset-password', {
+      body: { username, currentPassword, newPassword }
+    });
+
+    if (error) {
+      logSecurityEvent('PASSWORD_RESET_ERROR', { username, error: error.message });
+      return { success: false, error: 'Lỗi kết nối đến server' };
+    }
+
+    if (data.success) {
+      logSecurityEvent('PASSWORD_RESET_SUCCESS', { username });
+      return { success: true };
+    } else {
+      logSecurityEvent('PASSWORD_RESET_FAILED', { username, reason: data.error });
+      return { success: false, error: data.error || 'Đổi mật khẩu thất bại' };
+    }
+  } catch (error) {
+    console.error('Password reset error:', error);
+    logSecurityEvent('PASSWORD_RESET_EXCEPTION', { username, error: error instanceof Error ? error.message : 'Unknown error' });
+    return { success: false, error: 'Đã xảy ra lỗi trong quá trình đổi mật khẩu' };
   }
 }
