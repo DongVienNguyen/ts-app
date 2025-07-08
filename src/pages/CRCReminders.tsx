@@ -35,6 +35,8 @@ const CRCReminders = () => {
   const [selectedCBCRC, setSelectedCBCRC] = useState('');
   const [selectedQuyLCRC, setSelectedQuyLCRC] = useState('');
   const [editingReminder, setEditingReminder] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState(''); // Added
+  const [sentSearchTerm, setSentSearchTerm] = useState(''); // Added
 
   useEffect(() => {
     loadCurrentUser();
