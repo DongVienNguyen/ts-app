@@ -19,6 +19,12 @@ import { PushNotificationTester } from '@/components/PushNotificationTester';
 import { entityConfig } from '@/config/entityConfig';
 import { StatisticsTab } from '@/components/data-management/StatisticsTab';
 import { EditDialog } from '@/components/data-management/EditDialog';
+import { SecurityDashboard } from '@/components/SecurityDashboard';
+import { SecurityTestPanel } from '@/components/SecurityTestPanel';
+import { SecurityDocumentation } from '@/components/SecurityDocumentation';
+import { SecurityImplementationSummary } from '@/components/SecurityImplementationSummary';
+import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
+import { AccountManagementTab } from '@/components/data-management/AccountManagementTab';
 
 const DataManagement = () => {
   const [selectedEntity, setSelectedEntity] = useState<string>('asset_transactions');
@@ -319,6 +325,12 @@ const DataManagement = () => {
           <TabsList className="border-b">
             <TabsTrigger value="management"><DatabaseIcon className="mr-2 h-4 w-4" />Quản lý dữ liệu</TabsTrigger>
             <TabsTrigger value="statistics"><BarChart2 className="mr-2 h-4 w-4" />Thống kê</TabsTrigger>
+            <TabsTrigger value="security-dashboard"><Shield className="mr-2 h-4 w-4" />Dashboard</TabsTrigger>
+            <TabsTrigger value="accounts"><Users className="mr-2 h-4 w-4" />Tài khoản</TabsTrigger>
+            <TabsTrigger value="security-test"><Shield className="mr-2 h-4 w-4" />Test Bảo mật</TabsTrigger>
+            <TabsTrigger value="security-docs"><BookOpen className="mr-2 h-4 w-4" />Tài liệu</TabsTrigger>
+            <TabsTrigger value="security-summary"><CheckCircle className="mr-2 h-4 w-4" />Tổng kết</TabsTrigger>
+            <TabsTrigger value="security-workflow"><ArrowRight className="mr-2 h-4 w-4" />Demo</TabsTrigger>
             <TabsTrigger value="push-notifications"><BellRing className="mr-2 h-4 w-4" />Thông báo đẩy</TabsTrigger>
           </TabsList>
 
@@ -492,6 +504,30 @@ const DataManagement = () => {
 
           <TabsContent value="statistics" className="mt-6 space-y-6">
             <StatisticsTab runAsAdmin={runAsAdmin} setMessage={setMessage} onLoad={() => {}} />
+          </TabsContent>
+
+          <TabsContent value="security-dashboard" className="mt-6 space-y-6">
+            <SecurityDashboard />
+          </TabsContent>
+
+          <TabsContent value="accounts" className="mt-6 space-y-6">
+            <AccountManagementTab />
+          </TabsContent>
+
+          <TabsContent value="security-test" className="mt-6 space-y-6">
+            <SecurityTestPanel />
+          </TabsContent>
+
+          <TabsContent value="security-docs" className="mt-6 space-y-6">
+            <SecurityDocumentation />
+          </TabsContent>
+
+          <TabsContent value="security-summary" className="mt-6 space-y-6">
+            <SecurityImplementationSummary />
+          </TabsContent>
+
+          <TabsContent value="security-workflow" className="mt-6 space-y-6">
+            <SecurityWorkflowDemo />
           </TabsContent>
 
           <TabsContent value="push-notifications" className="mt-6 space-y-6">
