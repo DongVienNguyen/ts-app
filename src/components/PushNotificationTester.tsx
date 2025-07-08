@@ -1,55 +1,121 @@
-import { useState } from 'react';
-    import { Button } from '@/components/ui/button';
-    import { useSecureAuth } from '@/contexts/AuthContext';
-    import { sendPushNotification } from '@/services/notificationService';
-    import { toast } from 'sonner';
-    import { Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Bell, Send } from 'lucide-react';
+import { sendPushNotification } from '@/services/notificationService';
+import { useSecureAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
-    export function PushNotificationTester() {
-      const { user } = useSecureAuth();
-      const [isLoading, setIsLoading] = useState(false);
+export function PushNotificationTester() {
+  const { user } = useSecureAuth();
+  const [testData, setTestData] = useState({
+    username: '',
+    title: 'Test Notification',
+    body: 'This is a test push notification',
+    url: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
-      const handleTestPush = async () => {
-        if (!user) {
-          toast.error('Bạn phải đăng nhập để kiểm tra thông báo đẩy.');
-          return;
-        }
-
-        setIsLoading(true);
-        toast.info('Đang gửi thông báo đẩy thử nghiệm...');
-
-        try {
-          const result = await sendPushNotification(user.username, {
-            title: 'Thông báo thử nghiệm 🚀',
-            body: `Đây là thông báo đẩy được gửi tới ${user.staff_name || user.username}.`,
-            url: window.location.origin,
-          });
-
-          if (result.success) {
-            toast.success('Yêu cầu gửi thông báo đẩy đã được thực hiện. Vui lòng kiểm tra thông báo của bạn (có thể mất vài giây).');
-            console.log('Push notification invocation result:', result.data);
-          } else {
-            toast.error(`Gửi thông báo đẩy thất bại: ${result.error || 'Lỗi không xác định'}`);
-          }
-        } catch (error) {
-          console.error('Error sending test push notification:', error);
-          toast.error('Đã xảy ra lỗi khi gửi thông báo đẩy.');
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      return (
-        <div className="p-4 border rounded-lg my-4 bg-card text-card-foreground">
-          <h3 className="font-semibold mb-2">Kiểm tra Thông báo Đẩy (Web Push)</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Nhấn nút bên dưới để gửi một thông báo đẩy thử nghiệm đến chính thiết bị này.
-            Lưu ý: Bạn phải cấp quyền nhận thông báo cho trang web này trong trình duyệt trước.
-          </p>
-          <Button onClick={handleTestPush} disabled={isLoading}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Gửi thông báo thử nghiệm
-          </Button>
-        </div>
-      );
+  const handleSendTest = async () => {
+    if (!testData.username || !testData.title || !testData.body) {
+      toast.error('Vui lòng điền đầy đủ thông tin');
+      return;
     }
+
+    setIsLoading(true);
+    try {
+      const result = await sendPushNotification(testData.username, {
+        title: testData.title,
+        body: testData.body,
+        url: testData.url || undefined
+      });
+
+      if (result.success) {
+        toast.success('Gửi thông báo test thành công!');
+      } else {
+        toast.error(`Lỗi: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Test notification error:', error);
+      toast.error('Đã xảy ra lỗi khi gửi thông báo test');
+    }
+    setIsLoading(false);
+  };
+
+  // Only show for admin users
+  if (!user || user.role !== 'admin') {
+    return null;
+  }
+
+  return (
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Bell className="w-5 h-5" />
+          <span>Test Push Notification</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="test-username">Username</Label>
+          <Input
+            id="test-username"
+            value={testData.username}
+            onChange={(e) => setTestData(prev => ({ ...prev, username: e.target.value }))}
+            placeholder="Nhập username để test"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="test-title">Tiêu đề</Label>
+          <Input
+            id="test-title"
+            value={testData.title}
+            onChange={(e) => setTestData(prev => ({ ...prev, title: e.target.value }))}
+            placeholder="Tiêu đề thông báo"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="test-body">Nội dung</Label>
+          <Input
+            id="test-body"
+            value={testData.body}
+            onChange={(e) => setTestData(prev => ({ ...prev, body: e.target.value }))}
+            placeholder="Nội dung thông báo"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="test-url">URL (tùy chọn)</Label>
+          <Input
+            id="test-url"
+            value={testData.url}
+            onChange={(e) => setTestData(prev => ({ ...prev, url: e.target.value }))}
+            placeholder="URL để mở khi click thông báo"
+          />
+        </div>
+
+        <Button 
+          onClick={handleSendTest}
+          disabled={isLoading}
+          className="w-full"
+        >
+          {isLoading ? (
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Đang gửi...</span>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <Send className="w-4 h-4" />
+              <span>Gửi Test</span>
+            </div>
+          )}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}

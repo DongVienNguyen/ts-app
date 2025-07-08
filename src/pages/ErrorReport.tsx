@@ -1,152 +1,194 @@
-import React, { useState, useEffect } from 'react';
-import { Camera, Send, ArrowLeft } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, Send, ArrowLeft } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useNavigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
+import { Label } from '@/components/ui/label';
+import { useSecureAuth } from '@/contexts/AuthContext';
 import { sendErrorReport } from '@/services/emailService';
-
-interface Staff {
-  id: string;
-  username: string;
-  staff_name: string;
-  department: string;
-}
+import { toast } from 'sonner';
+import Layout from '@/components/Layout';
 
 const ErrorReport = () => {
-  const [currentStaff, setCurrentStaff] = useState<Staff | null>(null);
-  const [errorContent, setErrorContent] = useState('');
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const staffData = localStorage.getItem('loggedInStaff');
-    if (staffData) {
-      setCurrentStaff(JSON.parse(staffData));
-    }
-  }, []);
-
-  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setMessage({ type: 'error', text: "Vui lòng chọn file hình ảnh" });
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        setMessage({ type: 'error', text: "Vui lòng chọn file nhỏ hơn 10MB" });
-        return;
-      }
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => setImagePreview(e.target?.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const openCamera = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment';
-    input.multiple = false;
-    input.onchange = (e) => {
-      const files = (e.target as HTMLInputElement).files;
-      if (files && files.length > 0) {
-        const file = files[0];
-        setSelectedImage(file);
-        const reader = new FileReader();
-        reader.onload = (e) => setImagePreview(e.target?.result as string);
-        reader.readAsDataURL(file);
-      }
-    };
-    input.click();
-  };
+  const { user } = useSecureAuth();
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    steps: '',
+    expectedResult: '',
+    actualResult: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage({ type: '', text: '' });
-
-    if (!errorContent.trim()) {
-      setMessage({ type: 'error', text: 'Vui lòng nhập nội dung báo lỗi' });
+    
+    if (!user) {
+      toast.error('Bạn cần đăng nhập để gửi báo cáo lỗi');
       return;
     }
-    if (!currentStaff) {
-      setMessage({ type: 'error', text: 'Không tìm thấy thông tin người dùng' });
+
+    if (!formData.title || !formData.description) {
+      toast.error('Vui lòng điền tiêu đề và mô tả lỗi');
       return;
     }
 
     setIsLoading(true);
+
     try {
-      const result = await sendErrorReport(currentStaff.username, currentStaff.staff_name, errorContent, selectedImage);
+      const result = await sendErrorReport(
+        user.staff_name || user.username,
+        `${user.username}@company.com`,
+        {
+          title: formData.title,
+          description: formData.description,
+          stepsToReproduce: formData.steps,
+          expectedResult: formData.expectedResult,
+          actualResult: formData.actualResult,
+          userAgent: navigator.userAgent,
+          url: window.location.href,
+          timestamp: new Date().toISOString()
+        }
+      );
+
       if (result.success) {
-        setMessage({ type: 'success', text: "Báo lỗi đã được gửi thành công. Chúng tôi sẽ xem xét và phản hồi sớm nhất." });
-        setErrorContent('');
-        setSelectedImage(null);
-        setImagePreview(null);
-        setTimeout(() => navigate('/asset-entry'), 2000);
+        toast.success('Báo cáo lỗi đã được gửi thành công!');
+        setFormData({
+          title: '',
+          description: '',
+          steps: '',
+          expectedResult: '',
+          actualResult: ''
+        });
       } else {
-        setMessage({ type: 'error', text: result.error || 'Có lỗi xảy ra khi gửi báo lỗi' });
+        toast.error('Không thể gửi báo cáo lỗi. Vui lòng thử lại.');
       }
     } catch (error) {
-      setMessage({ type: 'error', text: 'Có lỗi xảy ra khi gửi báo lỗi' });
-    } finally {
-      setIsLoading(false);
+      console.error('Error sending report:', error);
+      toast.error('Đã xảy ra lỗi khi gửi báo cáo');
     }
+
+    setIsLoading(false);
   };
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto space-y-6 p-6">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={() => navigate('/asset-entry')} className="p-2"><ArrowLeft className="w-4 h-4" /></Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Thông báo lỗi ứng dụng</h1>
-            <p className="text-gray-600">Báo cáo lỗi và gửi hình ảnh minh họa</p>
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-6">
+          <Button 
+            onClick={() => navigate(-1)}
+            variant="outline"
+            className="mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Quay lại
+          </Button>
+          
+          <div className="flex items-center space-x-3 mb-2">
+            <AlertTriangle className="w-8 h-8 text-orange-500" />
+            <h1 className="text-3xl font-bold">Báo cáo lỗi</h1>
           </div>
+          <p className="text-gray-600">
+            Gửi báo cáo về lỗi hoặc vấn đề bạn gặp phải khi sử dụng hệ thống
+          </p>
         </div>
+
         <Card>
-          <CardContent className="space-y-6 p-6">
+          <CardHeader>
+            <CardTitle>Thông tin lỗi</CardTitle>
+          </CardHeader>
+          <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Người gửi</Label>
-                <Input value={currentStaff?.username || ''} disabled className="bg-gray-100" />
+                <Label htmlFor="title">Tiêu đề lỗi *</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Mô tả ngắn gọn về lỗi"
+                  required
+                  disabled={isLoading}
+                />
               </div>
+
               <div className="space-y-2">
-                <Label className="text-base font-semibold">Nội dung báo lỗi</Label>
-                <Textarea value={errorContent} onChange={(e) => setErrorContent(e.target.value)} placeholder="Nhập sơ bộ lỗi và ấn nút gửi hình ảnh bên dưới." className="min-h-32" required />
+                <Label htmlFor="description">Mô tả chi tiết *</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Mô tả chi tiết về lỗi bạn gặp phải"
+                  rows={4}
+                  required
+                  disabled={isLoading}
+                />
               </div>
-              {imagePreview && (
-                <div className="space-y-2">
-                  <Label className="text-base font-semibold">Hình ảnh đính kèm</Label>
-                  <div className="border rounded-lg p-4">
-                    <img src={imagePreview} alt="Preview" className="max-w-full h-auto max-h-64 mx-auto rounded" />
-                    <Button type="button" variant="outline" onClick={() => { setSelectedImage(null); setImagePreview(null); }} className="mt-2 text-red-600">Xóa hình ảnh</Button>
+
+              <div className="space-y-2">
+                <Label htmlFor="steps">Các bước tái hiện lỗi</Label>
+                <Textarea
+                  id="steps"
+                  value={formData.steps}
+                  onChange={(e) => setFormData(prev => ({ ...prev, steps: e.target.value }))}
+                  placeholder="1. Làm gì đó&#10;2. Sau đó làm gì&#10;3. Lỗi xảy ra"
+                  rows={3}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="expectedResult">Kết quả mong đợi</Label>
+                <Textarea
+                  id="expectedResult"
+                  value={formData.expectedResult}
+                  onChange={(e) => setFormData(prev => ({ ...prev, expectedResult: e.target.value }))}
+                  placeholder="Bạn mong đợi điều gì sẽ xảy ra?"
+                  rows={2}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="actualResult">Kết quả thực tế</Label>
+                <Textarea
+                  id="actualResult"
+                  value={formData.actualResult}
+                  onChange={(e) => setFormData(prev => ({ ...prev, actualResult: e.target.value }))}
+                  placeholder="Điều gì thực sự đã xảy ra?"
+                  rows={2}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium mb-2">Thông tin hệ thống</h3>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p><strong>Người báo cáo:</strong> {user?.staff_name || user?.username}</p>
+                  <p><strong>Thời gian:</strong> {new Date().toLocaleString('vi-VN')}</p>
+                  <p><strong>Trình duyệt:</strong> {navigator.userAgent.split(' ').slice(-2).join(' ')}</p>
+                </div>
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Đang gửi...</span>
                   </div>
-                </div>
-              )}
-              {message.text && (
-                <Alert variant={message.type === 'error' ? 'destructive' : 'default'} className={message.type === 'success' ? 'bg-green-100 border-green-400 text-green-800' : ''}>
-                  <AlertDescription>{message.text}</AlertDescription>
-                </Alert>
-              )}
-              <div className="flex justify-between items-center">
-                <div className="flex space-x-2">
-                  <Button type="button" variant="outline" onClick={openCamera} className="text-green-600 border-green-200 hover:bg-green-50"><Camera className="w-4 h-4 mr-2" />Chụp ảnh</Button>
-                  <Button type="button" variant="outline" onClick={() => document.getElementById('image-upload')?.click()} className="text-green-600 border-green-200 hover:bg-green-50"><Camera className="w-4 h-4 mr-2" />Chọn ảnh</Button>
-                  <input id="image-upload" type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
-                </div>
-                <Button type="submit" disabled={isLoading || !errorContent.trim()} className="bg-red-600 hover:bg-red-700">
-                  {isLoading ? 'Đang gửi...' : <><Send className="w-4 h-4 mr-2" />Gửi báo lỗi</>}
-                </Button>
-              </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Send className="w-4 h-4" />
+                    <span>Gửi báo cáo</span>
+                  </div>
+                )}
+              </Button>
             </form>
           </CardContent>
         </Card>
