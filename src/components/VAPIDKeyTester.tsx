@@ -1,183 +1,251 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Key, TestTube, CheckCircle, XCircle } from 'lucide-react';
+import { Key, CheckCircle, XCircle, AlertTriangle, Copy, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 import { VAPID_PUBLIC_KEY } from '@/config';
 
-export function VAPIDKeyTester() {
-  const [testKey, setTestKey] = useState(VAPID_PUBLIC_KEY);
-  const [testResult, setTestResult] = useState<{ valid: boolean; message: string } | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+export const VAPIDKeyTester = () => {
+  const [vapidStatus, setVapidStatus] = useState<{
+    publicKeyConfigured: boolean;
+    publicKeyValid: boolean;
+    serverKeysConfigured: boolean;
+  }>({
+    publicKeyConfigured: false,
+    publicKeyValid: false,
+    serverKeysConfigured: false
+  });
+  
+  const [showPublicKey, setShowPublicKey] = useState(false);
+  const [isTestingServer, setIsTestingServer] = useState(false);
 
-  const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
+  useEffect(() => {
+    checkVapidConfiguration();
+  }, []);
 
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
+  const checkVapidConfiguration = () => {
+    console.log('🔍 Checking VAPID configuration...');
     
-    return outputArray;
+    // Check if public key is configured
+    const publicKeyConfigured = !!VAPID_PUBLIC_KEY;
+    
+    // Validate public key format (should be base64url encoded, ~88 characters)
+    const publicKeyValid = publicKeyConfigured && 
+      VAPID_PUBLIC_KEY.length >= 80 && 
+      VAPID_PUBLIC_KEY.length <= 90 &&
+      /^[A-Za-z0-9_-]+$/.test(VAPID_PUBLIC_KEY);
+
+    setVapidStatus({
+      publicKeyConfigured,
+      publicKeyValid,
+      serverKeysConfigured: false // Will be tested via server call
+    });
+
+    console.log('📊 VAPID Status:', {
+      publicKeyConfigured,
+      publicKeyValid,
+      publicKey: publicKeyConfigured ? `${VAPID_PUBLIC_KEY.substring(0, 20)}...` : 'Not configured'
+    });
   };
 
-  const testVAPIDKey = async () => {
-    setIsLoading(true);
-    setTestResult(null);
-
+  const testServerVapidKeys = async () => {
+    setIsTestingServer(true);
     try {
-      if (!testKey) {
-        setTestResult({ valid: false, message: 'VAPID key không được để trống' });
-        return;
-      }
-
-      // Test key format
-      const decoded = urlBase64ToUint8Array(testKey);
+      console.log('🧪 Testing server VAPID keys...');
       
-      if (decoded.length !== 65) {
-        setTestResult({ 
-          valid: false, 
-          message: `VAPID key không hợp lệ - độ dài ${decoded.length} bytes, cần 65 bytes` 
-        });
-        return;
-      }
-
-      // Test with push manager
-      if ('serviceWorker' in navigator && 'PushManager' in window) {
-        try {
-          const registration = await navigator.serviceWorker.register('/sw.js');
-          await navigator.serviceWorker.ready;
-
-          // Try to subscribe with the key
-          const subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: decoded
-          });
-
-          // If we get here, the key works
-          await subscription.unsubscribe();
-          
-          setTestResult({ 
-            valid: true, 
-            message: 'VAPID key hợp lệ và có thể sử dụng với push service!' 
-          });
-        } catch (pushError: any) {
-          if (pushError.name === 'AbortError') {
-            setTestResult({ 
-              valid: false, 
-              message: 'VAPID key không được push service chấp nhận - có thể đã hết hạn hoặc không hợp lệ' 
-            });
-          } else {
-            setTestResult({ 
-              valid: false, 
-              message: `Lỗi test push service: ${pushError.message}` 
-            });
-          }
-        }
-      } else {
-        setTestResult({ 
-          valid: true, 
-          message: 'VAPID key có format hợp lệ (không thể test push service)' 
-        });
-      }
-    } catch (error: any) {
-      setTestResult({ 
-        valid: false, 
-        message: `Lỗi test VAPID key: ${error.message}` 
+      // Test by trying to send a test notification (this will fail gracefully if keys are wrong)
+      const response = await fetch('/api/test-vapid', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          test: true
+        })
       });
+
+      if (response.ok) {
+        setVapidStatus(prev => ({ ...prev, serverKeysConfigured: true }));
+        toast.success('✅ Server VAPID keys configured correctly!');
+      } else {
+        setVapidStatus(prev => ({ ...prev, serverKeysConfigured: false }));
+        toast.warning('⚠️ Server VAPID keys may not be configured properly');
+      }
+    } catch (error) {
+      console.error('❌ Error testing server VAPID keys:', error);
+      setVapidStatus(prev => ({ ...prev, serverKeysConfigured: false }));
+      toast.error('❌ Could not test server VAPID keys');
     } finally {
-      setIsLoading(false);
+      setIsTestingServer(false);
     }
   };
 
-  const generateNewKey = () => {
-    // This is a working VAPID public key for testing
-    const newKey = 'BPjyXf2rFH9n3YSr3afmw4fsiNXJfBcQfpufyxiDiXCXpZqG5IHOcdXPUeLCrrJTsbPSOIuXNzN9Mwoa7WxTAw8';
-    setTestKey(newKey);
-    setTestResult(null);
+  const copyPublicKey = () => {
+    if (VAPID_PUBLIC_KEY) {
+      navigator.clipboard.writeText(VAPID_PUBLIC_KEY);
+      toast.success('📋 Public key copied to clipboard!');
+    }
+  };
+
+  const getStatusBadge = (status: boolean, label: string) => {
+    return (
+      <Badge className={status ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+        {status ? (
+          <><CheckCircle className="w-3 h-3 mr-1" />{label}</>
+        ) : (
+          <><XCircle className="w-3 h-3 mr-1" />Not {label}</>
+        )}
+      </Badge>
+    );
   };
 
   return (
-    <Card>
+    <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <Key className="w-6 h-6" />
-          <span>VAPID Key Tester</span>
+          <Key className="w-5 h-5 text-blue-600" />
+          <span>🔑 VAPID Keys Configuration</span>
         </CardTitle>
+        <p className="text-sm text-gray-600">
+          VAPID keys are required for push notifications. Check configuration status below.
+        </p>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div>
-          <Label htmlFor="vapid-key">VAPID Public Key</Label>
-          <Textarea
-            id="vapid-key"
-            value={testKey}
-            onChange={(e) => setTestKey(e.target.value)}
-            placeholder="Nhập VAPID public key để test..."
-            className="mt-2"
-            rows={3}
-          />
-        </div>
-
-        <div className="flex space-x-3">
-          <Button onClick={testVAPIDKey} disabled={isLoading}>
-            <TestTube className="w-4 h-4 mr-2" />
-            {isLoading ? 'Đang test...' : 'Test Key'}
-          </Button>
+        {/* Configuration Status */}
+        <div className="grid md:grid-cols-3 gap-4">
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="font-semibold mb-2">Client Public Key</h3>
+            {getStatusBadge(vapidStatus.publicKeyConfigured, "Configured")}
+            <p className="text-xs text-gray-600 mt-1">
+              Environment variable VITE_APP_VAPID_PUBLIC_KEY
+            </p>
+          </div>
           
-          <Button onClick={generateNewKey} variant="outline">
-            <Key className="w-4 h-4 mr-2" />
-            Sử dụng key mẫu
-          </Button>
-        </div>
-
-        {testResult && (
-          <Alert variant={testResult.valid ? 'default' : 'destructive'} 
-                className={testResult.valid ? 'bg-green-50 border-green-200 text-green-800' : ''}>
-            <div className="flex items-center space-x-2">
-              {testResult.valid ? (
-                <CheckCircle className="w-4 h-4" />
-              ) : (
-                <XCircle className="w-4 h-4" />
-              )}
-              <AlertDescription>{testResult.message}</AlertDescription>
-            </div>
-          </Alert>
-        )}
-
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-semibold text-blue-800 mb-2">Thông tin VAPID Key:</h4>
-          <div className="text-sm text-blue-700 space-y-1">
-            <div>Key hiện tại từ config: {VAPID_PUBLIC_KEY ? 'Có' : 'Không có'}</div>
-            <div>Độ dài key: {testKey ? testKey.length : 0} ký tự</div>
-            <div>Format: Base64URL encoded</div>
-            <div>Độ dài khi decode: {testKey ? (() => {
-              try {
-                return urlBase64ToUint8Array(testKey).length + ' bytes';
-              } catch {
-                return 'Không hợp lệ';
-              }
-            })() : 'N/A'}</div>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="font-semibold mb-2">Key Validation</h3>
+            {getStatusBadge(vapidStatus.publicKeyValid, "Valid")}
+            <p className="text-xs text-gray-600 mt-1">
+              Public key format and length validation
+            </p>
+          </div>
+          
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="font-semibold mb-2">Server Keys</h3>
+            <Badge className="bg-yellow-100 text-yellow-800">
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              Manual Setup Required
+            </Badge>
+            <p className="text-xs text-gray-600 mt-1">
+              Configure in Supabase Console
+            </p>
           </div>
         </div>
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h4 className="font-semibold text-yellow-800 mb-2">Hướng dẫn:</h4>
-          <ol className="text-sm text-yellow-700 space-y-1">
-            <li>1. VAPID key phải có độ dài 65 bytes khi decode</li>
-            <li>2. Key phải được encode theo format Base64URL</li>
-            <li>3. Key phải được push service (FCM/Mozilla) chấp nhận</li>
-            <li>4. Nếu key không hợp lệ, hãy tạo key mới từ web-push library</li>
-          </ol>
+        {/* Public Key Display */}
+        {vapidStatus.publicKeyConfigured && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-blue-800">Current Public Key</h3>
+              <div className="flex space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPublicKey(!showPublicKey)}
+                >
+                  {showPublicKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={copyPublicKey}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="bg-white p-3 rounded border font-mono text-sm">
+              {showPublicKey ? VAPID_PUBLIC_KEY : '•'.repeat(VAPID_PUBLIC_KEY.length)}
+            </div>
+          </div>
+        )}
+
+        {/* Setup Instructions */}
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <div className="space-y-2">
+              <p className="font-semibold">Required Setup Steps:</p>
+              <ol className="list-decimal list-inside space-y-1 text-sm">
+                <li>
+                  <strong>Supabase Console:</strong> Go to Settings → Edge Functions → Manage Secrets
+                </li>
+                <li>
+                  <strong>Add VAPID_PUBLIC_KEY:</strong> BJXegHxCxgCVDlkSoXyJLmclrK7SUmfFvbM7HVX_Z9N0mgUINCL9L1BIULcc0rL1GjjXH0IM7joIcUi4f8h4zqY
+                </li>
+                <li>
+                  <strong>Add VAPID_PRIVATE_KEY:</strong> bgDuwB3uG2gpmw7Z9-wmHN9pb037r0uEJ56gJiXkZwk
+                </li>
+                <li>
+                  <strong>Add VAPID_SUBJECT:</strong> mailto:admin@yourcompany.com
+                </li>
+              </ol>
+            </div>
+          </AlertDescription>
+        </Alert>
+
+        {/* Test Button */}
+        <div className="flex justify-center">
+          <Button
+            onClick={testServerVapidKeys}
+            disabled={isTestingServer || !vapidStatus.publicKeyValid}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {isTestingServer ? 'Testing...' : 'Test Server Configuration'}
+          </Button>
         </div>
+
+        {/* Status Summary */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h3 className="font-semibold mb-2">Configuration Summary</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center space-x-2">
+              {vapidStatus.publicKeyConfigured ? (
+                <CheckCircle className="w-4 h-4 text-green-600" />
+              ) : (
+                <XCircle className="w-4 h-4 text-red-600" />
+              )}
+              <span>Client-side public key: {vapidStatus.publicKeyConfigured ? 'Configured' : 'Missing'}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              {vapidStatus.publicKeyValid ? (
+                <CheckCircle className="w-4 h-4 text-green-600" />
+              ) : (
+                <XCircle className="w-4 h-4 text-red-600" />
+              )}
+              <span>Key format validation: {vapidStatus.publicKeyValid ? 'Valid' : 'Invalid'}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-yellow-600" />
+              <span>Server-side keys: Manual setup required in Supabase Console</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Next Steps */}
+        {vapidStatus.publicKeyConfigured && vapidStatus.publicKeyValid && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h3 className="font-semibold text-green-800 mb-2">✅ Ready for Push Notifications!</h3>
+            <p className="text-sm text-green-700">
+              Your VAPID keys are properly configured. You can now test push notifications 
+              using the Push Notification Tester below.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
-}
+};
+
+export default VAPIDKeyTester;

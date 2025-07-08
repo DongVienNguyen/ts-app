@@ -11,7 +11,7 @@ import {
   checkPushNotificationSupport 
 } from '@/utils/pushNotificationUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { useSecureAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 const PushNotificationTester = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
@@ -21,7 +21,7 @@ const PushNotificationTester = () => {
     supported: false,
     reasons: []
   });
-  const { user } = useSecureAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     // Check initial permission status

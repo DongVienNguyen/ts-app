@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useAssetSubmission } from './useAssetSubmission';
 import { AssetEntryFormState } from '@/types/assetEntryFormState';
 import { FormData } from '@/types/assetSubmission';
-import { useSecureAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const useAssetEntry = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { handleSubmit, isLoading } = useAssetSubmission();
-  const { user } = useSecureAuth();
+  const { user } = useAuth();
 
   const submitAssetEntry = async (
     formData: AssetEntryFormState,
