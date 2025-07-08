@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Settings, Plus, Download, Upload, Trash2, Edit, Lock, AlertCircle, BarChart2, Database as DatabaseIcon, BellRing, Users, Shield, BookOpen, CheckCircle, ArrowRight } from 'lucide-react';
+import { Settings, Plus, Download, Upload, Trash2, Edit, Lock, AlertCircle, BarChart2, Database as DatabaseIcon, BellRing, Users, Shield, BookOpen, CheckCircle, ArrowRight, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
