@@ -1,7 +1,5 @@
-import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AccountLockedMessageProps {
   onTryAnotherAccount: () => void;

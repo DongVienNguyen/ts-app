@@ -64,7 +64,7 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
     }
 
     // Register service worker if not already registered
-    let registration;
+    let registration: ServiceWorkerRegistration;
     try {
       // Wait a bit for service worker to be ready
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -115,7 +115,7 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
     }
 
     // Convert VAPID key
-    let applicationServerKey;
+    let applicationServerKey: Uint8Array;
     try {
       applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
       console.log('VAPID key đã được chuyển đổi thành công, length:', applicationServerKey.length);
@@ -126,7 +126,7 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
 
     // Subscribe to push notifications with retry logic
     console.log('Đang tiến hành đăng ký mới với Push Service...');
-    let subscription;
+    let subscription: PushSubscription | null = null;
     let retryCount = 0;
     const maxRetries = 3;
 
@@ -192,22 +192,24 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
     }
 
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Lỗi khi đăng ký nhận thông báo đẩy:', error);
     
     // Provide more specific error messages
-    if (error.name === 'AbortError') {
-      console.error('Chi tiết lỗi AbortError: Push service từ chối đăng ký. Có thể do:');
-      console.error('1. VAPID key không hợp lệ hoặc đã hết hạn');
-      console.error('2. Push service không khả dụng (FCM/Mozilla)');
-      console.error('3. Trình duyệt chặn push notifications');
-      console.error('4. Service Worker chưa sẵn sàng');
-    } else if (error.name === 'NotSupportedError') {
-      console.error('Chi tiết lỗi: Push notifications không được hỗ trợ');
-    } else if (error.name === 'NotAllowedError') {
-      console.error('Chi tiết lỗi: Người dùng đã từ chối quyền thông báo');
-    } else if (error.name === 'InvalidStateError') {
-      console.error('Chi tiết lỗi: Service Worker trong trạng thái không hợp lệ');
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        console.error('Chi tiết lỗi AbortError: Push service từ chối đăng ký. Có thể do:');
+        console.error('1. VAPID key không hợp lệ hoặc đã hết hạn');
+        console.error('2. Push service không khả dụng (FCM/Mozilla)');
+        console.error('3. Trình duyệt chặn push notifications');
+        console.error('4. Service Worker chưa sẵn sàng');
+      } else if (error.name === 'NotSupportedError') {
+        console.error('Chi tiết lỗi: Push notifications không được hỗ trợ');
+      } else if (error.name === 'NotAllowedError') {
+        console.error('Chi tiết lỗi: Người dùng đã từ chối quyền thông báo');
+      } else if (error.name === 'InvalidStateError') {
+        console.error('Chi tiết lỗi: Service Worker trong trạng thái không hợp lệ');
+      }
     }
     
     return false;
