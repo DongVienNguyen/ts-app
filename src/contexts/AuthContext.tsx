@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Staff } from '@/types/auth';
 import { secureLoginUser } from '@/services/secureAuthService';
 import { logSecurityEvent } from '@/utils/secureAuthUtils';
+import { setSupabaseAuth, clearSupabaseAuth } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   user: Staff | null;
@@ -30,13 +31,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (storedUser && storedToken) {
           const userData = JSON.parse(storedUser);
           setUser(userData);
+          
+          // Set Supabase auth for RLS policies
+          setSupabaseAuth(storedToken, userData.username);
+          
           logSecurityEvent('SESSION_RESTORED', { username: userData.username });
+          console.log('🔐 Session restored for user:', userData.username);
         }
       } catch (error) {
         console.error('Error checking existing session:', error);
         // Clear invalid session data
         localStorage.removeItem('auth_user');
         localStorage.removeItem('auth_token');
+        clearSupabaseAuth();
       } finally {
         setLoading(false);
       }
@@ -54,7 +61,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(result.user);
         localStorage.setItem('auth_user', JSON.stringify(result.user));
         localStorage.setItem('auth_token', result.token);
+        
+        // Set Supabase auth for RLS policies
+        setSupabaseAuth(result.token, result.user.username);
+        
         logSecurityEvent('LOGIN_SUCCESS', { username });
+        console.log('🔐 User logged in and Supabase auth set:', username);
+        
         return { success: true };
       } else {
         logSecurityEvent('LOGIN_FAILED', { username, error: result.error });
@@ -72,16 +85,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = () => {
     if (user) {
       logSecurityEvent('LOGOUT', { username: user.username });
+      console.log('🔓 User logging out:', user.username);
     }
     
     setUser(null);
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_token');
     
+    // Clear Supabase auth
+    clearSupabaseAuth();
+    
     // Clear any other user-specific data
     localStorage.removeItem('user_preferences');
     localStorage.removeItem('notification-permission-dismissed');
     localStorage.removeItem('pwa-install-dismissed');
+    
+    console.log('🔓 User logged out and Supabase auth cleared');
   };
 
   const value: AuthContextType = {

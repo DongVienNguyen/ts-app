@@ -1,59 +1,91 @@
 import { createClient } from '@supabase/supabase-js'
-import type { Database } from './types'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = 'https://itoapoyrxxmtbbuolfhk.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b2Fwb3lyeHhtdGJidW9sZmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2ODQ2NDgsImV4cCI6MjA2NjI2MDY0OH0.qT7L0MDAH-qArxaoMSkCYmVYAcwdEzbXWB1PayxD_rk'
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
-}
-
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+// Create the Supabase client
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce'
+    persistSession: false, // We handle our own session management
+    autoRefreshToken: false,
   },
   global: {
     headers: {
-      'X-Client-Info': 'asset-management-app'
-    }
-  },
-  db: {
-    schema: 'public'
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10
+      'Content-Type': 'application/json',
     }
   }
 })
 
-// Add connection test function
-export const testSupabaseConnection = async (): Promise<boolean> => {
-  try {
-    console.log('🔍 Testing Supabase connection...');
-    const { data, error } = await supabase.from('staff').select('count').limit(1).single();
-    
-    if (error) {
-      console.error('❌ Supabase connection test failed:', error);
-      return false;
-    }
-    
-    console.log('✅ Supabase connection test successful');
-    return true;
-  } catch (error) {
-    console.error('❌ Supabase connection test error:', error);
-    return false;
-  }
+// Store current auth token
+let currentAuthToken: string | null = null;
+
+// Function to set the auth token for RLS policies
+export const setSupabaseAuth = (token: string, username: string) => {
+  console.log('🔐 Setting Supabase auth token for user:', username);
+  
+  // Store the token
+  currentAuthToken = token;
+  
+  // Set the session using Supabase's auth methods
+  supabase.auth.setSession({
+    access_token: token,
+    refresh_token: token, // Using same token for simplicity
+  });
+  
+  console.log('✅ Supabase auth token set successfully');
 };
 
-// Test connection on client initialization
-testSupabaseConnection().then(isConnected => {
-  if (!isConnected) {
-    console.warn('⚠️ Supabase connection test failed - some features may not work properly');
+// Function to clear the auth token
+export const clearSupabaseAuth = () => {
+  console.log('🔓 Clearing Supabase auth token');
+  
+  // Clear stored token
+  currentAuthToken = null;
+  
+  // Sign out from Supabase
+  supabase.auth.signOut();
+  
+  console.log('✅ Supabase auth token cleared');
+};
+
+// Function to get current auth status
+export const getSupabaseAuthStatus = () => {
+  const hasAuth = !!currentAuthToken;
+  console.log('🔍 Supabase auth status:', hasAuth ? 'Authenticated' : 'Not authenticated');
+  return hasAuth;
+};
+
+// Function to get authenticated supabase client with current token
+export const getAuthenticatedSupabase = () => {
+  if (currentAuthToken) {
+    return createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      global: {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentAuthToken}`,
+        }
+      }
+    });
   }
-});
+  return supabase;
+};
+
+// Test the connection
+console.log('🔍 Testing Supabase connection...');
+supabase
+  .from('staff')
+  .select('count')
+  .limit(1)
+  .then(({ data, error }) => {
+    if (error) {
+      console.error('❌ Supabase connection test failed:', error);
+    } else {
+      console.log('✅ Supabase connection test successful');
+    }
+  });
 
 export default supabase;

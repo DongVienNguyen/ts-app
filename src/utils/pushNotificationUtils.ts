@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, getAuthenticatedSupabase } from '@/integrations/supabase/client';
 import { VAPID_PUBLIC_KEY } from '@/config';
 
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
@@ -62,7 +62,8 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
         };
 
         // Use the authenticated supabase client
-        const { error } = await supabase
+        const authSupabase = getAuthenticatedSupabase();
+        const { error } = await authSupabase
           .from('push_subscriptions')
           .upsert({
             username,
@@ -215,7 +216,8 @@ async function setupProductionPushNotifications(username: string): Promise<boole
   const subscriptionData = subscription.toJSON();
   console.log('Subscription data:', subscriptionData);
 
-  const { error } = await supabase
+  const authSupabase = getAuthenticatedSupabase();
+  const { error } = await authSupabase
     .from('push_subscriptions')
     .upsert({
       username,
@@ -269,7 +271,8 @@ export async function unsubscribeFromPush(username: string): Promise<boolean> {
     }
 
     // Remove from database
-    const { error } = await supabase
+    const authSupabase = getAuthenticatedSupabase();
+    const { error } = await authSupabase
       .from('push_subscriptions')
       .delete()
       .eq('username', username);
@@ -440,7 +443,8 @@ export async function sendPushNotification(
 // Check if user has active push subscription
 export async function hasActivePushSubscription(username: string): Promise<boolean> {
   try {
-    const { data, error } = await supabase
+    const authSupabase = getAuthenticatedSupabase();
+    const { data, error } = await authSupabase
       .from('push_subscriptions')
       .select('id')
       .eq('username', username)
