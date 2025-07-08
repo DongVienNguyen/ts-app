@@ -17,20 +17,20 @@ export const supabase = createClient<Database>(
       headers: {
         'x-application-name': 'asset-management-app',
       },
-    },
-    // This custom fetch function dynamically adds the Authorization header to every request.
-    fetch: (input, init) => {
-      const token = getStoredToken();
-      const headers = new Headers(init?.headers);
+      // This custom fetch function dynamically adds the Authorization header to every request.
+      fetch: (input, init) => {
+        const token = getStoredToken();
+        const headers = new Headers(init?.headers);
 
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
+        if (token) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
 
-      // Forward the request with the updated headers.
-      return fetch(input, { ...init, headers });
+        // Forward the request with the updated headers.
+        return fetch(input, { ...init, headers });
+      },
     },
-  } as any // Cast to 'any' to bypass the incorrect TypeScript error for the 'fetch' property.
+  }
 );
 
 // This listener handles sign-out events across tabs.
