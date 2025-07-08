@@ -4,8 +4,8 @@ import './index.css'
 import { SecureAuthProvider } from './hooks/useSecureAuth'; // Import SecureAuthProvider
 import React from 'react'; // Import React for StrictMode
 
-// The vite-plugin-pwa will handle service worker registration automatically.
-// No need to call registerServiceWorker() here anymore.
+// With vite-plugin-pwa, the service worker is registered automatically.
+// No manual registration is needed here.
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
