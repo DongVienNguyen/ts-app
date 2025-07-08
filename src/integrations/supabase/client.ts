@@ -3,9 +3,9 @@ import type { Database } from './types';
 import { getStoredToken } from '@/utils/authUtils';
 
 // Thêm các dòng log này để kiểm tra giá trị biến môi trường
-console.log('Debugging Supabase Client Init:');
-console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL);
-console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY);
+// console.log('Debugging Supabase Client Init:');
+// console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL);
+// console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 export const supabase = createClient<Database>(
   import.meta.env.VITE_SUPABASE_URL,
