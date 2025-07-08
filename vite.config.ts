@@ -19,11 +19,24 @@ export default defineConfig(async ({ mode }) => {
   
   plugins.push(
     VitePWA({
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['logo.png', 'logo192.png', 'logo512.png', 'apple-touch-icon.png', 'screenshot-desktop.png', 'screenshot-mobile.png'],
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/itoapoyrxxmtbbuolfhk\.supabase\.co\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
+              }
+            }
+          }
+        ]
+      },
+      includeAssets: ['logo.png', 'logo192.png', 'logo512.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Hệ thống Thông báo TS',
         short_name: 'Thông báo TS',
@@ -49,21 +62,6 @@ export default defineConfig(async ({ mode }) => {
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
-          }
-        ],
-        screenshots: [
-          {
-            src: 'screenshot-desktop.png',
-            sizes: '1920x1080',
-            type: 'image/png',
-            form_factor: 'wide',
-            label: 'Giao diện trên máy tính'
-          },
-          {
-            src: 'screenshot-mobile.png',
-            sizes: '750x1334',
-            type: 'image/png',
-            label: 'Giao diện trên điện thoại'
           }
         ]
       },

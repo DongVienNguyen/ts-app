@@ -1,38 +1,22 @@
 /// <reference lib="webworker" />
 
-import { precacheAndRoute } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { NetworkFirst } from 'workbox-strategies';
+declare const self: ServiceWorkerGlobalScope;
 
-declare const self: ServiceWorkerGlobalScope & {
-  __WB_MANIFEST: (string | PrecacheEntry)[];
-};
-
-interface PrecacheEntry {
-  url: string;
-  revision?: string;
-}
-
-// self.__WB_MANIFEST is injected by the PWA plugin to precache assets
-precacheAndRoute(self.__WB_MANIFEST || []);
-
-// Caching for Supabase API calls
-registerRoute(
-  ({ url }) => url.origin === 'https://itoapoyrxxmtbbuolfhk.supabase.co',
-  new NetworkFirst({
-    cacheName: 'api-cache',
-  })
-);
-
-self.addEventListener('install', () => {
+// Basic service worker without Workbox dependencies
+self.addEventListener('install', (event) => {
+  console.log('Service Worker installing...');
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
+  console.log('Service Worker activating...');
   event.waitUntil(self.clients.claim());
 });
 
+// Handle push notifications
 self.addEventListener('push', (event) => {
+  console.log('Push notification received:', event);
+  
   const pushData = event.data?.json() ?? {};
 
   const title = pushData.title || 'Thông báo mới';
@@ -46,7 +30,9 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
+// Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
+  console.log('Notification clicked:', event);
   event.notification.close();
 
   const urlToOpen = new URL(event.notification.data?.url || '/', self.location.origin).href;
@@ -64,4 +50,25 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
+});
+
+// Basic caching strategy for API calls
+self.addEventListener('fetch', (event) => {
+  // Only cache Supabase API calls
+  if (event.request.url.includes('itoapoyrxxmtbbuolfhk.supabase.co')) {
+    event.respondWith(
+      caches.open('api-cache').then(cache => {
+        return fetch(event.request).then(response => {
+          // Cache successful responses
+          if (response.ok) {
+            cache.put(event.request, response.clone());
+          }
+          return response;
+        }).catch(() => {
+          // Return cached version if network fails
+          return cache.match(event.request);
+        });
+      })
+    );
+  }
 });
