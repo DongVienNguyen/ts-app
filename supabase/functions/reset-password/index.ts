@@ -5,7 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
 import bcrypt from 'npm:bcryptjs@2.4.3';
 
-// Type declarations for Deno environment
+// Deno global declaration
 declare const Deno: {
   env: {
     get(key: string): string | undefined;
@@ -17,7 +17,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req: Request) => {
+serve(async (req: any) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
