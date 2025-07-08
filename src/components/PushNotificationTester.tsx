@@ -1,6 +1,6 @@
 import { useState } from 'react';
     import { Button } from '@/components/ui/button';
-    import { useSecureAuth } from '@/hooks/useSecureAuth';
+    import { useSecureAuth } from '@/contexts/AuthContext';
     import { sendPushNotification } from '@/services/notificationService';
     import { toast } from 'sonner';
     import { Loader2 } from 'lucide-react';

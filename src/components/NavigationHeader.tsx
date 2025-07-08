@@ -19,7 +19,7 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSecureAuth } from '@/hooks/useSecureAuth';
+import { useSecureAuth } from '@/contexts/AuthContext';
 import { NotificationBell } from './NotificationBell';
 import { requestNotificationPermission, subscribeUserToPush } from '@/utils/pushNotificationUtils';
 

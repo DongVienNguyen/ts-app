@@ -3,7 +3,7 @@ import { Archive, History, AlertCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Layout from '@/components/Layout';
-import { useSecureAuth } from '@/hooks/useSecureAuth';
+import { useSecureAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { AssetHistoryManager } from '@/components/AssetHistoryManager';
 import { useOtherAssets } from '@/hooks/useOtherAssets';

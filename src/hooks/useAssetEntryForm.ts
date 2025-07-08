@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSecureAuth } from '@/hooks/useSecureAuth';
+import { useSecureAuth } from '@/contexts/AuthContext';
 import { validateAllAssets } from '@/utils/assetValidation';
 import { AssetEntryFormState } from '@/types/assetEntryFormState';
 import { getTransactionDateRules, getGMTPlus7Date } from '@/utils/dateUtils';

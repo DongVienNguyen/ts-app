@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "sonner";
 
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { useSecureAuth } from './hooks/useSecureAuth';
+import { useSecureAuth } from './contexts/AuthContext';
 import { isAdmin, isNqOrAdmin } from './utils/permissions';
 
 // Lazy load pages for code-splitting

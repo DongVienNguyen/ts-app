@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { BellRing, X } from 'lucide-react';
 import { requestNotificationPermission, subscribeUserToPush } from '@/utils/pushNotificationUtils';
-import { useSecureAuth } from '@/hooks/useSecureAuth';
+import { useSecureAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export function NotificationPermissionPrompt() {

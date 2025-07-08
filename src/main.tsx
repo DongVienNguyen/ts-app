@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { SecureAuthProvider } from './hooks/useSecureAuth.tsx'; // Import SecureAuthProvider
+import { SecureAuthProvider } from './hooks/useSecureAuth'; // Import SecureAuthProvider
 import React from 'react'; // Import React for StrictMode
 
 // The vite-plugin-pwa will handle service worker registration automatically.

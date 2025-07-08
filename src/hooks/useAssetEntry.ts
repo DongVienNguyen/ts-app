@@ -1,4 +1,4 @@
-import { useSecureAuth } from '@/hooks/useSecureAuth';
+import { useSecureAuth } from '@/contexts/AuthContext';
 import { useAssetEntryForm } from '@/hooks/useAssetEntryForm';
 import { useTimeRestriction } from '@/hooks/useTimeRestriction';
 import { useAssetSubmission } from '@/hooks/useAssetSubmission';

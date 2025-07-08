@@ -1,5 +1,5 @@
 import React from 'react';
-import { useSecureAuth } from '@/hooks/useSecureAuth';
+import { useSecureAuth } from '@/contexts/AuthContext';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Staff } from '@/types/auth';
 import { toast } from 'sonner';
