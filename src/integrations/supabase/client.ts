@@ -31,7 +31,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
         signal: controller.signal,
         headers: {
           ...options.headers,
-          'Cache-Control': 'no-cache',
+          // Remove Cache-Control header as it causes CORS issues with edge functions
         },
       })
       .then(response => {
