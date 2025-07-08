@@ -18,9 +18,10 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
       setLoading(true);
       try {
         const storedUser = getStoredUser();
-        const storedToken = getStoredToken();
+        const storedToken = getStoredToken(); // Still need to get it to check if it exists
 
         if (storedUser && storedToken) {
+          // The supabase client in src/integrations/supabase/client.ts will pick up the token on initialization.
           setUser(storedUser);
           await setCurrentUserContext(storedUser);
         } else {
@@ -72,6 +73,7 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
       }
 
       if (loggedInUser && token) {
+        // Store the token. The supabase client will pick this up on next initialization/refresh.
         storeUser(loggedInUser);
         storeToken(token);
         setUser(loggedInUser);
@@ -96,7 +98,7 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
   const logout = useCallback(() => {
     logSecurityEvent('LOGOUT', { username: user?.username });
     
-    // This will trigger the onAuthStateChange listener to clear state across tabs
+    // Removing the token will cause the supabase client to re-initialize without it on next load.
     supabase.auth.signOut().catch(err => {
       console.error("Error during sign out:", err);
     });

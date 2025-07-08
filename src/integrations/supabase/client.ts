@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/config';
+import { getStoredToken } from '@/utils/authUtils'; // Import getStoredToken
+
+// Get the stored token during client initialization
+const storedToken = getStoredToken();
 
 // Create a single instance of the Supabase client
 export const supabase = createClient<Database>(
@@ -14,7 +18,9 @@ export const supabase = createClient<Database>(
     },
     global: {
       headers: {
-        'x-application-name': 'asset-management-app'
+        'x-application-name': 'asset-management-app',
+        // Conditionally add Authorization header if a token exists
+        ...(storedToken && { 'Authorization': `Bearer ${storedToken}` })
       }
     }
   }
