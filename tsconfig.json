@@ -21,14 +21,12 @@
     "noFallthroughCasesInSwitch": true,
 
     /* Path Aliases */
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
   "include": ["src"],
-  "exclude": ["node_modules", "supabase/functions"],
-  "references": [
-    { "path": "./tsconfig.node.json" }
-  ]
+  "references": [{ "path": "./tsconfig.node.json" }]
 }
