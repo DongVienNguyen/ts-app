@@ -36,8 +36,8 @@ export function NavigationHeader() {
     if (!user || !user.username) return;
     const permission = await requestNotificationPermission();
     if (permission === 'granted') {
-      // await subscribeUserToPush(user.username); // Tạm thời vô hiệu hóa để chẩn đoán
-      alert('Đã cấp quyền thông báo. Tính năng sẽ được kích hoạt sau khi lỗi hệ thống được sửa.');
+      await subscribeUserToPush(user.username);
+      alert('Đã bật thông báo đẩy thành công! Bạn sẽ nhận được thông báo ngay cả khi đã đóng ứng dụng.');
     } else {
       alert('Bạn đã không cấp quyền nhận thông báo. Tính năng sẽ không hoạt động.');
     }

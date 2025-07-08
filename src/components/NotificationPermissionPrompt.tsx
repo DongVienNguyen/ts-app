@@ -29,8 +29,8 @@ export function NotificationPermissionPrompt() {
     if (!user || !user.username) return;
     const permission = await requestNotificationPermission();
     if (permission === 'granted') {
-      // await subscribeUserToPush(user.username); // Tạm thời vô hiệu hóa để chẩn đoán
-      toast.success('Đã cấp quyền thông báo. Tính năng sẽ được kích hoạt sau khi lỗi hệ thống được sửa.');
+      await subscribeUserToPush(user.username);
+      toast.success('Đã bật thông báo đẩy thành công!');
     } else {
       toast.warning('Bạn đã không cấp quyền nhận thông báo.');
     }
