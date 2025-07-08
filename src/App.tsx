@@ -1,78 +1,120 @@
-import React, { Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from "sonner";
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useSecureAuth } from '@/contexts/AuthContext';
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
+import { NotificationPermissionPrompt } from '@/components/NotificationPermissionPrompt';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { useSecureAuth } from './contexts/AuthContext';
-import { isAdmin, isNqOrAdmin } from './utils/permissions';
-
-// Lazy load pages for code-splitting
-const Index = React.lazy(() => import('./pages/Index'));
-const Login = React.lazy(() => import('./pages/Login'));
-const AssetEntry = React.lazy(() => import('./pages/AssetEntry'));
-const DailyReport = React.lazy(() => import('./pages/DailyReport'));
-const BorrowReport = React.lazy(() => import('./pages/BorrowReport'));
-const AssetReminders = React.lazy(() => import('./pages/AssetReminders'));
-const CRCReminders = React.lazy(() => import('./pages/CRCReminders'));
-const OtherAssets = React.lazy(() => import('./pages/OtherAssets'));
-const DataManagement = React.lazy(() => import('./pages/DataManagement'));
-const ErrorReport = React.lazy(() => import('./pages/ErrorReport'));
-const ResetPassword = React.lazy(() => import('./pages/ResetPassword'));
-const NotFound = React.lazy(() => import('./pages/NotFound'));
-
-import { PWAInstallPrompt } from './components/PWAInstallPrompt';
-import { NotificationPermissionPrompt } from './components/NotificationPermissionPrompt';
-
-// Create a client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    },
-  },
-});
-
-const LoadingSpinner = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-  </div>
-);
+// Pages
+import Login from '@/pages/Login';
+import Index from '@/pages/Index';
+import AssetEntry from '@/pages/AssetEntry';
+import DailyReport from '@/pages/DailyReport';
+import BorrowReport from '@/pages/BorrowReport';
+import AssetReminders from '@/pages/AssetReminders';
+import CRCReminders from '@/pages/CRCReminders';
+import OtherAssets from '@/pages/OtherAssets';
+import DataManagement from '@/pages/DataManagement';
+import ResetPassword from '@/pages/ResetPassword';
+import ErrorReport from '@/pages/ErrorReport';
+import NotFound from '@/pages/NotFound';
 
 function App() {
-  const { loading } = useSecureAuth();
+  const { user, loading } = useSecureAuth();
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <Suspense fallback={<LoadingSpinner />}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            
-            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-            <Route path="/asset-entry" element={<ProtectedRoute><AssetEntry /></ProtectedRoute>} />
-            <Route path="/daily-report" element={<ProtectedRoute><DailyReport /></ProtectedRoute>} />
-            <Route path="/borrow-report" element={<ProtectedRoute isAuthorized={isNqOrAdmin}><BorrowReport /></ProtectedRoute>} />
-            <Route path="/asset-reminders" element={<ProtectedRoute isAuthorized={isNqOrAdmin}><AssetReminders /></ProtectedRoute>} />
-            <Route path="/crc-reminders" element={<ProtectedRoute isAuthorized={isNqOrAdmin}><CRCReminders /></ProtectedRoute>} />
-            <Route path="/other-assets" element={<ProtectedRoute isAuthorized={isNqOrAdmin}><OtherAssets /></ProtectedRoute>} />
-            <Route path="/data-management" element={<ProtectedRoute isAuthorized={isAdmin}><DataManagement /></ProtectedRoute>} />
-            <Route path="/error-report" element={<ProtectedRoute><ErrorReport /></ProtectedRoute>} />
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-50">
+        <Routes>
+          {/* Public routes */}
+          <Route 
+            path="/login" 
+            element={user ? <Navigate to="/" replace /> : <Login />} 
+          />
+          
+          {/* Protected routes */}
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Index />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/asset-entry" element={
+            <ProtectedRoute>
+              <AssetEntry />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/daily-report" element={
+            <ProtectedRoute>
+              <DailyReport />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/borrow-report" element={
+            <ProtectedRoute requiredRole="nq_or_admin">
+              <BorrowReport />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/asset-reminders" element={
+            <ProtectedRoute requiredRole="nq_or_admin">
+              <AssetReminders />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/crc-reminders" element={
+            <ProtectedRoute requiredRole="nq_or_admin">
+              <CRCReminders />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/other-assets" element={
+            <ProtectedRoute requiredRole="nq_or_admin">
+              <OtherAssets />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/data-management" element={
+            <ProtectedRoute requiredRole="admin">
+              <DataManagement />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/reset-password" element={
+            <ProtectedRoute>
+              <ResetPassword />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/error-report" element={
+            <ProtectedRoute>
+              <ErrorReport />
+            </ProtectedRoute>
+          } />
+          
+          {/* Catch all route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-        <PWAInstallPrompt />
-        <NotificationPermissionPrompt />
-      </Router>
-      <Toaster richColors position="top-right" />
-    </QueryClientProvider>
+        {/* PWA and Notification prompts */}
+        {user && (
+          <>
+            <PWAInstallPrompt />
+            <NotificationPermissionPrompt />
+          </>
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }
 

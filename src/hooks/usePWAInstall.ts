@@ -10,31 +10,37 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function usePWAInstall() {
-  const [canInstall, setCanInstall] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [canInstall, setCanInstall] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
+    // Check if app is already installed
+    const checkIfInstalled = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isInWebAppiOS = (window.navigator as any).standalone === true;
+      setIsInstalled(isStandalone || isInWebAppiOS);
+    };
+
+    checkIfInstalled();
+
+    // Listen for the beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      // Stash the event so it can be triggered later
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
+      const promptEvent = e as BeforeInstallPromptEvent;
+      setDeferredPrompt(promptEvent);
       setCanInstall(true);
     };
 
+    // Listen for the appinstalled event
     const handleAppInstalled = () => {
-      console.log('PWA was installed');
+      setIsInstalled(true);
       setCanInstall(false);
       setDeferredPrompt(null);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
-
-    // Check if app is already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setCanInstall(false);
-    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -44,28 +50,29 @@ export function usePWAInstall() {
 
   const triggerInstall = async () => {
     if (!deferredPrompt) {
-      return;
+      return false;
     }
 
-    // Show the install prompt
-    deferredPrompt.prompt();
-
-    // Wait for the user to respond to the prompt
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
-    } else {
-      console.log('User dismissed the install prompt');
+    try {
+      await deferredPrompt.prompt();
+      const choiceResult = await deferredPrompt.userChoice;
+      
+      if (choiceResult.outcome === 'accepted') {
+        setCanInstall(false);
+        setDeferredPrompt(null);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error triggering install prompt:', error);
+      return false;
     }
-
-    // Clear the deferredPrompt
-    setDeferredPrompt(null);
-    setCanInstall(false);
   };
 
   return {
-    canInstall,
+    canInstall: canInstall && !isInstalled,
+    isInstalled,
     triggerInstall,
   };
 }

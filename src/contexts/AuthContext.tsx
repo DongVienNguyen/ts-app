@@ -1,89 +1,87 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Staff } from '@/types/auth';
 import { secureLoginUser } from '@/services/secureAuthService';
-import { getStoredUser, storeUser, removeStoredUser, storeToken, removeStoredToken } from '@/utils/authUtils';
-import { toast } from 'sonner';
+import { logSecurityEvent } from '@/utils/secureAuthUtils';
 
 interface AuthContextType {
   user: Staff | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => Promise<void>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface SecureAuthProviderProps {
+interface AuthProviderProps {
   children: ReactNode;
 }
 
-async function getCurrentUser(): Promise<Staff | null> {
-  return getStoredUser();
-}
-
-async function loginUser(username: string, password: string) {
-  const result = await secureLoginUser(username, password);
-  if (result.user && result.token && !result.error) {
-    storeUser(result.user);
-    storeToken(result.token);
-    return { success: true, user: result.user };
-  }
-  return { success: false, error: result.error };
-}
-
-async function logoutUser() {
-  removeStoredUser();
-  removeStoredToken();
-}
-
-export function SecureAuthProvider({ children }: SecureAuthProviderProps) {
+export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<Staff | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
+    // Check for existing session on app start
+    const checkExistingSession = () => {
       try {
-        const currentUser = await getCurrentUser();
-        setUser(currentUser);
+        const storedUser = localStorage.getItem('auth_user');
+        const storedToken = localStorage.getItem('auth_token');
+        
+        if (storedUser && storedToken) {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          logSecurityEvent('SESSION_RESTORED', { username: userData.username });
+        }
       } catch (error) {
-        console.error('Failed to get current user:', error);
-        setUser(null);
+        console.error('Error checking existing session:', error);
+        // Clear invalid session data
+        localStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_token');
       } finally {
         setLoading(false);
       }
     };
 
-    initializeAuth();
+    checkExistingSession();
   }, []);
 
   const login = async (username: string, password: string) => {
     try {
       setLoading(true);
-      const result = await loginUser(username, password);
+      const result = await secureLoginUser(username, password);
       
-      if (result.success && result.user) {
+      if (result.success && result.user && result.token) {
         setUser(result.user);
+        localStorage.setItem('auth_user', JSON.stringify(result.user));
+        localStorage.setItem('auth_token', result.token);
+        logSecurityEvent('LOGIN_SUCCESS', { username });
         return { success: true };
       } else {
-        return { success: false, error: result.error || 'Đăng nhập thất bại' };
+        logSecurityEvent('LOGIN_FAILED', { username, error: result.error });
+        return { success: false, error: result.error };
       }
     } catch (error) {
       console.error('Login error:', error);
+      logSecurityEvent('LOGIN_ERROR', { username, error: error instanceof Error ? error.message : 'Unknown error' });
       return { success: false, error: 'Đã xảy ra lỗi trong quá trình đăng nhập' };
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = async () => {
-    try {
-      await logoutUser();
-      setUser(null);
-      toast.success('Đăng xuất thành công');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Lỗi khi đăng xuất');
+  const logout = () => {
+    if (user) {
+      logSecurityEvent('LOGOUT', { username: user.username });
     }
+    
+    setUser(null);
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_token');
+    
+    // Clear any other user-specific data
+    localStorage.removeItem('user_preferences');
+    localStorage.removeItem('notification-permission-dismissed');
+    localStorage.removeItem('pwa-install-dismissed');
   };
 
   const value: AuthContextType = {
@@ -100,13 +98,10 @@ export function SecureAuthProvider({ children }: SecureAuthProviderProps) {
   );
 }
 
-export function useSecureAuth(): AuthContextType {
+export function useSecureAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useSecureAuth must be used within a SecureAuthProvider');
+    throw new Error('useSecureAuth must be used within an AuthProvider');
   }
   return context;
 }
-
-// Export the context for compatibility
-export const SecureAuthContext = AuthContext;

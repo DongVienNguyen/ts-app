@@ -1,17 +1,18 @@
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useSecureAuth } from '@/contexts/AuthContext';
-import { Navigate, useLocation } from 'react-router-dom';
-import { Staff } from '@/types/auth';
-import { toast } from 'sonner';
+import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  isAuthorized?: (user: Staff) => boolean;
+  requiredRole?: 'admin' | 'nq_or_admin';
 }
 
-export function ProtectedRoute({ children, isAuthorized }: ProtectedRouteProps) {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  children, 
+  requiredRole 
+}) => {
   const { user, loading } = useSecureAuth();
-  const location = useLocation();
 
   if (loading) {
     return (
@@ -22,16 +23,21 @@ export function ProtectedRoute({ children, isAuthorized }: ProtectedRouteProps) 
   }
 
   if (!user) {
-    // Save the current location to redirect back after login
-    sessionStorage.setItem('redirectAfterLogin', location.pathname);
     return <Navigate to="/login" replace />;
   }
 
-  if (isAuthorized && !isAuthorized(user)) {
-    // If user is not authorized, show a toast and redirect to the home page
-    toast.error("Bạn không có quyền truy cập trang này");
-    return <Navigate to="/" replace />;
+  // Check role-based access
+  if (requiredRole) {
+    if (requiredRole === 'admin' && !isAdmin(user)) {
+      return <Navigate to="/" replace />;
+    }
+    
+    if (requiredRole === 'nq_or_admin' && !isNqOrAdmin(user)) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   return <>{children}</>;
-}
+};
+
+export default ProtectedRoute;
