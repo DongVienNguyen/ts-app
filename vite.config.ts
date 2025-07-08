@@ -1,20 +1,23 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "0.0.0.0",
-    port: 8080,
-  },
-  //base: '/ts-app/',
-  plugins: [
-    react(),
-    mode === 'development' &&
-    componentTagger(),
+export default defineConfig(async ({ mode }) => {
+  const plugins = [react()];
+  
+  // Chỉ load lovable-tagger trong development mode
+  if (mode === 'development') {
+    try {
+      const { componentTagger } = await import('lovable-tagger');
+      plugins.push(componentTagger() as any);
+    } catch (error) {
+      console.warn('Could not load lovable-tagger:', error.message);
+    }
+  }
+  
+  plugins.push(
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
@@ -51,24 +54,32 @@ export default defineConfig(({ mode }) => ({
         screenshots: [
           {
             src: 'screenshot-desktop.png',
-            sizes: '1920x1080', // Kích thước ảnh chụp màn hình desktop của bạn
+            sizes: '1920x1080',
             type: 'image/png',
             form_factor: 'wide',
             label: 'Giao diện trên máy tính'
           },
           {
             src: 'screenshot-mobile.png',
-            sizes: '750x1334', // Kích thước ảnh chụp màn hình mobile của bạn
+            sizes: '750x1334',
             type: 'image/png',
             label: 'Giao diện trên điện thoại'
           }
         ]
       },
     })
-  ].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+  );
+
+  return {
+    server: {
+      host: "0.0.0.0",
+      port: 8080,
     },
-  },
-}));
+    plugins,
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
+    },
+  };
+});
