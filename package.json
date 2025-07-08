@@ -1,14 +1,4 @@
 {
-  "name": "notify-asset-main",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
-  },
   "dependencies": {
     "@capacitor/android": "^7.4.0",
     "@capacitor/cli": "^7.4.0",
@@ -86,6 +76,7 @@
     "tailwindcss": "^3.4.12",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
-    "vite": "5.4.2"
+    "vite": "5.4.2",
+    "vite-plugin-pwa": "^0.20.0"
   }
 }
