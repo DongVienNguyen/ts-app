@@ -43,52 +43,82 @@ export async function subscribeUserToPush(username: string) {
   try {
     if ('serviceWorker' in navigator) {
       const registration = await navigator.serviceWorker.ready;
+      const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
       
-      let subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        console.log('Người dùng đã đăng ký push notifications:', subscription);
-        const { data, error } = await supabase
-          .from('push_subscriptions')
-          .select('username')
-          .eq('username', username)
-          .eq('subscription', subscription.toJSON() as Json)
-          .single();
+      const currentSubscription = await registration.pushManager.getSubscription();
 
-        if (data && !error) {
-          console.log('Existing subscription is valid for current user.');
+      if (currentSubscription) {
+        const existingKey = currentSubscription.options.applicationServerKey;
+        const existingKeyArray = existingKey ? new Uint8Array(existingKey) : new Uint8Array(0);
+        
+        let keysMatch = applicationServerKey.length === existingKeyArray.length;
+        if (keysMatch) {
+          for (let i = 0; i < applicationServerKey.length; i++) {
+            if (applicationServerKey[i] !== existingKeyArray[i]) {
+              keysMatch = false;
+              break;
+            }
+          }
+        }
+
+        if (keysMatch) {
+          console.log('Đã có đăng ký với VAPID key hợp lệ. Đảm bảo đã được lưu trong DB.');
+          const { data, error } = await supabase
+            .from('push_subscriptions')
+            .select('id')
+            .eq('username', user.username)
+            .eq('subscription->>endpoint', currentSubscription.endpoint)
+            .single();
+
+          if (error && error.code !== 'PGRST116') { // PGRST116 = "exact one row not found"
+             console.error("Lỗi khi kiểm tra subscription trong DB:", error);
+          } else if (!data) {
+             console.log("Subscription không có trong DB, đang thêm...");
+             const { error: insertError } = await supabase.from('push_subscriptions').insert({ 
+                username: user.username, 
+                subscription: currentSubscription.toJSON() as Json 
+             });
+             if (insertError) console.error("Lỗi khi thêm subscription vào DB:", insertError);
+          }
           return;
         } else {
-          console.warn('Existing subscription found but not for current user or DB error, re-subscribing.');
-          await subscription.unsubscribe();
+          console.warn('Phát hiện VAPID key khác hoặc không có key. Hủy đăng ký cũ và tạo đăng ký mới.');
+          await currentSubscription.unsubscribe();
         }
       }
 
-      subscription = await registration.pushManager.subscribe({
+      console.log('Đang tiến hành đăng ký mới với Push Service...');
+      const newSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey: applicationServerKey,
       });
 
-      console.log('Đăng ký push notification thành công:', subscription);
+      console.log('Đăng ký push notification thành công:', newSubscription);
       logSecurityEvent('PUSH_SUBSCRIPTION_SUCCESS', { username: user.username });
-
-      const subscriptionJson: Json = subscription.toJSON() as Json; 
 
       const { error: dbError } = await supabase
         .from('push_subscriptions')
         .insert({ 
           username: user.username, 
-          subscription: subscriptionJson 
+          subscription: newSubscription.toJSON() as Json 
         });
 
       if (dbError) {
-        console.error('Lỗi khi lưu subscription vào DB:', dbError);
+        console.error('Lỗi khi lưu subscription mới vào DB:', dbError);
         logSecurityEvent('PUSH_DB_SAVE_FAIL', { username: user.username, error: dbError.message });
       } else {
-        console.log('Lưu subscription vào DB thành công.');
+        console.log('Lưu subscription mới vào DB thành công.');
       }
     }
   } catch (error) {
     console.error('Lỗi trong quá trình đăng ký push notification:', error);
-    logSecurityEvent('PUSH_SUBSCRIPTION_EXCEPTION', { username: user.username, error: (error as Error).message });
+    if (error instanceof Error) {
+        logSecurityEvent('PUSH_SUBSCRIPTION_EXCEPTION', { username: user.username, error: `${error.name}: ${error.message}` });
+        if (error.name === 'AbortError') {
+            console.error('Đăng ký push đã bị hủy (AbortError). Điều này thường xảy ra do VAPID key không hợp lệ hoặc có sự cố với dịch vụ push của trình duyệt. Vui lòng kiểm tra VAPID keys trong cấu hình của bạn.');
+        }
+    } else {
+        logSecurityEvent('PUSH_SUBSCRIPTION_EXCEPTION', { username: user.username, error: 'Unknown error' });
+    }
   }
 }
