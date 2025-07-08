@@ -180,13 +180,13 @@ importers:
         specifier: ^3.6.7
         version: 3.6.7
       workbox-precaching:
-        specifier: ^7.0.0
+        specifier: 7.0.0
         version: 7.0.0
       workbox-routing:
-        specifier: ^7.0.0
+        specifier: 7.0.0
         version: 7.0.0
       workbox-strategies:
-        specifier: ^7.0.0
+        specifier: 7.0.0
         version: 7.0.0
       zod:
         specifier: ^3.23.8
