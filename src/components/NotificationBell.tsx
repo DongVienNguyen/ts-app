@@ -66,7 +66,17 @@ export function NotificationBell() {
           queryClient.invalidateQueries({ queryKey: ['notifications', user.username] });
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`✅ Realtime channel 'notifications:${user.username}' subscribed successfully!`);
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Realtime channel error:', err);
+        }
+        if (status === 'TIMED_OUT') {
+          console.warn('⌛ Realtime channel connection timed out.');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);

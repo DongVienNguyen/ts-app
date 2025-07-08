@@ -23,7 +23,7 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
           if (storedUser.username && storedUser.role) {
             setUser(storedUser);
             // Set the Supabase session from stored token
-            await supabase.auth.setSession({ access_token: storedToken, refresh_token: 'dummy_refresh_token' });
+            await supabase.auth.setSession({ access_token: storedToken });
             setCurrentUserContext(storedUser).catch(err => console.error("Failed to set user context on init:", err));
           } else {
             removeStoredUser(); // This will also remove the token
@@ -66,7 +66,7 @@ export function SecureAuthProvider({ children }: { children: React.ReactNode }) 
         storeUser(loggedInUser);
         storeToken(token);
         // Set the Supabase session after successful login
-        await supabase.auth.setSession({ access_token: token, refresh_token: 'dummy_refresh_token' });
+        await supabase.auth.setSession({ access_token: token });
         return { error: null };
       } else {
         return { error: 'Đăng nhập thất bại không xác định' };
