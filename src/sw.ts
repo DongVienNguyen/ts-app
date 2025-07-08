@@ -4,7 +4,14 @@ import { precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { NetworkFirst } from 'workbox-strategies';
 
-declare const self: ServiceWorkerGlobalScope;
+declare const self: ServiceWorkerGlobalScope & {
+  __WB_MANIFEST: (string | PrecacheEntry)[];
+};
+
+interface PrecacheEntry {
+  url: string;
+  revision?: string;
+}
 
 // self.__WB_MANIFEST is injected by the PWA plugin to precache assets
 precacheAndRoute(self.__WB_MANIFEST || []);

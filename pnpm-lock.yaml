@@ -110,6 +110,15 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.56.2
         version: 5.81.5(react@18.3.1)
+      '@types/workbox-precaching':
+        specifier: ^5.0.0
+        version: 5.0.0
+      '@types/workbox-routing':
+        specifier: ^5.0.0
+        version: 5.0.0
+      '@types/workbox-strategies':
+        specifier: ^5.0.0
+        version: 5.0.0
       bcryptjs:
         specifier: ^3.0.2
         version: 3.0.2
@@ -174,26 +183,35 @@ importers:
         specifier: ^0.9.3
         version: 0.9.9(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       vite-plugin-pwa:
-        specifier: ^1.0.1
-        version: 1.0.1(vite@5.4.19(@types/node@22.16.0)(terser@5.43.1))(workbox-build@7.3.0)(workbox-window@7.3.0)
+        specifier: ^0.20.0
+        version: 0.20.5(vite@5.4.19(@types/node@22.16.0)(terser@5.43.1))(workbox-build@7.3.0)(workbox-window@7.3.0)
       web-push:
         specifier: ^3.6.7
         version: 3.6.7
+      workbox-precaching:
+        specifier: ^7.3.0
+        version: 7.3.0
+      workbox-routing:
+        specifier: ^7.3.0
+        version: 7.3.0
+      workbox-strategies:
+        specifier: ^7.3.0
+        version: 7.3.0
       zod:
         specifier: ^3.23.8
         version: 3.25.75
     devDependencies:
       '@eslint/js':
-        specifier: ^9.9.0
+        specifier: latest
         version: 9.30.1
       '@tailwindcss/typography':
         specifier: ^0.5.15
         version: 0.5.16(tailwindcss@3.4.17)
       '@types/node':
-        specifier: ^22.5.5
+        specifier: latest
         version: 22.16.0
       '@types/react':
-        specifier: ^18.3.3
+        specifier: latest
         version: 18.3.23
       '@types/react-dom':
         specifier: ^18.3.0
@@ -234,21 +252,6 @@ importers:
       vite:
         specifier: ^5.4.1
         version: 5.4.19(@types/node@22.16.0)(terser@5.43.1)
-      workbox-build:
-        specifier: ^7.1.0
-        version: 7.3.0
-      workbox-core:
-        specifier: ^7.1.0
-        version: 7.3.0
-      workbox-precaching:
-        specifier: ^7.1.0
-        version: 7.3.0
-      workbox-routing:
-        specifier: ^7.1.0
-        version: 7.3.0
-      workbox-strategies:
-        specifier: ^7.1.0
-        version: 7.3.0
 
 packages:
 
@@ -2189,6 +2192,18 @@ packages:
 
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
+
+  '@types/workbox-precaching@5.0.0':
+    resolution: {integrity: sha512-Oytxs/I0nE6oM3p4vJsYyLcLldFb9tyG+WBk+UrL2aWizEdpTeVeV+CYG5/lWBhCyXaiEQPgYzWaf3kzLFZAiQ==}
+    deprecated: This is a stub types definition. workbox-precaching provides its own type definitions, so you do not need this installed.
+
+  '@types/workbox-routing@5.0.0':
+    resolution: {integrity: sha512-Ls2HNqL0OKYab8SQ0pCIzoobjXgZa+E2mXucY6cjPkV0ziEhvyubU0bNetR2Aed0n+Kdc++T4BML9Bzapcmp4A==}
+    deprecated: This is a stub types definition. workbox-routing provides its own type definitions, so you do not need this installed.
+
+  '@types/workbox-strategies@5.0.0':
+    resolution: {integrity: sha512-uW1mZ++ZOGEHafE4OWbfVqJ4I+6zWJfoWeepz49a9Zhxm0GtyQ1amTMXTCprhaI+ueYypbUN/pVrnfhFJTig9Q==}
+    deprecated: This is a stub types definition. workbox-strategies provides its own type definitions, so you do not need this installed.
 
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
@@ -4142,14 +4157,14 @@ packages:
   victory-vendor@36.9.2:
     resolution: {integrity: sha512-PnpQQMuxlwYdocC8fIJqVXvkeViHYzotI+NJrCuav0ZYFoq912ZHBk3mCeuj+5/VpodOjPe1z0Fk2ihgzlXqjQ==}
 
-  vite-plugin-pwa@1.0.1:
-    resolution: {integrity: sha512-STyUomQbydj7vGamtgQYIJI0YsUZ3T4pJLGBQDQPhzMse6aGSncmEN21OV35PrFsmCvmtiH+Nu1JS1ke4RqBjQ==}
+  vite-plugin-pwa@0.20.5:
+    resolution: {integrity: sha512-aweuI/6G6n4C5Inn0vwHumElU/UEpNuO+9iZzwPZGTCH87TeZ6YFMrEY6ZUBQdIHHlhTsbMDryFARcSuOdsz9Q==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
-      '@vite-pwa/assets-generator': ^1.0.0
-      vite: ^3.1.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
-      workbox-build: ^7.3.0
-      workbox-window: ^7.3.0
+      '@vite-pwa/assets-generator': ^0.2.6
+      vite: ^3.1.0 || ^4.0.0 || ^5.0.0
+      workbox-build: ^7.1.0
+      workbox-window: ^7.1.0
     peerDependenciesMeta:
       '@vite-pwa/assets-generator':
         optional: true
@@ -6349,6 +6364,18 @@ snapshots:
 
   '@types/trusted-types@2.0.7': {}
 
+  '@types/workbox-precaching@5.0.0':
+    dependencies:
+      workbox-precaching: 7.3.0
+
+  '@types/workbox-routing@5.0.0':
+    dependencies:
+      workbox-routing: 7.3.0
+
+  '@types/workbox-strategies@5.0.0':
+    dependencies:
+      workbox-strategies: 7.3.0
+
   '@types/ws@8.18.1':
     dependencies:
       '@types/node': 22.16.0
@@ -8525,7 +8552,7 @@ snapshots:
       d3-time: 3.1.0
       d3-timer: 3.0.1
 
-  vite-plugin-pwa@1.0.1(vite@5.4.19(@types/node@22.16.0)(terser@5.43.1))(workbox-build@7.3.0)(workbox-window@7.3.0):
+  vite-plugin-pwa@0.20.5(vite@5.4.19(@types/node@22.16.0)(terser@5.43.1))(workbox-build@7.3.0)(workbox-window@7.3.0):
     dependencies:
       debug: 4.4.1
       pretty-bytes: 6.1.1
