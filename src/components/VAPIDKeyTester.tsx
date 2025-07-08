@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Key, CheckCircle, XCircle, AlertTriangle, Copy, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { VAPID_PUBLIC_KEY } from '@/config';
+import { supabase } from '@/integrations/supabase/client';
 
 export const VAPIDKeyTester = () => {
   const [vapidStatus, setVapidStatus] = useState<{
@@ -55,23 +56,33 @@ export const VAPIDKeyTester = () => {
     try {
       console.log('🧪 Testing server VAPID keys...');
       
-      // Test by trying to send a test notification (this will fail gracefully if keys are wrong)
-      const response = await fetch('/api/test-vapid', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          test: true
-        })
+      // Test by trying to send a test push notification via Supabase edge function
+      const { data, error } = await supabase.functions.invoke('send-push-notification', {
+        body: {
+          username: 'test-user',
+          payload: {
+            title: 'VAPID Test',
+            body: 'Testing server VAPID configuration',
+            tag: 'vapid-test'
+          }
+        }
       });
 
-      if (response.ok) {
+      if (error) {
+        console.error('❌ Server VAPID test error:', error);
+        
+        // Check if error is related to VAPID configuration
+        if (error.message?.includes('VAPID') || error.message?.includes('Push notifications are not configured')) {
+          setVapidStatus(prev => ({ ...prev, serverKeysConfigured: false }));
+          toast.error('❌ Server VAPID keys not configured properly');
+        } else {
+          // Other errors might be OK (like no subscriptions found)
+          setVapidStatus(prev => ({ ...prev, serverKeysConfigured: true }));
+          toast.success('✅ Server VAPID keys appear to be configured');
+        }
+      } else {
         setVapidStatus(prev => ({ ...prev, serverKeysConfigured: true }));
         toast.success('✅ Server VAPID keys configured correctly!');
-      } else {
-        setVapidStatus(prev => ({ ...prev, serverKeysConfigured: false }));
-        toast.warning('⚠️ Server VAPID keys may not be configured properly');
       }
     } catch (error) {
       console.error('❌ Error testing server VAPID keys:', error);
@@ -182,7 +193,7 @@ export const VAPIDKeyTester = () => {
                   <strong>Supabase Console:</strong> Go to Settings → Edge Functions → Manage Secrets
                 </li>
                 <li>
-                  <strong>Add VAPID_PUBLIC_KEY:</strong> BJXegHxCxgCVDlkSoXyJLmclrK7SUmfFvbM7HVX_Z9N0mgUINCL9L1BIULcc0rL1GjjXH0IM7joIcUi4f8h4zqY
+                  <strong>Add VAPID_PUBLIC_KEY:</strong> {VAPID_PUBLIC_KEY || 'BJXegHxCxgCVDlkSoXyJLmclrK7SUmfFvbM7HVX_Z9N0mgUINCL9L1BIULcc0rL1GjjXH0IM7joIcUi4f8h4zqY'}
                 </li>
                 <li>
                   <strong>Add VAPID_PRIVATE_KEY:</strong> bgDuwB3uG2gpmw7Z9-wmHN9pb037r0uEJ56gJiXkZwk
@@ -233,13 +244,35 @@ export const VAPIDKeyTester = () => {
           </div>
         </div>
 
+        {/* VAPID Key Issue Warning */}
+        <Alert className="border-orange-200 bg-orange-50">
+          <AlertTriangle className="h-4 w-4 text-orange-600" />
+          <AlertDescription className="text-orange-800">
+            <div className="space-y-2">
+              <p className="font-semibold">⚠️ Push Notification Registration Issues Detected</p>
+              <p className="text-sm">
+                The browser is rejecting push notification registration with "AbortError". This typically means:
+              </p>
+              <ul className="list-disc list-inside text-sm space-y-1 ml-4">
+                <li><strong>VAPID keys mismatch:</strong> Client and server keys don't match</li>
+                <li><strong>Invalid VAPID keys:</strong> Keys may be corrupted or incorrectly formatted</li>
+                <li><strong>Development environment:</strong> Some push services don't work on localhost</li>
+                <li><strong>Browser restrictions:</strong> Chrome may block push notifications in development</li>
+              </ul>
+              <p className="text-sm font-medium mt-2">
+                💡 <strong>Recommendation:</strong> Test on HTTPS production environment for reliable push notifications.
+              </p>
+            </div>
+          </AlertDescription>
+        </Alert>
+
         {/* Next Steps */}
         {vapidStatus.publicKeyConfigured && vapidStatus.publicKeyValid && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <h3 className="font-semibold text-green-800 mb-2">✅ Ready for Push Notifications!</h3>
+            <h3 className="font-semibold text-green-800 mb-2">✅ Client Configuration Ready!</h3>
             <p className="text-sm text-green-700">
-              Your VAPID keys are properly configured. You can now test push notifications 
-              using the Push Notification Tester below.
+              Your client-side VAPID key is properly configured. Complete the server setup in Supabase Console 
+              to enable full push notification functionality.
             </p>
           </div>
         )}
