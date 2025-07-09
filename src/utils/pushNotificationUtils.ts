@@ -2,29 +2,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { VAPID_PUBLIC_KEY } from '@/config';
 
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
-  console.log('--- Bắt đầu yêu cầu quyền thông báo ---');
-  
   if (!('Notification' in window)) {
     console.warn('Trình duyệt không hỗ trợ thông báo');
     return 'denied';
   }
 
-  console.log('Trạng thái quyền hiện tại:', Notification.permission);
+  const currentPermission = Notification.permission;
 
-  if (Notification.permission === 'granted') {
-    console.log('Quyền thông báo đã được cấp trước đó');
+  if (currentPermission === 'granted') {
     return 'granted';
   }
 
-  if (Notification.permission === 'denied') {
-    console.log('Quyền thông báo đã bị từ chối');
+  if (currentPermission === 'denied') {
     return 'denied';
   }
 
   try {
-    console.log('Đang yêu cầu quyền thông báo...');
     const permission = await Notification.requestPermission();
-    console.log('Kết quả yêu cầu quyền:', permission);
     return permission;
   } catch (error) {
     console.error('Lỗi khi yêu cầu quyền thông báo:', error);
@@ -33,58 +27,13 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 }
 
 export async function subscribeUserToPush(username: string): Promise<boolean> {
-  console.log('--- Bắt đầu quá trình đăng ký Push Notification ---');
-  console.log('Username:', username);
-  
   try {
     // Check if we're in development environment
     const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     
     if (isDevelopment) {
-      console.warn('🚧 Development Environment Detected');
-      console.warn('Push notifications may not work properly on localhost');
-      console.warn('For full functionality, test on HTTPS production environment');
-      
-      // Try to show a local notification instead
-      try {
-        await showLocalNotification('Push Notifications Enabled!', {
-          body: 'Development mode: Local notifications only. Deploy to HTTPS for full push notification support.',
-          icon: '/icon-192x192.png'
-        });
-        
-        // Save a mock subscription to database for development
-        const mockSubscription = {
-          endpoint: `mock-endpoint-${username}-${Date.now()}`,
-          keys: {
-            p256dh: 'mock-p256dh-key',
-            auth: 'mock-auth-key'
-          }
-        };
-
-        // Use the regular supabase client (RLS disabled for development)
-        const { error } = await supabase
-          .from('push_subscriptions')
-          .upsert({
-            username,
-            subscription: mockSubscription as any
-          }, {
-            onConflict: 'username'
-          });
-
-        if (error) {
-          console.error('Lỗi lưu mock subscription:', error);
-          // Even if database save fails, local notifications still work
-          console.log('✅ Development mode: Local notifications enabled (database save failed but notifications work)');
-          return true;
-        }
-
-        console.log('✅ Development mode: Mock subscription saved successfully');
-        return true;
-      } catch (devError) {
-        console.error('Development fallback failed:', devError);
-        // Still return true for local notifications
-        return true;
-      }
+      // Quiet development mode - no excessive logging
+      return await handleDevelopmentMode(username);
     }
 
     // Production environment - full push notification setup
@@ -107,31 +56,61 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
   }
 }
 
+async function handleDevelopmentMode(username: string): Promise<boolean> {
+  try {
+    // Show a single, clean development notification
+    await showLocalNotification('Development Mode', {
+      body: 'Notifications enabled for development. Deploy to HTTPS for full push support.',
+      icon: '/icon-192x192.png'
+    });
+    
+    // Save a mock subscription to database for development
+    const mockSubscription = {
+      endpoint: `mock-endpoint-${username}-${Date.now()}`,
+      keys: {
+        p256dh: 'mock-p256dh-key',
+        auth: 'mock-auth-key'
+      }
+    };
+
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .upsert({
+        username,
+        subscription: mockSubscription as any
+      }, {
+        onConflict: 'username'
+      });
+
+    if (error) {
+      // Even if database save fails, local notifications still work
+      return true;
+    }
+
+    return true;
+  } catch (devError) {
+    // Still return true for local notifications
+    return true;
+  }
+}
+
 async function setupProductionPushNotifications(username: string): Promise<boolean> {
-  console.log('🌐 Setting up production push notifications...');
-  
   // Check basic support
   if (!('serviceWorker' in navigator)) {
-    console.error('Service Worker không được hỗ trợ');
     throw new Error('Service Worker not supported');
   }
 
   if (!('PushManager' in window)) {
-    console.error('Push Manager không được hỗ trợ');
     throw new Error('Push Manager not supported');
   }
 
   // Check VAPID key
   if (!VAPID_PUBLIC_KEY) {
-    console.error('VAPID Public Key không được cấu hình');
     throw new Error('VAPID key not configured');
   }
-  
-  console.log('VAPID Public Key:', VAPID_PUBLIC_KEY.substring(0, 20) + '...');
 
   // Validate VAPID key format
   if (!isValidVAPIDKey(VAPID_PUBLIC_KEY)) {
-    console.error('VAPID Public Key không hợp lệ - format không đúng');
     throw new Error('Invalid VAPID key format');
   }
 
@@ -146,11 +125,8 @@ async function setupProductionPushNotifications(username: string): Promise<boole
       updateViaCache: 'none'
     });
     
-    console.log('Service Worker đã đăng ký thành công:', registration);
-    
     // Wait for service worker to be ready
     await navigator.serviceWorker.ready;
-    console.log('Service Worker đã sẵn sàng');
     
   } catch (swError) {
     console.error('Lỗi đăng ký Service Worker:', swError);
@@ -160,10 +136,8 @@ async function setupProductionPushNotifications(username: string): Promise<boole
   // Check if already subscribed and clean up
   const existingSubscription = await registration.pushManager.getSubscription();
   if (existingSubscription) {
-    console.log('Đã có subscription, đang hủy subscription cũ...');
     try {
       await existingSubscription.unsubscribe();
-      console.log('Đã hủy subscription cũ thành công');
     } catch (unsubError) {
       console.warn('Không thể hủy subscription cũ:', unsubError);
     }
@@ -173,14 +147,12 @@ async function setupProductionPushNotifications(username: string): Promise<boole
   let applicationServerKey: Uint8Array;
   try {
     applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-    console.log('VAPID key đã được chuyển đổi thành công, length:', applicationServerKey.length);
   } catch (keyError) {
     console.error('Lỗi chuyển đổi VAPID key:', keyError);
     throw keyError;
   }
 
   // Subscribe to push notifications with retry logic
-  console.log('Đang tiến hành đăng ký mới với Push Service...');
   let subscription: PushSubscription | null = null;
   let retryCount = 0;
   const maxRetries = 3;
@@ -191,11 +163,9 @@ async function setupProductionPushNotifications(username: string): Promise<boole
         userVisibleOnly: true,
         applicationServerKey: applicationServerKey
       });
-      console.log('Đăng ký Push Notification thành công:', subscription);
       break;
     } catch (subscribeError) {
       retryCount++;
-      console.error(`Lần thử ${retryCount}/${maxRetries} - Lỗi đăng ký push:`, subscribeError);
       
       if (retryCount >= maxRetries) {
         throw subscribeError;
@@ -211,9 +181,7 @@ async function setupProductionPushNotifications(username: string): Promise<boole
   }
 
   // Save subscription to database
-  console.log('Đang lưu subscription vào database...');
   const subscriptionData = subscription.toJSON();
-  console.log('Subscription data:', subscriptionData);
 
   const { error } = await supabase
     .from('push_subscriptions')
@@ -229,8 +197,6 @@ async function setupProductionPushNotifications(username: string): Promise<boole
     throw error;
   }
 
-  console.log('✅ Push subscription đã được lưu thành công vào database');
-  
   // Test notification
   try {
     await registration.showNotification('Push Notifications Enabled!', {
@@ -240,7 +206,6 @@ async function setupProductionPushNotifications(username: string): Promise<boole
       tag: 'test-notification',
       requireInteraction: false
     });
-    console.log('✅ Test notification đã được gửi');
   } catch (testError) {
     console.warn('Không thể gửi test notification:', testError);
   }
@@ -249,8 +214,6 @@ async function setupProductionPushNotifications(username: string): Promise<boole
 }
 
 export async function unsubscribeFromPush(username: string): Promise<boolean> {
-  console.log('--- Bắt đầu hủy đăng ký Push Notification ---');
-  
   try {
     // Try to unsubscribe from push service
     if ('serviceWorker' in navigator) {
@@ -259,9 +222,7 @@ export async function unsubscribeFromPush(username: string): Promise<boolean> {
         const subscription = await registration.pushManager.getSubscription();
 
         if (subscription) {
-          console.log('Đang hủy subscription...');
           await subscription.unsubscribe();
-          console.log('Đã hủy subscription thành công');
         }
       } catch (swError) {
         console.warn('Lỗi hủy subscription từ service worker:', swError);
@@ -279,7 +240,6 @@ export async function unsubscribeFromPush(username: string): Promise<boolean> {
       return false;
     }
 
-    console.log('✅ Đã hủy đăng ký Push Notification thành công');
     return true;
   } catch (error) {
     console.error('Lỗi khi hủy đăng ký push notifications:', error);
@@ -310,7 +270,6 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
       outputArray[i] = rawData.charCodeAt(i);
     }
     
-    console.log('VAPID key conversion successful, length:', outputArray.length);
     return outputArray;
   } catch (error) {
     console.error('Lỗi chuyển đổi VAPID key:', error);
@@ -319,8 +278,6 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 export function showNotification(title: string, options?: NotificationOptions): void {
-  console.log('Đang hiển thị notification:', title);
-  
   if (Notification.permission === 'granted') {
     try {
       new Notification(title, {
@@ -328,12 +285,9 @@ export function showNotification(title: string, options?: NotificationOptions): 
         badge: '/icon-192x192.png',
         ...options
       });
-      console.log('✅ Notification đã được hiển thị');
     } catch (error) {
       console.error('Lỗi hiển thị notification:', error);
     }
-  } else {
-    console.warn('Không thể hiển thị notification - quyền chưa được cấp');
   }
 }
 
@@ -394,11 +348,6 @@ export function checkPushNotificationSupport(): {
     reasons.push('Push Notifications yêu cầu HTTPS');
   }
 
-  // Add development environment warning
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    reasons.push('Development environment: Push notifications may be limited');
-  }
-
   return { supported, reasons };
 }
 
@@ -415,8 +364,6 @@ export async function sendPushNotification(
   }
 ): Promise<boolean> {
   try {
-    console.log('📤 Sending push notification via server...', { username, payload });
-    
     const { data, error } = await supabase.functions.invoke('send-push-notification', {
       body: {
         username,
@@ -429,7 +376,6 @@ export async function sendPushNotification(
       return false;
     }
 
-    console.log('✅ Push notification sent successfully:', data);
     return true;
   } catch (error) {
     console.error('❌ Failed to send push notification:', error);
@@ -448,7 +394,6 @@ export async function hasActivePushSubscription(username: string): Promise<boole
 
     return !error && !!data;
   } catch (error) {
-    console.error('Error checking push subscription:', error);
     return false;
   }
 }

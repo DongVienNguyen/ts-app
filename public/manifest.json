@@ -1,17 +1,21 @@
 {
   "name": "Hệ thống Quản lý Tài sản",
   "short_name": "Asset Manager",
-  "description": "Hệ thống quản lý tài sản với AI phân tích hình ảnh",
+  "description": "Hệ thống quản lý tài sản doanh nghiệp",
   "start_url": "/",
   "display": "standalone",
-  "theme_color": "#16a34a",
   "background_color": "#ffffff",
+  "theme_color": "#16a34a",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "vi",
-  "dir": "ltr",
-  "categories": ["business", "productivity", "utilities"],
   "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
     {
       "src": "/icon-192x192.png",
       "sizes": "192x192",
@@ -25,96 +29,32 @@
       "purpose": "any maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshot-mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Asset Entry on Mobile"
-    },
-    {
-      "src": "/screenshot-desktop.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Asset Management Dashboard"
-    }
-  ],
+  "categories": ["business", "productivity"],
+  "screenshots": [],
   "shortcuts": [
     {
-      "name": "Thông báo Tài sản",
-      "short_name": "Asset Entry",
-      "description": "Nhanh chóng thông báo mượn/xuất tài sản",
+      "name": "Nhập tài sản",
+      "short_name": "Nhập TS",
+      "description": "Nhập thông tin tài sản mới",
       "url": "/asset-entry",
       "icons": [
         {
           "src": "/icon-192x192.png",
-          "sizes": "192x192",
-          "type": "image/png"
+          "sizes": "192x192"
         }
       ]
     },
     {
-      "name": "Danh sách TS",
-      "short_name": "Daily Report",
-      "description": "Xem danh sách tài sản cần lấy",
+      "name": "Báo cáo hàng ngày",
+      "short_name": "Báo cáo",
+      "description": "Xem báo cáo tài sản hàng ngày",
       "url": "/daily-report",
       "icons": [
         {
           "src": "/icon-192x192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "Chụp ảnh AI",
-      "short_name": "AI Camera",
-      "description": "Sử dụng AI để phân tích mã tài sản",
-      "url": "/asset-entry?ai=true",
-      "icons": [
-        {
-          "src": "/icon-192x192.png",
-          "sizes": "192x192",
-          "type": "image/png"
+          "sizes": "192x192"
         }
       ]
     }
-  ],
-  "file_handlers": [
-    {
-      "action": "/asset-entry",
-      "accept": {
-        "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"]
-      }
-    }
-  ],
-  "share_target": {
-    "action": "/asset-entry",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "files": [
-        {
-          "name": "image",
-          "accept": ["image/*"]
-        }
-      ]
-    }
-  },
-  "protocol_handlers": [
-    {
-      "protocol": "web+assetmanager",
-      "url": "/?action=%s"
-    }
-  ],
-  "prefer_related_applications": false,
-  "related_applications": [],
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "launch_handler": {
-    "client_mode": "focus-existing"
-  }
+  ]
 }
