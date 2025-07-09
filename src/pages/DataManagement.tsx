@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Settings, Plus, Download, Upload, Trash2, Edit, Lock, AlertCircle, BarChart2, Database as DatabaseIcon, BellRing, Users, Shield, BookOpen, CheckCircle, ArrowRight, Trophy } from 'lucide-react';
+import { Settings, Plus, Download, Upload, Trash2, Edit, Lock, AlertCircle, BarChart2, Database as DatabaseIcon, BellRing, Users, Shield, BookOpen, CheckCircle, ArrowRight, Trophy, ChevronDown, Mail, TestTube } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Layout from '@/components/Layout';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,6 +27,8 @@ import { SecurityImplementationSummary } from '@/components/SecurityImplementati
 import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
 import { AccountManagementTab } from '@/components/data-management/AccountManagementTab';
 import { VAPIDKeyTester } from '@/components/VAPIDKeyTester';
+import { AdminEmailSettings } from '@/components/data-management/AdminEmailSettings';
+import TestDataButton from '@/components/TestDataButton';
 
 const DataManagement = () => {
   const [selectedEntity, setSelectedEntity] = useState<string>('asset_transactions');
@@ -39,12 +42,45 @@ const DataManagement = () => {
   const [endDate, setEndDate] = useState('');
   const [message, setMessage] = useState({ type: '', text: '' });
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [activeTab, setActiveTab] = useState('management');
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const { user } = useSecureAuth();
   const navigate = useNavigate();
 
   const ITEMS_PER_PAGE = 20;
+
+  // Mobile-optimized tab configuration
+  const tabGroups = [
+    {
+      label: 'Quản lý chính',
+      icon: DatabaseIcon,
+      tabs: [
+        { value: 'management', label: 'Quản lý dữ liệu', icon: DatabaseIcon },
+        { value: 'statistics', label: 'Thống kê', icon: BarChart2 },
+        { value: 'accounts', label: 'Tài khoản', icon: Users },
+        { value: 'admin-settings', label: 'Cài đặt Admin', icon: Settings },
+      ]
+    },
+    {
+      label: 'Bảo mật',
+      icon: Shield,
+      tabs: [
+        { value: 'security-dashboard', label: 'Dashboard', icon: Shield },
+        { value: 'security-test', label: 'Test Bảo mật', icon: Shield },
+        { value: 'security-docs', label: 'Tài liệu', icon: BookOpen },
+        { value: 'security-summary', label: 'Tổng kết', icon: CheckCircle },
+        { value: 'security-workflow', label: 'Demo', icon: ArrowRight },
+      ]
+    },
+    {
+      label: 'Thông báo',
+      icon: BellRing,
+      tabs: [
+        { value: 'push-notifications', label: 'Thông báo đẩy', icon: BellRing },
+      ]
+    }
+  ];
 
   const runAsAdmin = useCallback(async (callback: () => Promise<void>) => {
     if (!user || user.role !== 'admin') {
@@ -322,20 +358,73 @@ const DataManagement = () => {
           </Alert>
         )}
 
-        <Tabs defaultValue="management" className="w-full">
-          <TabsList className="border-b">
-            <TabsTrigger value="management"><DatabaseIcon className="mr-2 h-4 w-4" />Quản lý dữ liệu</TabsTrigger>
-            <TabsTrigger value="statistics"><BarChart2 className="mr-2 h-4 w-4" />Thống kê</TabsTrigger>
-            <TabsTrigger value="security-dashboard"><Shield className="mr-2 h-4 w-4" />Dashboard</TabsTrigger>
-            <TabsTrigger value="accounts"><Users className="mr-2 h-4 w-4" />Tài khoản</TabsTrigger>
-            <TabsTrigger value="security-test"><Shield className="mr-2 h-4 w-4" />Test Bảo mật</TabsTrigger>
-            <TabsTrigger value="security-docs"><BookOpen className="mr-2 h-4 w-4" />Tài liệu</TabsTrigger>
-            <TabsTrigger value="security-summary"><CheckCircle className="mr-2 h-4 w-4" />Tổng kết</TabsTrigger>
-            <TabsTrigger value="security-workflow"><ArrowRight className="mr-2 h-4 w-4" />Demo</TabsTrigger>
-            <TabsTrigger value="push-notifications"><BellRing className="mr-2 h-4 w-4" />Thông báo đẩy</TabsTrigger>
-          </TabsList>
+        {/* Mobile-optimized Tab Navigation */}
+        <div className="w-full">
+          {/* Desktop Tabs */}
+          <div className="hidden lg:block">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
+                {tabGroups.flatMap(group => group.tabs).map((tab) => (
+                  <TabsTrigger key={tab.value} value={tab.value} className="text-xs">
+                    <tab.icon className="mr-1 h-3 w-3" />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {/* Tab Contents */}
+              {renderTabContents()}
+            </Tabs>
+          </div>
 
-          <TabsContent value="management" className="mt-6 space-y-6">
+          {/* Mobile Dropdown */}
+          <div className="lg:hidden">
+            <div className="space-y-4">
+              {tabGroups.map((group) => (
+                <Card key={group.label}>
+                  <CardHeader className="pb-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between">
+                          <div className="flex items-center space-x-2">
+                            <group.icon className="w-4 h-4" />
+                            <span>{group.label}</span>
+                          </div>
+                          <ChevronDown className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-full">
+                        {group.tabs.map((tab) => (
+                          <DropdownMenuItem 
+                            key={tab.value}
+                            onClick={() => setActiveTab(tab.value)}
+                            className={activeTab === tab.value ? 'bg-blue-50' : ''}
+                          >
+                            <tab.icon className="mr-2 h-4 w-4" />
+                            {tab.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+
+            {/* Mobile Tab Content */}
+            <div className="mt-6">
+              {renderTabContents()}
+            </div>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+
+  function renderTabContents() {
+    return (
+      <>
+        {activeTab === 'management' && (
+          <div className="mt-6 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Chọn bảng dữ liệu</CardTitle>
@@ -369,6 +458,8 @@ const DataManagement = () => {
                   accept=".zip"
                   className="hidden"
                 />
+                {/* Test Data Buttons moved from AssetEntry */}
+                <TestDataButton onTestData={() => {}} />
               </CardContent>
             </Card>
 
@@ -501,52 +592,74 @@ const DataManagement = () => {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="statistics" className="mt-6 space-y-6">
+        {activeTab === 'statistics' && (
+          <div className="mt-6 space-y-6">
             <StatisticsTab runAsAdmin={runAsAdmin} setMessage={setMessage} onLoad={() => {}} />
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="security-dashboard" className="mt-6 space-y-6">
+        {activeTab === 'security-dashboard' && (
+          <div className="mt-6 space-y-6">
             <SecurityDashboard />
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="accounts" className="mt-6 space-y-6">
+        {activeTab === 'accounts' && (
+          <div className="mt-6 space-y-6">
             <AccountManagementTab />
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="security-test" className="mt-6 space-y-6">
+        {activeTab === 'admin-settings' && (
+          <div className="mt-6 space-y-6">
+            <AdminEmailSettings />
+          </div>
+        )}
+
+        {activeTab === 'security-test' && (
+          <div className="mt-6 space-y-6">
             <SecurityTestPanel />
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="security-docs" className="mt-6 space-y-6">
+        {activeTab === 'security-docs' && (
+          <div className="mt-6 space-y-6">
             <SecurityDocumentation />
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="security-summary" className="mt-6 space-y-6">
+        {activeTab === 'security-summary' && (
+          <div className="mt-6 space-y-6">
             <SecurityImplementationSummary />
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="security-workflow" className="mt-6 space-y-6">
+        {activeTab === 'security-workflow' && (
+          <div className="mt-6 space-y-6">
             <SecurityWorkflowDemo />
-          </TabsContent>
+          </div>
+        )}
 
-          <TabsContent value="push-notifications" className="mt-6 space-y-6">
+        {activeTab === 'push-notifications' && (
+          <div className="mt-6 space-y-6">
             <VAPIDKeyTester />
             <PushNotificationTester />
-          </TabsContent>
+          </div>
+        )}
 
-          <EditDialog
-            open={dialogOpen}
-            onOpenChange={setDialogOpen}
-            config={entityConfig[selectedEntity]}
-            editingItem={editingItem}
-            onSave={handleSave}
-          />
-        </Tabs>
-      </div>
-    </Layout>
-  );
+        <EditDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          config={entityConfig[selectedEntity]}
+          editingItem={editingItem}
+          onSave={handleSave}
+        />
+      </>
+    );
+  }
 };
 
 export default DataManagement;
