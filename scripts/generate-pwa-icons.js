@@ -9,29 +9,76 @@ const __dirname = path.dirname(__filename);
 const sizes = [16, 32, 72, 96, 128, 144, 152, 192, 384, 512];
 const outputDir = path.join(__dirname, '..', 'public');
 
-// Create a simple green icon for PWA
+// Create the TS icon matching the provided design
 const createBaseIcon = async () => {
   const svgIcon = `
     <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#16a34a;stop-opacity:1" />
-          <stop offset="100%" style="stop-color:#15803d;stop-opacity:1" />
+        <!-- Background gradient - dark blue -->
+        <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#1e3a8a;stop-opacity:1" />
+          <stop offset="50%" style="stop-color:#1e40af;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
         </linearGradient>
+        
+        <!-- Gold gradient for text and circles -->
+        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+          <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+        </linearGradient>
+        
+        <!-- Shadow filter -->
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
+        </filter>
       </defs>
-      <rect width="512" height="512" fill="url(#grad1)" rx="64"/>
-      <rect x="128" y="128" width="256" height="256" fill="white" rx="32"/>
-      <g fill="#16a34a">
-        <!-- Asset icon -->
-        <rect x="180" y="180" width="40" height="120" rx="8"/>
-        <rect x="240" y="180" width="40" height="120" rx="8"/>
-        <rect x="300" y="180" width="40" height="120" rx="8"/>
-        <rect x="180" y="320" width="160" height="40" rx="8"/>
-        <!-- Management symbol -->
-        <circle cx="200" cy="200" r="8"/>
-        <circle cx="260" cy="200" r="8"/>
-        <circle cx="320" cy="200" r="8"/>
+      
+      <!-- Background with rounded corners -->
+      <rect width="512" height="512" rx="80" fill="url(#bgGrad)"/>
+      
+      <!-- Outer circle -->
+      <circle cx="256" cy="256" r="200" stroke="url(#goldGrad)" stroke-width="8" fill="none" opacity="0.8"/>
+      
+      <!-- Inner circle -->
+      <circle cx="256" cy="256" r="170" stroke="url(#goldGrad)" stroke-width="4" fill="none" opacity="0.6"/>
+      
+      <!-- Small decorative circle (top right) -->
+      <circle cx="380" cy="132" r="20" fill="url(#goldGrad)" opacity="0.9" filter="url(#shadow)"/>
+      
+      <!-- TS Text -->
+      <g filter="url(#shadow)">
+        <!-- T -->
+        <path d="M 180 180 L 280 180 L 280 210 L 240 210 L 240 330 L 210 330 L 210 210 L 180 210 Z" 
+              fill="url(#goldGrad)" stroke="url(#goldGrad)" stroke-width="2"/>
+        
+        <!-- S -->
+        <path d="M 300 180 
+                 L 380 180 
+                 L 380 210 
+                 L 330 210 
+                 L 330 240 
+                 L 370 240 
+                 L 370 270 
+                 L 330 270 
+                 L 330 300 
+                 L 380 300 
+                 L 380 330 
+                 L 300 330 
+                 L 300 300 
+                 L 350 300 
+                 L 350 270 
+                 L 310 270 
+                 L 310 240 
+                 L 350 240 
+                 L 350 210 
+                 L 300 210 
+                 Z" 
+              fill="url(#goldGrad)" stroke="url(#goldGrad)" stroke-width="2"/>
       </g>
+      
+      <!-- Subtle highlight on top -->
+      <ellipse cx="256" cy="100" rx="150" ry="30" fill="rgba(255,255,255,0.1)"/>
     </svg>
   `;
   
@@ -42,7 +89,7 @@ const createBaseIcon = async () => {
 
 const generateIcons = async () => {
   try {
-    console.log('🎨 Generating PWA icons...');
+    console.log('🎨 Generating PWA icons with TS design...');
     
     // Create base icon
     const iconPath = await createBaseIcon();
@@ -59,11 +106,12 @@ const generateIcons = async () => {
       await sharp(iconPath)
         .resize(size, size, {
           fit: 'contain',
-          background: { r: 22, g: 163, b: 74, alpha: 1 }
+          background: { r: 30, g: 58, b: 138, alpha: 1 } // Dark blue background
         })
         .png({
-          quality: 90,
-          compressionLevel: 9
+          quality: 95,
+          compressionLevel: 9,
+          palette: false
         })
         .toFile(outputPath);
       
@@ -71,11 +119,14 @@ const generateIcons = async () => {
     }
     
     // Generate favicon
-    const faviconPath = path.join(outputDir, 'favicon.ico');
+    const faviconPath = path.join(outputDir, 'favicon.png');
     await sharp(iconPath)
       .resize(32, 32)
-      .png()
-      .toFile(path.join(outputDir, 'favicon.png'));
+      .png({
+        quality: 95,
+        compressionLevel: 9
+      })
+      .toFile(faviconPath);
     
     console.log('✅ Generated: favicon.png');
     
@@ -87,10 +138,10 @@ const generateIcons = async () => {
       await sharp(iconPath)
         .resize(size, size, {
           fit: 'contain',
-          background: { r: 22, g: 163, b: 74, alpha: 1 }
+          background: { r: 30, g: 58, b: 138, alpha: 1 }
         })
         .png({
-          quality: 90,
+          quality: 95,
           compressionLevel: 9
         })
         .toFile(outputPath);
@@ -103,8 +154,8 @@ const generateIcons = async () => {
     for (const size of maskableSizes) {
       const outputPath = path.join(outputDir, `maskable-icon-${size}x${size}.png`);
       
-      // Create maskable icon with safe area
-      const safeAreaSize = Math.floor(size * 0.8); // 80% safe area
+      // Create maskable icon with safe area (80% of the icon should be in safe area)
+      const safeAreaSize = Math.floor(size * 0.8);
       const padding = Math.floor((size - safeAreaSize) / 2);
       
       await sharp({
@@ -112,7 +163,7 @@ const generateIcons = async () => {
           width: size,
           height: size,
           channels: 4,
-          background: { r: 22, g: 163, b: 74, alpha: 1 }
+          background: { r: 30, g: 58, b: 138, alpha: 1 }
         }
       })
       .composite([
@@ -129,7 +180,7 @@ const generateIcons = async () => {
         }
       ])
       .png({
-        quality: 90,
+        quality: 95,
         compressionLevel: 9
       })
       .toFile(outputPath);
@@ -140,7 +191,7 @@ const generateIcons = async () => {
     // Clean up temp file
     fs.unlinkSync(iconPath);
     
-    console.log('🎉 All PWA icons generated successfully!');
+    console.log('🎉 All PWA icons generated successfully with TS design!');
     console.log(`📁 Icons saved to: ${outputDir}`);
     
     // Generate icon summary

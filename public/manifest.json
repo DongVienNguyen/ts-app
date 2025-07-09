@@ -1,37 +1,133 @@
 {
   "name": "Hệ thống Quản lý Tài sản",
-  "short_name": "Asset Manager",
+  "short_name": "TS Manager",
   "description": "Hệ thống quản lý tài sản với AI và thông báo đẩy",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#16a34a",
+  "background_color": "#1e3a8a",
+  "theme_color": "#1e3a8a",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "vi",
-  "categories": ["business", "productivity"],
+  "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
-      "src": "/icon-16x16.png",
-      "sizes": "16x16",
-      "type": "image/png"
+      "src": "/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/icon-32x32.png",
-      "sizes": "32x32",
-      "type": "image/png"
+      "src": "/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/maskable-icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/maskable-icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Nhập tài sản",
+      "short_name": "Nhập TS",
+      "description": "Nhập thông tin tài sản mới",
+      "url": "/asset-entry",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Báo cáo hàng ngày",
+      "short_name": "Báo cáo",
+      "description": "Xem báo cáo tài sản hàng ngày",
+      "url": "/daily-report",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Quản lý dữ liệu",
+      "short_name": "Quản lý",
+      "description": "Quản lý dữ liệu hệ thống",
+      "url": "/data-management",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Hệ thống Quản lý Tài sản - Giao diện chính"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }
