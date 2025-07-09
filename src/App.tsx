@@ -21,23 +21,39 @@ import ErrorReport from "./pages/ErrorReport";
 import PushNotificationTest from "./pages/PushNotificationTest";
 import NotFound from "./pages/NotFound";
 
-// Create QueryClient instance outside component to prevent recreation
-let queryClient: QueryClient;
+// Create QueryClient instance with error handling
+const createQueryClient = () => {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        retry: (failureCount, error: any) => {
+          // Don't retry on 4xx errors
+          if (error?.status >= 400 && error?.status < 500) {
+            return false;
+          }
+          return failureCount < 2;
+        },
+        refetchOnWindowFocus: false,
+        refetchOnMount: true,
+        refetchOnReconnect: true,
+      },
+      mutations: {
+        retry: 1,
+        onError: (error) => {
+          console.error('Mutation error:', error);
+        }
+      },
+    }
+  });
+};
+
+// Global query client instance
+let queryClient: QueryClient | null = null;
 
 function getQueryClient() {
   if (!queryClient) {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: {
-          staleTime: 1000 * 60 * 5, // 5 minutes
-          retry: 1,
-          refetchOnWindowFocus: false,
-        },
-        mutations: {
-          retry: 1,
-        },
-      },
-    });
+    queryClient = createQueryClient();
   }
   return queryClient;
 }
@@ -45,26 +61,65 @@ function getQueryClient() {
 function App() {
   console.log('🔍 App component rendering...');
   
-  // Safety check for React
-  if (!React || !React.useEffect) {
-    console.error('❌ React is not properly loaded');
+  // Comprehensive React safety checks
+  if (!React) {
+    console.error('❌ React is not loaded');
     return (
       <div className="min-h-screen bg-red-50 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center p-8">
           <h1 className="text-2xl font-bold text-red-800 mb-4">React Loading Error</h1>
-          <p className="text-red-600">React is not properly loaded. Please refresh the page.</p>
+          <p className="text-red-600 mb-4">React framework is not properly loaded.</p>
           <button 
             onClick={() => window.location.reload()} 
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           >
-            Refresh Page
+            🔄 Reload Page
           </button>
         </div>
       </div>
     );
   }
 
-  const client = getQueryClient();
+  // Check for React hooks
+  if (!React.useEffect || !React.useState || !React.useContext) {
+    console.error('❌ React hooks are not available');
+    return (
+      <div className="min-h-screen bg-red-50 flex items-center justify-center">
+        <div className="text-center p-8">
+          <h1 className="text-2xl font-bold text-red-800 mb-4">React Hooks Error</h1>
+          <p className="text-red-600 mb-4">React hooks are not available. This might be a version mismatch.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            🔄 Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Get query client with error handling
+  let client: QueryClient;
+  try {
+    client = getQueryClient();
+  } catch (error) {
+    console.error('❌ Failed to create QueryClient:', error);
+    return (
+      <div className="min-h-screen bg-red-50 flex items-center justify-center">
+        <div className="text-center p-8">
+          <h1 className="text-2xl font-bold text-red-800 mb-4">Query Client Error</h1>
+          <p className="text-red-600 mb-4">Failed to initialize React Query client.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            🔄 Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary>
