@@ -9,6 +9,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { performEmailTest } from '@/services/emailTestService';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { EmailTestButton } from '@/components/EmailTestButton';
+import { EmailDebugPanel } from '@/components/EmailDebugPanel';
+import { ResendAPIChecker } from '@/components/ResendAPIChecker';
+import { ResendSetupGuide } from '@/components/ResendSetupGuide';
 
 export const AdminEmailSettings = () => {
   const [adminEmail, setAdminEmail] = useState('');
@@ -312,6 +315,12 @@ export const AdminEmailSettings = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Resend API Checker */}
+      <ResendAPIChecker />
+
+      {/* Resend Setup Guide */}
+      <ResendSetupGuide />
 
       {/* Message Display */}
       {message.text && (

@@ -191,7 +191,38 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { to, subject, html, type, data, attachments }: EmailRequest = requestBody;
 
-    // Validate required fields
+    // Handle API check request
+    if (type === 'api_check') {
+      console.log('🔑 API Key check requested');
+      
+      if (!Deno.env.get("RESEND_API_KEY")) {
+        throw new Error("RESEND_API_KEY not configured");
+      }
+      
+      // Test API key by creating a Resend instance
+      try {
+        const testResend = new Resend(Deno.env.get("RESEND_API_KEY")) as ResendClient;
+        console.log('🔑 Resend client created successfully');
+        
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: "API key is valid",
+          apiKeyExists: true,
+          timestamp: new Date().toISOString()
+        }), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
+        });
+      } catch (apiError: any) {
+        console.error('🔑 API key validation failed:', apiError);
+        throw new Error(`Invalid API key: ${apiError.message}`);
+      }
+    }
+
+    // Validate required fields for regular email sending
     if (!to || !subject) {
       throw new Error("Missing required fields: 'to' and 'subject'");
     }
