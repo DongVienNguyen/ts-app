@@ -90,11 +90,12 @@ export const EmailDebugPanel = () => {
             .from('staff')
             .insert({
               username: 'admin',
-              password: '$2b$10$rQJ5K8qF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7',
+              password: 'admin123', // Use plain text, will be hashed by trigger
               staff_name: 'System Administrator',
               role: 'admin',
               email: 'admin@company.com',
-              account_status: 'active'
+              account_status: 'active',
+              department: 'IT'
             })
             .select('email, staff_name, username')
             .single();

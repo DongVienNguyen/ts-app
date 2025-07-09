@@ -47,9 +47,8 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png" />
     
-    <!-- Fixed Preload with proper attributes -->
-    <link rel="modulepreload" href="/src/main.tsx" crossorigin />
-    <!-- CSS will be loaded automatically by Vite, no need to preload -->
+    <!-- Remove all preload links that cause warnings -->
+    <!-- CSS and JS will be loaded automatically by Vite -->
     
     <!-- Prevent zoom on input focus (iOS) -->
     <style>

@@ -39,7 +39,7 @@ export const CreateAdminButton = () => {
         .from('staff')
         .insert({
           username: 'admin',
-          password: '$2b$10$rQJ5K8qF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7', // Default password: admin123
+          password: 'admin123', // Use plain text, will be hashed by trigger
           staff_name: 'System Administrator',
           role: 'admin',
           email: 'admin@company.com',

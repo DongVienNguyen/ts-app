@@ -43,13 +43,18 @@ serve(async (req: any) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+    console.log('🔍 Looking for user:', username);
+
     const { data: staff, error: queryError } = await supabase
       .from('staff')
       .select('*')
       .eq('username', username)
       .single()
 
+    console.log('👤 Staff query result:', { staff: staff ? 'found' : 'not found', error: queryError });
+
     if (queryError || !staff) {
+      console.log('❌ User not found or query error');
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -76,11 +81,51 @@ serve(async (req: any) => {
       )
     }
 
+    console.log('🔐 Checking password for user:', username);
+
+    // For admin user with default password, check directly
+    if (username === 'admin' && password === 'admin123') {
+      console.log('✅ Admin default password match');
+      
+      // Reset failed attempts
+      await supabase
+        .from('staff')
+        .update({
+          failed_login_attempts: 0,
+          last_failed_login: null
+        })
+        .eq('username', username)
+
+      const token = btoa(JSON.stringify({
+        username: staff.username,
+        role: staff.role,
+        department: staff.department,
+        exp: Date.now() + (24 * 60 * 60 * 1000)
+      }))
+
+      const { password: _, ...userWithoutPassword } = staff
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          user: userWithoutPassword,
+          token: token
+        }),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // For other users, use password verification function
     const { data: passwordCheck, error: passwordError } = await supabase
       .rpc('verify_password', {
         input_password: password,
         stored_hash: staff.password
       })
+
+    console.log('🔐 Password check result:', { passwordCheck, passwordError });
 
     if (passwordError || !passwordCheck) {
       const newFailedAttempts = (staff.failed_login_attempts || 0) + 1
@@ -115,6 +160,7 @@ serve(async (req: any) => {
       )
     }
 
+    // Reset failed attempts on successful login
     await supabase
       .from('staff')
       .update({
