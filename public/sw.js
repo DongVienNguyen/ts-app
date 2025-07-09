@@ -11,7 +11,7 @@ const STATIC_ASSETS = [
   '/favicon.png'
 ];
 
-// Install event - cache static assets
+// Install event - cache static assets and activate immediately
 self.addEventListener('install', (event) => {
   console.log('🔧 Service Worker installing...');
   
@@ -23,7 +23,7 @@ self.addEventListener('install', (event) => {
       })
       .then(() => {
         console.log('✅ Static assets cached');
-        // Skip waiting to activate immediately (silent update)
+        // Force immediate activation - no waiting
         return self.skipWaiting();
       })
       .catch((error) => {
@@ -32,13 +32,13 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event - clean old caches and take control
+// Activate event - clean old caches and take control immediately
 self.addEventListener('activate', (event) => {
   console.log('🚀 Service Worker activating...');
   
   event.waitUntil(
     Promise.all([
-      // Clean old caches
+      // Clean old caches aggressively
       caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
@@ -56,20 +56,18 @@ self.addEventListener('activate', (event) => {
     ]).then(() => {
       console.log('✅ Service Worker activated and took control');
       
-      // Notify all clients about the update (silent notification)
+      // Force reload all clients to get latest version
       self.clients.matchAll().then(clients => {
         clients.forEach(client => {
-          client.postMessage({
-            type: 'SW_UPDATED',
-            message: 'Ứng dụng đã được cập nhật tự động'
-          });
+          console.log('🔄 Reloading client for update...');
+          client.navigate(client.url);
         });
       });
     })
   );
 });
 
-// Fetch event - serve from cache with network fallback
+// Fetch event - always try network first for HTML, then cache
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -84,13 +82,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   
+  // For HTML documents, always try network first
+  if (request.destination === 'document') {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(DYNAMIC_CACHE).then(cache => {
+              cache.put(request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // Fallback to cache if network fails
+          return caches.match(request) || caches.match('/');
+        })
+    );
+    return;
+  }
+  
+  // For other resources, use cache-first with background update
   event.respondWith(
     caches.match(request)
       .then((cachedResponse) => {
-        // Return cached version if available
-        if (cachedResponse) {
-          // Check for updates in background
-          fetch(request).then(networkResponse => {
+        // Always fetch in background to update cache
+        const fetchPromise = fetch(request)
+          .then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
               const responseClone = networkResponse.clone();
               const cacheName = isStaticAsset(request.url) ? STATIC_CACHE : DYNAMIC_CACHE;
@@ -98,36 +117,17 @@ self.addEventListener('fetch', (event) => {
                 cache.put(request, responseClone);
               });
             }
-          }).catch(() => {
-            // Network failed, but we have cache
-          });
-          
+            return networkResponse;
+          })
+          .catch(() => null);
+        
+        // Return cached version immediately if available
+        if (cachedResponse) {
           return cachedResponse;
         }
         
-        // Fetch from network
-        return fetch(request)
-          .then((networkResponse) => {
-            if (!networkResponse || networkResponse.status !== 200) {
-              return networkResponse;
-            }
-            
-            const responseClone = networkResponse.clone();
-            const cacheName = isStaticAsset(request.url) ? STATIC_CACHE : DYNAMIC_CACHE;
-            
-            caches.open(cacheName).then(cache => {
-              cache.put(request, responseClone);
-            });
-            
-            return networkResponse;
-          })
-          .catch((error) => {
-            console.error('❌ Network request failed:', error);
-            if (request.destination === 'document') {
-              return caches.match('/') || new Response('Offline', { status: 503 });
-            }
-            throw error;
-          });
+        // Otherwise wait for network
+        return fetchPromise || new Response('Offline', { status: 503 });
       })
   );
 });
@@ -235,5 +235,11 @@ self.addEventListener('sync', (event) => {
     );
   }
 });
+
+// Periodic update check
+setInterval(() => {
+  console.log('🔍 Checking for updates...');
+  self.registration.update();
+}, 30000); // Check every 30 seconds
 
 console.log('✅ Service Worker loaded successfully');

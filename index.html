@@ -18,6 +18,11 @@
     <meta name="msapplication-TileColor" content="#14532d" />
     <meta name="msapplication-tap-highlight" content="no" />
     
+    <!-- Prevent caching of HTML -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
     <!-- SEO Meta Tags -->
     <meta name="description" content="Hệ thống quản lý tài sản TS với AI và thông báo đẩy" />
     <meta name="keywords" content="quản lý tài sản, TS manager, asset management, AI, thông báo" />
@@ -186,7 +191,7 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration with Aggressive Updates -->
     <script>
       // Enhanced error handling
       window.addEventListener('error', function(e) {
@@ -213,29 +218,46 @@
         }, 1000);
       });
       
-      // Register service worker with silent updates
+      // Register service worker with aggressive auto-updates
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
               console.log('SW registered: ', registration);
               
-              // Handle updates silently - NO POPUP
+              // Check for updates every 10 seconds
+              setInterval(() => {
+                registration.update();
+              }, 10000);
+              
+              // Handle updates completely silently
               registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 if (newWorker) {
                   newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                      // Silent update - just activate new version
-                      console.log('🔄 New version available, updating silently...');
-                      newWorker.postMessage({ type: 'SKIP_WAITING' });
-                      // NO CONFIRM DIALOG - just reload after delay
-                      setTimeout(() => {
-                        window.location.reload();
-                      }, 2000);
+                    if (newWorker.state === 'installed') {
+                      if (navigator.serviceWorker.controller) {
+                        // New version available - activate immediately
+                        console.log('🔄 New version detected, updating automatically...');
+                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                        
+                        // Force reload after short delay
+                        setTimeout(() => {
+                          window.location.reload();
+                        }, 1000);
+                      } else {
+                        // First install
+                        console.log('✅ TS Manager is ready for offline use');
+                      }
                     }
                   });
                 }
+              });
+              
+              // Listen for controlling service worker change
+              navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('🔄 Service Worker controller changed, reloading...');
+                window.location.reload();
               });
             })
             .catch((registrationError) => {
@@ -322,6 +344,12 @@
           }, 0);
         });
       }
+      
+      // Force refresh every 5 minutes to ensure latest version
+      setInterval(() => {
+        console.log('🔄 Periodic refresh to ensure latest version...');
+        window.location.reload();
+      }, 300000); // 5 minutes
     </script>
   </body>
 </html>

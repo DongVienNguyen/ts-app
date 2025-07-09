@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Bell, Check, CheckCheck, Trash2, Reply, Send, RefreshCw } from 'lucide-react';
 import { formatRelativeTime } from '@/utils/dateUtils';
@@ -157,12 +157,14 @@ export default function Notifications() {
     }
   });
 
-  // Real-time subscription
+  // Real-time subscription with improved error handling
   useEffect(() => {
     if (!user?.username) return;
 
+    const channelName = `notifications_page_${user.username}_${Date.now()}`;
+    
     const channel = supabase
-      .channel(`notifications:${user.username}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -171,13 +173,25 @@ export default function Notifications() {
           table: 'notifications',
           filter: `recipient_username=eq.${user.username}`,
         },
-        () => {
+        (payload) => {
+          console.log('📨 Notification page change received:', payload);
           queryClient.invalidateQueries({ queryKey: ['notifications', user.username] });
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`✅ Notifications page channel '${channelName}' subscribed successfully!`);
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error('❌ Notifications page channel error:', err);
+        }
+        if (status === 'TIMED_OUT') {
+          console.warn('⌛ Notifications page channel timed out.');
+        }
+      });
 
     return () => {
+      console.log(`🧹 Cleaning up notifications page channel: ${channelName}`);
       supabase.removeChannel(channel);
     };
   }, [user?.username, queryClient]);
@@ -356,6 +370,9 @@ export default function Notifications() {
                         <DialogContent className="max-w-md">
                           <DialogHeader>
                             <DialogTitle>Phản hồi thông báo</DialogTitle>
+                            <DialogDescription>
+                              Gửi phản hồi cho thông báo này. Phản hồi sẽ được gửi đến quản trị viên.
+                            </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4">
                             <div className="p-3 bg-gray-50 rounded-lg">
