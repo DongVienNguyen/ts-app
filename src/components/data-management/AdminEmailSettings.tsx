@@ -12,7 +12,6 @@ import { EmailTestButton } from '@/components/EmailTestButton';
 import { EmailDebugPanel } from '@/components/EmailDebugPanel';
 import { ResendAPIChecker } from '@/components/ResendAPIChecker';
 import { ResendSetupGuide } from '@/components/ResendSetupGuide';
-import { AdminChecker } from '@/components/AdminChecker';
 
 export const AdminEmailSettings = () => {
   const [adminEmail, setAdminEmail] = useState('');
@@ -316,9 +315,6 @@ export const AdminEmailSettings = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Admin Checker */}
-      <AdminChecker />
 
       {/* Resend API Checker */}
       <ResendAPIChecker />
