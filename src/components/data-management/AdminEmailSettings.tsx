@@ -4,15 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, TestTube, Settings, CheckCircle, AlertCircle } from 'lucide-react';
+import { Mail, TestTube, Settings, CheckCircle, AlertCircle, User, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { performEmailTest } from '@/services/emailTestService';
 import { useSecureAuth } from '@/contexts/AuthContext';
 
 export const AdminEmailSettings = () => {
   const [adminEmail, setAdminEmail] = useState('');
+  const [currentAdminEmail, setCurrentAdminEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isLoadingEmail, setIsLoadingEmail] = useState(true);
+  const [showCurrentEmail, setShowCurrentEmail] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const { user } = useSecureAuth();
 
@@ -21,18 +24,37 @@ export const AdminEmailSettings = () => {
   }, []);
 
   const loadAdminEmail = async () => {
+    setIsLoadingEmail(true);
     try {
+      // Fix: Use proper Supabase query syntax
       const { data, error } = await supabase
         .from('staff')
-        .select('email')
+        .select('email, staff_name')
         .eq('role', 'admin')
-        .single();
+        .limit(1);
 
-      if (data && data.email) {
-        setAdminEmail(data.email);
+      console.log('Admin email query result:', { data, error });
+
+      if (error) {
+        console.error('Error loading admin email:', error);
+        setMessage({ type: 'error', text: `Lỗi tải email admin: ${error.message}` });
+        return;
       }
-    } catch (error) {
-      console.warn('Could not load admin email:', error);
+
+      if (data && data.length > 0 && data[0].email) {
+        setCurrentAdminEmail(data[0].email);
+        setAdminEmail(data[0].email);
+        console.log('Admin email loaded:', data[0].email);
+      } else {
+        console.log('No admin email found');
+        setCurrentAdminEmail('');
+        setAdminEmail('');
+      }
+    } catch (error: any) {
+      console.error('Exception loading admin email:', error);
+      setMessage({ type: 'error', text: `Lỗi hệ thống: ${error.message}` });
+    } finally {
+      setIsLoadingEmail(false);
     }
   };
 
@@ -51,15 +73,37 @@ export const AdminEmailSettings = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      const { error } = await supabase
+      // Fix: Update admin user's email properly
+      const { data: adminUsers, error: findError } = await supabase
+        .from('staff')
+        .select('id, username, staff_name')
+        .eq('role', 'admin')
+        .limit(1);
+
+      if (findError) {
+        throw findError;
+      }
+
+      if (!adminUsers || adminUsers.length === 0) {
+        setMessage({ type: 'error', text: 'Không tìm thấy tài khoản admin' });
+        return;
+      }
+
+      const { error: updateError } = await supabase
         .from('staff')
         .update({ email: adminEmail.trim() })
-        .eq('role', 'admin');
+        .eq('id', adminUsers[0].id);
 
-      if (error) throw error;
+      if (updateError) {
+        throw updateError;
+      }
 
+      setCurrentAdminEmail(adminEmail.trim());
       setMessage({ type: 'success', text: 'Đã lưu email admin thành công' });
+      
+      console.log('Admin email saved successfully:', adminEmail.trim());
     } catch (error: any) {
+      console.error('Error saving admin email:', error);
       setMessage({ type: 'error', text: `Lỗi lưu email: ${error.message}` });
     } finally {
       setIsLoading(false);
@@ -72,16 +116,26 @@ export const AdminEmailSettings = () => {
       return;
     }
 
+    if (!currentAdminEmail) {
+      setMessage({ type: 'error', text: 'Vui lòng lưu email admin trước khi test' });
+      return;
+    }
+
     setIsTesting(true);
     setMessage({ type: '', text: '' });
 
     try {
+      console.log('🧪 Starting email test for user:', user.username);
+      console.log('📧 Admin email:', currentAdminEmail);
+      
       const result = await performEmailTest(user.username);
+      
+      console.log('📧 Email test result:', result);
       
       if (result.success) {
         setMessage({ 
           type: 'success', 
-          text: '✅ Test email thành công! Kiểm tra hộp thư của bạn.' 
+          text: `✅ Test email thành công! Email đã được gửi đến: ${currentAdminEmail}` 
         });
       } else {
         setMessage({ 
@@ -90,6 +144,7 @@ export const AdminEmailSettings = () => {
         });
       }
     } catch (error: any) {
+      console.error('Email test error:', error);
       setMessage({ 
         type: 'error', 
         text: `❌ Lỗi test email: ${error.message || 'Lỗi không xác định'}` 
@@ -101,6 +156,46 @@ export const AdminEmailSettings = () => {
 
   return (
     <div className="space-y-6">
+      {/* Current Admin Email Display */}
+      {!isLoadingEmail && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-blue-800">
+              <User className="w-5 h-5" />
+              <span>Email Admin hiện tại</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Mail className="w-4 h-4 text-blue-600" />
+                <span className="font-mono text-sm">
+                  {currentAdminEmail ? (
+                    showCurrentEmail ? currentAdminEmail : '••••••••@••••••.com'
+                  ) : (
+                    <span className="text-gray-500 italic">Chưa có email admin</span>
+                  )}
+                </span>
+              </div>
+              {currentAdminEmail && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCurrentEmail(!showCurrentEmail)}
+                >
+                  {showCurrentEmail ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              )}
+            </div>
+            {currentAdminEmail && (
+              <p className="text-xs text-blue-600 mt-2">
+                ✅ Email admin đã được cấu hình và sẵn sàng nhận thông báo
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Admin Email Settings */}
       <Card>
         <CardHeader>
@@ -110,36 +205,51 @@ export const AdminEmailSettings = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="adminEmail">Email Admin nhận thông báo hệ thống</Label>
-            <div className="flex space-x-2 mt-2">
-              <Input
-                id="adminEmail"
-                type="email"
-                value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
-                placeholder="admin@company.com"
-                className="flex-1"
-              />
-              <Button 
-                onClick={saveAdminEmail}
-                disabled={isLoading}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Mail className="w-4 h-4 mr-2" />
-                {isLoading ? 'Đang lưu...' : 'Lưu'}
-              </Button>
+          {isLoadingEmail ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="ml-2 text-sm text-gray-600">Đang tải email admin...</span>
             </div>
-          </div>
+          ) : (
+            <>
+              <div>
+                <Label htmlFor="adminEmail">Email Admin nhận thông báo hệ thống</Label>
+                <div className="flex space-x-2 mt-2">
+                  <Input
+                    id="adminEmail"
+                    type="email"
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    placeholder="admin@company.com"
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={saveAdminEmail}
+                    disabled={isLoading || adminEmail === currentAdminEmail}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    {isLoading ? 'Đang lưu...' : 'Lưu'}
+                  </Button>
+                </div>
+                {adminEmail !== currentAdminEmail && adminEmail && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    ⚠️ Email đã thay đổi. Nhấn "Lưu" để cập nhật.
+                  </p>
+                )}
+              </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-semibold text-blue-800 mb-2">📧 Thông tin</h4>
-            <ul className="text-sm text-blue-700 space-y-1">
-              <li>• Email này sẽ nhận tất cả thông báo từ hệ thống</li>
-              <li>• Bao gồm: báo cáo lỗi, thông báo tài sản, nhắc nhở CRC</li>
-              <li>• Đảm bảo email luôn hoạt động để không bỏ lỡ thông báo quan trọng</li>
-            </ul>
-          </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-800 mb-2">📧 Thông tin</h4>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Email này sẽ nhận tất cả thông báo từ hệ thống</li>
+                  <li>• Bao gồm: báo cáo lỗi, thông báo tài sản, nhắc nhở CRC</li>
+                  <li>• Đảm bảo email luôn hoạt động để không bỏ lỡ thông báo quan trọng</li>
+                  <li>• Email sẽ được gửi qua dịch vụ Resend API</li>
+                </ul>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -158,10 +268,15 @@ export const AdminEmailSettings = () => {
               <p className="text-sm text-gray-600 mt-1">
                 Kiểm tra chức năng gửi email ở tất cả các trang và module
               </p>
+              {currentAdminEmail && (
+                <p className="text-xs text-green-600 mt-1">
+                  📧 Email test sẽ được gửi đến: {showCurrentEmail ? currentAdminEmail : '••••••••@••••••.com'}
+                </p>
+              )}
             </div>
             <Button 
               onClick={testEmailFunction}
-              disabled={isTesting}
+              disabled={isTesting || !currentAdminEmail}
               className="bg-green-600 hover:bg-green-700"
             >
               <TestTube className="w-4 h-4 mr-2" />
@@ -179,6 +294,15 @@ export const AdminEmailSettings = () => {
               <li>• Xác nhận giao dịch</li>
             </ul>
           </div>
+
+          {!currentAdminEmail && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Vui lòng lưu email admin trước khi thực hiện test email.
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 

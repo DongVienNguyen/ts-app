@@ -11,16 +11,43 @@ export interface ErrorReportData {
   timestamp?: string;
 }
 
+// Helper function to get admin email
+async function getAdminEmail(): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('email')
+      .eq('role', 'admin')
+      .limit(1);
+
+    if (error) {
+      console.error('Error getting admin email:', error);
+      return 'admin@company.com'; // fallback
+    }
+
+    if (data && data.length > 0 && data[0].email) {
+      return data[0].email;
+    }
+
+    return 'admin@company.com'; // fallback
+  } catch (error) {
+    console.error('Exception getting admin email:', error);
+    return 'admin@company.com'; // fallback
+  }
+}
+
 export async function sendErrorReport(
   reporterName: string,
   reporterEmail: string,
   errorData: ErrorReportData
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const adminEmail = await getAdminEmail();
+    
     const { data, error } = await supabase.functions.invoke('send-notification-email', {
       body: {
         type: 'error_report',
-        to: 'admin@company.com',
+        to: adminEmail,
         subject: `Báo cáo lỗi: ${errorData.title}`,
         data: {
           reporterName,
@@ -35,6 +62,7 @@ export async function sendErrorReport(
       return { success: false, error: error.message };
     }
 
+    console.log('✅ Error report sent to:', adminEmail);
     return { success: true };
   } catch (error) {
     console.error('Error sending error report:', error);
@@ -62,6 +90,7 @@ export async function sendNotificationEmail(
       return { success: false, error: error.message };
     }
 
+    console.log('✅ Email sent to:', to);
     return { success: true };
   } catch (error) {
     console.error('Error sending email:', error);
@@ -89,6 +118,7 @@ export async function sendAssetNotificationEmail(
       return { success: false, error: error.message };
     }
 
+    console.log('✅ Asset notification sent to:', recipients);
     return { success: true };
   } catch (error) {
     console.error('Error sending asset notification email:', error);
@@ -102,10 +132,12 @@ export async function sendAssetTransactionConfirmation(
   isSuccess: boolean
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const adminEmail = await getAdminEmail();
+    
     const { data, error } = await supabase.functions.invoke('send-notification-email', {
       body: {
         type: 'transaction_confirmation',
-        to: `${username}@company.com`,
+        to: adminEmail,
         subject: isSuccess ? 'Xác nhận giao dịch tài sản thành công' : 'Giao dịch tài sản thất bại',
         data: {
           username,
@@ -120,6 +152,7 @@ export async function sendAssetTransactionConfirmation(
       return { success: false, error: error.message };
     }
 
+    console.log('✅ Transaction confirmation sent to:', adminEmail);
     return { success: true };
   } catch (error) {
     console.error('Error sending transaction confirmation:', error);
@@ -129,23 +162,60 @@ export async function sendAssetTransactionConfirmation(
 
 export async function testEmailFunction(username: string): Promise<{ success: boolean; error?: string }> {
   try {
+    const adminEmail = await getAdminEmail();
+    
+    console.log('🧪 Testing email function...');
+    console.log('📧 Admin email:', adminEmail);
+    console.log('👤 Test user:', username);
+    
     const { data, error } = await supabase.functions.invoke('send-notification-email', {
       body: {
         type: 'test',
-        to: `${username}@company.com`,
-        subject: 'Test Email Function',
-        html: 'This is a test email to verify the email function is working correctly.'
+        to: adminEmail,
+        subject: '🧪 Test Email Function - Hệ thống Quản lý Tài sản',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #16a34a;">🧪 Test Email Function</h2>
+            <p>Đây là email test để kiểm tra chức năng gửi email của hệ thống.</p>
+            
+            <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #0369a1; margin-top: 0;">📊 Thông tin test:</h3>
+              <ul>
+                <li><strong>Người test:</strong> ${username}</li>
+                <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
+                <li><strong>Email admin:</strong> ${adminEmail}</li>
+                <li><strong>Trạng thái:</strong> ✅ Thành công</li>
+              </ul>
+            </div>
+            
+            <div style="background-color: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #15803d; margin-top: 0;">🔧 Các chức năng đã test:</h3>
+              <ul>
+                <li>✅ Kết nối Supabase Edge Function</li>
+                <li>✅ Kết nối Resend API</li>
+                <li>✅ Template email HTML</li>
+                <li>✅ Gửi email đến admin</li>
+              </ul>
+            </div>
+            
+            <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+              Email này được gửi tự động từ Hệ thống Quản lý Tài sản.<br>
+              Nếu bạn nhận được email này, chức năng gửi email đang hoạt động bình thường.
+            </p>
+          </div>
+        `
       }
     });
 
     if (error) {
-      console.error('Error testing email function:', error);
+      console.error('❌ Error testing email function:', error);
       return { success: false, error: error.message };
     }
 
+    console.log('✅ Test email sent successfully to:', adminEmail);
     return { success: true };
   } catch (error) {
-    console.error('Error testing email function:', error);
+    console.error('❌ Exception testing email function:', error);
     return { success: false, error: 'Không thể test email function' };
   }
 }
