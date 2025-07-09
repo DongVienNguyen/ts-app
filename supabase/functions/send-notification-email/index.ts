@@ -38,8 +38,6 @@ interface ResendClient {
 // @ts-ignore
 const { Resend } = await import("npm:resend@2.0.0");
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY")) as ResendClient;
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -195,13 +193,15 @@ const handler = async (req: Request): Promise<Response> => {
     if (type === 'api_check') {
       console.log('🔑 API Key check requested');
       
-      if (!Deno.env.get("RESEND_API_KEY")) {
-        throw new Error("RESEND_API_KEY not configured");
+      const apiKey = Deno.env.get("RESEND_API_KEY");
+      if (!apiKey) {
+        console.error('❌ RESEND_API_KEY not found in environment');
+        throw new Error("RESEND_API_KEY not configured in Supabase secrets");
       }
       
       // Test API key by creating a Resend instance
       try {
-        const testResend = new Resend(Deno.env.get("RESEND_API_KEY")) as ResendClient;
+        const testResend = new Resend(apiKey) as ResendClient;
         console.log('🔑 Resend client created successfully');
         
         return new Response(JSON.stringify({ 
@@ -234,11 +234,17 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📧 Subject:', subject);
     console.log('📧 Type:', type);
     console.log('📧 Has attachments:', !!attachments && attachments.length > 0);
-    console.log('📧 RESEND_API_KEY exists:', !!Deno.env.get("RESEND_API_KEY"));
+    
+    const apiKey = Deno.env.get("RESEND_API_KEY");
+    console.log('📧 RESEND_API_KEY exists:', !!apiKey);
+    console.log('📧 RESEND_API_KEY length:', apiKey ? apiKey.length : 0);
 
-    if (!Deno.env.get("RESEND_API_KEY")) {
-      throw new Error("RESEND_API_KEY not configured");
+    if (!apiKey) {
+      throw new Error("RESEND_API_KEY not configured in Supabase Edge Function secrets");
     }
+
+    // Create Resend client
+    const resendClient = new Resend(apiKey) as ResendClient;
 
     // Generate HTML content based on type
     let emailHTML = html;
@@ -274,7 +280,7 @@ const handler = async (req: Request): Promise<Response> => {
       html: emailData.html.substring(0, 100) + '...' // Truncate HTML for logging
     }, null, 2));
 
-    const emailResponse = await resend.emails.send(emailData);
+    const emailResponse = await resendClient.emails.send(emailData);
 
     console.log("📧 Resend API response:", emailResponse);
 
