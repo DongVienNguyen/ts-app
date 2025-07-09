@@ -1,3 +1,4 @@
+import React from 'react';
 import { Toaster } from "@/components/SimpleToaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -20,23 +21,54 @@ import ErrorReport from "./pages/ErrorReport";
 import PushNotificationTest from "./pages/PushNotificationTest";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-    mutations: {
-      retry: 1,
-    },
-  },
-});
+// Create QueryClient instance outside component to prevent recreation
+let queryClient: QueryClient;
+
+function getQueryClient() {
+  if (!queryClient) {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 1000 * 60 * 5, // 5 minutes
+          retry: 1,
+          refetchOnWindowFocus: false,
+        },
+        mutations: {
+          retry: 1,
+        },
+      },
+    });
+  }
+  return queryClient;
+}
 
 function App() {
+  console.log('🔍 App component rendering...');
+  
+  // Safety check for React
+  if (!React || !React.useEffect) {
+    console.error('❌ React is not properly loaded');
+    return (
+      <div className="min-h-screen bg-red-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-800 mb-4">React Loading Error</h1>
+          <p className="text-red-600">React is not properly loaded. Please refresh the page.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const client = getQueryClient();
+
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={client}>
         <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
           <TooltipProvider>
             <BrowserRouter
@@ -103,7 +135,6 @@ function App() {
                 </Routes>
               </AuthProvider>
             </BrowserRouter>
-            {/* UltraSafeToaster - never crashes */}
             <Toaster />
           </TooltipProvider>
         </ThemeProvider>

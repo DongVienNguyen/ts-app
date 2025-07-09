@@ -33,10 +33,9 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/icon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32x32.png" />
     
-    <!-- Apple Touch Icons - Only include existing ones -->
+    <!-- Apple Touch Icons - Only safe ones -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png" />
     <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png" />
-    <link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png" />
     <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png" />
     <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png" />
     <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png" />
@@ -48,9 +47,9 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png" />
     
-    <!-- Preload critical resources with correct attributes -->
-    <link rel="modulepreload" href="/src/main.tsx" />
-    <link rel="preload" href="/src/index.css" as="style" />
+    <!-- Fixed Preload with proper attributes -->
+    <link rel="modulepreload" href="/src/main.tsx" crossorigin />
+    <link rel="preload" href="/src/index.css" as="style" crossorigin />
     
     <!-- Prevent zoom on input focus (iOS) -->
     <style>
@@ -154,6 +153,16 @@
         cursor: pointer;
         margin-left: 8px;
       }
+
+      /* React Error Fallback */
+      .react-error-fallback {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fef2f2;
+        padding: 20px;
+      }
     </style>
   </head>
   <body>
@@ -179,6 +188,17 @@
     
     <!-- Service Worker Registration -->
     <script>
+      // Enhanced error handling
+      window.addEventListener('error', function(e) {
+        console.error('🚨 Global error:', e.error);
+        if (e.error && e.error.message && e.error.message.includes('useEffect')) {
+          console.error('🚨 React Hook Error detected - attempting recovery...');
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
+      });
+
       // Hide loading screen when app loads
       window.addEventListener('load', () => {
         setTimeout(() => {
