@@ -65,7 +65,7 @@ export const AdminEmailSettings = () => {
         setAdminEmail('admin@company.com'); // Set default
         setMessage({ 
           type: 'warning', 
-          text: '⚠️ Không tìm thấy admin. Nhập email và nhấn "Lưu" để tạo admin mới.' 
+          text: '⚠️ Không tìm thấy admin. Nhập email và nhấn "Tạo Admin" để tạo admin mới.' 
         });
         return;
       }
@@ -123,29 +123,29 @@ export const AdminEmailSettings = () => {
       console.log('🔍 Admin exists:', adminExists);
       
       if (!adminExists) {
-        console.log('🆕 Creating new admin user...');
+        console.log('🆕 Creating new admin user via Edge Function...');
         
-        // Create new admin
-        const { data: newAdmin, error: createError } = await supabase
-          .from('staff')
-          .insert({
+        // Use Edge Function to create admin (bypasses RLS)
+        const { data: createResult, error: createError } = await supabase.functions.invoke('create-admin-user', {
+          body: {
             username: 'admin',
-            password: 'admin123', // Will be hashed by trigger
+            password: 'admin123',
             staff_name: 'System Administrator',
-            role: 'admin',
             email: adminEmail.trim(),
-            account_status: 'active',
             department: 'IT'
-          })
-          .select('id, username, email, staff_name, role')
-          .single();
+          }
+        });
 
         if (createError) {
-          console.error('❌ Create admin error:', createError);
+          console.error('❌ Create admin via Edge Function error:', createError);
           throw new Error(`Không thể tạo admin: ${createError.message}`);
         }
 
-        console.log('✅ Created new admin:', newAdmin);
+        if (!createResult?.success) {
+          throw new Error(`Không thể tạo admin: ${createResult?.error || 'Unknown error'}`);
+        }
+
+        console.log('✅ Created new admin via Edge Function:', createResult);
         setAdminExists(true);
         setCurrentAdminEmail(adminEmail.trim());
         setMessage({ 
