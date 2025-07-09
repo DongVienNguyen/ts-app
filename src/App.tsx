@@ -1,4 +1,4 @@
-import { Toaster } from "@/components/SafeToaster";
+import { Toaster } from "@/components/UltraSafeToaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -103,6 +103,7 @@ function App() {
                 </Routes>
               </AuthProvider>
             </BrowserRouter>
+            {/* UltraSafeToaster - never crashes */}
             <Toaster />
           </TooltipProvider>
         </ThemeProvider>

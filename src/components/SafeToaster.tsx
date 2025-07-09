@@ -1,7 +1,8 @@
 "use client"
 
-import React, { Component, ReactNode } from 'react';
+import React, { Component, ReactNode, useContext } from 'react';
 import { Toaster as Sonner } from "sonner"
+import { ThemeContext } from "@/contexts/ThemeContext";
 
 // Error Boundary for Toaster
 class ToasterErrorBoundary extends Component<
@@ -28,6 +29,17 @@ class ToasterErrorBoundary extends Component<
         <Sonner
           theme="light"
           className="toaster group"
+          toastOptions={{
+            classNames: {
+              toast:
+                "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
+              description: "group-[.toast]:text-muted-foreground",
+              actionButton:
+                "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
+              cancelButton:
+                "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+            },
+          }}
         />
       );
     }
@@ -36,14 +48,21 @@ class ToasterErrorBoundary extends Component<
   }
 }
 
-// Safe theme hook
+// Safe theme hook using direct useContext
 function useSafeTheme() {
   try {
-    // Dynamic import to avoid issues during SSR or initial render
-    const { useTheme } = require("@/contexts/ThemeContext");
-    return useTheme();
+    const context = useContext(ThemeContext);
+    if (context) {
+      return context;
+    }
+    // Fallback if context is not available
+    return {
+      theme: 'light' as const,
+      setTheme: () => {},
+      resolvedTheme: 'light' as const
+    };
   } catch (error) {
-    console.warn('Failed to load ThemeContext, using fallback:', error);
+    console.warn('Failed to access ThemeContext, using fallback:', error);
     return {
       theme: 'light' as const,
       setTheme: () => {},

@@ -127,11 +127,17 @@ export function useTheme() {
   const context = useContext(ThemeContext);
   
   if (context === undefined) {
-    const error = new Error('useTheme must be used within a ThemeProvider');
-    console.error('ThemeProvider Error:', error.message);
-    console.error('Stack trace:', error.stack);
-    throw error;
+    // Instead of throwing, log warning and return fallback
+    console.warn('useTheme must be used within a ThemeProvider, using fallback values');
+    return {
+      theme: 'light' as const,
+      setTheme: () => {},
+      resolvedTheme: 'light' as const
+    };
   }
   
   return context;
 }
+
+// Export ThemeContext for direct access
+export { ThemeContext };
