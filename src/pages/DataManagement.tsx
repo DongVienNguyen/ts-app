@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Settings, Plus, Download, Upload, Trash2, Edit, Lock, AlertCircle, BarChart2, Database as DatabaseIcon, BellRing, Users, Shield, BookOpen, CheckCircle, ArrowRight, Trophy, ChevronDown, Mail, TestTube } from 'lucide-react';
+import { Settings, Plus, Download, Upload, Trash2, Edit, Lock, AlertCircle, BarChart2, Database as DatabaseIcon, BellRing, Users, Shield, BookOpen, CheckCircle, ArrowRight, Trophy, ChevronDown, Mail, TestTube, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -29,6 +29,7 @@ import { AccountManagementTab } from '@/components/data-management/AccountManage
 import { VAPIDKeyTester } from '@/components/VAPIDKeyTester';
 import { AdminEmailSettings } from '@/components/data-management/AdminEmailSettings';
 import TestDataButton from '@/components/TestDataButton';
+import { PWATestPanel } from '@/components/PWATestPanel';
 
 const DataManagement = () => {
   const [selectedEntity, setSelectedEntity] = useState<string>('asset_transactions');
@@ -74,10 +75,11 @@ const DataManagement = () => {
       ]
     },
     {
-      label: 'Thông báo',
+      label: 'Thông báo & PWA',
       icon: BellRing,
       tabs: [
         { value: 'push-notifications', label: 'Thông báo đẩy', icon: BellRing },
+        { value: 'pwa-test', label: 'PWA Test', icon: Smartphone },
       ]
     }
   ];
@@ -647,6 +649,12 @@ const DataManagement = () => {
           <div className="mt-6 space-y-6">
             <VAPIDKeyTester />
             <PushNotificationTester />
+          </div>
+        )}
+
+        {activeTab === 'pwa-test' && (
+          <div className="mt-6 space-y-6">
+            <PWATestPanel />
           </div>
         )}
 
