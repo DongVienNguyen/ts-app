@@ -1,19 +1,4 @@
 {
-  "name": "asset-management-system",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview",
-    "generate-icons": "node scripts/generate-icons.js",
-    "generate-pwa-icons": "node scripts/generate-pwa-icons.js",
-    "fix-npm": "node fix-npm-error.js",
-    "fix-npm-cjs": "node fix-npm-error.cjs",
-    "pwa-build": "npm run generate-pwa-icons && npm run build"
-  },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
     "@radix-ui/react-accordion": "^1.1.2",
@@ -87,5 +72,17 @@
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.1.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "generate-icons": "node scripts/generate-icons.js",
+    "generate-pwa-icons": "node scripts/generate-pwa-icons.js",
+    "build-pwa": "node scripts/build-pwa.js",
+    "pwa-build": "npm run generate-pwa-icons && npm run build",
+    "fix-npm": "node fix-npm-error.js",
+    "fix-npm-cjs": "node fix-npm-error.cjs"
   }
 }
