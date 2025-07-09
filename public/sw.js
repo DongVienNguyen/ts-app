@@ -23,7 +23,8 @@ self.addEventListener('install', (event) => {
       })
       .then(() => {
         console.log('✅ Static assets cached');
-        return self.skipWaiting(); // Force activation
+        // Skip waiting to activate immediately (silent update)
+        return self.skipWaiting();
       })
       .catch((error) => {
         console.error('❌ Cache installation failed:', error);
@@ -31,16 +32,16 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event - clean old caches
+// Activate event - clean old caches and take control
 self.addEventListener('activate', (event) => {
   console.log('🚀 Service Worker activating...');
   
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
+    Promise.all([
+      // Clean old caches
+      caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            // Delete old caches
             if (cacheName !== STATIC_CACHE && 
                 cacheName !== DYNAMIC_CACHE && 
                 cacheName !== CACHE_NAME) {
@@ -49,14 +50,22 @@ self.addEventListener('activate', (event) => {
             }
           })
         );
-      })
-      .then(() => {
-        console.log('✅ Old caches cleaned');
-        return self.clients.claim(); // Take control immediately
-      })
-      .catch((error) => {
-        console.error('❌ Cache cleanup failed:', error);
-      })
+      }),
+      // Take control of all clients immediately
+      self.clients.claim()
+    ]).then(() => {
+      console.log('✅ Service Worker activated and took control');
+      
+      // Notify all clients about the update (silent notification)
+      self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({
+            type: 'SW_UPDATED',
+            message: 'Ứng dụng đã được cập nhật tự động'
+          });
+        });
+      });
+    })
   );
 });
 
@@ -80,44 +89,43 @@ self.addEventListener('fetch', (event) => {
       .then((cachedResponse) => {
         // Return cached version if available
         if (cachedResponse) {
-          console.log('📦 Serving from cache:', request.url);
+          // Check for updates in background
+          fetch(request).then(networkResponse => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseClone = networkResponse.clone();
+              const cacheName = isStaticAsset(request.url) ? STATIC_CACHE : DYNAMIC_CACHE;
+              caches.open(cacheName).then(cache => {
+                cache.put(request, responseClone);
+              });
+            }
+          }).catch(() => {
+            // Network failed, but we have cache
+          });
+          
           return cachedResponse;
         }
         
         // Fetch from network
         return fetch(request)
           .then((networkResponse) => {
-            // Don't cache if not successful
             if (!networkResponse || networkResponse.status !== 200) {
               return networkResponse;
             }
             
-            // Clone response for caching
             const responseClone = networkResponse.clone();
-            
-            // Determine cache strategy
             const cacheName = isStaticAsset(request.url) ? STATIC_CACHE : DYNAMIC_CACHE;
             
-            // Cache the response
-            caches.open(cacheName)
-              .then((cache) => {
-                console.log('💾 Caching:', request.url);
-                cache.put(request, responseClone);
-              })
-              .catch((error) => {
-                console.error('❌ Caching failed:', error);
-              });
+            caches.open(cacheName).then(cache => {
+              cache.put(request, responseClone);
+            });
             
             return networkResponse;
           })
           .catch((error) => {
             console.error('❌ Network request failed:', error);
-            
-            // Return offline page for navigation requests
             if (request.destination === 'document') {
               return caches.match('/') || new Response('Offline', { status: 503 });
             }
-            
             throw error;
           });
       })
@@ -147,8 +155,22 @@ self.addEventListener('push', (event) => {
       badge: '/icon-192x192.png',
       tag: data.tag || 'ts-notification',
       requireInteraction: false,
-      actions: data.actions || [],
-      data: data.data || {}
+      actions: [
+        {
+          action: 'view',
+          title: 'Xem chi tiết',
+          icon: '/icon-192x192.png'
+        },
+        {
+          action: 'dismiss',
+          title: 'Đóng',
+          icon: '/icon-192x192.png'
+        }
+      ],
+      data: {
+        url: '/notifications',
+        ...data.data
+      }
     };
     
     event.waitUntil(
@@ -165,19 +187,30 @@ self.addEventListener('notificationclick', (event) => {
   
   event.notification.close();
   
+  const urlToOpen = event.notification.data?.url || '/notifications';
+  
   event.waitUntil(
-    self.clients.matchAll({ type: 'window' })
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clients) => {
-        // Focus existing window if available
+        // Check if there's already a window/tab open with the target URL
         for (const client of clients) {
-          if (client.url.includes(self.location.origin) && 'focus' in client) {
+          if (client.url.includes(urlToOpen) && 'focus' in client) {
             return client.focus();
+          }
+        }
+        
+        // Check if there's any window/tab open
+        for (const client of clients) {
+          if ('focus' in client) {
+            client.focus();
+            client.navigate(urlToOpen);
+            return;
           }
         }
         
         // Open new window
         if (self.clients.openWindow) {
-          return self.clients.openWindow('/');
+          return self.clients.openWindow(urlToOpen);
         }
       })
   );
@@ -191,7 +224,7 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Periodic background sync (if supported)
+// Background sync for offline actions
 self.addEventListener('sync', (event) => {
   console.log('🔄 Background sync:', event.tag);
   

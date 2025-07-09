@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAutoNotificationSetup } from "@/hooks/useAutoNotificationSetup";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
@@ -19,6 +20,7 @@ import OtherAssets from "./pages/OtherAssets";
 import DataManagement from "./pages/DataManagement";
 import ErrorReport from "./pages/ErrorReport";
 import PushNotificationTest from "./pages/PushNotificationTest";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 // Create QueryClient instance with error handling
@@ -56,6 +58,12 @@ function getQueryClient() {
     queryClient = createQueryClient();
   }
   return queryClient;
+}
+
+// Component to handle auto notification setup
+function AppWithNotifications() {
+  useAutoNotificationSetup();
+  return null;
 }
 
 function App() {
@@ -133,6 +141,7 @@ function App() {
               }}
             >
               <AuthProvider>
+                <AppWithNotifications />
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
@@ -184,6 +193,11 @@ function App() {
                   <Route path="/push-test" element={
                     <ProtectedRoute>
                       <PushNotificationTest />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/notifications" element={
+                    <ProtectedRoute>
+                      <Notifications />
                     </ProtectedRoute>
                   } />
                   <Route path="*" element={<NotFound />} />
