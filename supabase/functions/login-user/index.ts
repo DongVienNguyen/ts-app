@@ -18,6 +18,8 @@ serve(async (req: any) => {
   try {
     const { username, password } = await req.json()
     
+    console.log('🔍 Login attempt for:', username);
+    
     if (!username || !password) {
       return new Response(
         JSON.stringify({ 
@@ -35,6 +37,7 @@ serve(async (req: any) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     
     if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('❌ Missing Supabase environment variables');
       return new Response(
         JSON.stringify({ success: false, error: 'Server configuration error' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}
@@ -43,18 +46,23 @@ serve(async (req: any) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    console.log('🔍 Looking for user:', username);
-
+    // Query user from database
     const { data: staff, error: queryError } = await supabase
       .from('staff')
       .select('*')
       .eq('username', username)
       .single()
 
-    console.log('👤 Staff query result:', { staff: staff ? 'found' : 'not found', error: queryError });
+    console.log('👤 Staff query result:', { 
+      found: staff ? true : false, 
+      error: queryError?.message,
+      username: staff?.username,
+      role: staff?.role,
+      status: staff?.account_status
+    });
 
     if (queryError || !staff) {
-      console.log('❌ User not found or query error');
+      console.log('❌ User not found:', queryError?.message);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -67,7 +75,9 @@ serve(async (req: any) => {
       )
     }
 
+    // Check account status
     if (staff.account_status === 'locked') {
+      console.log('🔒 Account is locked');
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -81,53 +91,40 @@ serve(async (req: any) => {
       )
     }
 
-    console.log('🔐 Checking password for user:', username);
+    console.log('🔐 Verifying password...');
 
-    // For admin user with default password, check directly
+    let passwordValid = false;
+
+    // Special case for admin with default password
     if (username === 'admin' && password === 'admin123') {
-      console.log('✅ Admin default password match');
-      
-      // Reset failed attempts
-      await supabase
-        .from('staff')
-        .update({
-          failed_login_attempts: 0,
-          last_failed_login: null
-        })
-        .eq('username', username)
+      console.log('✅ Admin default password accepted');
+      passwordValid = true;
+    } else {
+      // Use password verification function for other cases
+      try {
+        const { data: passwordCheck, error: passwordError } = await supabase
+          .rpc('verify_password', {
+            input_password: password,
+            stored_hash: staff.password
+          })
 
-      const token = btoa(JSON.stringify({
-        username: staff.username,
-        role: staff.role,
-        department: staff.department,
-        exp: Date.now() + (24 * 60 * 60 * 1000)
-      }))
+        console.log('🔐 Password verification result:', { 
+          success: passwordCheck, 
+          error: passwordError?.message 
+        });
 
-      const { password: _, ...userWithoutPassword } = staff
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          user: userWithoutPassword,
-          token: token
-        }),
-        { 
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        if (!passwordError && passwordCheck === true) {
+          passwordValid = true;
         }
-      )
+      } catch (verifyError) {
+        console.error('❌ Password verification error:', verifyError);
+      }
     }
 
-    // For other users, use password verification function
-    const { data: passwordCheck, error: passwordError } = await supabase
-      .rpc('verify_password', {
-        input_password: password,
-        stored_hash: staff.password
-      })
-
-    console.log('🔐 Password check result:', { passwordCheck, passwordError });
-
-    if (passwordError || !passwordCheck) {
+    if (!passwordValid) {
+      console.log('❌ Invalid password');
+      
+      // Update failed login attempts
       const newFailedAttempts = (staff.failed_login_attempts || 0) + 1
       const shouldLock = newFailedAttempts >= 5
       
@@ -160,6 +157,8 @@ serve(async (req: any) => {
       )
     }
 
+    console.log('✅ Login successful');
+
     // Reset failed attempts on successful login
     await supabase
       .from('staff')
@@ -169,13 +168,15 @@ serve(async (req: any) => {
       })
       .eq('username', username)
 
+    // Create JWT token
     const token = btoa(JSON.stringify({
       username: staff.username,
       role: staff.role,
       department: staff.department,
-      exp: Date.now() + (24 * 60 * 60 * 1000)
+      exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
     }))
 
+    // Remove password from response
     const { password: _, ...userWithoutPassword } = staff
 
     return new Response(
@@ -191,11 +192,11 @@ serve(async (req: any) => {
     )
 
   } catch (error) {
-    console.error('Login function error:', error)
+    console.error('❌ Login function error:', error)
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: 'Lỗi server nội bộ' 
+        error: 'Lỗi server nội bộ: ' + error.message 
       }),
       { 
         status: 500,

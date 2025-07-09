@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, TestTube, Settings, CheckCircle, AlertCircle, User, Eye, EyeOff } from 'lucide-react';
+import { Mail, TestTube, Settings, CheckCircle, AlertCircle, User, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { performEmailTest } from '@/services/emailTestService';
 import { useSecureAuth } from '@/contexts/AuthContext';
@@ -23,6 +23,7 @@ export const AdminEmailSettings = () => {
   const [isLoadingEmail, setIsLoadingEmail] = useState(true);
   const [showCurrentEmail, setShowCurrentEmail] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [adminExists, setAdminExists] = useState(false);
   const { user } = useSecureAuth();
 
   useEffect(() => {
@@ -31,74 +32,73 @@ export const AdminEmailSettings = () => {
 
   const loadAdminEmail = async () => {
     setIsLoadingEmail(true);
+    setMessage({ type: '', text: '' });
+    
     try {
-      console.log('🔍 Loading admin email...');
+      console.log('🔍 Loading admin email - Starting fresh query...');
       
-      // First, check if any admin exists
-      const { data, error } = await supabase
+      // Query admin with detailed logging
+      const { data, error, count } = await supabase
         .from('staff')
-        .select('id, username, email, staff_name, role')
+        .select('id, username, email, staff_name, role, account_status', { count: 'exact' })
         .eq('role', 'admin')
         .limit(1);
 
-      console.log('📧 Admin query result:', { data, error });
+      console.log('📧 Admin query details:', { 
+        data, 
+        error: error?.message, 
+        count,
+        dataLength: data?.length 
+      });
 
       if (error) {
-        console.error('Error loading admin email:', error);
-        setMessage({ type: 'error', text: `Lỗi tải email admin: ${error.message}` });
+        console.error('❌ Database error:', error);
+        setMessage({ type: 'error', text: `Lỗi database: ${error.message}` });
+        setAdminExists(false);
         return;
       }
 
       if (!data || data.length === 0) {
-        console.log('⚠️ No admin user found, creating default admin...');
-        
-        // Create default admin user
-        const { data: newAdmin, error: createError } = await supabase
-          .from('staff')
-          .insert({
-            username: 'admin',
-            password: 'admin123', // Use plain text, will be hashed by trigger
-            staff_name: 'System Administrator',
-            role: 'admin',
-            email: 'admin@company.com',
-            account_status: 'active',
-            department: 'IT'
-          })
-          .select('id, username, email, staff_name')
-          .single();
-
-        if (createError) {
-          console.error('Error creating admin:', createError);
-          setMessage({ type: 'error', text: `Lỗi tạo admin: ${createError.message}` });
-          return;
-        }
-
-        console.log('✅ Created new admin user:', newAdmin);
-        setCurrentAdminEmail(newAdmin.email || '');
-        setAdminEmail(newAdmin.email || '');
+        console.log('⚠️ No admin found in database');
+        setAdminExists(false);
+        setCurrentAdminEmail('');
+        setAdminEmail('admin@company.com'); // Set default
         setMessage({ 
           type: 'warning', 
-          text: '⚠️ Đã tạo tài khoản admin mới. Vui lòng cập nhật email admin.' 
+          text: '⚠️ Không tìm thấy admin. Nhập email và nhấn "Lưu" để tạo admin mới.' 
         });
         return;
       }
 
       const adminUser = data[0];
-      console.log('✅ Admin user found:', adminUser);
+      console.log('✅ Admin found:', {
+        id: adminUser.id,
+        username: adminUser.username,
+        email: adminUser.email,
+        role: adminUser.role,
+        status: adminUser.account_status
+      });
       
+      setAdminExists(true);
       setCurrentAdminEmail(adminUser.email || '');
-      setAdminEmail(adminUser.email || '');
+      setAdminEmail(adminUser.email || 'admin@company.com');
       
       if (!adminUser.email) {
         setMessage({ 
           type: 'warning', 
-          text: '⚠️ Tài khoản admin đã tồn tại nhưng chưa có email. Vui lòng cập nhật.' 
+          text: '⚠️ Admin tồn tại nhưng chưa có email. Vui lòng cập nhật email.' 
+        });
+      } else {
+        setMessage({ 
+          type: 'success', 
+          text: `✅ Tìm thấy admin: ${adminUser.username} (${adminUser.email})` 
         });
       }
       
     } catch (error: any) {
-      console.error('Exception loading admin email:', error);
+      console.error('❌ Exception in loadAdminEmail:', error);
       setMessage({ type: 'error', text: `Lỗi hệ thống: ${error.message}` });
+      setAdminExists(false);
     } finally {
       setIsLoadingEmail(false);
     }
@@ -110,7 +110,7 @@ export const AdminEmailSettings = () => {
       return;
     }
 
-    if (!adminEmail.includes('@')) {
+    if (!adminEmail.includes('@') || !adminEmail.includes('.')) {
       setMessage({ type: 'error', text: 'Email không hợp lệ' });
       return;
     }
@@ -120,58 +120,74 @@ export const AdminEmailSettings = () => {
 
     try {
       console.log('💾 Saving admin email:', adminEmail);
+      console.log('🔍 Admin exists:', adminExists);
       
-      // Find admin user
-      const { data: adminUsers, error: findError } = await supabase
-        .from('staff')
-        .select('id, username, staff_name, role')
-        .eq('role', 'admin')
-        .limit(1);
-
-      if (findError) {
-        throw findError;
-      }
-
-      if (!adminUsers || adminUsers.length === 0) {
-        // Create admin if doesn't exist
+      if (!adminExists) {
+        console.log('🆕 Creating new admin user...');
+        
+        // Create new admin
         const { data: newAdmin, error: createError } = await supabase
           .from('staff')
           .insert({
             username: 'admin',
-            password: '$2b$10$rQJ5K8qF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7',
+            password: 'admin123', // Will be hashed by trigger
             staff_name: 'System Administrator',
             role: 'admin',
             email: adminEmail.trim(),
-            account_status: 'active'
+            account_status: 'active',
+            department: 'IT'
           })
-          .select('id')
+          .select('id, username, email, staff_name, role')
           .single();
 
         if (createError) {
-          throw new Error(`Cannot create admin: ${createError.message}`);
+          console.error('❌ Create admin error:', createError);
+          throw new Error(`Không thể tạo admin: ${createError.message}`);
         }
 
-        console.log('✅ Created admin with email:', adminEmail);
+        console.log('✅ Created new admin:', newAdmin);
+        setAdminExists(true);
+        setCurrentAdminEmail(adminEmail.trim());
+        setMessage({ 
+          type: 'success', 
+          text: `✅ Đã tạo admin mới thành công! Username: admin, Password: admin123, Email: ${adminEmail.trim()}` 
+        });
+        
       } else {
+        console.log('📝 Updating existing admin email...');
+        
         // Update existing admin
-        const { error: updateError } = await supabase
+        const { data: updatedAdmin, error: updateError } = await supabase
           .from('staff')
           .update({ email: adminEmail.trim() })
-          .eq('id', adminUsers[0].id);
+          .eq('role', 'admin')
+          .select('id, username, email')
+          .single();
 
         if (updateError) {
-          throw updateError;
+          console.error('❌ Update admin error:', updateError);
+          throw new Error(`Không thể cập nhật email: ${updateError.message}`);
         }
 
-        console.log('✅ Updated admin email:', adminEmail);
+        console.log('✅ Updated admin email:', updatedAdmin);
+        setCurrentAdminEmail(adminEmail.trim());
+        setMessage({ 
+          type: 'success', 
+          text: `✅ Đã cập nhật email admin thành công: ${adminEmail.trim()}` 
+        });
       }
-
-      setCurrentAdminEmail(adminEmail.trim());
-      setMessage({ type: 'success', text: '✅ Đã lưu email admin thành công' });
+      
+      // Reload admin data to confirm
+      setTimeout(() => {
+        loadAdminEmail();
+      }, 1000);
       
     } catch (error: any) {
-      console.error('Error saving admin email:', error);
-      setMessage({ type: 'error', text: `❌ Lỗi lưu email: ${error.message}` });
+      console.error('❌ Save admin email error:', error);
+      setMessage({ 
+        type: 'error', 
+        text: `❌ Lỗi lưu email: ${error.message}` 
+      });
     } finally {
       setIsLoading(false);
     }
@@ -223,45 +239,65 @@ export const AdminEmailSettings = () => {
 
   return (
     <div className="space-y-6">
-      {/* Current Admin Email Display */}
-      {!isLoadingEmail && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-blue-800">
-              <User className="w-5 h-5" />
-              <span>Email Admin hiện tại</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Mail className="w-4 h-4 text-blue-600" />
-                <span className="font-mono text-sm">
-                  {currentAdminEmail ? (
-                    showCurrentEmail ? currentAdminEmail : '••••••••@••••••.com'
-                  ) : (
-                    <span className="text-gray-500 italic">Chưa có email admin</span>
-                  )}
-                </span>
-              </div>
-              {currentAdminEmail && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowCurrentEmail(!showCurrentEmail)}
-                >
-                  {showCurrentEmail ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-              )}
+      {/* Admin Status Card */}
+      <Card className={adminExists ? "bg-green-50 border-green-200" : "bg-yellow-50 border-yellow-200"}>
+        <CardHeader>
+          <CardTitle className={`flex items-center space-x-2 ${adminExists ? 'text-green-800' : 'text-yellow-800'}`}>
+            <User className="w-5 h-5" />
+            <span>Trạng thái Admin</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadAdminEmail}
+              disabled={isLoadingEmail}
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoadingEmail ? 'animate-spin' : ''}`} />
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoadingEmail ? (
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <span className="text-sm">Đang kiểm tra admin...</span>
             </div>
-            {currentAdminEmail && (
-              <p className="text-xs text-blue-600 mt-2">
-                ✅ Email admin đã được cấu hình và sẵn sàng nhận thông báo
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Mail className="w-4 h-4" />
+                  <span className="font-mono text-sm">
+                    {currentAdminEmail ? (
+                      showCurrentEmail ? currentAdminEmail : '••••••••@••••••.com'
+                    ) : (
+                      <span className="text-gray-500 italic">Chưa có email admin</span>
+                    )}
+                  </span>
+                </div>
+                {currentAdminEmail && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowCurrentEmail(!showCurrentEmail)}
+                  >
+                    {showCurrentEmail ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                )}
+              </div>
+              
+              <div className={`text-xs ${adminExists ? 'text-green-600' : 'text-yellow-600'}`}>
+                {adminExists ? (
+                  currentAdminEmail ? 
+                    '✅ Admin đã được cấu hình và sẵn sàng nhận thông báo' :
+                    '⚠️ Admin tồn tại nhưng chưa có email'
+                ) : (
+                  '❌ Chưa có admin trong hệ thống'
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Admin Email Settings */}
       <Card>
@@ -272,51 +308,43 @@ export const AdminEmailSettings = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isLoadingEmail ? (
-            <div className="flex items-center justify-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="ml-2 text-sm text-gray-600">Đang tải email admin...</span>
+          <div>
+            <Label htmlFor="adminEmail">Email Admin nhận thông báo hệ thống</Label>
+            <div className="flex space-x-2 mt-2">
+              <Input
+                id="adminEmail"
+                type="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+                placeholder="admin@company.com"
+                className="flex-1"
+              />
+              <Button 
+                onClick={saveAdminEmail}
+                disabled={isLoading || (adminEmail === currentAdminEmail && adminExists)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                {isLoading ? 'Đang lưu...' : (adminExists ? 'Cập nhật' : 'Tạo Admin')}
+              </Button>
             </div>
-          ) : (
-            <>
-              <div>
-                <Label htmlFor="adminEmail">Email Admin nhận thông báo hệ thống</Label>
-                <div className="flex space-x-2 mt-2">
-                  <Input
-                    id="adminEmail"
-                    type="email"
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    placeholder="admin@company.com"
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={saveAdminEmail}
-                    disabled={isLoading || adminEmail === currentAdminEmail}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Mail className="w-4 h-4 mr-2" />
-                    {isLoading ? 'Đang lưu...' : 'Lưu'}
-                  </Button>
-                </div>
-                {adminEmail !== currentAdminEmail && adminEmail && (
-                  <p className="text-xs text-orange-600 mt-1">
-                    ⚠️ Email đã thay đổi. Nhấn "Lưu" để cập nhật.
-                  </p>
-                )}
-              </div>
+            {adminEmail !== currentAdminEmail && adminEmail && (
+              <p className="text-xs text-orange-600 mt-1">
+                ⚠️ Email đã thay đổi. Nhấn "{adminExists ? 'Cập nhật' : 'Tạo Admin'}" để lưu.
+              </p>
+            )}
+          </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-blue-800 mb-2">📧 Thông tin</h4>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• Email này sẽ nhận tất cả thông báo từ hệ thống</li>
-                  <li>• Bao gồm: báo cáo lỗi, thông báo tài sản, nhắc nhở CRC</li>
-                  <li>• Đảm bảo email luôn hoạt động để không bỏ lỡ thông báo quan trọng</li>
-                  <li>• Email sẽ được gửi qua dịch vụ Resend API</li>
-                </ul>
-              </div>
-            </>
-          )}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-800 mb-2">📧 Thông tin</h4>
+            <ul className="text-sm text-blue-700 space-y-1">
+              <li>• Email này sẽ nhận tất cả thông báo từ hệ thống</li>
+              <li>• Bao gồm: báo cáo lỗi, thông báo tài sản, nhắc nhở CRC</li>
+              <li>• Đảm bảo email luôn hoạt động để không bỏ lỡ thông báo quan trọng</li>
+              <li>• Email sẽ được gửi qua dịch vụ Resend API</li>
+              {!adminExists && <li>• <strong>Sẽ tạo admin mới với username: admin, password: admin123</strong></li>}
+            </ul>
+          </div>
         </CardContent>
       </Card>
 
@@ -404,7 +432,8 @@ export const AdminEmailSettings = () => {
       {/* Message Display */}
       {message.text && (
         <Alert variant={message.type === 'error' ? 'destructive' : 'default'} 
-               className={message.type === 'success' ? 'bg-green-100 border-green-400 text-green-800' : ''}>
+               className={message.type === 'success' ? 'bg-green-100 border-green-400 text-green-800' : 
+                         message.type === 'warning' ? 'bg-yellow-100 border-yellow-400 text-yellow-800' : ''}>
           {message.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
           <AlertDescription>{message.text}</AlertDescription>
         </Alert>

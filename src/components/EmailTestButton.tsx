@@ -15,63 +15,89 @@ export const EmailTestButton = () => {
     try {
       console.log('🧪 Direct email test starting...');
 
-      // Step 1: Get or create admin user
-      let { data: adminData, error: adminError } = await supabase
+      // Step 1: Ensure admin exists - GUARANTEED METHOD
+      let adminEmail = '';
+      let adminUser = null;
+
+      // First try to find existing admin
+      const { data: existingAdmin, error: queryError } = await supabase
         .from('staff')
-        .select('email, staff_name, username')
+        .select('email, staff_name, username, id')
         .eq('role', 'admin')
         .limit(1);
 
-      console.log('📧 Admin data:', adminData);
+      console.log('📧 Existing admin query:', { existingAdmin, queryError });
 
-      if (adminError) {
-        throw new Error(`Admin query error: ${adminError.message}`);
+      if (queryError) {
+        throw new Error(`Database query error: ${queryError.message}`);
       }
 
-      // If no admin exists, create one
-      if (!adminData || adminData.length === 0) {
-        console.log('⚠️ No admin found, creating default admin...');
-        
-        const { data: newAdmin, error: createError } = await supabase
-          .from('staff')
-          .insert({
-            username: 'admin',
-            password: 'admin123', // Use plain text, will be hashed by trigger
-            staff_name: 'System Administrator',
-            role: 'admin',
-            email: 'admin@company.com',
-            account_status: 'active',
-            department: 'IT'
-          })
-          .select('email, staff_name, username')
-          .single();
+      if (existingAdmin && existingAdmin.length > 0) {
+        adminUser = existingAdmin[0];
+        adminEmail = adminUser.email;
+        console.log('✅ Found existing admin:', adminUser.username);
+      }
 
-        if (createError) {
-          console.error('Create admin error:', createError);
-          throw new Error(`Cannot create admin: ${createError.message}`);
+      // If no admin or no email, create/update admin
+      if (!adminUser || !adminEmail) {
+        console.log('🔧 Creating/updating admin with email...');
+        
+        if (!adminUser) {
+          // Create new admin
+          const { data: newAdmin, error: createError } = await supabase
+            .from('staff')
+            .insert({
+              username: 'admin',
+              password: 'admin123', // Will be hashed by trigger
+              staff_name: 'System Administrator',
+              role: 'admin',
+              email: 'admin@company.com',
+              account_status: 'active',
+              department: 'IT'
+            })
+            .select('email, staff_name, username, id')
+            .single();
+
+          if (createError) {
+            console.error('❌ Create admin error:', createError);
+            throw new Error(`Cannot create admin: ${createError.message}`);
+          }
+
+          adminUser = newAdmin;
+          adminEmail = newAdmin.email;
+          console.log('✅ Created new admin:', newAdmin);
+          
+        } else if (!adminEmail) {
+          // Update existing admin with email
+          const { data: updatedAdmin, error: updateError } = await supabase
+            .from('staff')
+            .update({ email: 'admin@company.com' })
+            .eq('id', adminUser.id)
+            .select('email, staff_name, username, id')
+            .single();
+
+          if (updateError) {
+            console.error('❌ Update admin error:', updateError);
+            throw new Error(`Cannot update admin email: ${updateError.message}`);
+          }
+
+          adminUser = updatedAdmin;
+          adminEmail = updatedAdmin.email;
+          console.log('✅ Updated admin email:', updatedAdmin);
         }
-
-        adminData = [newAdmin];
-        console.log('✅ Created new admin:', newAdmin);
-        
-        setMessage({
-          type: 'success',
-          text: `✅ Đã tạo admin mới và gửi email test thành công đến: ${newAdmin.email}`
-        });
       }
 
-      const adminUser = adminData[0];
-      if (!adminUser.email) {
-        throw new Error('Admin email chưa được cấu hình. Vui lòng vào Data Management > Cài đặt Admin để cập nhật email.');
+      if (!adminEmail) {
+        throw new Error('Admin email vẫn chưa được cấu hình sau khi tạo/cập nhật');
       }
 
-      console.log('📧 Sending test email to:', adminUser.email);
+      console.log('📧 Sending test email to:', adminEmail);
 
       // Step 2: Send test email
       const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-notification-email', {
         body: {
           type: 'test',
-          to: adminUser.email,
+          to: adminEmail,
           subject: '🧪 Direct Email Test - Hệ thống Quản lý Tài sản',
           data: {
             username: 'direct-test-user',
@@ -79,7 +105,8 @@ export const EmailTestButton = () => {
             timestamp: new Date().toISOString(),
             adminInfo: {
               name: adminUser.staff_name,
-              username: adminUser.username
+              username: adminUser.username,
+              id: adminUser.id
             }
           }
         }
@@ -92,12 +119,10 @@ export const EmailTestButton = () => {
       }
 
       if (emailResult?.success) {
-        if (!message.text) { // Only set if not already set above
-          setMessage({
-            type: 'success',
-            text: `✅ Email test thành công! Email đã được gửi đến: ${adminUser.email}`
-          });
-        }
+        setMessage({
+          type: 'success',
+          text: `✅ Email test thành công! Email đã được gửi đến: ${adminEmail}`
+        });
       } else {
         throw new Error(`Email sending failed: ${emailResult?.error || 'Unknown error'}`);
       }
@@ -118,7 +143,7 @@ export const EmailTestButton = () => {
       <div className="flex items-center justify-between">
         <div>
           <h4 className="font-medium">Test Email Trực tiếp</h4>
-          <p className="text-sm text-gray-600">Gửi email test ngay lập tức</p>
+          <p className="text-sm text-gray-600">Gửi email test ngay lập tức (tự động tạo admin nếu cần)</p>
         </div>
         <Button 
           onClick={testDirectEmail}
@@ -153,9 +178,10 @@ export const EmailTestButton = () => {
       <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
         <h5 className="font-semibold text-purple-800 text-sm mb-1">🔧 Test này sẽ:</h5>
         <ul className="text-xs text-purple-700 space-y-1">
-          <li>• Kiểm tra admin user trong database</li>
-          <li>• Tạo admin user nếu chưa có</li>
-          <li>• Gửi email test trực tiếp qua Edge Function</li>
+          <li>• Tìm admin trong database</li>
+          <li>• Tạo admin mới nếu không tồn tại</li>
+          <li>• Cập nhật email admin nếu thiếu</li>
+          <li>• Gửi email test qua Edge Function</li>
           <li>• Hiển thị kết quả chi tiết</li>
         </ul>
       </div>
