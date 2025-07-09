@@ -9,13 +9,17 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    // Explicitly prevent Next.js resolution
+    conditions: ['import', 'module', 'browser', 'default'],
   },
   build: {
     sourcemap: false,
     rollupOptions: {
       external: [
-        // Exclude Next.js from bundling
+        // Exclude all Next.js related modules
         /^next($|\/)/,
+        /^next-themes($|\/)/,
+        /^@next($|\/)/,
       ],
       output: {
         manualChunks: undefined,
@@ -35,8 +39,7 @@ export default defineConfig({
       'react-hook-form',
       '@hookform/resolvers',
       'sonner',
-      'recharts',
-      'use-local-storage-state'
+      'recharts'
     ],
     // Explicitly exclude Next.js and related packages
     exclude: [
@@ -46,11 +49,28 @@ export default defineConfig({
       'next/head',
       'next/image',
       'next/link',
-      'next/script'
+      'next/script',
+      '@next/env',
+      '@next/swc-darwin-x64',
+      '@next/swc-linux-x64-gnu',
+      '@next/swc-win32-x64-msvc'
     ]
   },
-  // Ensure we're not accidentally importing Next.js modules
   define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    // Prevent Next.js globals
+    'process.env.__NEXT_ROUTER_BASEPATH': 'undefined',
+    'process.env.__NEXT_I18N_SUPPORT': 'undefined',
+  },
+  server: {
+    fs: {
+      // Deny access to Next.js directories
+      deny: [
+        '.next',
+        'next.config.js',
+        'next.config.mjs',
+        'next.config.ts'
+      ]
+    }
   }
 })
