@@ -23,6 +23,7 @@ function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T) => voi
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : defaultValue;
     } catch (error) {
+      console.warn(`Failed to read from localStorage key "${key}":`, error);
       return defaultValue;
     }
   });
@@ -32,7 +33,7 @@ function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T) => voi
       setValue(newValue);
       window.localStorage.setItem(key, JSON.stringify(newValue));
     } catch (error) {
-      console.error(`Error saving to localStorage:`, error);
+      console.error(`Error saving to localStorage key "${key}":`, error);
     }
   };
 
@@ -53,35 +54,60 @@ export function ThemeProvider({
     const updateTheme = () => {
       let effectiveTheme: 'dark' | 'light';
       
-      if (theme === 'system') {
-        effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches 
-          ? 'dark' 
-          : 'light';
-      } else {
-        effectiveTheme = theme;
+      try {
+        if (theme === 'system') {
+          effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches 
+            ? 'dark' 
+            : 'light';
+        } else {
+          effectiveTheme = theme;
+        }
+        
+        setResolvedTheme(effectiveTheme);
+        
+        root.classList.remove('light', 'dark');
+        root.classList.add(effectiveTheme);
+        
+        // Set CSS custom property for compatibility
+        root.style.colorScheme = effectiveTheme;
+      } catch (error) {
+        console.error('Error updating theme:', error);
+        // Fallback to light theme
+        setResolvedTheme('light');
+        root.classList.remove('light', 'dark');
+        root.classList.add('light');
+        root.style.colorScheme = 'light';
       }
-      
-      setResolvedTheme(effectiveTheme);
-      
-      root.classList.remove('light', 'dark');
-      root.classList.add(effectiveTheme);
-      
-      // Set CSS custom property for compatibility
-      root.style.colorScheme = effectiveTheme;
     };
 
     updateTheme();
 
     // Listen for system theme changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (theme === 'system') {
-        updateTheme();
+    let mediaQuery: MediaQueryList | null = null;
+    let handleChange: (() => void) | null = null;
+
+    try {
+      mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      handleChange = () => {
+        if (theme === 'system') {
+          updateTheme();
+        }
+      };
+
+      mediaQuery.addEventListener('change', handleChange);
+    } catch (error) {
+      console.warn('Failed to set up media query listener:', error);
+    }
+
+    return () => {
+      if (mediaQuery && handleChange) {
+        try {
+          mediaQuery.removeEventListener('change', handleChange);
+        } catch (error) {
+          console.warn('Failed to remove media query listener:', error);
+        }
       }
     };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
 
   const value: ThemeContextType = {
@@ -101,7 +127,10 @@ export function useTheme() {
   const context = useContext(ThemeContext);
   
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    const error = new Error('useTheme must be used within a ThemeProvider');
+    console.error('ThemeProvider Error:', error.message);
+    console.error('Stack trace:', error.stack);
+    throw error;
   }
   
   return context;
