@@ -30,14 +30,16 @@ export const AdminEmailSettings = () => {
   const loadAdminEmail = async () => {
     setIsLoadingEmail(true);
     try {
-      // Fix: Use proper Supabase query syntax
+      console.log('🔍 Loading admin email...');
+      
+      // First, check if any admin exists
       const { data, error } = await supabase
         .from('staff')
-        .select('email, staff_name')
+        .select('id, username, email, staff_name, role')
         .eq('role', 'admin')
         .limit(1);
 
-      console.log('Admin email query result:', { data, error });
+      console.log('📧 Admin query result:', { data, error });
 
       if (error) {
         console.error('Error loading admin email:', error);
@@ -45,15 +47,52 @@ export const AdminEmailSettings = () => {
         return;
       }
 
-      if (data && data.length > 0 && data[0].email) {
-        setCurrentAdminEmail(data[0].email);
-        setAdminEmail(data[0].email);
-        console.log('Admin email loaded:', data[0].email);
-      } else {
-        console.log('No admin email found');
-        setCurrentAdminEmail('');
-        setAdminEmail('');
+      if (!data || data.length === 0) {
+        console.log('⚠️ No admin user found, creating default admin...');
+        
+        // Create default admin user
+        const { data: newAdmin, error: createError } = await supabase
+          .from('staff')
+          .insert({
+            username: 'admin',
+            password: '$2b$10$rQJ5K8qF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7',
+            staff_name: 'System Administrator',
+            role: 'admin',
+            email: 'admin@company.com',
+            account_status: 'active'
+          })
+          .select('id, username, email, staff_name')
+          .single();
+
+        if (createError) {
+          console.error('Error creating admin:', createError);
+          setMessage({ type: 'error', text: `Lỗi tạo admin: ${createError.message}` });
+          return;
+        }
+
+        console.log('✅ Created new admin user:', newAdmin);
+        setCurrentAdminEmail(newAdmin.email || '');
+        setAdminEmail(newAdmin.email || '');
+        setMessage({ 
+          type: 'warning', 
+          text: '⚠️ Đã tạo tài khoản admin mới. Vui lòng cập nhật email admin.' 
+        });
+        return;
       }
+
+      const adminUser = data[0];
+      console.log('✅ Admin user found:', adminUser);
+      
+      setCurrentAdminEmail(adminUser.email || '');
+      setAdminEmail(adminUser.email || '');
+      
+      if (!adminUser.email) {
+        setMessage({ 
+          type: 'warning', 
+          text: '⚠️ Tài khoản admin đã tồn tại nhưng chưa có email. Vui lòng cập nhật.' 
+        });
+      }
+      
     } catch (error: any) {
       console.error('Exception loading admin email:', error);
       setMessage({ type: 'error', text: `Lỗi hệ thống: ${error.message}` });
@@ -77,10 +116,12 @@ export const AdminEmailSettings = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      // Fix: Update admin user's email properly
+      console.log('💾 Saving admin email:', adminEmail);
+      
+      // Find admin user
       const { data: adminUsers, error: findError } = await supabase
         .from('staff')
-        .select('id, username, staff_name')
+        .select('id, username, staff_name, role')
         .eq('role', 'admin')
         .limit(1);
 
@@ -89,26 +130,45 @@ export const AdminEmailSettings = () => {
       }
 
       if (!adminUsers || adminUsers.length === 0) {
-        setMessage({ type: 'error', text: 'Không tìm thấy tài khoản admin' });
-        return;
-      }
+        // Create admin if doesn't exist
+        const { data: newAdmin, error: createError } = await supabase
+          .from('staff')
+          .insert({
+            username: 'admin',
+            password: '$2b$10$rQJ5K8qF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7',
+            staff_name: 'System Administrator',
+            role: 'admin',
+            email: adminEmail.trim(),
+            account_status: 'active'
+          })
+          .select('id')
+          .single();
 
-      const { error: updateError } = await supabase
-        .from('staff')
-        .update({ email: adminEmail.trim() })
-        .eq('id', adminUsers[0].id);
+        if (createError) {
+          throw new Error(`Cannot create admin: ${createError.message}`);
+        }
 
-      if (updateError) {
-        throw updateError;
+        console.log('✅ Created admin with email:', adminEmail);
+      } else {
+        // Update existing admin
+        const { error: updateError } = await supabase
+          .from('staff')
+          .update({ email: adminEmail.trim() })
+          .eq('id', adminUsers[0].id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        console.log('✅ Updated admin email:', adminEmail);
       }
 
       setCurrentAdminEmail(adminEmail.trim());
-      setMessage({ type: 'success', text: 'Đã lưu email admin thành công' });
+      setMessage({ type: 'success', text: '✅ Đã lưu email admin thành công' });
       
-      console.log('Admin email saved successfully:', adminEmail.trim());
     } catch (error: any) {
       console.error('Error saving admin email:', error);
-      setMessage({ type: 'error', text: `Lỗi lưu email: ${error.message}` });
+      setMessage({ type: 'error', text: `❌ Lỗi lưu email: ${error.message}` });
     } finally {
       setIsLoading(false);
     }
