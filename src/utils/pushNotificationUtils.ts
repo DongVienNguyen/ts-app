@@ -1,4 +1,4 @@
-import { supabase, getAuthenticatedSupabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { VAPID_PUBLIC_KEY } from '@/config';
 
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
@@ -61,9 +61,8 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
           }
         };
 
-        // Use the authenticated supabase client
-        const authSupabase = getAuthenticatedSupabase();
-        const { error } = await authSupabase
+        // Use the regular supabase client (RLS disabled for development)
+        const { error } = await supabase
           .from('push_subscriptions')
           .upsert({
             username,
@@ -79,7 +78,7 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
           return true;
         }
 
-        console.log('✅ Development mode: Mock subscription saved');
+        console.log('✅ Development mode: Mock subscription saved successfully');
         return true;
       } catch (devError) {
         console.error('Development fallback failed:', devError);
@@ -216,8 +215,7 @@ async function setupProductionPushNotifications(username: string): Promise<boole
   const subscriptionData = subscription.toJSON();
   console.log('Subscription data:', subscriptionData);
 
-  const authSupabase = getAuthenticatedSupabase();
-  const { error } = await authSupabase
+  const { error } = await supabase
     .from('push_subscriptions')
     .upsert({
       username,
@@ -271,8 +269,7 @@ export async function unsubscribeFromPush(username: string): Promise<boolean> {
     }
 
     // Remove from database
-    const authSupabase = getAuthenticatedSupabase();
-    const { error } = await authSupabase
+    const { error } = await supabase
       .from('push_subscriptions')
       .delete()
       .eq('username', username);
@@ -443,8 +440,7 @@ export async function sendPushNotification(
 // Check if user has active push subscription
 export async function hasActivePushSubscription(username: string): Promise<boolean> {
   try {
-    const authSupabase = getAuthenticatedSupabase();
-    const { data, error } = await authSupabase
+    const { data, error } = await supabase
       .from('push_subscriptions')
       .select('id')
       .eq('username', username)

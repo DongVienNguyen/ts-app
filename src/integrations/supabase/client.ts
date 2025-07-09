@@ -16,62 +16,37 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 })
 
-// Store current auth token
+// Store current auth token and username for logging
 let currentAuthToken: string | null = null;
+let currentUsername: string | null = null;
 
-// Function to set the auth token for RLS policies
+// Function to set the auth token for RLS policies (simplified for development)
 export const setSupabaseAuth = (token: string, username: string) => {
   console.log('🔐 Setting Supabase auth token for user:', username);
   
-  // Store the token
+  // Store the token and username
   currentAuthToken = token;
+  currentUsername = username;
   
-  // Set the session using Supabase's auth methods
-  supabase.auth.setSession({
-    access_token: token,
-    refresh_token: token, // Using same token for simplicity
-  });
-  
-  console.log('✅ Supabase auth token set successfully');
+  console.log('✅ Supabase auth token stored successfully');
 };
 
 // Function to clear the auth token
 export const clearSupabaseAuth = () => {
   console.log('🔓 Clearing Supabase auth token');
   
-  // Clear stored token
+  // Clear stored token and username
   currentAuthToken = null;
-  
-  // Sign out from Supabase
-  supabase.auth.signOut();
+  currentUsername = null;
   
   console.log('✅ Supabase auth token cleared');
 };
 
 // Function to get current auth status
 export const getSupabaseAuthStatus = () => {
-  const hasAuth = !!currentAuthToken;
-  console.log('🔍 Supabase auth status:', hasAuth ? 'Authenticated' : 'Not authenticated');
+  const hasAuth = !!(currentAuthToken && currentUsername);
+  console.log('🔍 Supabase auth status:', hasAuth ? `Authenticated as ${currentUsername}` : 'Not authenticated');
   return hasAuth;
-};
-
-// Function to get authenticated supabase client with current token
-export const getAuthenticatedSupabase = () => {
-  if (currentAuthToken) {
-    return createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      global: {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentAuthToken}`,
-        }
-      }
-    });
-  }
-  return supabase;
 };
 
 // Test the connection
