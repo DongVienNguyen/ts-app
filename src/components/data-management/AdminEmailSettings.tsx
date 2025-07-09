@@ -14,6 +14,7 @@ import { ResendAPIChecker } from '@/components/ResendAPIChecker';
 import { ResendSetupGuide } from '@/components/ResendSetupGuide';
 import { CreateAdminButton } from '@/components/CreateAdminButton';
 import { ForceCreateAdminButton } from '@/components/ForceCreateAdminButton';
+import { DirectEmailTester } from '@/components/DirectEmailTester';
 
 export const AdminEmailSettings = () => {
   const [adminEmail, setAdminEmail] = useState('');
@@ -65,7 +66,7 @@ export const AdminEmailSettings = () => {
         console.log('⚠️ No admin found in database');
         setAdminExists(false);
         setCurrentAdminEmail('');
-        setAdminEmail('admin@company.com'); // Set default
+        setAdminEmail('ngviendong@gmail.com'); // Set default to your email
         setMessage({ 
           type: 'warning', 
           text: '⚠️ Không tìm thấy admin. Nhập email và nhấn "Tạo Admin" để tạo admin mới.' 
@@ -84,7 +85,7 @@ export const AdminEmailSettings = () => {
       
       setAdminExists(true);
       setCurrentAdminEmail(adminUser.email || '');
-      setAdminEmail(adminUser.email || 'admin@company.com');
+      setAdminEmail(adminUser.email || 'ngviendong@gmail.com');
       
       if (!adminUser.email) {
         setMessage({ 
@@ -324,7 +325,7 @@ export const AdminEmailSettings = () => {
                 type="email"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
-                placeholder="admin@company.com"
+                placeholder="ngviendong@gmail.com"
                 className="flex-1"
               />
               <Button 
@@ -350,9 +351,23 @@ export const AdminEmailSettings = () => {
               <li>• Bao gồm: báo cáo lỗi, thông báo tài sản, nhắc nhở CRC</li>
               <li>• Đảm bảo email luôn hoạt động để không bỏ lỡ thông báo quan trọng</li>
               <li>• Email sẽ được gửi qua dịch vụ Resend API</li>
+              <li>• <strong>API Key:</strong> re_XfoPgfXP_CeNdATrbvEXHT7HatRCHenxn</li>
               {!adminExists && <li>• <strong>Sẽ tạo admin mới với username: admin, password: admin123</strong></li>}
             </ul>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Direct Email Test */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <TestTube className="w-5 h-5 text-green-600" />
+            <span>Test Email Trực tiếp</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DirectEmailTester />
         </CardContent>
       </Card>
 

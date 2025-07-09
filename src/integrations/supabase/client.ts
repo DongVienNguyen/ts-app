@@ -49,18 +49,7 @@ export const getSupabaseAuthStatus = () => {
   return hasAuth;
 };
 
-// Test the connection
-console.log('🔍 Testing Supabase connection...');
-supabase
-  .from('staff')
-  .select('count')
-  .limit(1)
-  .then(({ data, error }) => {
-    if (error) {
-      console.error('❌ Supabase connection test failed:', error);
-    } else {
-      console.log('✅ Supabase connection test successful');
-    }
-  });
+// REMOVED: Connection test that was causing infinite recursion
+console.log('✅ Supabase client initialized successfully');
 
 export default supabase;
