@@ -1,0 +1,292 @@
+/* Mobile-first responsive design */
+@layer utilities {
+  /* Container responsive */
+  .container-mobile {
+    @apply w-full px-4 mx-auto;
+  }
+  
+  @screen sm {
+    .container-mobile {
+      @apply max-w-screen-sm px-6;
+    }
+  }
+  
+  @screen md {
+    .container-mobile {
+      @apply max-w-screen-md px-8;
+    }
+  }
+  
+  @screen lg {
+    .container-mobile {
+      @apply max-w-screen-lg;
+    }
+  }
+  
+  @screen xl {
+    .container-mobile {
+      @apply max-w-screen-xl;
+    }
+  }
+
+  /* Text responsive */
+  .text-responsive-xs {
+    @apply text-xs;
+  }
+  
+  @screen sm {
+    .text-responsive-xs {
+      @apply text-sm;
+    }
+  }
+  
+  .text-responsive-sm {
+    @apply text-sm;
+  }
+  
+  @screen sm {
+    .text-responsive-sm {
+      @apply text-base;
+    }
+  }
+  
+  .text-responsive-base {
+    @apply text-sm;
+  }
+  
+  @screen sm {
+    .text-responsive-base {
+      @apply text-base;
+    }
+  }
+  
+  @screen md {
+    .text-responsive-base {
+      @apply text-lg;
+    }
+  }
+  
+  .text-responsive-lg {
+    @apply text-base;
+  }
+  
+  @screen sm {
+    .text-responsive-lg {
+      @apply text-lg;
+    }
+  }
+  
+  @screen md {
+    .text-responsive-lg {
+      @apply text-xl;
+    }
+  }
+  
+  .text-responsive-xl {
+    @apply text-lg;
+  }
+  
+  @screen sm {
+    .text-responsive-xl {
+      @apply text-xl;
+    }
+  }
+  
+  @screen md {
+    .text-responsive-xl {
+      @apply text-2xl;
+    }
+  }
+  
+  .text-responsive-2xl {
+    @apply text-xl;
+  }
+  
+  @screen sm {
+    .text-responsive-2xl {
+      @apply text-2xl;
+    }
+  }
+  
+  @screen md {
+    .text-responsive-2xl {
+      @apply text-3xl;
+    }
+  }
+
+  /* Spacing responsive */
+  .space-responsive-x {
+    @apply space-x-2;
+  }
+  
+  @screen sm {
+    .space-responsive-x {
+      @apply space-x-3;
+    }
+  }
+  
+  @screen md {
+    .space-responsive-x {
+      @apply space-x-4;
+    }
+  }
+  
+  .space-responsive-y {
+    @apply space-y-3;
+  }
+  
+  @screen sm {
+    .space-responsive-y {
+      @apply space-y-4;
+    }
+  }
+  
+  @screen md {
+    .space-responsive-y {
+      @apply space-y-6;
+    }
+  }
+
+  /* Padding responsive */
+  .p-responsive {
+    @apply p-3;
+  }
+  
+  @screen sm {
+    .p-responsive {
+      @apply p-4;
+    }
+  }
+  
+  @screen md {
+    .p-responsive {
+      @apply p-6;
+    }
+  }
+  
+  .px-responsive {
+    @apply px-4;
+  }
+  
+  @screen sm {
+    .px-responsive {
+      @apply px-6;
+    }
+  }
+  
+  @screen md {
+    .px-responsive {
+      @apply px-8;
+    }
+  }
+  
+  .py-responsive {
+    @apply py-3;
+  }
+  
+  @screen sm {
+    .py-responsive {
+      @apply py-4;
+    }
+  }
+  
+  @screen md {
+    .py-responsive {
+      @apply py-6;
+    }
+  }
+
+  /* Button responsive */
+  .btn-responsive {
+    @apply px-3 py-2 text-sm;
+  }
+  
+  @screen sm {
+    .btn-responsive {
+      @apply px-4 py-2 text-base;
+    }
+  }
+  
+  @screen md {
+    .btn-responsive {
+      @apply px-6 py-3 text-base;
+    }
+  }
+
+  /* Card responsive */
+  .card-responsive {
+    @apply rounded-lg shadow-sm;
+  }
+  
+  @screen sm {
+    .card-responsive {
+      @apply rounded-xl shadow-md;
+    }
+  }
+  
+  @screen md {
+    .card-responsive {
+      @apply shadow-lg;
+    }
+  }
+
+  /* Grid responsive */
+  .grid-responsive-1 {
+    @apply grid grid-cols-1;
+  }
+  
+  @screen sm {
+    .grid-responsive-1 {
+      @apply grid-cols-2;
+    }
+  }
+  
+  @screen md {
+    .grid-responsive-1 {
+      @apply grid-cols-3;
+    }
+  }
+  
+  @screen lg {
+    .grid-responsive-1 {
+      @apply grid-cols-4;
+    }
+  }
+  
+  .grid-responsive-2 {
+    @apply grid grid-cols-1;
+  }
+  
+  @screen md {
+    .grid-responsive-2 {
+      @apply grid-cols-2;
+    }
+  }
+  
+  @screen lg {
+    .grid-responsive-2 {
+      @apply grid-cols-3;
+    }
+  }
+
+  /* Flex responsive */
+  .flex-responsive {
+    @apply flex flex-col;
+  }
+  
+  @screen sm {
+    .flex-responsive {
+      @apply flex-row;
+    }
+  }
+  
+  .flex-responsive-reverse {
+    @apply flex flex-col-reverse;
+  }
+  
+  @screen sm {
+    .flex-responsive-reverse {
+      @apply flex-row;
+    }
+  }
+}

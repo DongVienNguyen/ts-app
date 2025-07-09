@@ -1,0 +1,184 @@
+/* Custom scrollbar cho mobile */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-gray-400 rounded-full;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500;
+}
+
+/* Notification styles for mobile */
+.notification-mobile {
+  @apply fixed top-4 left-4 right-4 z-50 bg-white rounded-lg shadow-lg border p-4;
+  animation: slide-in-down 0.3s ease-out;
+}
+
+.notification-mobile.success {
+  @apply border-green-500 bg-green-50;
+}
+
+.notification-mobile.error {
+  @apply border-red-500 bg-red-50;
+}
+
+.notification-mobile.warning {
+  @apply border-yellow-500 bg-yellow-50;
+}
+
+.notification-mobile.info {
+  @apply border-blue-500 bg-blue-50;
+}
+
+/* Status badges responsive */
+.status-badge {
+  @apply px-2 py-1 rounded-full text-xs font-medium;
+}
+
+@screen sm {
+  .status-badge {
+    @apply px-3 py-1 text-sm;
+  }
+}
+
+.status-active {
+  @apply bg-green-100 text-green-800;
+}
+
+.status-inactive {
+  @apply bg-gray-100 text-gray-800;
+}
+
+.status-locked {
+  @apply bg-red-100 text-red-800;
+}
+
+.status-pending {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+/* Notification dot and badge */
+.notification-dot {
+  @apply absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full;
+}
+
+.notification-badge {
+  @apply absolute -top-2 -right-2 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center;
+}
+
+@screen sm {
+  .notification-badge {
+    @apply h-6 w-6 text-sm;
+  }
+}
+
+/* Line clamp utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Form components */
+.form-group {
+  @apply space-y-2 mb-4;
+}
+
+.form-label {
+  @apply block text-sm font-medium text-gray-700;
+}
+
+.form-input {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500;
+}
+
+.form-error {
+  @apply text-sm text-red-600 mt-1;
+}
+
+.form-help {
+  @apply text-sm text-gray-500 mt-1;
+}
+
+/* Button variants */
+.btn-primary {
+  @apply bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200;
+}
+
+.btn-secondary {
+  @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-md transition-colors duration-200;
+}
+
+.btn-danger {
+  @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200;
+}
+
+.btn-outline {
+  @apply border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded-md transition-colors duration-200;
+}
+
+/* Card components */
+.card {
+  @apply bg-white rounded-lg shadow-sm border border-gray-200;
+}
+
+.card-header {
+  @apply px-6 py-4 border-b border-gray-200;
+}
+
+.card-body {
+  @apply px-6 py-4;
+}
+
+.card-footer {
+  @apply px-6 py-4 border-t border-gray-200 bg-gray-50;
+}
+
+/* Table components */
+.table {
+  @apply w-full border-collapse;
+}
+
+.table-header {
+  @apply bg-gray-50 border-b border-gray-200;
+}
+
+.table-row {
+  @apply border-b border-gray-100 hover:bg-gray-50;
+}
+
+.table-cell {
+  @apply px-4 py-3 text-sm text-gray-900;
+}
+
+.table-header-cell {
+  @apply px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+}

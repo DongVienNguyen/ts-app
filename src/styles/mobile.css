@@ -1,0 +1,142 @@
+/* Mobile optimizations */
+@layer components {
+  /* Touch-friendly buttons */
+  .btn-touch {
+    @apply min-h-[44px] min-w-[44px] touch-manipulation;
+  }
+  
+  /* Mobile-friendly inputs */
+  .input-mobile {
+    @apply text-base; /* Ngăn zoom trên iOS */
+    font-size: 16px !important;
+  }
+  
+  /* Mobile navigation */
+  .nav-mobile {
+    @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Mobile header */
+  .header-mobile {
+    @apply sticky top-0 z-40 bg-white border-b border-gray-200;
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  /* Mobile modal */
+  .modal-mobile {
+    @apply fixed inset-0 z-50 bg-white;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Mobile drawer */
+  .drawer-mobile {
+    @apply fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-xl;
+    padding-bottom: env(safe-area-inset-bottom);
+    max-height: 90vh;
+  }
+}
+
+/* Mobile-specific utilities */
+@media (max-width: 640px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+  
+  .mobile-full-width {
+    width: 100% !important;
+  }
+  
+  .mobile-text-sm {
+    font-size: 0.875rem !important;
+  }
+  
+  .mobile-p-2 {
+    padding: 0.5rem !important;
+  }
+  
+  .mobile-m-2 {
+    margin: 0.5rem !important;
+  }
+  
+  /* Mobile navigation adjustments */
+  .mobile-nav-item {
+    @apply flex-1 text-center py-2 px-1;
+  }
+  
+  /* Mobile form adjustments */
+  .mobile-form-group {
+    @apply space-y-2 mb-4;
+  }
+  
+  .mobile-form-input {
+    @apply w-full p-3 text-base border rounded-lg;
+  }
+  
+  /* Mobile card adjustments */
+  .mobile-card {
+    @apply mx-2 mb-3 rounded-lg shadow-sm;
+  }
+  
+  /* Mobile button adjustments */
+  .mobile-btn {
+    @apply w-full py-3 text-base font-medium rounded-lg;
+  }
+  
+  .mobile-btn-sm {
+    @apply px-3 py-2 text-sm rounded-md;
+  }
+}
+
+/* Tablet-specific utilities */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .tablet-hidden {
+    display: none !important;
+  }
+  
+  .tablet-grid-2 {
+    @apply grid-cols-2;
+  }
+  
+  .tablet-grid-3 {
+    @apply grid-cols-3;
+  }
+}
+
+/* Desktop-specific utilities */
+@media (min-width: 1025px) {
+  .desktop-hidden {
+    display: none !important;
+  }
+  
+  .desktop-grid-4 {
+    @apply grid-cols-4;
+  }
+  
+  .desktop-grid-5 {
+    @apply grid-cols-5;
+  }
+}
+
+/* Touch improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Styles for touch devices */
+  .hover\:bg-gray-100:hover {
+    background-color: transparent;
+  }
+  
+  .hover\:shadow-lg:hover {
+    box-shadow: none;
+  }
+  
+  /* Increase touch targets */
+  button, a, input, select, textarea {
+    min-height: 44px;
+  }
+  
+  /* Remove hover effects on touch devices */
+  .group:hover .group-hover\:opacity-100 {
+    opacity: 1;
+  }
+}

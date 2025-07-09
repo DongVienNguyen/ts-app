@@ -1,0 +1,117 @@
+/* Focus styles for accessibility */
+.focus-visible:focus-visible {
+  @apply outline-2 outline-offset-2 outline-green-600;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .btn-primary {
+    @apply border-2 border-black;
+  }
+  
+  .card {
+    @apply border-2 border-gray-800;
+  }
+  
+  .form-input {
+    @apply border-2 border-gray-800;
+  }
+  
+  .notification-mobile {
+    @apply border-2;
+  }
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip links */
+.skip-link {
+  @apply absolute -top-10 left-4 bg-green-600 text-white px-4 py-2 rounded-md z-50 focus:top-4;
+}
+
+/* Focus trap */
+.focus-trap {
+  @apply outline-none;
+}
+
+/* Keyboard navigation indicators */
+.keyboard-focus {
+  @apply ring-2 ring-green-500 ring-offset-2;
+}
+
+/* ARIA live regions */
+.live-region {
+  @apply sr-only;
+}
+
+/* Color blind friendly indicators */
+.status-indicator {
+  position: relative;
+}
+
+.status-indicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 4px;
+  height: 100%;
+  border-radius: 2px;
+}
+
+.status-indicator.success::before {
+  @apply bg-green-500;
+}
+
+.status-indicator.error::before {
+  @apply bg-red-500;
+}
+
+.status-indicator.warning::before {
+  @apply bg-yellow-500;
+}
+
+.status-indicator.info::before {
+  @apply bg-blue-500;
+}
+
+/* High contrast text */
+@media (prefers-contrast: high) {
+  .text-muted {
+    @apply text-gray-900;
+  }
+  
+  .text-gray-500 {
+    @apply text-gray-900;
+  }
+  
+  .text-gray-600 {
+    @apply text-gray-900;
+  }
+}
+
+/* Large text support */
+@media (min-resolution: 120dpi) {
+  body {
+    font-size: 18px;
+  }
+  
+  .text-sm {
+    font-size: 16px;
+  }
+  
+  .text-xs {
+    font-size: 14px;
+  }
+}
