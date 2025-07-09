@@ -13,7 +13,7 @@ export const CreateAdminButton = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      console.log('👤 Creating admin user...');
+      console.log('👤 Creating admin user via Edge Function...');
 
       // Check if admin already exists
       const { data: existingAdmin, error: checkError } = await supabase
@@ -23,7 +23,7 @@ export const CreateAdminButton = () => {
         .limit(1);
 
       if (checkError) {
-        throw checkError;
+        console.log('Check error (might be normal):', checkError.message);
       }
 
       if (existingAdmin && existingAdmin.length > 0) {
@@ -34,30 +34,39 @@ export const CreateAdminButton = () => {
         return;
       }
 
-      // Create new admin user
-      const { data: newAdmin, error: createError } = await supabase
-        .from('staff')
-        .insert({
+      // Use Edge Function to create admin (bypasses RLS completely)
+      console.log('🔧 Calling Edge Function to create admin...');
+      const { data: createResult, error: createError } = await supabase.functions.invoke('create-admin-user', {
+        body: {
           username: 'admin',
-          password: 'admin123', // Use plain text, will be hashed by trigger
+          password: 'admin123',
           staff_name: 'System Administrator',
-          role: 'admin',
           email: 'admin@company.com',
-          account_status: 'active',
           department: 'IT'
-        })
-        .select('id, username, email, staff_name')
-        .single();
+        }
+      });
+
+      console.log('📧 Edge Function result:', { createResult, createError });
 
       if (createError) {
-        throw createError;
+        console.error('❌ Edge Function error:', createError);
+        throw new Error(`Edge Function error: ${createError.message}`);
       }
 
-      console.log('✅ Admin user created:', newAdmin);
+      if (!createResult?.success) {
+        throw new Error(`Edge Function failed: ${createResult?.error || 'Unknown error'}`);
+      }
+
+      console.log('✅ Admin user created via Edge Function:', createResult.data);
       setMessage({
         type: 'success',
-        text: `✅ Đã tạo admin thành công! Username: admin, Password: admin123, Email: ${newAdmin.email}`
+        text: `✅ Đã tạo admin thành công! Username: admin, Password: admin123, Email: ${createResult.data.email}`
       });
+
+      // Reload page after 2 seconds to refresh all data
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
 
     } catch (error: any) {
       console.error('❌ Error creating admin:', error);
@@ -76,7 +85,7 @@ export const CreateAdminButton = () => {
         <div>
           <h3 className="font-medium">Tạo tài khoản Admin</h3>
           <p className="text-sm text-gray-600 mt-1">
-            Tạo tài khoản admin mặc định nếu chưa có
+            Tạo tài khoản admin mặc định nếu chưa có (sử dụng Edge Function)
           </p>
         </div>
         <Button 
@@ -109,6 +118,9 @@ export const CreateAdminButton = () => {
         </ul>
         <p className="text-xs text-purple-600 mt-2">
           ⚠️ Nhớ đổi password và email sau khi tạo!
+        </p>
+        <p className="text-xs text-green-600 mt-1">
+          🔧 Sử dụng Edge Function để bypass RLS
         </p>
       </div>
     </div>

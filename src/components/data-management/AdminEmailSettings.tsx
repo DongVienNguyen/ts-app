@@ -37,6 +37,9 @@ export const AdminEmailSettings = () => {
     try {
       console.log('🔍 Loading admin email - Starting fresh query...');
       
+      // Add small delay to ensure database consistency
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Query admin with detailed logging
       const { data, error, count } = await supabase
         .from('staff')
@@ -153,6 +156,11 @@ export const AdminEmailSettings = () => {
           text: `✅ Đã tạo admin mới thành công! Username: admin, Password: admin123, Email: ${adminEmail.trim()}` 
         });
         
+        // Wait longer before reloading to ensure database consistency
+        setTimeout(() => {
+          loadAdminEmail();
+        }, 2000);
+        
       } else {
         console.log('📝 Updating existing admin email...');
         
@@ -175,12 +183,12 @@ export const AdminEmailSettings = () => {
           type: 'success', 
           text: `✅ Đã cập nhật email admin thành công: ${adminEmail.trim()}` 
         });
+        
+        // Shorter delay for updates
+        setTimeout(() => {
+          loadAdminEmail();
+        }, 1000);
       }
-      
-      // Reload admin data to confirm
-      setTimeout(() => {
-        loadAdminEmail();
-      }, 1000);
       
     } catch (error: any) {
       console.error('❌ Save admin email error:', error);

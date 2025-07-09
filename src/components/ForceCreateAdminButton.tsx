@@ -13,41 +13,35 @@ export const ForceCreateAdminButton = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      console.log('🔥 Force creating admin user...');
+      console.log('🔥 Force creating admin user via Edge Function...');
 
-      // First delete any existing admin
-      const { error: deleteError } = await supabase
-        .from('staff')
-        .delete()
-        .eq('username', 'admin');
-
-      if (deleteError) {
-        console.log('Delete error (might be normal):', deleteError);
-      }
-
-      // Create new admin user
-      const { data: newAdmin, error: createError } = await supabase
-        .from('staff')
-        .insert({
+      // Use Edge Function to force create admin (bypasses RLS completely)
+      console.log('🔧 Calling Edge Function to force create admin...');
+      const { data: createResult, error: createError } = await supabase.functions.invoke('create-admin-user', {
+        body: {
           username: 'admin',
-          password: 'admin123', // Use plain text, will be hashed by trigger
+          password: 'admin123',
           staff_name: 'System Administrator',
-          role: 'admin',
           email: 'admin@company.com',
-          account_status: 'active',
           department: 'IT'
-        })
-        .select('id, username, email, staff_name, role')
-        .single();
+        }
+      });
+
+      console.log('📧 Edge Function result:', { createResult, createError });
 
       if (createError) {
-        throw createError;
+        console.error('❌ Edge Function error:', createError);
+        throw new Error(`Edge Function error: ${createError.message}`);
       }
 
-      console.log('✅ Force created admin user:', newAdmin);
+      if (!createResult?.success) {
+        throw new Error(`Edge Function failed: ${createResult?.error || 'Unknown error'}`);
+      }
+
+      console.log('✅ Force created admin user via Edge Function:', createResult.data);
       setMessage({
         type: 'success',
-        text: `🔥 Force tạo admin thành công! Username: admin, Password: admin123, Email: ${newAdmin.email}`
+        text: `🔥 Force tạo admin thành công! Username: admin, Password: admin123, Email: ${createResult.data.email}`
       });
 
       // Reload page after 2 seconds
@@ -72,7 +66,7 @@ export const ForceCreateAdminButton = () => {
         <div>
           <h3 className="font-medium text-red-800">🔥 Force Tạo Admin</h3>
           <p className="text-sm text-red-600 mt-1">
-            Xóa admin cũ và tạo mới (chỉ dùng khi debug)
+            Xóa admin cũ và tạo mới (sử dụng Edge Function bypass RLS)
           </p>
         </div>
         <Button 
@@ -100,6 +94,7 @@ export const ForceCreateAdminButton = () => {
           <li>• Tạo admin mới với thông tin mặc định</li>
           <li>• Trang sẽ tự động reload sau khi tạo</li>
           <li>• Chỉ dùng khi có vấn đề với admin</li>
+          <li>• <strong>Sử dụng Edge Function bypass RLS</strong></li>
         </ul>
       </div>
     </div>
