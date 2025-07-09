@@ -47,11 +47,17 @@ export const EmailTestButton = () => {
           .single();
 
         if (createError) {
+          console.error('Create admin error:', createError);
           throw new Error(`Cannot create admin: ${createError.message}`);
         }
 
         adminData = [newAdmin];
         console.log('✅ Created new admin:', newAdmin);
+        
+        setMessage({
+          type: 'success',
+          text: `✅ Đã tạo admin mới và gửi email test thành công đến: ${newAdmin.email}`
+        });
       }
 
       const adminUser = adminData[0];
@@ -86,10 +92,12 @@ export const EmailTestButton = () => {
       }
 
       if (emailResult?.success) {
-        setMessage({
-          type: 'success',
-          text: `✅ Email test thành công! Email đã được gửi đến: ${adminUser.email}`
-        });
+        if (!message.text) { // Only set if not already set above
+          setMessage({
+            type: 'success',
+            text: `✅ Email test thành công! Email đã được gửi đến: ${adminUser.email}`
+          });
+        }
       } else {
         throw new Error(`Email sending failed: ${emailResult?.error || 'Unknown error'}`);
       }

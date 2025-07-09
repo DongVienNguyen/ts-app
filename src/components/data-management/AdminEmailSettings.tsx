@@ -13,6 +13,7 @@ import { EmailDebugPanel } from '@/components/EmailDebugPanel';
 import { ResendAPIChecker } from '@/components/ResendAPIChecker';
 import { ResendSetupGuide } from '@/components/ResendSetupGuide';
 import { CreateAdminButton } from '@/components/CreateAdminButton';
+import { ForceCreateAdminButton } from '@/components/ForceCreateAdminButton';
 
 export const AdminEmailSettings = () => {
   const [adminEmail, setAdminEmail] = useState('');
@@ -386,8 +387,11 @@ export const AdminEmailSettings = () => {
             <span>Quản lý Admin User</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <CreateAdminButton />
+          <div className="border-t pt-4">
+            <ForceCreateAdminButton />
+          </div>
         </CardContent>
       </Card>
 
