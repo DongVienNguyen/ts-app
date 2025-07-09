@@ -1,17 +1,23 @@
 "use client"
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Toaster as Sonner } from "sonner"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
-const UltraSafeToaster = ({ ...props }: ToasterProps) => {
+const UltraSafeToaster = memo(({ ...props }: ToasterProps) => {
+  // Use memo to prevent unnecessary re-renders
   // Always use light theme to avoid any context issues
   return (
     <Sonner
       theme="light"
       className="toaster group"
+      position="top-right"
+      expand={false}
+      richColors={false}
+      closeButton={false}
       toastOptions={{
+        duration: 4000,
         classNames: {
           toast:
             "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
@@ -25,6 +31,8 @@ const UltraSafeToaster = ({ ...props }: ToasterProps) => {
       {...props}
     />
   )
-}
+});
+
+UltraSafeToaster.displayName = 'UltraSafeToaster';
 
 export { UltraSafeToaster as Toaster }

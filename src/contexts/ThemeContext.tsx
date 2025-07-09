@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 
 type Theme = 'dark' | 'light' | 'system';
 
@@ -16,98 +16,89 @@ interface ThemeProviderProps {
   storageKey?: string;
 }
 
-// Simple local storage hook
-function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T) => void] {
-  const [value, setValue] = useState<T>(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : defaultValue;
-    } catch (error) {
-      console.warn(`Failed to read from localStorage key "${key}":`, error);
-      return defaultValue;
-    }
-  });
-
-  const setStoredValue = (newValue: T) => {
-    try {
-      setValue(newValue);
-      window.localStorage.setItem(key, JSON.stringify(newValue));
-    } catch (error) {
-      console.error(`Error saving to localStorage key "${key}":`, error);
-    }
-  };
-
-  return [value, setStoredValue];
-}
-
 export function ThemeProvider({ 
   children, 
   defaultTheme = 'system',
   storageKey = 'vite-ui-theme'
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useLocalStorage<Theme>(storageKey, defaultTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('light');
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    
-    const updateTheme = () => {
-      let effectiveTheme: 'dark' | 'light';
-      
-      try {
-        if (theme === 'system') {
-          effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches 
-            ? 'dark' 
-            : 'light';
-        } else {
-          effectiveTheme = theme;
-        }
-        
-        setResolvedTheme(effectiveTheme);
-        
-        root.classList.remove('light', 'dark');
-        root.classList.add(effectiveTheme);
-        
-        // Set CSS custom property for compatibility
-        root.style.colorScheme = effectiveTheme;
-      } catch (error) {
-        console.error('Error updating theme:', error);
-        // Fallback to light theme
-        setResolvedTheme('light');
-        root.classList.remove('light', 'dark');
-        root.classList.add('light');
-        root.style.colorScheme = 'light';
-      }
-    };
-
-    updateTheme();
-
-    // Listen for system theme changes
-    let mediaQuery: MediaQueryList | null = null;
-    let handleChange: (() => void) | null = null;
-
+  // Initialize theme from localStorage or default
+  const [theme, setThemeState] = useState<Theme>(() => {
     try {
-      mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      handleChange = () => {
-        if (theme === 'system') {
-          updateTheme();
-        }
-      };
-
-      mediaQuery.addEventListener('change', handleChange);
-    } catch (error) {
-      console.warn('Failed to set up media query listener:', error);
+      const stored = localStorage.getItem(storageKey);
+      return stored ? (JSON.parse(stored) as Theme) : defaultTheme;
+    } catch {
+      return defaultTheme;
     }
+  });
 
-    return () => {
-      if (mediaQuery && handleChange) {
+  // Initialize resolved theme
+  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>(() => {
+    if (theme === 'system') {
+      try {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } catch {
+        return 'light';
+      }
+    }
+    return theme;
+  });
+
+  // Memoized setTheme function
+  const setTheme = useCallback((newTheme: Theme) => {
+    try {
+      setThemeState(newTheme);
+      localStorage.setItem(storageKey, JSON.stringify(newTheme));
+    } catch (error) {
+      console.error('Failed to save theme to localStorage:', error);
+      setThemeState(newTheme);
+    }
+  }, [storageKey]);
+
+  // Effect to update resolved theme and DOM
+  useEffect(() => {
+    const updateResolvedTheme = () => {
+      let effective: 'dark' | 'light';
+      
+      if (theme === 'system') {
         try {
-          mediaQuery.removeEventListener('change', handleChange);
-        } catch (error) {
-          console.warn('Failed to remove media query listener:', error);
+          effective = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        } catch {
+          effective = 'light';
         }
+      } else {
+        effective = theme;
+      }
+      
+      setResolvedTheme(effective);
+      
+      // Update DOM
+      try {
+        const root = document.documentElement;
+        root.classList.remove('light', 'dark');
+        root.classList.add(effective);
+        root.style.colorScheme = effective;
+      } catch (error) {
+        console.error('Failed to update DOM theme:', error);
       }
     };
+
+    updateResolvedTheme();
+
+    // Listen for system theme changes only if theme is 'system'
+    if (theme === 'system') {
+      try {
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const handleChange = () => updateResolvedTheme();
+        
+        mediaQuery.addEventListener('change', handleChange);
+        
+        return () => {
+          mediaQuery.removeEventListener('change', handleChange);
+        };
+      } catch (error) {
+        console.warn('Failed to set up media query listener:', error);
+      }
+    }
   }, [theme]);
 
   const value: ThemeContextType = {
@@ -123,16 +114,16 @@ export function ThemeProvider({
   );
 }
 
-export function useTheme() {
+export function useTheme(): ThemeContextType {
   const context = useContext(ThemeContext);
   
   if (context === undefined) {
-    // Instead of throwing, log warning and return fallback
-    console.warn('useTheme must be used within a ThemeProvider, using fallback values');
+    // Return safe fallback instead of throwing
+    console.warn('useTheme must be used within a ThemeProvider');
     return {
-      theme: 'light' as const,
+      theme: 'light',
       setTheme: () => {},
-      resolvedTheme: 'light' as const
+      resolvedTheme: 'light'
     };
   }
   
