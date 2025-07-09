@@ -12,6 +12,7 @@ import { EmailTestButton } from '@/components/EmailTestButton';
 import { EmailDebugPanel } from '@/components/EmailDebugPanel';
 import { ResendAPIChecker } from '@/components/ResendAPIChecker';
 import { ResendSetupGuide } from '@/components/ResendSetupGuide';
+import { CreateAdminButton } from '@/components/CreateAdminButton';
 
 export const AdminEmailSettings = () => {
   const [adminEmail, setAdminEmail] = useState('');
@@ -373,6 +374,19 @@ export const AdminEmailSettings = () => {
               </AlertDescription>
             </Alert>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Create Admin Button */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <User className="w-5 h-5 text-purple-600" />
+            <span>Quản lý Admin User</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CreateAdminButton />
         </CardContent>
       </Card>
 

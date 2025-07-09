@@ -6,95 +6,88 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const EmailTestButton = () => {
   const [isTesting, setIsTesting] = useState(false);
-  const [result, setResult] = useState<{ type: string; message: string } | null>(null);
+  const [message, setMessage] = useState({ type: '', text: '' });
 
   const testDirectEmail = async () => {
     setIsTesting(true);
-    setResult(null);
+    setMessage({ type: '', text: '' });
 
     try {
       console.log('🧪 Direct email test starting...');
 
-      // Step 1: Check if admin exists and get email
-      console.log('🔍 Step 1: Checking for admin user...');
-      const { data: adminData, error: adminError } = await supabase
+      // Step 1: Get or create admin user
+      let { data: adminData, error: adminError } = await supabase
         .from('staff')
-        .select('username, email, staff_name, role')
+        .select('email, staff_name, username')
         .eq('role', 'admin')
         .limit(1);
 
-      console.log('📧 Admin query result:', { adminData, adminError });
+      console.log('📧 Admin data:', adminData);
 
       if (adminError) {
-        throw new Error(`Database error: ${adminError.message}`);
+        throw new Error(`Admin query error: ${adminError.message}`);
       }
 
+      // If no admin exists, create one
       if (!adminData || adminData.length === 0) {
-        // Try to create admin user
-        console.log('⚠️ No admin found, attempting to create one...');
+        console.log('⚠️ No admin found, creating default admin...');
         
-        const { data: createResult, error: createError } = await supabase
+        const { data: newAdmin, error: createError } = await supabase
           .from('staff')
           .insert({
             username: 'admin',
-            password: '$2b$10$rQJ5K8qF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7', // Default hashed password
+            password: '$2b$10$rQJ5K8qF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7',
             staff_name: 'System Administrator',
             role: 'admin',
             email: 'admin@company.com',
             account_status: 'active'
           })
-          .select()
+          .select('email, staff_name, username')
           .single();
 
         if (createError) {
-          throw new Error(`Cannot create admin user: ${createError.message}`);
+          throw new Error(`Cannot create admin: ${createError.message}`);
         }
 
-        console.log('✅ Admin user created:', createResult);
-        setResult({
-          type: 'warning',
-          message: '⚠️ Đã tạo tài khoản admin mới với email: admin@company.com. Vui lòng cập nhật email admin trong cài đặt.'
-        });
-        return;
+        adminData = [newAdmin];
+        console.log('✅ Created new admin:', newAdmin);
       }
 
       const adminUser = adminData[0];
-      console.log('✅ Admin user found:', adminUser);
-
       if (!adminUser.email) {
-        throw new Error('Admin user exists but email is not configured');
+        throw new Error('Admin email chưa được cấu hình. Vui lòng vào Data Management > Cài đặt Admin để cập nhật email.');
       }
 
-      // Step 2: Test email sending
-      console.log('📧 Step 2: Sending test email to:', adminUser.email);
-      
+      console.log('📧 Sending test email to:', adminUser.email);
+
+      // Step 2: Send test email
       const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-notification-email', {
         body: {
           type: 'test',
           to: adminUser.email,
           subject: '🧪 Direct Email Test - Hệ thống Quản lý Tài sản',
           data: {
-            username: adminUser.username,
-            testType: 'direct-test',
+            username: 'direct-test-user',
+            testType: 'direct-email-test',
             timestamp: new Date().toISOString(),
             adminInfo: {
               name: adminUser.staff_name,
-              email: adminUser.email
+              username: adminUser.username
             }
           }
         }
       });
 
-      console.log('📧 Email function result:', { emailResult, emailError });
+      console.log('📧 Email result:', { emailResult, emailError });
 
       if (emailError) {
-        throw new Error(`Email function error: ${emailError.message}`);
+        throw new Error(`Email sending failed: ${emailError.message}`);
       }
 
       if (emailResult?.success) {
-        setResult({
+        setMessage({
           type: 'success',
-          message: `✅ Test email thành công! Email đã được gửi đến: ${adminUser.email}`
+          text: `✅ Email test thành công! Email đã được gửi đến: ${adminUser.email}`
         });
       } else {
         throw new Error(`Email sending failed: ${emailResult?.error || 'Unknown error'}`);
@@ -102,9 +95,9 @@ export const EmailTestButton = () => {
 
     } catch (error: any) {
       console.error('❌ Direct email test failed:', error);
-      setResult({
+      setMessage({
         type: 'error',
-        message: `❌ Test thất bại: ${error.message}`
+        text: `❌ Test thất bại: ${error.message}`
       });
     } finally {
       setIsTesting(false);
@@ -137,14 +130,14 @@ export const EmailTestButton = () => {
         </Button>
       </div>
 
-      {result && (
-        <Alert variant={result.type === 'error' ? 'destructive' : 'default'} 
+      {message.type && (
+        <Alert variant={message.type === 'error' ? 'destructive' : 'default'} 
                className={
-                 result.type === 'success' ? 'bg-green-100 border-green-400 text-green-800' : 
-                 result.type === 'warning' ? 'bg-yellow-100 border-yellow-400 text-yellow-800' : ''
+                 message.type === 'success' ? 'bg-green-100 border-green-400 text-green-800' : 
+                 message.type === 'warning' ? 'bg-yellow-100 border-yellow-400 text-yellow-800' : ''
                }>
-          {result.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-          <AlertDescription>{result.message}</AlertDescription>
+          {message.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+          <AlertDescription>{message.text}</AlertDescription>
         </Alert>
       )}
 

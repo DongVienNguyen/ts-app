@@ -73,7 +73,7 @@ export const EmailDebugPanel = () => {
       console.log('🔍 Step 2: Querying admin email...');
       let adminEmail = '';
       try {
-        const { data: adminData, error: adminError } = await supabase
+        let { data: adminData, error: adminError } = await supabase
           .from('staff')
           .select('email, staff_name, username')
           .eq('role', 'admin')
@@ -82,9 +82,31 @@ export const EmailDebugPanel = () => {
         console.log('📧 Admin query result:', { adminData, adminError });
 
         if (adminError) throw adminError;
+        
         if (!adminData || adminData.length === 0) {
-          throw new Error('Không tìm thấy tài khoản admin');
+          console.log('⚠️ No admin found, creating default admin...');
+          
+          const { data: newAdmin, error: createError } = await supabase
+            .from('staff')
+            .insert({
+              username: 'admin',
+              password: '$2b$10$rQJ5K8qF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7mXJOeKqF7mXJ9X8qF7',
+              staff_name: 'System Administrator',
+              role: 'admin',
+              email: 'admin@company.com',
+              account_status: 'active'
+            })
+            .select('email, staff_name, username')
+            .single();
+
+          if (createError) {
+            throw new Error(`Cannot create admin: ${createError.message}`);
+          }
+
+          adminData = [newAdmin];
+          console.log('✅ Created new admin:', newAdmin);
         }
+        
         if (!adminData[0].email) {
           throw new Error('Email admin chưa được cấu hình');
         }
