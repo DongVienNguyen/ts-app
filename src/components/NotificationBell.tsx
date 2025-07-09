@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCheck, Trash2 } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,13 +14,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tables } from '@/integrations/supabase/types';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 type Notification = Tables<'notifications'>;
 
 export function NotificationBell() {
   const { user } = useSecureAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const fetchNotifications = async (): Promise<Notification[]> => {
     if (!user) return [];
@@ -109,71 +110,111 @@ export function NotificationBell() {
     }
   };
 
+  // Handle bell click - navigate to notifications page
+  const handleBellClick = () => {
+    navigate('/notifications');
+  };
+
   if (!user) return null;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs bg-red-500 hover:bg-red-600">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel className="flex justify-between items-center">
-          <span>Thông báo</span>
-          <div className="space-x-1">
-            {unreadCount > 0 && (
-              <Button variant="ghost" size="icon" onClick={markAllAsRead} title="Đánh dấu tất cả đã đọc">
-                <CheckCheck className="h-4 w-4" />
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" onClick={deleteAllNotifications} title="Xóa tất cả thông báo">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        
-        {notifications.length === 0 ? (
-          <DropdownMenuItem disabled>Không có thông báo</DropdownMenuItem>
-        ) : (
-          <>
-            {notifications.slice(0, 4).map((notification) => (
-              <DropdownMenuItem
-                key={notification.id}
-                className={`flex flex-col items-start p-3 cursor-pointer ${!notification.is_read ? 'bg-blue-50' : ''}`}
-                onClick={() => !notification.is_read && markAsRead(notification.id)}
-              >
-                <div className="flex items-center justify-between w-full">
-                  <h4 className="font-medium text-sm truncate flex-1">{notification.title}</h4>
-                  {!notification.is_read && (
-                    <div className="w-2 h-2 bg-blue-500 rounded-full ml-2 flex-shrink-0"></div>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
-                <span className="text-xs text-gray-400 mt-2">
-                  {new Date(notification.created_at!).toLocaleString('vi-VN')}
-                </span>
-              </DropdownMenuItem>
-            ))}
-            
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link 
-                to="/notifications" 
-                className="w-full text-center font-medium text-blue-600 hover:text-blue-800"
-              >
-                Xem tất cả thông báo ({notifications.length})
-              </Link>
-            </DropdownMenuItem>
-          </>
+    <div className="relative">
+      {/* Bell button with click handler */}
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="relative"
+        onClick={handleBellClick}
+        title="Xem tất cả thông báo"
+      >
+        <Bell className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs bg-red-500 hover:bg-red-600">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </Badge>
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </Button>
+
+      {/* Dropdown menu for quick actions */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="absolute -right-2 -top-1 h-4 w-4 p-0 opacity-70 hover:opacity-100"
+            title="Menu thông báo"
+          >
+            <span className="text-xs">▼</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-80">
+          <DropdownMenuLabel className="flex justify-between items-center">
+            <span>Thông báo nhanh</span>
+            <div className="space-x-1">
+              {unreadCount > 0 && (
+                <Button variant="ghost" size="icon" onClick={markAllAsRead} title="Đánh dấu tất cả đã đọc">
+                  <CheckCheck className="h-4 w-4" />
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" onClick={deleteAllNotifications} title="Xóa tất cả thông báo">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          
+          {/* Quick link to full notifications page */}
+          <DropdownMenuItem asChild>
+            <Link 
+              to="/notifications" 
+              className="w-full flex items-center justify-center font-medium text-blue-600 hover:text-blue-800 py-3"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Xem trang thông báo đầy đủ
+            </Link>
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
+          {notifications.length === 0 ? (
+            <DropdownMenuItem disabled>Không có thông báo</DropdownMenuItem>
+          ) : (
+            <>
+              {notifications.slice(0, 3).map((notification) => (
+                <DropdownMenuItem
+                  key={notification.id}
+                  className={`flex flex-col items-start p-3 cursor-pointer ${!notification.is_read ? 'bg-blue-50' : ''}`}
+                  onClick={() => {
+                    if (!notification.is_read) markAsRead(notification.id);
+                    navigate('/notifications');
+                  }}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <h4 className="font-medium text-sm truncate flex-1">{notification.title}</h4>
+                    {!notification.is_read && (
+                      <div className="w-2 h-2 bg-blue-500 rounded-full ml-2 flex-shrink-0"></div>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
+                  <span className="text-xs text-gray-400 mt-2">
+                    {new Date(notification.created_at!).toLocaleString('vi-VN')}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+              
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link 
+                  to="/notifications" 
+                  className="w-full text-center font-medium text-green-600 hover:text-green-800"
+                >
+                  Xem tất cả {notifications.length} thông báo →
+                </Link>
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

@@ -213,24 +213,26 @@
         }, 1000);
       });
       
-      // Register service worker
+      // Register service worker with silent updates
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
               console.log('SW registered: ', registration);
               
-              // Check for updates
+              // Handle updates silently - NO POPUP
               registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 if (newWorker) {
                   newWorker.addEventListener('statechange', () => {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                      // New content available, prompt user to refresh
-                      if (confirm('Có phiên bản mới của TS Manager! Bạn có muốn cập nhật không?')) {
-                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                      // Silent update - just activate new version
+                      console.log('🔄 New version available, updating silently...');
+                      newWorker.postMessage({ type: 'SKIP_WAITING' });
+                      // NO CONFIRM DIALOG - just reload after delay
+                      setTimeout(() => {
                         window.location.reload();
-                      }
+                      }, 2000);
                     }
                   });
                 }

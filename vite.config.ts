@@ -70,16 +70,21 @@ export default defineConfig({
     }
   },
   
-  // Development server
+  // Development server with WebSocket fix
   server: {
     port: 32100,
-    host: true,
+    host: '0.0.0.0',
     strictPort: true,
     cors: true,
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0'
+    },
+    // Fix WebSocket HMR issues
+    hmr: {
+      port: 32101,
+      overlay: false
     }
   },
   
