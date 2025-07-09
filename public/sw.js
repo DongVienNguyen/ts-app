@@ -1,8 +1,9 @@
-const CACHE_NAME = 'ts-manager-v' + Date.now(); // Dynamic cache name
-const STATIC_CACHE = 'ts-static-v' + Date.now();
-const DYNAMIC_CACHE = 'ts-dynamic-v' + Date.now();
+const CACHE_VERSION = 'v' + Date.now();
+const STATIC_CACHE = `ts-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `ts-dynamic-${CACHE_VERSION}`;
+const API_CACHE = `ts-api-${CACHE_VERSION}`;
 
-// Files to cache immediately
+// Tài nguyên tĩnh cần cache ngay lập tức
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -11,141 +12,221 @@ const STATIC_ASSETS = [
   '/favicon.png'
 ];
 
-// Install event - cache static assets and activate immediately
-self.addEventListener('install', (event) => {
-  console.log('🔧 Service Worker installing...');
-  
-  event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => {
-        console.log('📦 Caching static assets');
-        return cache.addAll(STATIC_ASSETS);
-      })
-      .then(() => {
-        console.log('✅ Static assets cached');
-        // Force immediate activation - no waiting
-        return self.skipWaiting();
-      })
-      .catch((error) => {
-        console.error('❌ Cache installation failed:', error);
-      })
-  );
-});
+// Tài nguyên quan trọng cần cache với ưu tiên cao
+const CRITICAL_ASSETS = [
+  '/src/main.tsx',
+  '/src/App.tsx',
+  '/src/components/Layout.tsx'
+];
 
-// Activate event - clean old caches and take control immediately
-self.addEventListener('activate', (event) => {
-  console.log('🚀 Service Worker activating...');
+// API endpoints cần cache
+const API_ENDPOINTS = [
+  '/rest/v1/notifications',
+  '/rest/v1/staff',
+  '/rest/v1/asset_reminders'
+];
+
+// Cài đặt Service Worker với tối ưu hóa
+self.addEventListener('install', (event) => {
+  console.log('🔧 Cài đặt Service Worker...');
   
   event.waitUntil(
     Promise.all([
-      // Clean old caches aggressively
-      caches.keys().then((cacheNames) => {
+      // Cache tài nguyên tĩnh
+      caches.open(STATIC_CACHE).then(cache => {
+        console.log('📦 Cache tài nguyên tĩnh');
+        return cache.addAll(STATIC_ASSETS);
+      }),
+      // Preload tài nguyên quan trọng
+      caches.open(DYNAMIC_CACHE).then(cache => {
+        console.log('⚡ Preload tài nguyên quan trọng');
+        return Promise.allSettled(
+          CRITICAL_ASSETS.map(url => 
+            fetch(url).then(response => {
+              if (response.ok) {
+                return cache.put(url, response);
+              }
+            }).catch(() => {
+              // Bỏ qua lỗi preload
+            })
+          )
+        );
+      })
+    ]).then(() => {
+      console.log('✅ Service Worker cài đặt thành công');
+      return self.skipWaiting(); // Kích hoạt ngay lập tức
+    })
+  );
+});
+
+// Kích hoạt Service Worker với dọn dẹp cache cũ
+self.addEventListener('activate', (event) => {
+  console.log('🚀 Kích hoạt Service Worker...');
+  
+  event.waitUntil(
+    Promise.all([
+      // Dọn dẹp cache cũ
+      caches.keys().then(cacheNames => {
         return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== STATIC_CACHE && 
-                cacheName !== DYNAMIC_CACHE && 
-                cacheName !== CACHE_NAME) {
-              console.log('🗑️ Deleting old cache:', cacheName);
+          cacheNames.map(cacheName => {
+            if (!cacheName.includes(CACHE_VERSION)) {
+              console.log('🗑️ Xóa cache cũ:', cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       }),
-      // Take control of all clients immediately
+      // Kiểm soát tất cả client
       self.clients.claim()
     ]).then(() => {
-      console.log('✅ Service Worker activated and took control');
+      console.log('✅ Service Worker đã kích hoạt');
       
-      // Force reload all clients to get latest version
+      // Thông báo cho tất cả client về phiên bản mới
       self.clients.matchAll().then(clients => {
         clients.forEach(client => {
-          console.log('🔄 Reloading client for update...');
-          client.navigate(client.url);
+          client.postMessage({
+            type: 'SW_UPDATED',
+            version: CACHE_VERSION
+          });
         });
       });
     })
   );
 });
 
-// Fetch event - always try network first for HTML, then cache
+// Xử lý fetch với chiến lược cache thông minh
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
-  // Skip non-GET requests
-  if (request.method !== 'GET') {
-    return;
-  }
+  // Bỏ qua non-GET requests
+  if (request.method !== 'GET') return;
   
-  // Skip external requests
-  if (!url.origin.includes(self.location.origin)) {
-    return;
-  }
+  // Bỏ qua external requests
+  if (!url.origin.includes(self.location.origin) && !url.origin.includes('supabase')) return;
   
-  // For HTML documents, always try network first
+  // Chiến lược cho HTML documents
   if (request.destination === 'document') {
-    event.respondWith(
-      fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseClone = networkResponse.clone();
-            caches.open(DYNAMIC_CACHE).then(cache => {
-              cache.put(request, responseClone);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // Fallback to cache if network fails
-          return caches.match(request) || caches.match('/');
-        })
-    );
+    event.respondWith(handleDocumentRequest(request));
     return;
   }
   
-  // For other resources, use cache-first with background update
-  event.respondWith(
-    caches.match(request)
-      .then((cachedResponse) => {
-        // Always fetch in background to update cache
-        const fetchPromise = fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const responseClone = networkResponse.clone();
-              const cacheName = isStaticAsset(request.url) ? STATIC_CACHE : DYNAMIC_CACHE;
-              caches.open(cacheName).then(cache => {
-                cache.put(request, responseClone);
-              });
-            }
-            return networkResponse;
-          })
-          .catch(() => null);
-        
-        // Return cached version immediately if available
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        
-        // Otherwise wait for network
-        return fetchPromise || new Response('Offline', { status: 503 });
-      })
-  );
+  // Chiến lược cho API requests
+  if (isApiRequest(url)) {
+    event.respondWith(handleApiRequest(request));
+    return;
+  }
+  
+  // Chiến lược cho static assets
+  if (isStaticAsset(url)) {
+    event.respondWith(handleStaticAssetRequest(request));
+    return;
+  }
+  
+  // Chiến lược mặc định
+  event.respondWith(handleDefaultRequest(request));
 });
 
-// Helper function to determine if asset is static
-function isStaticAsset(url) {
-  return /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/i.test(url) ||
-         url.includes('/assets/') ||
-         url.includes('manifest.json');
+// Xử lý HTML documents - Network First với fallback
+async function handleDocumentRequest(request) {
+  try {
+    // Thử network trước
+    const networkResponse = await fetch(request);
+    if (networkResponse && networkResponse.status === 200) {
+      // Cache response mới
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put(request, networkResponse.clone());
+      return networkResponse;
+    }
+  } catch (error) {
+    console.log('🌐 Network không khả dụng, dùng cache');
+  }
+  
+  // Fallback to cache
+  const cachedResponse = await caches.match(request);
+  return cachedResponse || caches.match('/');
 }
 
-// Handle push notifications
-self.addEventListener('push', (event) => {
-  console.log('🔔 Push notification received');
+// Xử lý API requests - Stale While Revalidate
+async function handleApiRequest(request) {
+  const cache = await caches.open(API_CACHE);
+  const cachedResponse = await cache.match(request);
   
-  if (!event.data) {
-    return;
+  // Fetch mới trong background
+  const fetchPromise = fetch(request).then(response => {
+    if (response && response.status === 200) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  }).catch(() => null);
+  
+  // Trả về cache ngay lập tức nếu có
+  if (cachedResponse) {
+    // Update cache trong background
+    fetchPromise;
+    return cachedResponse;
   }
+  
+  // Chờ network response nếu không có cache
+  return fetchPromise || new Response('{"error": "Offline"}', {
+    status: 503,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
+// Xử lý static assets - Cache First
+async function handleStaticAssetRequest(request) {
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+  
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse && networkResponse.status === 200) {
+      const cache = await caches.open(STATIC_CACHE);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    return new Response('Asset not found', { status: 404 });
+  }
+}
+
+// Xử lý requests khác
+async function handleDefaultRequest(request) {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse && networkResponse.status === 200) {
+      const cache = await caches.open(DYNAMIC_CACHE);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    const cachedResponse = await caches.match(request);
+    return cachedResponse || new Response('Offline', { status: 503 });
+  }
+}
+
+// Helper functions
+function isApiRequest(url) {
+  return url.pathname.startsWith('/rest/') || 
+         url.pathname.startsWith('/auth/') ||
+         url.pathname.startsWith('/functions/') ||
+         API_ENDPOINTS.some(endpoint => url.pathname.includes(endpoint));
+}
+
+function isStaticAsset(url) {
+  return /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|webp)$/i.test(url.pathname) ||
+         url.pathname.includes('/assets/') ||
+         url.pathname.includes('manifest.json');
+}
+
+// Xử lý push notifications
+self.addEventListener('push', (event) => {
+  console.log('🔔 Nhận push notification');
+  
+  if (!event.data) return;
   
   try {
     const data = event.data.json();
@@ -155,6 +236,7 @@ self.addEventListener('push', (event) => {
       badge: '/icon-192x192.png',
       tag: data.tag || 'ts-notification',
       requireInteraction: false,
+      vibrate: [200, 100, 200], // Rung cho mobile
       actions: [
         {
           action: 'view',
@@ -169,6 +251,7 @@ self.addEventListener('push', (event) => {
       ],
       data: {
         url: '/notifications',
+        timestamp: Date.now(),
         ...data.data
       }
     };
@@ -177,13 +260,13 @@ self.addEventListener('push', (event) => {
       self.registration.showNotification(data.title || 'TS Manager', options)
     );
   } catch (error) {
-    console.error('❌ Push notification error:', error);
+    console.error('❌ Lỗi push notification:', error);
   }
 });
 
-// Handle notification clicks
+// Xử lý click notification
 self.addEventListener('notificationclick', (event) => {
-  console.log('🔔 Notification clicked');
+  console.log('🔔 Click notification');
   
   event.notification.close();
   
@@ -191,15 +274,15 @@ self.addEventListener('notificationclick', (event) => {
   
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clients) => {
-        // Check if there's already a window/tab open with the target URL
+      .then(clients => {
+        // Tìm tab đã mở
         for (const client of clients) {
           if (client.url.includes(urlToOpen) && 'focus' in client) {
             return client.focus();
           }
         }
         
-        // Check if there's any window/tab open
+        // Focus tab hiện tại và navigate
         for (const client of clients) {
           if ('focus' in client) {
             client.focus();
@@ -208,7 +291,7 @@ self.addEventListener('notificationclick', (event) => {
           }
         }
         
-        // Open new window
+        // Mở tab mới
         if (self.clients.openWindow) {
           return self.clients.openWindow(urlToOpen);
         }
@@ -216,30 +299,58 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Handle messages from main thread
+// Xử lý messages từ main thread
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('⏭️ Skipping waiting...');
+    console.log('⏭️ Bỏ qua chờ đợi...');
     self.skipWaiting();
+  }
+  
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({ version: CACHE_VERSION });
   }
 });
 
-// Background sync for offline actions
+// Background sync
 self.addEventListener('sync', (event) => {
   console.log('🔄 Background sync:', event.tag);
   
   if (event.tag === 'background-sync') {
     event.waitUntil(
-      // Perform background tasks
+      // Thực hiện các tác vụ background
       Promise.resolve()
     );
   }
 });
 
-// Periodic update check
-setInterval(() => {
-  console.log('🔍 Checking for updates...');
-  self.registration.update();
-}, 30000); // Check every 30 seconds
+// Kiểm tra cập nhật định kỳ (tối ưu hóa)
+let updateCheckInterval;
 
-console.log('✅ Service Worker loaded successfully');
+function startUpdateCheck() {
+  // Kiểm tra mỗi 30 giây thay vì 10 giây để tiết kiệm tài nguyên
+  updateCheckInterval = setInterval(() => {
+    console.log('🔍 Kiểm tra cập nhật...');
+    self.registration.update();
+  }, 30000);
+}
+
+function stopUpdateCheck() {
+  if (updateCheckInterval) {
+    clearInterval(updateCheckInterval);
+    updateCheckInterval = null;
+  }
+}
+
+// Bắt đầu kiểm tra cập nhật khi SW active
+startUpdateCheck();
+
+// Dừng kiểm tra khi không cần thiết
+self.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopUpdateCheck();
+  } else {
+    startUpdateCheck();
+  }
+});
+
+console.log('✅ Service Worker tải thành công với tối ưu hóa');
