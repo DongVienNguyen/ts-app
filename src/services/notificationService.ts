@@ -14,7 +14,7 @@ export async function sendPushNotification(
   notificationData: PushNotificationData
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data, error } = await supabase.functions.invoke('send-push-notification', {
+    const { error } = await supabase.functions.invoke('send-push-notification', {
       body: {
         username,
         notification: notificationData

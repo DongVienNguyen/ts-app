@@ -364,7 +364,7 @@ export async function sendPushNotification(
   }
 ): Promise<boolean> {
   try {
-    const { data, error } = await supabase.functions.invoke('send-push-notification', {
+    const { error } = await supabase.functions.invoke('send-push-notification', {
       body: {
         username,
         payload

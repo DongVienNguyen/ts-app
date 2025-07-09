@@ -3,12 +3,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Transaction } from '@/types/asset';
 
-export interface BorrowReportTableProps { // Exported interface
+export interface BorrowReportTableProps {
   transactions: Transaction[];
   currentPage: number;
-  setCurrentPage: Dispatch<SetStateAction<number>>; // Corrected type
+  setCurrentPage: Dispatch<SetStateAction<number>>;
   totalPages: number;
-  ITEMS_PER_PAGE: number;
   totalRecords: number;
 }
 
@@ -17,7 +16,6 @@ const BorrowReportTable: React.FC<BorrowReportTableProps> = ({
   currentPage,
   setCurrentPage,
   totalPages,
-  ITEMS_PER_PAGE,
   totalRecords,
 }) => {
   return (

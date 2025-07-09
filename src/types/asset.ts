@@ -7,8 +7,8 @@ export interface Transaction {
   transaction_type: string;
   asset_year: number;
   asset_code: number;
-  note?: string;
-  created_at?: string;
+  note?: string | null;
+  created_at?: string | null;
 }
 
 export interface AssetTransactionPayload {
@@ -19,7 +19,7 @@ export interface AssetTransactionPayload {
   transaction_type: string;
   asset_year: number;
   asset_code: number;
-  note?: string;
+  note?: string | null;
 }
 
 export interface AssetTransactionFilters {
@@ -36,6 +36,6 @@ export interface GroupedTransaction {
   assets: {
     asset_code: number;
     asset_year: number;
-    note?: string;
+    note?: string | null;
   }[];
 }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -76,7 +75,7 @@ const ComboBox: React.FC<ComboBoxProps> = ({ value, onChange, options, placehold
     setIsOpen(true);
   };
 
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleBlur = () => {
     // Delay closing to allow option clicks
     setTimeout(() => {
       setIsOpen(false);

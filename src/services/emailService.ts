@@ -44,7 +44,7 @@ export async function sendErrorReport(
   try {
     const adminEmail = await getAdminEmail();
     
-    const { data, error } = await supabase.functions.invoke('send-notification-email', {
+    const { error } = await supabase.functions.invoke('send-notification-email', {
       body: {
         type: 'error_report',
         to: adminEmail,
@@ -76,7 +76,7 @@ export async function sendNotificationEmail(
   htmlContent: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data, error } = await supabase.functions.invoke('send-notification-email', {
+    const { error } = await supabase.functions.invoke('send-notification-email', {
       body: {
         type: 'general',
         to,
@@ -104,7 +104,7 @@ export async function sendAssetNotificationEmail(
   content: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data, error } = await supabase.functions.invoke('send-notification-email', {
+    const { error } = await supabase.functions.invoke('send-notification-email', {
       body: {
         type: 'asset_notification',
         to: recipients,
@@ -134,7 +134,7 @@ export async function sendAssetTransactionConfirmation(
   try {
     const adminEmail = await getAdminEmail();
     
-    const { data, error } = await supabase.functions.invoke('send-notification-email', {
+    const { error } = await supabase.functions.invoke('send-notification-email', {
       body: {
         type: 'transaction_confirmation',
         to: adminEmail,
@@ -168,7 +168,7 @@ export async function testEmailFunction(username: string): Promise<{ success: bo
     console.log('📧 Admin email:', adminEmail);
     console.log('👤 Test user:', username);
     
-    const { data, error } = await supabase.functions.invoke('send-notification-email', {
+    const { error } = await supabase.functions.invoke('send-notification-email', {
       body: {
         type: 'test',
         to: adminEmail,

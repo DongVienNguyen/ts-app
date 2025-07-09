@@ -3,8 +3,7 @@ import { Filter, Building2, Calendar } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import DateInput from '@/components/DateInput'; // Import the new DateInput
+import DateInput from '@/components/DateInput';
 
 interface DateRange {
   start: string;
@@ -26,17 +25,16 @@ const BorrowReportFilters = React.memo(({
   setSelectedRoom, 
   rooms 
 }: BorrowReportFiltersProps) => {
-  const handleStartDateChange = useCallback((dateString: string) => { // dateString is YYYY-MM-DD
+  const handleStartDateChange = useCallback((dateString: string) => {
     setDateRange(prev => ({ ...prev, start: dateString }));
   }, [setDateRange]);
 
-  const handleEndDateChange = useCallback((dateString: string) => { // dateString is YYYY-MM-DD
+  const handleEndDateChange = useCallback((dateString: string) => {
     setDateRange(prev => ({ ...prev, end: dateString }));
   }, [setDateRange]);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Time Filter Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
@@ -73,7 +71,6 @@ const BorrowReportFilters = React.memo(({
         </CardContent>
       </Card>
 
-      {/* Room Filter Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">

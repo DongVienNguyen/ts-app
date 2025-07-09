@@ -165,7 +165,7 @@ export function exportTableToCSV(tableId: string, filename: string) {
   }
 
   const rows = table.querySelectorAll('tr');
-  const csvData = [];
+  const csvData: string[] = [];
 
   rows.forEach(row => {
     const cells = row.querySelectorAll('th, td');

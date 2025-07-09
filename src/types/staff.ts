@@ -18,6 +18,6 @@ export interface AssetReminder {
   ngay_den_han: string;
   cbkh: string | null;
   cbqln: string | null;
-  is_sent: boolean;
-  created_at: string;
+  is_sent: boolean | null;
+  created_at: string | null;
 }

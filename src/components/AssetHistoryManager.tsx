@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { History, Info, Trash2, RefreshCw } from 'lucide-react';
+import { Info, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';

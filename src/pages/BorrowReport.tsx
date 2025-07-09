@@ -1,13 +1,11 @@
-import React from 'react';
 import { Download } from 'lucide-react';
 import Layout from '@/components/Layout';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import BorrowReportHeader from '@/components/BorrowReportHeader';
 import BorrowReportFilters from '@/components/BorrowReportFilters';
-import BorrowReportTable, { BorrowReportTableProps } from '@/components/BorrowReportTable'; // Import BorrowReportTableProps
+import BorrowReportTable from '@/components/BorrowReportTable';
 import { useBorrowReportData } from '@/hooks/useBorrowReportData';
 import { Button } from '@/components/ui/button';
-import { Transaction } from '@/types/asset'; // Import Transaction type
 
 const BorrowReport = () => {
   const {
@@ -22,7 +20,6 @@ const BorrowReport = () => {
     paginatedTransactions,
     totalPages,
     rooms,
-    ITEMS_PER_PAGE,
     exportToCSV,
   } = useBorrowReportData();
 
@@ -62,7 +59,6 @@ const BorrowReport = () => {
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             totalPages={totalPages}
-            ITEMS_PER_PAGE={ITEMS_PER_PAGE}
             totalRecords={filteredTransactions.length}
           />
         </div>

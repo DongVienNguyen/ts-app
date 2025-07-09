@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Users, Unlock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { unlockAccount, checkAccountStatus } from '@/services/secureAuthService';
+import { unlockAccount } from '@/services/secureAuthService';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
