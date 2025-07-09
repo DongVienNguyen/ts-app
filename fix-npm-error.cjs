@@ -1,5 +1,5 @@
-import { execSync } from 'child_process';
-import fs from 'fs';
+const { execSync } = require('child_process');
+const fs = require('fs');
 
 console.log('🔧 Fixing npm workspace error...');
 
@@ -41,12 +41,6 @@ try {
   } catch (e) {
     // Ignore if workspaces config doesn't exist
   }
-  
-  try {
-    execSync('npm config set package-manager npm', { stdio: 'pipe' });
-  } catch (e) {
-    console.warn('Could not set package-manager config');
-  }
 
   // Step 4: Create/update .npmrc
   console.log('\nStep 4: Creating .npmrc...');
@@ -71,15 +65,7 @@ audit=false
 
 } catch (error) {
   console.error('\n❌ Error during fix process:', error.message);
-  console.log('\nManual steps to try:');
-  console.log('1. Delete node_modules and all lock files manually');
-  console.log('2. Run: npm cache clean --force');
-  console.log('3. Run: npm config delete workspace');
-  console.log('4. Run: npm config delete workspaces');
-  console.log('5. Run: npm install');
-  
-  // If automated fix fails, provide manual commands
-  console.log('\nOr run these commands manually:');
+  console.log('\nTry running these commands manually:');
   console.log('rmdir /s /q node_modules');
   console.log('del package-lock.json pnpm-lock.yaml yarn.lock');
   console.log('npm cache clean --force');

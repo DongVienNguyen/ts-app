@@ -9,7 +9,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "generate-icons": "node scripts/generate-icons.js",
-    "fix-npm": "node fix-npm-error.js"
+    "fix-npm": "node fix-npm-error.js",
+    "fix-npm-cjs": "node fix-npm-error.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
