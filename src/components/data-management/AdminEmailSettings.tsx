@@ -8,6 +8,7 @@ import { Mail, TestTube, Settings, CheckCircle, AlertCircle, User, Eye, EyeOff }
 import { supabase } from '@/integrations/supabase/client';
 import { performEmailTest } from '@/services/emailTestService';
 import { useSecureAuth } from '@/contexts/AuthContext';
+import { EmailTestButton } from '@/components/EmailTestButton';
 
 export const AdminEmailSettings = () => {
   const [adminEmail, setAdminEmail] = useState('');
@@ -293,6 +294,12 @@ export const AdminEmailSettings = () => {
               <li>• Báo cáo lỗi hệ thống</li>
               <li>• Xác nhận giao dịch</li>
             </ul>
+          </div>
+
+          {/* Direct Email Test */}
+          <div className="border-t pt-4">
+            <h4 className="font-semibold text-purple-800 mb-2">🔧 Test Email Trực tiếp</h4>
+            <EmailTestButton />
           </div>
 
           {!currentAdminEmail && (
