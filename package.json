@@ -3,17 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "packageManager": "npm@10.0.0",
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
-  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "generate-icons": "node scripts/generate-icons.js"
+    "generate-icons": "node scripts/generate-icons.js",
+    "fix-npm": "node fix-npm-error.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -87,13 +83,5 @@
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.1.0"
-  },
-  "overrides": {
-    "next": false,
-    "next-themes": false
-  },
-  "resolutions": {
-    "next": false,
-    "next-themes": false
   }
 }
