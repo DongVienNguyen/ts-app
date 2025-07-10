@@ -32,7 +32,7 @@ const secureAuthService = {
   
   async getCurrentUser(): Promise<AuthenticatedStaff | null> {
     try {
-      // First validate the session
+      // First validate the session (includes 7-day expiration check)
       if (!validateSession()) {
         this.logout();
         return null;
@@ -57,6 +57,7 @@ const secureAuthService = {
   logout() {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_login_time');
   }
 };
 
@@ -94,9 +95,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const result = await secureAuthService.login(username, password);
       
       if (result.success && result.user && result.token) {
-        // Store auth data
+        // Store auth data with login timestamp
+        const loginTime = Date.now().toString();
         localStorage.setItem('auth_token', result.token);
         localStorage.setItem('auth_user', JSON.stringify(result.user));
+        localStorage.setItem('auth_login_time', loginTime);
         
         const userWithToken: AuthenticatedStaff = { ...result.user, token: result.token };
         setUser(userWithToken);
@@ -122,6 +125,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     healthCheckService.onUserLogout();
     toast.success('Đã đăng xuất');
   };
+
+  // Check session expiration every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (user && !validateSession()) {
+        logout();
+        toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, [user]);
 
   useEffect(() => {
     checkAuth();

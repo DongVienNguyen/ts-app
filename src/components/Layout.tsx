@@ -51,6 +51,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setIsSidebarOpen(false);
   }, [location.pathname]);
 
+  // Prevent body scroll when sidebar is open
+  useEffect(() => {
+    if (isSidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isSidebarOpen]);
+
   if (!user) {
     return null;
   }
@@ -211,11 +224,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </nav>
 
-      {/* Mobile Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out lg:hidden ${
+      {/* Mobile Sidebar - Fixed positioning with proper z-index */}
+      <div className={`fixed inset-y-0 left-0 z-[60] w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out lg:hidden ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 bg-white">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
               <Package className="h-5 w-5 text-white" />
@@ -226,13 +239,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             variant="ghost"
             size="sm"
             onClick={() => setIsSidebarOpen(false)}
-            className="text-gray-500 hover:bg-gray-100"
+            className="text-gray-500 hover:bg-gray-100 p-2"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <nav className="mt-4 px-2">
+        <nav className="mt-4 px-2 bg-white h-full overflow-y-auto">
           <div className="space-y-1">
             {visibleItems.map((item) => {
               const isActive = location.pathname === item.href;
@@ -240,9 +253,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Link
                   key={item.href}
                   to={item.href}
-                  className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  className={`group flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                     isActive
-                      ? 'bg-green-100 text-green-700'
+                      ? 'bg-green-100 text-green-700 border-r-2 border-green-600'
                       : 'text-gray-600 hover:bg-green-50 hover:text-green-700'
                   }`}
                   onClick={() => setIsSidebarOpen(false)}
@@ -256,10 +269,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
       </div>
 
-      {/* Mobile Overlay */}
+      {/* Mobile Overlay - Lower z-index than sidebar */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-[55] lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

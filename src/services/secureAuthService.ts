@@ -83,19 +83,35 @@ export async function checkAccountStatus(username: string): Promise<{
   try {
     const cleanUsername = sanitizeInput(username);
     
-    const { data, error } = await supabase.functions.invoke('check-account-status', {
-      body: { username: cleanUsername }
-    });
+    // Check account status directly from database
+    const { data, error } = await supabase
+      .from('staff')
+      .select('account_status, failed_login_attempts, locked_at, last_failed_login')
+      .eq('username', cleanUsername)
+      .single();
 
     if (error) {
       console.error('Error checking account status:', error);
       return { isLocked: false, failedAttempts: 0, error: error.message };
     }
 
+    if (!data) {
+      return { isLocked: false, failedAttempts: 0, error: 'User not found' };
+    }
+
+    const isLocked = data.account_status === 'locked';
+    const failedAttempts = data.failed_login_attempts || 0;
+    let canRetryAt: Date | undefined;
+
+    if (isLocked && data.locked_at) {
+      // Account can be retried after 24 hours
+      canRetryAt = new Date(new Date(data.locked_at).getTime() + 24 * 60 * 60 * 1000);
+    }
+
     return {
-      isLocked: data.isLocked || false,
-      failedAttempts: data.failedAttempts || 0,
-      canRetryAt: data.canRetryAt ? new Date(data.canRetryAt) : undefined
+      isLocked,
+      failedAttempts,
+      canRetryAt
     };
   } catch (error) {
     console.error('Account status check error:', error);
@@ -224,8 +240,28 @@ export function validateSession(): boolean {
   try {
     const token = localStorage.getItem('auth_token');
     const user = localStorage.getItem('auth_user');
+    const loginTime = localStorage.getItem('auth_login_time');
     
-    if (!token || !user) {
+    if (!token || !user || !loginTime) {
+      return false;
+    }
+
+    // Check if session is older than 7 days
+    const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+    const loginTimestamp = parseInt(loginTime);
+    const now = Date.now();
+    
+    if (now - loginTimestamp > sevenDaysInMs) {
+      logSecurityEvent('SESSION_EXPIRED', { 
+        loginTime: new Date(loginTimestamp).toISOString(),
+        expiredAt: new Date(now).toISOString()
+      });
+      
+      // Clear expired session
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_login_time');
+      
       return false;
     }
 
