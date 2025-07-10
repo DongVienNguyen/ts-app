@@ -1,170 +1,147 @@
 import { supabase } from '@/integrations/supabase/client';
-import { captureError, measurePerformance, updateSystemStatus } from '@/utils/errorTracking';
+import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
 
-// Send push notification
-export const sendPushNotification = measurePerformance('sendPushNotification', async (username: string, payload: any) => {
-  try {
-    const { data, error } = await supabase.functions.invoke('send-push-notification', {
-      body: { username, payload }
-    });
+export class NotificationService {
+  private static instance: NotificationService;
 
-    if (error) throw error;
-    return { success: true, data };
-  } catch (error) {
-    captureError(error as Error, {
-      functionName: 'sendPushNotification',
-      severity: 'high',
-      error_data: { username, payload }
-    });
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  static getInstance(): NotificationService {
+    if (!NotificationService.instance) {
+      NotificationService.instance = new NotificationService();
+    }
+    return NotificationService.instance;
   }
-});
-
-interface NotificationService {
-  sendPushNotification: (notificationData: any) => Promise<any>;
-  createNotification: (notification: any) => Promise<any>;
-  getUserNotifications: (username: string) => Promise<any>;
-  markNotificationAsRead: (notificationId: string) => Promise<any>;
-  testPushNotificationService: () => Promise<any>;
-}
-
-export const notificationService: NotificationService = {
-  // Send push notification with error tracking
-  sendPushNotification: measurePerformance('sendPushNotification', async (notificationData: any) => {
-    try {
-      // Update push notification service status
-      await updateSystemStatus({
-        service_name: 'push_notification',
-        status: 'online',
-        uptime_percentage: 100
-      });
-
-      const { data, error } = await supabase.functions.invoke('send-push-notification', {
-        body: notificationData
-      });
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      // Update service status to degraded
-      await updateSystemStatus({
-        service_name: 'push_notification',
-        status: 'degraded',
-        uptime_percentage: 75,
-        status_data: { error: error instanceof Error ? error.message : 'Unknown error' }
-      });
-
-      captureError(error as Error, {
-        functionName: 'sendPushNotification',
-        severity: 'high',
-        error_data: { notificationData }
-      });
-      throw error;
-    }
-  }),
-
-  // Create in-app notification with error tracking
-  createNotification: measurePerformance('createNotification', async (notification: any) => {
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .insert(notification)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      captureError(error as Error, {
-        functionName: 'createNotification',
-        severity: 'medium',
-        error_data: { notification }
-      });
-      throw error;
-    }
-  }),
-
-  // Get user notifications with error tracking
-  getUserNotifications: measurePerformance('getUserNotifications', async (username: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('recipient_username', username)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      captureError(error as Error, {
-        functionName: 'getUserNotifications',
-        severity: 'medium',
-        error_data: { username }
-      });
-      throw error;
-    }
-  }),
-
-  // Mark notification as read with error tracking
-  markNotificationAsRead: measurePerformance('markNotificationAsRead', async (notificationId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      captureError(error as Error, {
-        functionName: 'markNotificationAsRead',
-        severity: 'low',
-        error_data: { notificationId }
-      });
-      throw error;
-    }
-  }),
 
   // Test push notification service
-  testPushNotificationService: measurePerformance('testPushNotificationService', async (): Promise<any> => {
+  async testPushNotificationService() {
+    const startTime = performance.now();
+    
     try {
-      // Test by sending a test notification
-      const testData = {
-        title: 'Test Notification',
-        message: 'This is a test notification',
-        username: 'system_test'
-      };
+      // Test with a simple payload to check if the service is available
+      const { data, error } = await supabase.functions.invoke('send-push-notification', {
+        body: { 
+          username: 'test_user', 
+          payload: { 
+            title: 'Health Check', 
+            body: 'Testing push notification service' 
+          } 
+        }
+      });
 
-      const result: any = await notificationService.sendPushNotification(testData);
+      const responseTime = Math.round(performance.now() - startTime);
+
+      // Even if no subscriptions found, service is working
+      const isWorking = !error || (error && data?.message?.includes('No push subscriptions'));
 
       await updateSystemStatus({
         service_name: 'push_notification',
-        status: 'online',
-        uptime_percentage: 100,
-        status_data: { lastTest: new Date().toISOString(), result: 'success' }
+        status: isWorking ? 'online' : 'offline',
+        response_time_ms: responseTime,
+        uptime_percentage: isWorking ? 100 : 0,
+        status_data: {
+          lastCheck: new Date().toISOString(),
+          responseTime,
+          result: isWorking ? 'success' : 'failed',
+          error: error?.message || null
+        }
       });
 
-      return result;
+      // Log performance metric
+      await logSystemMetric({
+        metric_type: 'performance',
+        metric_name: 'push_notification_response_time',
+        metric_value: responseTime,
+        metric_unit: 'ms'
+      });
+
+      console.log('✅ Push notification service health check completed');
+
     } catch (error) {
+      const responseTime = Math.round(performance.now() - startTime);
+      
       await updateSystemStatus({
         service_name: 'push_notification',
         status: 'offline',
+        response_time_ms: responseTime,
         uptime_percentage: 0,
-        status_data: { 
-          lastTest: new Date().toISOString(), 
+        status_data: {
+          lastCheck: new Date().toISOString(),
           result: 'failed',
           error: error instanceof Error ? error.message : 'Unknown error'
         }
       });
 
-      captureError(error as Error, {
-        functionName: 'testPushNotificationService',
-        severity: 'critical'
-      });
+      console.error('❌ Push notification service health check failed:', error);
       throw error;
     }
-  })
-};
+  }
+
+  // Send push notification to user
+  async sendPushNotification(username: string, payload: any) {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-push-notification', {
+        body: { username, payload }
+      });
+
+      if (error) {
+        console.error('Push notification error:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log('✅ Push notification sent successfully:', data);
+      return { success: true, data };
+
+    } catch (error) {
+      console.error('❌ Failed to send push notification:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  // Subscribe to push notifications
+  async subscribeToPushNotifications(username: string, subscription: PushSubscription) {
+    try {
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert({
+          username,
+          subscription: subscription.toJSON()
+        });
+
+      if (error) throw error;
+
+      console.log('✅ Push subscription saved successfully');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ Failed to save push subscription:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  // Unsubscribe from push notifications
+  async unsubscribeFromPushNotifications(username: string, endpoint: string) {
+    try {
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('username', username)
+        .eq('subscription->>endpoint', endpoint);
+
+      if (error) throw error;
+
+      console.log('✅ Push subscription removed successfully');
+      return { success: true };
+
+    } catch (error) {
+      console.error('❌ Failed to remove push subscription:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+}
+
+// Export singleton instance
+export const notificationService = NotificationService.getInstance();
+
+// Export missing function
+export async function sendPushNotification(username: string, payload: any) {
+  return notificationService.sendPushNotification(username, payload);
+}

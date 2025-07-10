@@ -1,4 +1,4 @@
-import { safeDbOperation } from '@/utils/supabaseAuth';
+import { getAuthenticatedClient } from '@/integrations/supabase/client';
 
 interface UserSession {
   id?: string;
@@ -78,6 +78,12 @@ async function getClientIP(): Promise<string | null> {
 // Get average session duration
 export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'month' | 'quarter' | 'year'): Promise<number> {
   try {
+    const client = getAuthenticatedClient();
+    if (!client) {
+      console.warn('⚠️ Cannot get session duration: not authenticated');
+      return 0;
+    }
+
     const now = new Date();
     let startDate: Date;
 
@@ -99,16 +105,13 @@ export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'mon
         break;
     }
 
-    const sessions = await safeDbOperation(async (client) => {
-      const { data, error } = await client
-        .from('user_sessions')
-        .select('duration_minutes')
-        .gte('session_start', startDate.toISOString())
-        .not('duration_minutes', 'is', null);
+    const { data: sessions, error } = await client
+      .from('user_sessions')
+      .select('duration_minutes')
+      .gte('session_start', startDate.toISOString())
+      .not('duration_minutes', 'is', null);
 
-      if (error) throw error;
-      return data;
-    });
+    if (error) throw error;
 
     if (!sessions || sessions.length === 0) {
       return 0;
@@ -125,6 +128,23 @@ export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'mon
 // Start user session
 export async function startUserSession(username: string): Promise<void> {
   try {
+    // Wait a bit for authentication to be fully set up
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    const client = getAuthenticatedClient();
+    if (!client) {
+      console.warn('⚠️ Could not start user session - not authenticated');
+      // Create a local session if database fails
+      currentSession = {
+        username,
+        session_start: new Date().toISOString(),
+        pages_visited: 0,
+        actions_performed: 0,
+        ...getDeviceInfo()
+      };
+      return;
+    }
+
     sessionStartTime = Date.now();
     const deviceInfo = getDeviceInfo();
     const ipAddress = await getClientIP();
@@ -146,24 +166,17 @@ export async function startUserSession(username: string): Promise<void> {
       }
     };
 
-    // Use authenticated client instead of system operations for user sessions
-    const result = await safeDbOperation(async (client) => {
-      const { data, error } = await client
-        .from('user_sessions')
-        .insert(sessionData)
-        .select()
-        .single();
+    const { data, error } = await client
+      .from('user_sessions')
+      .insert(sessionData)
+      .select()
+      .single();
 
-      if (error) throw error;
-      return data;
-    });
+    if (error) throw error;
 
-    if (result) {
-      currentSession = result;
-      console.log('✅ User session started successfully');
-    } else {
-      console.warn('⚠️ Could not start user session - not authenticated');
-    }
+    currentSession = data;
+    console.log('✅ User session started successfully');
+
   } catch (error) {
     console.error('❌ Failed to start user session:', error);
     // Create a local session if database fails
@@ -182,6 +195,12 @@ export async function endUserSession(): Promise<void> {
   if (!currentSession) return;
 
   try {
+    const client = getAuthenticatedClient();
+    if (!client || !currentSession.id) {
+      console.warn('⚠️ Cannot end user session - not authenticated or no session ID');
+      return;
+    }
+
     const sessionEnd = new Date().toISOString();
     const durationMinutes = Math.round((Date.now() - sessionStartTime) / 60000);
 
@@ -197,16 +216,12 @@ export async function endUserSession(): Promise<void> {
       }
     };
 
-    if (currentSession.id) {
-      await safeDbOperation(async (client) => {
-        const { error } = await client
-          .from('user_sessions')
-          .update(updateData)
-          .eq('id', currentSession!.id);
+    const { error } = await client
+      .from('user_sessions')
+      .update(updateData)
+      .eq('id', currentSession.id);
 
-        if (error) throw error;
-      });
-    }
+    if (error) throw error;
 
     console.log('✅ User session ended successfully');
   } catch (error) {
@@ -267,6 +282,12 @@ export async function updateSession(): Promise<void> {
   if (!currentSession?.id) return;
 
   try {
+    const client = getAuthenticatedClient();
+    if (!client) {
+      console.warn('⚠️ Cannot update session - not authenticated');
+      return;
+    }
+
     const updateData = {
       pages_visited: pageViews.length,
       actions_performed: userActions.length,
@@ -278,14 +299,12 @@ export async function updateSession(): Promise<void> {
       }
     };
 
-    await safeDbOperation(async (client) => {
-      const { error } = await client
-        .from('user_sessions')
-        .update(updateData)
-        .eq('id', currentSession!.id);
+    const { error } = await client
+      .from('user_sessions')
+      .update(updateData)
+      .eq('id', currentSession.id);
 
-      if (error) throw error;
-    });
+    if (error) throw error;
   } catch (error) {
     console.error('❌ Failed to update session:', error);
   }

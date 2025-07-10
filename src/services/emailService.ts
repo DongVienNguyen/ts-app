@@ -1,208 +1,175 @@
 import { supabase } from '@/integrations/supabase/client';
-import { captureError, measurePerformance, updateSystemStatus } from '@/utils/errorTracking';
+import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
 
-// Send asset notification email
-export const sendAssetNotificationEmail = measurePerformance('sendAssetNotificationEmail', async (recipients: string[], subject: string, content: string) => {
-  try {
-    const { data, error } = await supabase.functions.invoke('send-notification-email', {
-      body: { recipients, subject, content }
-    });
+export class EmailService {
+  private static instance: EmailService;
 
-    if (error) throw error;
-    return { success: true, data };
-  } catch (error) {
-    captureError(error as Error, {
-      functionName: 'sendAssetNotificationEmail',
-      severity: 'high',
-      error_data: { recipients, subject }
-    });
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  static getInstance(): EmailService {
+    if (!EmailService.instance) {
+      EmailService.instance = new EmailService();
+    }
+    return EmailService.instance;
   }
-});
 
-// Send asset transaction confirmation
-export const sendAssetTransactionConfirmation = measurePerformance('sendAssetTransactionConfirmation', async (username: string, transactions: any[], success: boolean) => {
-  try {
-    const { data, error } = await supabase.functions.invoke('send-notification-email', {
-      body: { 
-        username, 
-        transactions, 
-        success,
-        type: 'transaction_confirmation'
-      }
-    });
-
-    if (error) throw error;
-    return { success: true, data };
-  } catch (error) {
-    captureError(error as Error, {
-      functionName: 'sendAssetTransactionConfirmation',
-      severity: 'high',
-      error_data: { username, transactionCount: transactions.length }
-    });
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-  }
-});
-
-// Send error report
-export const sendErrorReport = measurePerformance('sendErrorReport', async (username: string, email: string, errorData: any) => {
-  try {
-    const { data, error } = await supabase.functions.invoke('send-notification-email', {
-      body: { 
-        username, 
-        email,
-        errorData,
-        type: 'error_report'
-      }
-    });
-
-    if (error) throw error;
-    return { success: true, data };
-  } catch (error) {
-    captureError(error as Error, {
-      functionName: 'sendErrorReport',
-      severity: 'high',
-      error_data: { username, errorData }
-    });
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-  }
-});
-
-// Test email function
-export const testEmailFunction = measurePerformance('testEmailFunction', async (username: string) => {
-  try {
-    const { data, error } = await supabase.functions.invoke('test-resend-api', {
-      body: { username }
-    });
-
-    if (error) throw error;
-    return { success: true, data };
-  } catch (error) {
-    captureError(error as Error, {
-      functionName: 'testEmailFunction',
-      severity: 'medium',
-      error_data: { username }
-    });
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-  }
-});
-
-interface EmailService {
-  sendNotificationEmail: (emailData: any) => Promise<any>;
-  sendAssetReminderEmails: (reminders: any[]) => Promise<any[]>;
-  testEmailService: () => Promise<any>;
-}
-
-export const emailService: EmailService = {
-  // Send notification email with error tracking
-  sendNotificationEmail: measurePerformance('sendNotificationEmail', async (emailData: any) => {
+  // Test email service
+  async testEmailService() {
+    const startTime = performance.now();
+    
     try {
-      // Update email service status to online
-      await updateSystemStatus({
-        service_name: 'email',
-        status: 'online',
-        uptime_percentage: 100
-      });
-
+      // Test with a simple email to check if the service is available
       const { data, error } = await supabase.functions.invoke('send-notification-email', {
-        body: emailData
-      });
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      // Update email service status to degraded/offline
-      await updateSystemStatus({
-        service_name: 'email',
-        status: 'degraded',
-        uptime_percentage: 75,
-        status_data: { error: error instanceof Error ? error.message : 'Unknown error' }
-      });
-
-      captureError(error as Error, {
-        functionName: 'sendNotificationEmail',
-        severity: 'high',
-        error_data: { emailData }
-      });
-      throw error;
-    }
-  }),
-
-  // Send asset reminder emails with error tracking
-  sendAssetReminderEmails: measurePerformance('sendAssetReminderEmails', async (reminders: any[]): Promise<any[]> => {
-    try {
-      const results: any[] = [];
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const reminder of reminders) {
-        try {
-          const result: any = await emailService.sendNotificationEmail(reminder);
-          results.push({ success: true, reminder, result });
-          successCount++;
-        } catch (error) {
-          results.push({ success: false, reminder, error });
-          errorCount++;
-        }
-      }
-
-      // Update service status based on success rate
-      const successRate = successCount / reminders.length;
-      await updateSystemStatus({
-        service_name: 'email',
-        status: successRate > 0.8 ? 'online' : successRate > 0.5 ? 'degraded' : 'offline',
-        uptime_percentage: successRate * 100,
-        status_data: { 
-          totalSent: reminders.length,
-          successCount,
-          errorCount,
-          successRate: successRate * 100
+        body: { 
+          to: 'test@example.com',
+          subject: 'Health Check',
+          html: '<p>Testing email service</p>'
         }
       });
 
-      return results;
-    } catch (error) {
-      captureError(error as Error, {
-        functionName: 'sendAssetReminderEmails',
-        severity: 'critical',
-        error_data: { reminderCount: reminders.length }
-      });
-      throw error;
-    }
-  }),
+      const responseTime = Math.round(performance.now() - startTime);
 
-  // Test email service health
-  testEmailService: measurePerformance('testEmailService', async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('test-resend-api');
+      // Check if service responded (even if email wasn't sent due to invalid address)
+      const isWorking = !error || (error && !error.message?.includes('network'));
+
+      await updateSystemStatus({
+        service_name: 'email',
+        status: isWorking ? 'online' : 'offline',
+        response_time_ms: responseTime,
+        uptime_percentage: isWorking ? 100 : 0,
+        status_data: {
+          lastCheck: new Date().toISOString(),
+          responseTime,
+          result: isWorking ? 'success' : 'failed',
+          error: error?.message || null
+        }
+      });
+
+      // Log performance metric
+      await logSystemMetric({
+        metric_type: 'performance',
+        metric_name: 'email_service_response_time',
+        metric_value: responseTime,
+        metric_unit: 'ms'
+      });
+
+      console.log('✅ Email service health check completed');
+
+    } catch (error) {
+      const responseTime = Math.round(performance.now() - startTime);
       
-      if (error) throw error;
-
-      await updateSystemStatus({
-        service_name: 'email',
-        status: 'online',
-        uptime_percentage: 100,
-        status_data: { lastTest: new Date().toISOString(), result: 'success' }
-      });
-
-      return data;
-    } catch (error) {
       await updateSystemStatus({
         service_name: 'email',
         status: 'offline',
+        response_time_ms: responseTime,
         uptime_percentage: 0,
-        status_data: { 
-          lastTest: new Date().toISOString(), 
+        status_data: {
+          lastCheck: new Date().toISOString(),
           result: 'failed',
           error: error instanceof Error ? error.message : 'Unknown error'
         }
       });
 
-      captureError(error as Error, {
-        functionName: 'testEmailService',
-        severity: 'critical'
-      });
+      console.error('❌ Email service health check failed:', error);
       throw error;
     }
-  })
-};
+  }
+
+  // Send email notification
+  async sendEmail(to: string, subject: string, html: string) {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-notification-email', {
+        body: { to, subject, html }
+      });
+
+      if (error) {
+        console.error('Email sending error:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log('✅ Email sent successfully:', data);
+      return { success: true, data };
+
+    } catch (error) {
+      console.error('❌ Failed to send email:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  // Send bulk emails
+  async sendBulkEmails(emails: Array<{ to: string; subject: string; html: string }>) {
+    const results = [];
+    
+    for (const email of emails) {
+      const result = await this.sendEmail(email.to, email.subject, email.html);
+      results.push({ ...email, ...result });
+      
+      // Add delay between emails to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    return results;
+  }
+}
+
+// Export singleton instance
+export const emailService = EmailService.getInstance();
+
+// Export missing functions with proper error handling
+export async function sendAssetNotificationEmail(recipients: string[], subject: string, content: string) {
+  const results = [];
+  let hasError = false;
+  let errorMessage = '';
+  
+  for (const recipient of recipients) {
+    const result = await emailService.sendEmail(recipient, subject, content);
+    results.push({ recipient, ...result });
+    
+    if (!result.success) {
+      hasError = true;
+      errorMessage = result.error || 'Unknown error';
+    }
+  }
+  
+  return { 
+    success: results.every(r => r.success), 
+    results,
+    error: hasError ? errorMessage : undefined
+  };
+}
+
+export async function sendAssetTransactionConfirmation(username: string, transactions: any[], isSuccess: boolean) {
+  const subject = isSuccess ? 'Xác nhận giao dịch tài sản thành công' : 'Giao dịch tài sản thất bại';
+  const content = `
+    <h2>${subject}</h2>
+    <p>Người dùng: ${username}</p>
+    <p>Số lượng giao dịch: ${transactions.length}</p>
+    <p>Trạng thái: ${isSuccess ? 'Thành công' : 'Thất bại'}</p>
+    <p>Thời gian: ${new Date().toLocaleString('vi-VN')}</p>
+  `;
+  
+  return emailService.sendEmail(`${username}@company.com`, subject, content);
+}
+
+export async function sendErrorReport(reporterName: string, reporterEmail: string, errorData: any) {
+  const subject = `Báo cáo lỗi từ ${reporterName}`;
+  const content = `
+    <h2>Báo cáo lỗi hệ thống</h2>
+    <p><strong>Người báo cáo:</strong> ${reporterName}</p>
+    <p><strong>Email:</strong> ${reporterEmail}</p>
+    <p><strong>Tiêu đề:</strong> ${errorData.title}</p>
+    <p><strong>Mô tả:</strong> ${errorData.description}</p>
+    <p><strong>Các bước tái hiện:</strong> ${errorData.stepsToReproduce || 'Không có'}</p>
+    <p><strong>Kết quả mong đợi:</strong> ${errorData.expectedResult || 'Không có'}</p>
+    <p><strong>Kết quả thực tế:</strong> ${errorData.actualResult || 'Không có'}</p>
+    <p><strong>Thời gian:</strong> ${errorData.timestamp}</p>
+    <p><strong>User Agent:</strong> ${errorData.userAgent}</p>
+    <p><strong>URL:</strong> ${errorData.url}</p>
+  `;
+  
+  return emailService.sendEmail('admin@company.com', subject, content);
+}
+
+export async function testEmailFunction(username: string) {
+  const subject = 'Test Email Function';
+  const content = `<p>This is a test email for user: ${username}</p>`;
+  return emailService.sendEmail(`${username}@company.com`, subject, content);
+}

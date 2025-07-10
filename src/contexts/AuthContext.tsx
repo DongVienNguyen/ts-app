@@ -31,7 +31,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setupGlobalErrorHandling();
 
     // Check for existing session on app start
-    const checkExistingSession = () => {
+    const checkExistingSession = async () => {
       try {
         const storedUser = localStorage.getItem('auth_user');
         const storedToken = localStorage.getItem('auth_token');
@@ -44,10 +44,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setSupabaseAuth(storedToken, userData.username);
           setAuthentication(storedToken, userData.username);
           
-          // Setup usage tracking for restored session (after auth is set)
-          setTimeout(() => {
-            setupUsageTracking(userData.username);
-          }, 100);
+          // Wait for authentication to be fully set up before starting tracking
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          // Setup usage tracking for restored session
+          setupUsageTracking(userData.username);
           
           // Start health monitoring for authenticated user
           healthCheckService.onUserLogin();
@@ -151,10 +152,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setSupabaseAuth(result.token, result.user.username);
         setAuthentication(result.token, result.user.username);
         
-        // Setup usage tracking for new session (after auth is set)
-        setTimeout(() => {
-          setupUsageTracking(result.user.username);
-        }, 100);
+        // Wait for authentication to be fully set up before starting tracking
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Setup usage tracking for new session
+        setupUsageTracking(result.user.username);
         
         // Start health monitoring for authenticated user
         healthCheckService.onUserLogin();
