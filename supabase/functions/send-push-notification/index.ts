@@ -1,15 +1,21 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import webpush from 'npm:web-push@3.6.7';
 
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-system-operation',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 // Configure web-push with VAPID keys
-// IMPORTANT: These keys should be generated once and stored securely.
-// For now, we'll use environment variables. You'll need to set these in Supabase secrets.
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY') ?? '';
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@example.com';
@@ -18,7 +24,7 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -63,9 +69,9 @@ serve(async (req) => {
     }
 
     const notificationPayload = JSON.stringify(payload);
-    const sendPromises = subscriptions.map(s => 
+    const sendPromises = subscriptions.map((s: any) => 
       webpush.sendNotification(s.subscription, notificationPayload)
-        .catch(async (err) => {
+        .catch(async (err: any) => {
           // If a subscription is no longer valid, remove it from the database
           if (err.statusCode === 410) {
             console.log('Subscription expired or invalid, removing from DB:', s.subscription.endpoint);
@@ -86,7 +92,7 @@ serve(async (req) => {
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending push notification:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,

@@ -12,8 +12,6 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 // Create service role client for system operations (bypasses RLS)
-// Note: In a real production environment, this should use the actual service role key
-// For now, we'll create a client that can handle system operations
 const createServiceRoleClient = () => {
   // Try to get service role key from environment
   const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
@@ -32,8 +30,8 @@ const createServiceRoleClient = () => {
       }
     });
   } else {
-    console.warn('⚠️ Service role key not found, using anon key with elevated permissions');
-    // Fallback to anon key but with special headers for system operations
+    console.warn('⚠️ Service role key not found, using anon key for system operations');
+    // Fallback to anon key without custom headers to avoid CORS issues
     return createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: false,
@@ -41,8 +39,7 @@ const createServiceRoleClient = () => {
       },
       global: {
         headers: {
-          'Content-Type': 'application/json',
-          'X-System-Operation': 'true' // Custom header to identify system operations
+          'Content-Type': 'application/json'
         }
       }
     });

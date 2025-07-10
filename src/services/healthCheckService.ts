@@ -136,22 +136,20 @@ export class HealthCheckService {
     }
   }
 
-  // Check API health
+  // Check API health - simplified to avoid CORS issues
   private async checkAPIHealth() {
     const startTime = performance.now();
     
     try {
-      // Test API connectivity by calling a simple function using system operation
+      // Simple database query instead of edge function call to avoid CORS
       const result = await systemDbOperation(async (client) => {
-        try {
-          await client.functions.invoke('check-account-status', {
-            body: { test: true }
-          });
-          return true;
-        } catch (error) {
-          // API might return error for test data, but if we get a response, it's working
-          return true;
-        }
+        const { error } = await client
+          .from('staff')
+          .select('count')
+          .limit(1);
+
+        if (error) throw error;
+        return true;
       });
 
       const responseTime = Math.round(performance.now() - startTime);

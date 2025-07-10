@@ -6,6 +6,7 @@ import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
 import { setupGlobalErrorHandling, captureError } from '@/utils/errorTracking';
 import { setupUsageTracking, endUserSession } from '@/utils/usageTracking';
 import { setSupabaseAuth, clearSupabaseAuth } from '@/integrations/supabase/client';
+import { setAuthentication, clearAuthentication } from '@/utils/supabaseAuth';
 import { healthCheckService } from '@/services/healthCheckService';
 
 interface AuthContextType {
@@ -39,11 +40,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const userData = JSON.parse(storedUser);
           setUser(userData);
           
-          // Set Supabase auth for RLS policies
+          // Set authentication in both clients
           setSupabaseAuth(storedToken, userData.username);
+          setAuthentication(storedToken, userData.username);
           
-          // Setup usage tracking for restored session
-          setupUsageTracking(userData.username);
+          // Setup usage tracking for restored session (after auth is set)
+          setTimeout(() => {
+            setupUsageTracking(userData.username);
+          }, 100);
           
           // Start health monitoring for authenticated user
           healthCheckService.onUserLogin();
@@ -63,6 +67,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.removeItem('auth_user');
         localStorage.removeItem('auth_token');
         clearSupabaseAuth();
+        clearAuthentication();
         logSecurityEventRealTime('SESSION_RESTORE_FAILED', { error: error instanceof Error ? error.message : 'Unknown error' });
       } finally {
         setLoading(false);
@@ -142,11 +147,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.setItem('auth_user', JSON.stringify(result.user));
         localStorage.setItem('auth_token', result.token);
         
-        // Set Supabase auth for RLS policies
+        // Set authentication in both clients
         setSupabaseAuth(result.token, result.user.username);
+        setAuthentication(result.token, result.user.username);
         
-        // Setup usage tracking for new session
-        setupUsageTracking(result.user.username);
+        // Setup usage tracking for new session (after auth is set)
+        setTimeout(() => {
+          setupUsageTracking(result.user.username);
+        }, 100);
         
         // Start health monitoring for authenticated user
         healthCheckService.onUserLogin();
@@ -208,8 +216,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_token');
     
-    // Clear Supabase auth
+    // Clear authentication in both clients
     clearSupabaseAuth();
+    clearAuthentication();
     
     // Clear any other user-specific data
     localStorage.removeItem('user_preferences');
