@@ -218,7 +218,22 @@ const AssetReminders = () => {
             <Button onClick={handleSendAllReminders} className="bg-green-600 hover:bg-green-700" disabled={isLoading}>Gửi email</Button>
           </CardHeader>
           <CardContent>
-            <AssetReminderTable filteredReminders={filteredReminders} isLoading={isLoading} onEdit={handleEdit} onDelete={handleDelete} onSendSingle={handleSendSingleReminder} isDayMonthDueOrOverdue={isDateDueOrOverdue} />
+            <div className="mb-4">
+              <Input
+                placeholder="Tìm kiếm nhắc nhở..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            <AssetReminderTable 
+              filteredReminders={filteredReminders} 
+              isLoading={isLoading} 
+              onEdit={handleEdit} 
+              onDelete={handleDelete} 
+              onSendSingle={handleSendSingleReminder} 
+              isDayMonthDueOrOverdue={isDateDueOrOverdue} 
+            />
           </CardContent>
         </Card>
 

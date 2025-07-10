@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Plus, Download, Upload, Trash2, Edit, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -13,7 +12,6 @@ import { entityConfig } from '@/config/entityConfig';
 interface DataManagementTabProps {
   selectedEntity: string;
   onEntityChange: (entity: string) => void;
-  data: any[];
   isLoading: boolean;
   searchTerm: string;
   onSearchChange: (term: string) => void;
@@ -40,7 +38,6 @@ interface DataManagementTabProps {
 export const DataManagementTab = ({
   selectedEntity,
   onEntityChange,
-  data,
   isLoading,
   searchTerm,
   onSearchChange,

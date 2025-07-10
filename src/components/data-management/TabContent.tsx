@@ -16,7 +16,6 @@ interface TabContentProps {
   // Data Management props
   selectedEntity: string;
   onEntityChange: (entity: string) => void;
-  data: any[];
   isLoading: boolean;
   searchTerm: string;
   onSearchChange: (term: string) => void;
@@ -47,7 +46,6 @@ export const TabContent = ({
   activeTab,
   selectedEntity,
   onEntityChange,
-  data,
   isLoading,
   searchTerm,
   onSearchChange,
@@ -79,7 +77,6 @@ export const TabContent = ({
           <DataManagementTab
             selectedEntity={selectedEntity}
             onEntityChange={onEntityChange}
-            data={data}
             isLoading={isLoading}
             searchTerm={searchTerm}
             onSearchChange={onSearchChange}

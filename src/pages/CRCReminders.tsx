@@ -276,6 +276,14 @@ const CRCReminders = () => {
             <Button onClick={sendReminders} className="bg-green-600 hover:bg-green-700" disabled={isLoading}>Gửi tất cả</Button>
           </CardHeader>
           <CardContent>
+            <div className="mb-4">
+              <Input
+                placeholder="Tìm kiếm nhắc nhở CRC..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
             <CRCReminderTable filteredReminders={filteredReminders} isLoading={isLoading} isDayMonthDueOrOverdue={isDayMonthDueOrOverdue} onSendSingleReminder={sendSingleReminder} onEdit={handleEdit} onDelete={handleDelete} />
           </CardContent>
         </Card>

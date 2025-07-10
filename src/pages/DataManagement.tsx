@@ -1,7 +1,6 @@
 import { Settings, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Layout from '@/components/Layout';
-import { useNavigate } from 'react-router-dom';
 import { TabNavigation } from '@/components/data-management/TabNavigation';
 import { TabContent } from '@/components/data-management/TabContent';
 import { EditDialog } from '@/components/data-management/EditDialog';
@@ -9,7 +8,6 @@ import { entityConfig } from '@/config/entityConfig';
 import { useDataManagement } from '@/hooks/useDataManagement';
 
 const DataManagement = () => {
-  const navigate = useNavigate();
   const {
     // State
     selectedEntity,
@@ -91,7 +89,6 @@ const DataManagement = () => {
             activeTab={activeTab}
             selectedEntity={selectedEntity}
             onEntityChange={setSelectedEntity}
-            data={data}
             isLoading={isLoading}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
