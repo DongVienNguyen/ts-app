@@ -147,11 +147,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation Bar */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      {/* Top Navigation Bar - Always light theme */}
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white ${
         isScrolled 
-          ? 'bg-white shadow-lg border-b border-gray-200' 
-          : 'bg-white shadow-sm border-b border-gray-100'
+          ? 'shadow-lg border-b border-gray-200' 
+          : 'shadow-sm border-b border-gray-100'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -168,8 +168,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-80 p-0">
-                  <SheetHeader className="px-4 py-4 border-b border-gray-200">
+                <SheetContent side="left" className="w-80 p-0 bg-white">
+                  <SheetHeader className="px-4 py-4 border-b border-gray-200 bg-white">
                     <SheetTitle className="flex items-center space-x-2 text-left">
                       <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
                         <Package className="h-5 w-5 text-white" />
@@ -179,7 +179,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </SheetHeader>
                   
                   {/* Navigation Links */}
-                  <nav className="flex-1 px-2 py-4 overflow-y-auto">
+                  <nav className="flex-1 px-2 py-4 overflow-y-auto bg-white">
                     <div className="space-y-1">
                       {visibleItems.map((item) => {
                         const isActive = location.pathname === item.href;
@@ -261,7 +261,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               })}
             </div>
 
-            {/* Right: Notifications & User */}
+            {/* Right: Notifications & User - No theme toggle */}
             <div className="flex items-center space-x-3">
               <NotificationBell />
               
@@ -314,7 +314,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </nav>
 
-      {/* Main Content */}
+      {/* Main Content - Always light theme */}
       <main className="pt-16 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}

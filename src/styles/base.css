@@ -26,27 +26,8 @@
     --radius: 0.5rem;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 142.1 76.2% 36.3%;
-  }
+  /* Remove all dark theme variables - only light theme exists */
+  /* No .dark selector needed */
 }
 
 @layer base {
@@ -55,6 +36,18 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  
+  /* Ensure no dark theme can be applied */
+  html, body {
+    background-color: white !important;
+    color: #111827 !important;
+  }
+  
+  /* Override any potential dark theme classes */
+  .dark, [data-theme="dark"] {
+    background-color: white !important;
+    color: #111827 !important;
   }
 }
 
@@ -65,17 +58,17 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-muted;
+  background-color: #f3f4f6;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-primary;
+  background-color: #10b981;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-primary/80;
+  background-color: #059669;
 }
 
 /* Custom animations */

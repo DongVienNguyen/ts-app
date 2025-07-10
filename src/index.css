@@ -1,168 +1,30 @@
-/* Import all modular CSS files */
 @import './styles/base.css';
-@import './styles/responsive.css';
-@import './styles/mobile.css';
-@import './styles/animations.css';
-@import './styles/components.css';
-@import './styles/accessibility.css';
-@import './styles/utilities.css';
 
-/* Custom TS Manager specific styles */
-@layer components {
-  /* TS Manager branding */
-  .ts-brand {
-    @apply bg-gradient-green text-white;
-  }
-  
-  .ts-brand-text {
-    @apply text-gradient-green font-bold;
-  }
-  
-  /* TS Manager specific components */
-  .ts-header {
-    @apply header-mobile ts-brand shadow-lg;
-  }
-  
-  .ts-card {
-    @apply card hover-lift transition-all duration-200;
-  }
-  
-  .ts-button {
-    @apply btn-primary hover-scale active-scale;
-  }
-  
-  .ts-input {
-    @apply form-input input-mobile;
-  }
-  
-  .ts-notification {
-    @apply notification-mobile animate-slide-in-down;
-  }
-  
-  /* Asset management specific styles */
-  .asset-card {
-    @apply ts-card p-4 border-l-4 border-l-green-500;
-  }
-  
-  .asset-status {
-    @apply status-badge status-indicator;
-  }
-  
-  .asset-reminder {
-    @apply bg-yellow-50 border-yellow-200 text-yellow-800;
-  }
-  
-  .asset-overdue {
-    @apply bg-red-50 border-red-200 text-red-800 animate-pulse-glow;
-  }
-  
-  /* CRC specific styles */
-  .crc-card {
-    @apply ts-card p-4 border-l-4 border-l-blue-500;
-  }
-  
-  .crc-status {
-    @apply status-badge;
-  }
-  
-  /* Transaction specific styles */
-  .transaction-row {
-    @apply table-row hover:bg-green-50 transition-colors duration-150;
-  }
-  
-  .transaction-success {
-    @apply bg-green-50 border-green-200;
-  }
-  
-  .transaction-pending {
-    @apply bg-yellow-50 border-yellow-200;
-  }
-  
-  .transaction-error {
-    @apply bg-red-50 border-red-200 animate-shake;
-  }
+/* Additional global styles if needed */
+html {
+  color-scheme: light only;
 }
 
-/* TS Manager specific responsive adjustments */
-@media (max-width: 640px) {
-  .ts-mobile-stack {
-    @apply flex-col space-y-2 space-x-0;
-  }
-  
-  .ts-mobile-full {
-    @apply w-full;
-  }
-  
-  .ts-mobile-hide {
-    @apply hidden;
-  }
+body {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
 }
 
-@media (min-width: 641px) {
-  .ts-desktop-flex {
-    @apply flex space-x-4 space-y-0;
-  }
-  
-  .ts-desktop-grid {
-    @apply grid grid-cols-2 gap-4;
-  }
+/* Ensure no dark theme can be applied anywhere */
+* {
+  color-scheme: light only;
 }
 
-@media (min-width: 1024px) {
-  .ts-desktop-grid {
-    @apply grid-cols-3;
-  }
-}
-
-/* Performance optimizations for TS Manager */
-.ts-optimized {
-  @apply gpu-accelerated will-change-transform;
-}
-
-.ts-smooth-scroll {
-  @apply custom-scrollbar;
-  scroll-behavior: smooth;
-}
-
-/* Debug utilities (only in development) */
-@media screen and (max-width: 640px) {
-  .debug-mobile::before {
-    content: 'MOBILE';
-    position: fixed;
-    top: 0;
-    right: 0;
-    background: red;
-    color: white;
-    padding: 2px 8px;
-    font-size: 12px;
-    z-index: 9999;
-  }
-}
-
-@media screen and (min-width: 641px) and (max-width: 1024px) {
-  .debug-tablet::before {
-    content: 'TABLET';
-    position: fixed;
-    top: 0;
-    right: 0;
-    background: orange;
-    color: white;
-    padding: 2px 8px;
-    font-size: 12px;
-    z-index: 9999;
-  }
-}
-
-@media screen and (min-width: 1025px) {
-  .debug-desktop::before {
-    content: 'DESKTOP';
-    position: fixed;
-    top: 0;
-    right: 0;
-    background: green;
-    color: white;
-    padding: 2px 8px;
-    font-size: 12px;
-    z-index: 9999;
-  }
+/* Override any third-party dark theme attempts */
+[data-theme="dark"],
+.dark,
+.theme-dark {
+  background-color: white !important;
+  color: #111827 !important;
 }

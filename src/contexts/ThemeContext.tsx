@@ -1,11 +1,12 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
 
-type Theme = 'dark' | 'light' | 'system';
+// Only light theme supported
+type Theme = 'light';
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  resolvedTheme: 'dark' | 'light';
+  resolvedTheme: 'light';
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -18,54 +19,22 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ 
   children, 
-  defaultTheme = 'system',
+  defaultTheme = 'light',
   storageKey = 'vite-ui-theme'
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem(storageKey) as Theme) || defaultTheme;
-    }
-    return defaultTheme;
-  });
+  // Always light theme - no state needed, no effects needed
+  const theme: Theme = 'light';
+  const resolvedTheme: 'light' = 'light';
 
-  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>('light');
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    
-    const applyTheme = (newTheme: Theme) => {
-      root.classList.remove('light', 'dark');
-      
-      if (newTheme === 'system') {
-        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        root.classList.add(systemTheme);
-        setResolvedTheme(systemTheme);
-      } else {
-        root.classList.add(newTheme);
-        setResolvedTheme(newTheme);
-      }
-    };
-
-    applyTheme(theme);
-
-    // Listen for system theme changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (theme === 'system') {
-        applyTheme('system');
-      }
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [theme]);
+  // No-op setTheme function - always stays light
+  const setTheme = (newTheme: Theme) => {
+    console.log('Theme is locked to light mode');
+    // Do nothing - always stay light
+  };
 
   const value: ThemeContextType = {
     theme,
-    setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
-    },
+    setTheme,
     resolvedTheme,
   };
 
@@ -80,7 +49,12 @@ export function useTheme(): ThemeContextType {
   const context = useContext(ThemeContext);
   
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    // Return safe fallback - always light
+    return {
+      theme: 'light',
+      setTheme: () => {},
+      resolvedTheme: 'light'
+    };
   }
   
   return context;
