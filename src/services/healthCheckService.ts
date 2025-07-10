@@ -14,18 +14,18 @@ export class HealthCheckService {
   }
 
   // Start health monitoring
-  startMonitoring(intervalMinutes: number = 10) {
+  startMonitoring(intervalMinutes: number = 15) {
     if (this.isRunning) return;
 
     this.isRunning = true;
     console.log('🏥 Starting health monitoring...');
 
-    // Run initial check after a delay to allow authentication to settle
+    // Run initial check after a longer delay to allow authentication to settle
     setTimeout(() => {
       this.runHealthChecks();
-    }, 5000);
+    }, 10000); // 10 seconds delay
 
-    // Set up periodic checks
+    // Set up periodic checks with longer interval
     this.checkInterval = setInterval(() => {
       this.runHealthChecks();
     }, intervalMinutes * 60 * 1000);
@@ -43,7 +43,7 @@ export class HealthCheckService {
 
   // Run all health checks
   private async runHealthChecks() {
-    console.log('🔍 Running simplified health checks...');
+    console.log('🔍 Running health checks...');
     
     try {
       await Promise.allSettled([
@@ -101,17 +101,10 @@ export class HealthCheckService {
     } catch (error) {
       const responseTime = Math.round(performance.now() - startTime);
       
-      await updateSystemStatus({
-        service_name: 'database',
-        status: 'offline',
-        response_time_ms: responseTime,
-        uptime_percentage: 0,
-        status_data: {
-          lastCheck: new Date().toISOString(),
-          result: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error'
-        }
-      });
+      console.warn('⚠️ Database health check failed:', error);
+      
+      // Don't try to update system status if we can't connect to database
+      // This prevents infinite error loops
     }
   }
 
@@ -225,7 +218,10 @@ export class HealthCheckService {
   // Start monitoring when user logs in
   onUserLogin() {
     console.log('🔐 User logged in, starting health monitoring...');
-    this.startMonitoring();
+    // Start with longer delay to ensure auth is fully set up
+    setTimeout(() => {
+      this.startMonitoring();
+    }, 5000);
   }
 
   // Stop monitoring when user logs out

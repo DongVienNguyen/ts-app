@@ -1,35 +1,71 @@
-import { useState } from 'react';
-import { Package, Menu, LogOut, Key, Smartphone, Shield, Bug, BarChart3 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSecureAuth } from '@/contexts/AuthContext';
-import { NotificationBell } from './NotificationBell';
+import { Button } from '@/components/ui/button';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { 
+  Menu, 
+  X, 
+  User, 
+  LogOut, 
+  Package, 
+  FileText, 
+  Bell, 
+  Database,
+  Shield,
+  Activity,
+  BarChart3,
+  Settings,
+  Home,
+  Key,
+  Smartphone
+} from 'lucide-react';
+import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
+import { NotificationBell } from '@/components/NotificationBell';
 import { requestNotificationPermission, subscribeUserToPush } from '@/utils/pushNotificationUtils';
 import { toast } from 'sonner';
 
-export function NavigationHeader() {
+// Prevent multiple instances
+let isNavigationHeaderMounted = false;
+
+export const NavigationHeader: React.FC = () => {
   const { user, logout } = useSecureAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
+
+  // Prevent multiple instances
+  React.useEffect(() => {
+    if (isNavigationHeaderMounted) {
+      console.warn('⚠️ Multiple NavigationHeader instances detected - preventing duplicate');
+      return;
+    }
+    isNavigationHeaderMounted = true;
+    
+    return () => {
+      isNavigationHeaderMounted = false;
+    };
+  }, []);
+
+  if (!user) {
+    return null; // Don't render if no user
+  }
+
+  // If already mounted, don't render duplicate
+  if (isNavigationHeaderMounted && !React.useRef(true).current) {
+    return null;
+  }
 
   const handleLogout = () => {
     logout();
+    navigate('/login');
   };
 
   const handleEnableNotifications = async () => {
@@ -96,172 +132,210 @@ export function NavigationHeader() {
     }
   };
 
-  const allMenuItems = [
-    { label: 'Thông báo Mượn/Xuất', path: '/asset-entry', icon: Package },
-    { label: 'Danh sách TS cần lấy', path: '/daily-report', icon: Package },
-    { label: 'Nhắc nhở Tài sản đến hạn', path: '/asset-reminders', icon: Package },
-    { label: 'Nhắc nhở Duyệt CRC', path: '/crc-reminders', icon: Package },
-    { label: 'Báo cáo tài sản đã mượn', path: '/borrow-report', icon: Package },
-    { label: 'Tài sản, thùng khác gửi kho', path: '/other-assets', icon: Package },
-    { label: 'Quản lý dữ liệu', path: '/data-management', icon: Package },
-    { label: 'Giám sát Bảo mật', path: '/security-monitor', icon: Shield },
-    { label: 'Theo dõi Lỗi', path: '/error-monitoring', icon: Bug },
-    { label: 'Theo dõi Sử dụng', path: '/usage-monitoring', icon: BarChart3 },
+  const navigationItems = [
+    {
+      name: 'Trang chủ',
+      href: '/',
+      icon: Home,
+      show: true
+    },
+    {
+      name: 'Thông báo M/X',
+      href: '/asset-entry',
+      icon: Package,
+      show: true
+    },
+    {
+      name: 'DS TS cần lấy',
+      href: '/daily-report',
+      icon: FileText,
+      show: true
+    },
+    {
+      name: 'Báo cáo TS',
+      href: '/borrow-report',
+      icon: BarChart3,
+      show: isNqOrAdmin(user)
+    },
+    {
+      name: 'Nhắc nhở TS',
+      href: '/asset-reminders',
+      icon: Bell,
+      show: isNqOrAdmin(user)
+    },
+    {
+      name: 'Nhắc nhở CRC',
+      href: '/crc-reminders',
+      icon: Bell,
+      show: isNqOrAdmin(user)
+    },
+    {
+      name: 'Tài sản khác',
+      href: '/other-assets',
+      icon: Package,
+      show: isNqOrAdmin(user)
+    },
+    {
+      name: 'Quản lý DL',
+      href: '/data-management',
+      icon: Database,
+      show: isAdmin(user)
+    },
+    {
+      name: 'Bảo mật',
+      href: '/security-monitor',
+      icon: Shield,
+      show: isAdmin(user)
+    },
+    {
+      name: 'Lỗi hệ thống',
+      href: '/error-monitoring',
+      icon: Activity,
+      show: isAdmin(user)
+    },
+    {
+      name: 'Sử dụng',
+      href: '/usage-monitoring',
+      icon: BarChart3,
+      show: isAdmin(user)
+    },
+    {
+      name: 'Thông báo',
+      href: '/notifications',
+      icon: Bell,
+      show: true
+    }
   ];
 
-  const getVisibleMenuItems = () => {
-    if (!user) return [];
-    if (user.role === 'admin') {
-      return allMenuItems;
-    }
-
-    if (user.role === 'user') {
-      const standardUserDepartments = ['QLN', 'CMT8', 'NS', 'ĐS', 'LĐH', 'DVKH'];
-      if (user.department && standardUserDepartments.includes(user.department)) {
-        return allMenuItems.filter(item => 
-          item.path === '/asset-entry' || item.path === '/daily-report'
-        );
-      }
-
-      if (user.department === 'NQ') {
-        return allMenuItems.filter(item => 
-          item.path !== '/data-management' && 
-          item.path !== '/security-monitor' &&
-          item.path !== '/error-monitoring' &&
-          item.path !== '/usage-monitoring'
-        );
-      }
-    }
-    return [];
-  };
-
-  const visibleMenuItems = getVisibleMenuItems();
-
-  const handleMenuItemClick = () => {
-    setIsMenuOpen(false);
-  };
-
-  if (!user) return null;
+  const visibleItems = navigationItems.filter(item => item.show);
 
   return (
-    <header className="header-mobile bg-white shadow-sm border-b">
-      <div className="container-mobile">
-        <div className="flex items-center justify-between h-14 sm:h-16">
-          {/* Left side - Logo and Navigation */}
-          <div className="flex items-center space-responsive-x">
-            {/* Logo */}
-            <div className="flex items-center space-x-2">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-green-600 rounded-lg flex items-center justify-center">
-                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <span className="hidden sm:block font-semibold text-green-800">TS Manager</span>
-            </div>
-
-            {/* Desktop Menu */}
-            <div className="hidden lg:block">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="btn-responsive">
-                    <Menu className="w-4 h-4 mr-2" />
-                    Menu
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-64 bg-white">
-                  {visibleMenuItems.map((item) => (
-                    <DropdownMenuItem key={item.path} asChild>
-                      <Link to={item.path} className="w-full flex items-center space-x-3 p-3">
-                        <item.icon className="w-4 h-4" />
-                        <span className="text-responsive-sm">{item.label}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Mobile Menu */}
-            <div className="lg:hidden">
-              <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="icon" className="btn-touch">
-                    <Menu className="h-4 w-4" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-full max-w-xs sm:max-w-sm">
-                  <SheetHeader className="pb-4">
-                    <SheetTitle className="text-responsive-lg">Menu</SheetTitle>
-                  </SheetHeader>
-                  <div className="space-responsive-y pb-4">
-                    {visibleMenuItems.map((item) => (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={handleMenuItemClick}
-                        className="flex items-center space-x-3 p-responsive rounded-md text-responsive-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 btn-touch"
-                      >
-                        <item.icon className="w-5 h-5" />
-                        <span>{item.label}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </SheetContent>
-              </Sheet>
-            </div>
+    <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <div className="flex items-center">
+            <Link to="/" className="flex items-center space-x-2">
+              <Package className="h-8 w-8 text-green-600" />
+              <span className="text-xl font-bold text-gray-900">
+                Asset Manager
+              </span>
+            </Link>
           </div>
 
-          {/* Right side - Notifications and User Menu */}
-          <div className="flex items-center space-responsive-x">
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex space-x-1">
+            {visibleItems.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-green-100 text-green-700'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                >
+                  <item.icon className="inline-block w-4 h-4 mr-1" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Right side */}
+          <div className="flex items-center space-x-4">
+            {/* Notification Bell */}
             <NotificationBell />
-            
+
+            {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 sm:h-9 sm:w-9 rounded-full btn-touch">
-                  <Avatar className="h-8 w-8 sm:h-9 sm:w-9">
-                    <AvatarFallback className="bg-green-600 text-white text-responsive-sm">
-                      {user?.staff_name?.charAt(0).toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
+                <Button variant="ghost" className="flex items-center space-x-2">
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline-block">
+                    {user.staff_name || user.username}
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64 sm:w-72 bg-white" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal p-4">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-responsive-sm font-medium leading-none">
-                      {user?.staff_name}
-                    </p>
-                    <p className="text-responsive-xs leading-none text-muted-foreground">
-                      {user?.department} - {user?.role === 'admin' ? 'Quản trị' : 'Nhân viên'}
-                    </p>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-1.5 text-sm text-gray-500">
+                  <div className="font-medium text-gray-900">
+                    {user.staff_name || user.username}
                   </div>
-                </DropdownMenuLabel>
+                  <div className="text-xs">
+                    {user.role} - {user.department}
+                  </div>
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   onClick={handleEnableNotifications}
                   disabled={isEnablingNotifications}
-                  className="p-3"
                 >
-                  <Smartphone className="mr-3 h-4 w-4" />
-                  <span className="text-responsive-sm">
-                    {isEnablingNotifications ? 'Đang bật...' : 'Bật thông báo đẩy'}
-                  </span>
+                  <Smartphone className="mr-2 h-4 w-4" />
+                  {isEnablingNotifications ? 'Đang bật...' : 'Bật thông báo đẩy'}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="p-3">
+                <DropdownMenuItem asChild>
                   <Link to="/reset-password" className="flex items-center">
-                    <Key className="mr-3 h-4 w-4" />
-                    <span className="text-responsive-sm">Đổi mật khẩu</span>
+                    <Key className="mr-2 h-4 w-4" />
+                    Đổi mật khẩu
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="p-3">
-                  <LogOut className="mr-3 h-4 w-4" />
-                  <span className="text-responsive-sm">Đăng xuất</span>
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Đăng xuất
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {/* Mobile menu button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
+            </Button>
           </div>
         </div>
+
+        {/* Mobile Navigation */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-gray-200">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              {visibleItems.map((item) => {
+                const isActive = location.pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                      isActive
+                        ? 'bg-green-100 text-green-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <item.icon className="inline-block w-4 h-4 mr-2" />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );
-}
+};
+
+// Export both named and default
+export default NavigationHeader;

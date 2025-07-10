@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://itoapoyrxxmtbbuolfhk.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b2Fwb3lyeHhtdGJidW9sZmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2ODQ2NDgsImV4cCI6MjA2NjI2MDY0OH0.qT7L0MDAH-qArxaoMSkCYmVYAcwdEzbXWB1PayxD_rk';
 
-// Create SINGLE Supabase client instance - this is the root cause of the issue
+// Create SINGLE Supabase client instance
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
@@ -11,17 +11,23 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Create SINGLE service role client
+// Service role client - create only once and reuse
 let serviceRoleClient: any = null;
 
 const createServiceRoleClient = () => {
   if (serviceRoleClient) {
-    return serviceRoleClient; // Return existing instance
+    return serviceRoleClient;
   }
 
   const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
   
-  if (serviceRoleKey) {
+  if (!serviceRoleKey) {
+    console.warn('⚠️ Service role key not found - using anon client for system operations');
+    serviceRoleClient = supabase; // Use same client instance
+    return serviceRoleClient;
+  }
+
+  try {
     console.log('🔑 Creating service role client');
     serviceRoleClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
@@ -29,9 +35,10 @@ const createServiceRoleClient = () => {
         autoRefreshToken: false,
       }
     });
-  } else {
-    console.warn('⚠️ Service role key not found, using anon client');
-    serviceRoleClient = supabase; // Use the same instance
+    console.log('✅ Service role client created successfully');
+  } catch (error) {
+    console.error('❌ Failed to create service role client:', error);
+    serviceRoleClient = supabase; // Fallback to anon client
   }
   
   return serviceRoleClient;
@@ -73,7 +80,7 @@ export function getAuthenticatedClient() {
     return null;
   }
   
-  // DON'T CREATE NEW CLIENT - just return the existing one with auth info
+  // Return the same supabase client instance
   return supabase;
 }
 
