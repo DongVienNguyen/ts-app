@@ -14,10 +14,9 @@ interface ServiceHealth {
 interface ServiceStatusTabProps {
   serviceHealth: ServiceHealth;
   getStatusColor: (status: string) => string;
-  getStatusIcon: (status: string) => string;
 }
 
-export function ServiceStatusTab({ serviceHealth, getStatusColor, getStatusIcon }: ServiceStatusTabProps) {
+export function ServiceStatusTab({ serviceHealth, getStatusColor }: ServiceStatusTabProps) {
   const getStatusIconComponent = (status: string) => {
     switch (status) {
       case 'online': return <CheckCircle className="w-4 h-4" />;

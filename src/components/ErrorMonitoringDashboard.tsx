@@ -17,7 +17,6 @@ export function ErrorMonitoringDashboard() {
     lastUpdated,
     refreshAll,
     getStatusColor,
-    getStatusIcon,
     getSeverityColor
   } = useErrorMonitoringData();
 
@@ -54,7 +53,6 @@ export function ErrorMonitoringDashboard() {
           <ServiceStatusTab
             serviceHealth={serviceHealth}
             getStatusColor={getStatusColor}
-            getStatusIcon={getStatusIcon}
           />
         </TabsContent>
 
