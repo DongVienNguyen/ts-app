@@ -266,18 +266,12 @@ export function validateSession(): boolean {
       return false;
     }
 
-    // Basic token validation
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      console.log('Session validation failed: invalid token format');
-      logSecurityEvent('INVALID_TOKEN_FORMAT');
-      return false;
-    }
-
-    // Check token expiration
+    // Validate token format - our token is base64 encoded JSON, not JWT
     try {
-      const payload = JSON.parse(atob(parts[1]));
-      if (payload.exp && payload.exp < Date.now() / 1000) {
+      const payload = JSON.parse(atob(token));
+      
+      // Check token expiration if present
+      if (payload.exp && payload.exp < Date.now()) {
         console.log('Session validation failed: token expired');
         logSecurityEvent('TOKEN_EXPIRED', { exp: payload.exp });
         return false;

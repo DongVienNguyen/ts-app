@@ -29,7 +29,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Enhanced session validation with detailed logging
+  // Enhanced session validation with correct token format handling
   const validateAndRestoreSession = async (): Promise<AuthenticatedStaff | null> => {
     try {
       console.log('🔍 [AUTH] Starting session validation...');
@@ -69,32 +69,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return null;
       }
 
-      // Validate token format (JWT should have 3 parts)
-      const tokenParts = token.split('.');
-      if (tokenParts.length !== 3) {
-        console.log('❌ [AUTH] Invalid token format, parts:', tokenParts.length);
-        return null;
-      }
-
-      // Parse and validate token payload
+      // Validate token format - our token is base64 encoded JSON, not JWT
       try {
-        const payload = JSON.parse(atob(tokenParts[1]));
-        const currentTime = Math.floor(Date.now() / 1000);
+        console.log('🔍 [AUTH] Token format check, length:', token.length);
         
-        if (payload.exp && payload.exp < currentTime) {
-          console.log('❌ [AUTH] Token expired:', {
-            tokenExp: payload.exp,
-            currentTime: currentTime,
-            expiredSecondsAgo: currentTime - payload.exp
-          });
-          return null;
-        }
-
-        console.log('✅ [AUTH] Token valid:', {
-          exp: payload.exp,
-          timeUntilExp: payload.exp ? payload.exp - currentTime : 'no expiration',
-          username: payload.username
+        // Try to decode the token (it's base64 encoded JSON from edge function)
+        const payload = JSON.parse(atob(token));
+        console.log('✅ [AUTH] Token decoded successfully:', {
+          username: payload.username,
+          role: payload.role,
+          hasExp: !!payload.exp
         });
+        
+        // Check token expiration if present
+        if (payload.exp) {
+          const currentTime = Date.now(); // Use milliseconds, not seconds
+          if (payload.exp < currentTime) {
+            console.log('❌ [AUTH] Token expired:', {
+              tokenExp: payload.exp,
+              currentTime: currentTime,
+              expiredMs: currentTime - payload.exp
+            });
+            return null;
+          }
+          
+          console.log('✅ [AUTH] Token valid:', {
+            exp: payload.exp,
+            timeUntilExp: Math.round((payload.exp - currentTime) / (60 * 60 * 1000)) + ' hours',
+            username: payload.username
+          });
+        } else {
+          console.log('✅ [AUTH] Token has no expiration');
+        }
       } catch (tokenError) {
         console.log('❌ [AUTH] Token parsing error:', tokenError);
         return null;
@@ -175,7 +181,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
       setIsInitialized(true);
-      console.log('✅ [AUTH] Auth check completed');
+      console.log('✅ [AUTH] Auth check completed, loading:', false);
     }
   };
 
@@ -198,7 +204,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           username: result.user.username,
           role: result.user.role,
           department: result.user.department,
-          loginTime: new Date(parseInt(loginTime)).toISOString()
+          loginTime: new Date(parseInt(loginTime)).toISOString(),
+          tokenLength: result.token.length
         });
         
         const userWithToken: AuthenticatedStaff = { ...result.user, token: result.token };
