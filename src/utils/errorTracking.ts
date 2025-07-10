@@ -121,14 +121,14 @@ export function captureError(error: Error, context?: any) {
   logSystemError(errorInfo);
 }
 
-// Performance monitoring
-export function measurePerformance(name: string, fn: () => Promise<any>) {
-  return async (...args: any[]) => {
+// Performance monitoring - Fixed to accept function with parameters
+export function measurePerformance<T extends (...args: any[]) => Promise<any>>(name: string, fn: T): T {
+  return (async (...args: Parameters<T>) => {
     const startTime = performance.now();
     let error: Error | null = null;
     
     try {
-      const result = await fn.apply(this, args);
+      const result = await fn(...args);
       return result;
     } catch (err) {
       error = err as Error;
@@ -149,7 +149,7 @@ export function measurePerformance(name: string, fn: () => Promise<any>) {
         }
       });
     }
-  };
+  }) as T;
 }
 
 // Resource monitoring

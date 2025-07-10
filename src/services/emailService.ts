@@ -1,221 +1,202 @@
 import { supabase } from '@/integrations/supabase/client';
+import { captureError, measurePerformance, updateSystemStatus } from '@/utils/errorTracking';
 
-export interface ErrorReportData {
-  title: string;
-  description: string;
-  stepsToReproduce?: string;
-  expectedResult?: string;
-  actualResult?: string;
-  userAgent?: string;
-  url?: string;
-  timestamp?: string;
-}
-
-// Helper function to get admin email
-async function getAdminEmail(): Promise<string> {
+// Send asset notification email
+export const sendAssetNotificationEmail = measurePerformance('sendAssetNotificationEmail', async (recipients: string[], subject: string, content: string) => {
   try {
-    const { data, error } = await supabase
-      .from('staff')
-      .select('email')
-      .eq('role', 'admin')
-      .limit(1);
+    const { data, error } = await supabase.functions.invoke('send-notification-email', {
+      body: { recipients, subject, content }
+    });
 
-    if (error) {
-      console.error('Error getting admin email:', error);
-      return 'admin@company.com'; // fallback
-    }
-
-    if (data && data.length > 0 && data[0].email) {
-      return data[0].email;
-    }
-
-    return 'admin@company.com'; // fallback
+    if (error) throw error;
+    return { success: true, data };
   } catch (error) {
-    console.error('Exception getting admin email:', error);
-    return 'admin@company.com'; // fallback
+    captureError(error as Error, {
+      functionName: 'sendAssetNotificationEmail',
+      severity: 'high',
+      error_data: { recipients, subject }
+    });
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
-}
+});
 
-export async function sendErrorReport(
-  reporterName: string,
-  reporterEmail: string,
-  errorData: ErrorReportData
-): Promise<{ success: boolean; error?: string }> {
+// Send asset transaction confirmation
+export const sendAssetTransactionConfirmation = measurePerformance('sendAssetTransactionConfirmation', async (username: string, transactions: any[], success: boolean) => {
   try {
-    const adminEmail = await getAdminEmail();
-    
-    const { error } = await supabase.functions.invoke('send-notification-email', {
-      body: {
-        type: 'error_report',
-        to: adminEmail,
-        subject: `Báo cáo lỗi: ${errorData.title}`,
-        data: {
-          reporterName,
-          reporterEmail,
-          ...errorData
+    const { data, error } = await supabase.functions.invoke('send-notification-email', {
+      body: { 
+        username, 
+        transactions, 
+        success,
+        type: 'transaction_confirmation'
+      }
+    });
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error) {
+    captureError(error as Error, {
+      functionName: 'sendAssetTransactionConfirmation',
+      severity: 'high',
+      error_data: { username, transactionCount: transactions.length }
+    });
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+});
+
+// Send error report
+export const sendErrorReport = measurePerformance('sendErrorReport', async (username: string, email: string, errorData: any) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-notification-email', {
+      body: { 
+        username, 
+        email,
+        errorData,
+        type: 'error_report'
+      }
+    });
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error) {
+    captureError(error as Error, {
+      functionName: 'sendErrorReport',
+      severity: 'high',
+      error_data: { username, errorData }
+    });
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+});
+
+// Test email function
+export const testEmailFunction = measurePerformance('testEmailFunction', async (username: string) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('test-resend-api', {
+      body: { username }
+    });
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error) {
+    captureError(error as Error, {
+      functionName: 'testEmailFunction',
+      severity: 'medium',
+      error_data: { username }
+    });
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+});
+
+export const emailService = {
+  // Send notification email with error tracking
+  sendNotificationEmail: measurePerformance('sendNotificationEmail', async (emailData: any) => {
+    try {
+      // Update email service status to online
+      await updateSystemStatus({
+        service_name: 'email',
+        status: 'online',
+        uptime_percentage: 100
+      });
+
+      const { data, error } = await supabase.functions.invoke('send-notification-email', {
+        body: emailData
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      // Update email service status to degraded/offline
+      await updateSystemStatus({
+        service_name: 'email',
+        status: 'degraded',
+        uptime_percentage: 75,
+        status_data: { error: error instanceof Error ? error.message : 'Unknown error' }
+      });
+
+      captureError(error as Error, {
+        functionName: 'sendNotificationEmail',
+        severity: 'high',
+        error_data: { emailData }
+      });
+      throw error;
+    }
+  }),
+
+  // Send asset reminder emails with error tracking
+  sendAssetReminderEmails: measurePerformance('sendAssetReminderEmails', async (reminders: any[]) => {
+    try {
+      const results = [];
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const reminder of reminders) {
+        try {
+          const result = await emailService.sendNotificationEmail(reminder);
+          results.push({ success: true, reminder, result });
+          successCount++;
+        } catch (error) {
+          results.push({ success: false, reminder, error });
+          errorCount++;
         }
       }
-    });
 
-    if (error) {
-      console.error('Error sending error report:', error);
-      return { success: false, error: error.message };
-    }
-
-    console.log('✅ Error report sent to:', adminEmail);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending error report:', error);
-    return { success: false, error: 'Không thể gửi báo cáo lỗi' };
-  }
-}
-
-export async function sendNotificationEmail(
-  to: string,
-  subject: string,
-  htmlContent: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const { error } = await supabase.functions.invoke('send-notification-email', {
-      body: {
-        type: 'general',
-        to,
-        subject,
-        html: htmlContent
-      }
-    });
-
-    if (error) {
-      console.error('Error sending email:', error);
-      return { success: false, error: error.message };
-    }
-
-    console.log('✅ Email sent to:', to);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending email:', error);
-    return { success: false, error: 'Không thể gửi email' };
-  }
-}
-
-export async function sendAssetNotificationEmail(
-  recipients: string[],
-  subject: string,
-  content: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const { error } = await supabase.functions.invoke('send-notification-email', {
-      body: {
-        type: 'asset_notification',
-        to: recipients,
-        subject,
-        html: content
-      }
-    });
-
-    if (error) {
-      console.error('Error sending asset notification email:', error);
-      return { success: false, error: error.message };
-    }
-
-    console.log('✅ Asset notification sent to:', recipients);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending asset notification email:', error);
-    return { success: false, error: 'Không thể gửi email thông báo tài sản' };
-  }
-}
-
-export async function sendAssetTransactionConfirmation(
-  username: string,
-  transactions: any[],
-  isSuccess: boolean
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const adminEmail = await getAdminEmail();
-    
-    const { error } = await supabase.functions.invoke('send-notification-email', {
-      body: {
-        type: 'transaction_confirmation',
-        to: adminEmail,
-        subject: isSuccess ? 'Xác nhận giao dịch tài sản thành công' : 'Giao dịch tài sản thất bại',
-        data: {
-          username,
-          transactions,
-          isSuccess
+      // Update service status based on success rate
+      const successRate = successCount / reminders.length;
+      await updateSystemStatus({
+        service_name: 'email',
+        status: successRate > 0.8 ? 'online' : successRate > 0.5 ? 'degraded' : 'offline',
+        uptime_percentage: successRate * 100,
+        status_data: { 
+          totalSent: reminders.length,
+          successCount,
+          errorCount,
+          successRate: successRate * 100
         }
-      }
-    });
+      });
 
-    if (error) {
-      console.error('Error sending transaction confirmation:', error);
-      return { success: false, error: error.message };
+      return results;
+    } catch (error) {
+      captureError(error as Error, {
+        functionName: 'sendAssetReminderEmails',
+        severity: 'critical',
+        error_data: { reminderCount: reminders.length }
+      });
+      throw error;
     }
+  }),
 
-    console.log('✅ Transaction confirmation sent to:', adminEmail);
-    return { success: true };
-  } catch (error) {
-    console.error('Error sending transaction confirmation:', error);
-    return { success: false, error: 'Không thể gửi email xác nhận giao dịch' };
-  }
-}
+  // Test email service health
+  testEmailService: measurePerformance('testEmailService', async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('test-resend-api');
+      
+      if (error) throw error;
 
-export async function testEmailFunction(username: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const adminEmail = await getAdminEmail();
-    
-    console.log('🧪 Testing email function...');
-    console.log('📧 Admin email:', adminEmail);
-    console.log('👤 Test user:', username);
-    
-    const { error } = await supabase.functions.invoke('send-notification-email', {
-      body: {
-        type: 'test',
-        to: adminEmail,
-        subject: '🧪 Test Email Function - Hệ thống Quản lý Tài sản',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #16a34a;">🧪 Test Email Function</h2>
-            <p>Đây là email test để kiểm tra chức năng gửi email của hệ thống.</p>
-            
-            <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="color: #0369a1; margin-top: 0;">📊 Thông tin test:</h3>
-              <ul>
-                <li><strong>Người test:</strong> ${username}</li>
-                <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
-                <li><strong>Email admin:</strong> ${adminEmail}</li>
-                <li><strong>Trạng thái:</strong> ✅ Thành công</li>
-              </ul>
-            </div>
-            
-            <div style="background-color: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="color: #15803d; margin-top: 0;">🔧 Các chức năng đã test:</h3>
-              <ul>
-                <li>✅ Kết nối Supabase Edge Function</li>
-                <li>✅ Kết nối Resend API</li>
-                <li>✅ Template email HTML</li>
-                <li>✅ Gửi email đến admin</li>
-              </ul>
-            </div>
-            
-            <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-              Email này được gửi tự động từ Hệ thống Quản lý Tài sản.<br>
-              Nếu bạn nhận được email này, chức năng gửi email đang hoạt động bình thường.
-            </p>
-          </div>
-        `
-      }
-    });
+      await updateSystemStatus({
+        service_name: 'email',
+        status: 'online',
+        uptime_percentage: 100,
+        status_data: { lastTest: new Date().toISOString(), result: 'success' }
+      });
 
-    if (error) {
-      console.error('❌ Error testing email function:', error);
-      return { success: false, error: error.message };
+      return data;
+    } catch (error) {
+      await updateSystemStatus({
+        service_name: 'email',
+        status: 'offline',
+        uptime_percentage: 0,
+        status_data: { 
+          lastTest: new Date().toISOString(), 
+          result: 'failed',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      });
+
+      captureError(error as Error, {
+        functionName: 'testEmailService',
+        severity: 'critical'
+      });
+      throw error;
     }
-
-    console.log('✅ Test email sent successfully to:', adminEmail);
-    return { success: true };
-  } catch (error) {
-    console.error('❌ Exception testing email function:', error);
-    return { success: false, error: 'Không thể test email function' };
-  }
-}
+  })
+};

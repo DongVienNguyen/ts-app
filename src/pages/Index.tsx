@@ -4,6 +4,7 @@ import { useSecureAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
 import { SecurityStatusWidget } from '@/components/SecurityStatusWidget';
+import { SystemHealthWidget } from '@/components/SystemHealthWidget';
 import Layout from '@/components/Layout';
 
 const Index = () => {
@@ -47,6 +48,9 @@ const Index = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {/* Security Status Widget (Admin only) */}
           {isAdmin(user) && <SecurityStatusWidget />}
+          
+          {/* System Health Widget (Admin only) */}
+          {isAdmin(user) && <SystemHealthWidget />}
           
           <Card>
             <CardHeader>
