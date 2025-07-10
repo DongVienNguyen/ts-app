@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getUsageStats, getAverageSessionDuration } from '@/utils/usageTracking';
+import { getAverageSessionDuration } from '@/utils/usageTracking';
 
 interface UsageOverview {
   totalSessions: number;
@@ -59,7 +59,6 @@ export function useUsageData() {
       setIsLoading(true);
 
       // Get usage statistics
-      const usageStats = await getUsageStats(selectedTimeRange);
       const averageSessionDuration = await getAverageSessionDuration(selectedTimeRange);
 
       // Get session data

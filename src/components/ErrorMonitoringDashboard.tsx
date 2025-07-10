@@ -7,23 +7,19 @@ import {
   Mail, 
   Bell,
   TrendingUp,
-  TrendingDown,
   Activity,
   Clock,
   CheckCircle,
   XCircle,
   AlertCircle,
-  BarChart3,
-  PieChart,
   RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { SystemError, SystemMetric, SystemStatus, checkServiceHealth, monitorResources } from '@/utils/errorTracking';
 
@@ -94,7 +90,6 @@ export function ErrorMonitoringDashboard() {
 
       const now = new Date();
       const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
       const recentErrors24h = errors?.filter(e => new Date(e.created_at) > last24Hours) || [];
       const criticalErrors = errors?.filter(e => e.severity === 'critical') || [];
@@ -219,8 +214,6 @@ export function ErrorMonitoringDashboard() {
       default: return 'text-gray-600 bg-gray-100';
     }
   };
-
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   return (
     <div className="space-y-6">

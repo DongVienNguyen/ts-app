@@ -64,7 +64,7 @@ export class HealthCheckService {
     
     try {
       // Simple query to test database connectivity
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('staff')
         .select('count')
         .limit(1);
@@ -134,7 +134,7 @@ export class HealthCheckService {
     
     try {
       // Test API connectivity by calling a simple function
-      const { data, error } = await supabase.functions.invoke('check-account-status', {
+      await supabase.functions.invoke('check-account-status', {
         body: { test: true }
       });
 

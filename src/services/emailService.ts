@@ -87,7 +87,13 @@ export const testEmailFunction = measurePerformance('testEmailFunction', async (
   }
 });
 
-export const emailService = {
+interface EmailService {
+  sendNotificationEmail: (emailData: any) => Promise<any>;
+  sendAssetReminderEmails: (reminders: any[]) => Promise<any[]>;
+  testEmailService: () => Promise<any>;
+}
+
+export const emailService: EmailService = {
   // Send notification email with error tracking
   sendNotificationEmail: measurePerformance('sendNotificationEmail', async (emailData: any) => {
     try {
@@ -123,15 +129,15 @@ export const emailService = {
   }),
 
   // Send asset reminder emails with error tracking
-  sendAssetReminderEmails: measurePerformance('sendAssetReminderEmails', async (reminders: any[]) => {
+  sendAssetReminderEmails: measurePerformance('sendAssetReminderEmails', async (reminders: any[]): Promise<any[]> => {
     try {
-      const results = [];
+      const results: any[] = [];
       let successCount = 0;
       let errorCount = 0;
 
       for (const reminder of reminders) {
         try {
-          const result = await emailService.sendNotificationEmail(reminder);
+          const result: any = await emailService.sendNotificationEmail(reminder);
           results.push({ success: true, reminder, result });
           successCount++;
         } catch (error) {

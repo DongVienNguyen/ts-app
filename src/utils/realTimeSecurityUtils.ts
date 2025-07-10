@@ -227,7 +227,9 @@ export async function cleanupOldSecurityEvents(daysToKeep: number = 30) {
     });
   } catch (error) {
     console.error('Error cleaning up old security events:', error);
-    logSecurityEventRealTime('CLEANUP_FAILED', { error: error.message });
+    logSecurityEventRealTime('CLEANUP_FAILED', { 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
   }
 }
 

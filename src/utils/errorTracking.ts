@@ -53,11 +53,25 @@ export async function logSystemError(error: Omit<SystemError, 'id' | 'created_at
     
     console.log('✅ System error logged:', data);
     return data;
-  } catch (error) {
-    console.error('❌ Failed to log system error:', error);
+  } catch (dbError) {
+    console.error('❌ Failed to log system error:', dbError);
     // Fallback to localStorage if database fails
     const localErrors = JSON.parse(localStorage.getItem('system_errors') || '[]');
-    localErrors.unshift({ ...error, created_at: new Date().toISOString() });
+    const errorWithTimestamp = {
+      error_type: error.error_type,
+      error_message: error.error_message,
+      error_stack: error.error_stack,
+      function_name: error.function_name,
+      user_id: error.user_id,
+      request_url: error.request_url,
+      user_agent: error.user_agent,
+      ip_address: error.ip_address,
+      severity: error.severity,
+      status: error.status,
+      error_data: error.error_data,
+      created_at: new Date().toISOString()
+    };
+    localErrors.unshift(errorWithTimestamp);
     localStorage.setItem('system_errors', JSON.stringify(localErrors.slice(0, 100)));
   }
 }

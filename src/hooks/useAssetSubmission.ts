@@ -21,13 +21,13 @@ export const useAssetSubmission = () => {
     multipleAssets: string[],
     isRestrictedTime: boolean,
     onSuccess: () => void,
-    username: string // Thêm tham số username
+    username: string
   ) => {
     console.log('=== ASSET SUBMISSION DEBUG START ===');
     console.log('isRestrictedTime:', isRestrictedTime);
     console.log('formData:', formData);
     console.log('multipleAssets:', multipleAssets);
-    console.log('username for submission:', username); // Log để debug
+    console.log('username for submission:', username);
     
     if (isRestrictedTime) {
       console.log('❌ Submission blocked - restricted time');
@@ -48,26 +48,25 @@ export const useAssetSubmission = () => {
       return;
     }
 
-    if (!username) { // Kiểm tra username trước khi gửi
+    if (!username) {
       showToast(
         "Lỗi",
         "Không tìm thấy thông tin người dùng để gửi thông báo. Vui lòng đăng nhập lại.",
         'destructive'
       );
-      setIsLoading(false);
       return;
     }
     
     setIsLoading(true);
     
     try {
-      const { emailResult } = await submitAssetTransactions(
+      const result = await submitAssetTransactions(
         formData,
         multipleAssets,
-        username // Sử dụng username được truyền vào
+        username
       );
       
-      if (emailResult.success) {
+      if (result && result.emailResult && result.emailResult.success) {
         console.log('✅ Email sent successfully');
         showToast(
           "Thành công!",
@@ -75,9 +74,10 @@ export const useAssetSubmission = () => {
         );
       } else {
         console.log('⚠️ Email failed but database save successful');
+        const errorMessage = result?.emailResult?.error || 'Unknown error';
         showToast(
           "Lưu thành công nhưng gửi email thất bại",
-          `Đã lưu ${multipleAssets.length} thông báo tài sản nhưng không gửi được email: ${emailResult.error}`,
+          `Đã lưu ${multipleAssets.length} thông báo tài sản nhưng không gửi được email: ${errorMessage}`,
           'destructive'
         );
       }
@@ -106,7 +106,7 @@ export const useAssetSubmission = () => {
     }
   };
 
-  const handleTestEmail = async (username: string) => { // Thêm tham số username
+  const handleTestEmail = async (username: string) => {
     if (!username) {
       showToast(
         "Lỗi", 
@@ -118,9 +118,9 @@ export const useAssetSubmission = () => {
 
     setIsLoading(true);
     try {
-      const result = await performEmailTest(username); // Sử dụng username được truyền vào
+      const result = await performEmailTest(username);
       
-      if (result.success) {
+      if (result && result.success) {
         console.log('✅ Email test thành công, hiển thị toast thành công');
         showToast(
           "Email test thành công!", 
@@ -128,9 +128,10 @@ export const useAssetSubmission = () => {
         );
       } else {
         console.log('❌ Email test thất bại, hiển thị toast lỗi');
+        const errorMessage = result?.error || 'Lỗi không xác định';
         showToast(
           "Email test thất bại", 
-          result.error || 'Lỗi không xác định',
+          errorMessage,
           'destructive'
         );
       }

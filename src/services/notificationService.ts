@@ -20,7 +20,15 @@ export const sendPushNotification = measurePerformance('sendPushNotification', a
   }
 });
 
-export const notificationService = {
+interface NotificationService {
+  sendPushNotification: (notificationData: any) => Promise<any>;
+  createNotification: (notification: any) => Promise<any>;
+  getUserNotifications: (username: string) => Promise<any>;
+  markNotificationAsRead: (notificationId: string) => Promise<any>;
+  testPushNotificationService: () => Promise<any>;
+}
+
+export const notificationService: NotificationService = {
   // Send push notification with error tracking
   sendPushNotification: measurePerformance('sendPushNotification', async (notificationData: any) => {
     try {
@@ -121,7 +129,7 @@ export const notificationService = {
   }),
 
   // Test push notification service
-  testPushNotificationService: measurePerformance('testPushNotificationService', async () => {
+  testPushNotificationService: measurePerformance('testPushNotificationService', async (): Promise<any> => {
     try {
       // Test by sending a test notification
       const testData = {
@@ -130,7 +138,7 @@ export const notificationService = {
         username: 'system_test'
       };
 
-      const result = await notificationService.sendPushNotification(testData);
+      const result: any = await notificationService.sendPushNotification(testData);
 
       await updateSystemStatus({
         service_name: 'push_notification',

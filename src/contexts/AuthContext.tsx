@@ -4,7 +4,7 @@ import { secureLoginUser } from '@/services/secureAuthService';
 import { logSecurityEvent } from '@/utils/secureAuthUtils';
 import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
 import { setupGlobalErrorHandling, captureError } from '@/utils/errorTracking';
-import { setupUsageTracking, startUserSession, endUserSession } from '@/utils/usageTracking';
+import { setupUsageTracking, endUserSession } from '@/utils/usageTracking';
 import { setSupabaseAuth, clearSupabaseAuth } from '@/integrations/supabase/client';
 
 interface AuthContextType {
