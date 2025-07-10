@@ -32,21 +32,51 @@ const secureAuthService = {
   
   async getCurrentUser(): Promise<AuthenticatedStaff | null> {
     try {
-      // First validate the session (includes 7-day expiration check)
-      if (!validateSession()) {
+      const token = localStorage.getItem('auth_token');
+      const userStr = localStorage.getItem('auth_user');
+      const loginTime = localStorage.getItem('auth_login_time');
+      
+      if (!token || !userStr || !loginTime) {
+        console.log('Missing auth data in localStorage');
+        return null;
+      }
+
+      // Check if session is older than 7 days
+      const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+      const loginTimestamp = parseInt(loginTime);
+      const now = Date.now();
+      
+      if (now - loginTimestamp > sevenDaysInMs) {
+        console.log('Session expired (older than 7 days)');
         this.logout();
         return null;
       }
 
-      const token = localStorage.getItem('auth_token');
-      const userStr = localStorage.getItem('auth_user');
-      
-      if (!token || !userStr) {
+      // Basic token validation
+      try {
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+          console.log('Invalid token format');
+          this.logout();
+          return null;
+        }
+
+        // Check token expiration
+        const payload = JSON.parse(atob(parts[1]));
+        if (payload.exp && payload.exp < Date.now() / 1000) {
+          console.log('Token expired');
+          this.logout();
+          return null;
+        }
+      } catch (tokenError) {
+        console.log('Token validation error:', tokenError);
+        this.logout();
         return null;
       }
       
       const user = JSON.parse(userStr) as Staff;
-      return { ...user, token }; // Now TypeScript knows token is allowed
+      console.log('Successfully restored user session:', user.username);
+      return { ...user, token };
     } catch (error) {
       console.error('Error getting current user:', error);
       this.logout();
@@ -55,9 +85,15 @@ const secureAuthService = {
   },
   
   logout() {
+    console.log('Logging out user');
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_login_time');
+    // Clear legacy storage keys
+    localStorage.removeItem('secure_user');
+    localStorage.removeItem('secure_token');
+    localStorage.removeItem('loggedInStaff');
+    localStorage.removeItem('currentUser');
   }
 };
 
@@ -67,14 +103,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuth = async () => {
     try {
+      console.log('Checking authentication...');
       const currentUser = await secureAuthService.getCurrentUser();
       if (currentUser) {
+        console.log('User authenticated:', currentUser.username);
         setUser(currentUser);
         // Set Supabase auth for RLS policies
         setSupabaseAuth(currentUser.token || '', currentUser.username);
         // Start health monitoring
         healthCheckService.onUserLogin();
       } else {
+        console.log('No authenticated user found');
         setUser(null);
         clearSupabaseAuth();
         healthCheckService.onUserLogout();
@@ -101,6 +140,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('auth_user', JSON.stringify(result.user));
         localStorage.setItem('auth_login_time', loginTime);
         
+        console.log('Login successful, storing user data:', result.user.username);
+        
         const userWithToken: AuthenticatedStaff = { ...result.user, token: result.token };
         setUser(userWithToken);
         setSupabaseAuth(result.token, result.user.username);
@@ -119,6 +160,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
+    console.log('Manual logout triggered');
     secureAuthService.logout();
     setUser(null);
     clearSupabaseAuth();
@@ -129,16 +171,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Check session expiration every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
-      if (user && !validateSession()) {
-        logout();
-        toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      if (user) {
+        const token = localStorage.getItem('auth_token');
+        const loginTime = localStorage.getItem('auth_login_time');
+        
+        if (!token || !loginTime) {
+          console.log('Session data missing, logging out');
+          logout();
+          toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+          return;
+        }
+
+        // Check 7-day expiration
+        const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+        const loginTimestamp = parseInt(loginTime);
+        const now = Date.now();
+        
+        if (now - loginTimestamp > sevenDaysInMs) {
+          console.log('Session expired (7 days), logging out');
+          logout();
+          toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+          return;
+        }
+
+        // Check token expiration
+        try {
+          const parts = token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            if (payload.exp && payload.exp < Date.now() / 1000) {
+              console.log('Token expired, logging out');
+              logout();
+              toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+            }
+          }
+        } catch (error) {
+          console.log('Token validation error during interval check:', error);
+        }
       }
     }, 5 * 60 * 1000); // 5 minutes
 
     return () => clearInterval(interval);
   }, [user]);
 
+  // Initial auth check on mount
   useEffect(() => {
+    console.log('AuthProvider mounted, checking initial auth state');
     checkAuth();
   }, []);
 

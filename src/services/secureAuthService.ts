@@ -243,6 +243,7 @@ export function validateSession(): boolean {
     const loginTime = localStorage.getItem('auth_login_time');
     
     if (!token || !user || !loginTime) {
+      console.log('Session validation failed: missing data');
       return false;
     }
 
@@ -251,36 +252,48 @@ export function validateSession(): boolean {
     const loginTimestamp = parseInt(loginTime);
     const now = Date.now();
     
+    if (isNaN(loginTimestamp)) {
+      console.log('Session validation failed: invalid login timestamp');
+      return false;
+    }
+    
     if (now - loginTimestamp > sevenDaysInMs) {
+      console.log('Session validation failed: session older than 7 days');
       logSecurityEvent('SESSION_EXPIRED', { 
         loginTime: new Date(loginTimestamp).toISOString(),
         expiredAt: new Date(now).toISOString()
       });
-      
-      // Clear expired session
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-      localStorage.removeItem('auth_login_time');
-      
       return false;
     }
 
     // Basic token validation
     const parts = token.split('.');
     if (parts.length !== 3) {
+      console.log('Session validation failed: invalid token format');
       logSecurityEvent('INVALID_TOKEN_FORMAT');
       return false;
     }
 
     // Check token expiration
-    const payload = JSON.parse(atob(parts[1]));
-    if (payload.exp && payload.exp < Date.now() / 1000) {
-      logSecurityEvent('TOKEN_EXPIRED', { exp: payload.exp });
+    try {
+      const payload = JSON.parse(atob(parts[1]));
+      if (payload.exp && payload.exp < Date.now() / 1000) {
+        console.log('Session validation failed: token expired');
+        logSecurityEvent('TOKEN_EXPIRED', { exp: payload.exp });
+        return false;
+      }
+    } catch (tokenError) {
+      console.log('Session validation failed: token parsing error', tokenError);
+      logSecurityEvent('TOKEN_PARSING_ERROR', { 
+        error: tokenError instanceof Error ? tokenError.message : 'Unknown error' 
+      });
       return false;
     }
 
+    console.log('Session validation successful');
     return true;
   } catch (error) {
+    console.log('Session validation failed: exception', error);
     logSecurityEvent('SESSION_VALIDATION_ERROR', { 
       error: error instanceof Error ? error.message : 'Unknown error' 
     });
