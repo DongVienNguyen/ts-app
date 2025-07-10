@@ -8,15 +8,7 @@ import Layout from '@/components/Layout';
 import Login from '@/pages/Login';
 import Index from '@/pages/Index';
 import AssetEntry from '@/pages/AssetEntry';
-import DailyReport from '@/pages/DailyReport';
-import BorrowReport from '@/pages/BorrowReport';
-import AssetReminders from '@/pages/AssetReminders';
-import CRCReminders from '@/pages/CRCReminders';
-import OtherAssets from '@/pages/OtherAssets';
-import DataManagement from '@/pages/DataManagement';
-import Notifications from '@/pages/Notifications';
 import NotFound from '@/pages/NotFound';
-import ResetPassword from '@/pages/ResetPassword';
 import { useEffect } from 'react';
 
 const queryClient = new QueryClient({
@@ -30,32 +22,51 @@ const queryClient = new QueryClient({
 });
 
 // Loading component
-const LoadingScreen = () => (
-  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-      <p className="text-gray-600 text-lg">Đang tải...</p>
-      <p className="text-gray-500 text-sm mt-2">Vui lòng chờ trong giây lát</p>
+const LoadingScreen = () => {
+  console.log('🔄 LoadingScreen rendering...');
+  
+  return (
+    <div 
+      className="min-h-screen flex items-center justify-center"
+      style={{ 
+        backgroundColor: '#ffffff',
+        color: '#111827',
+        minHeight: '100vh'
+      }}
+    >
+      <div className="text-center">
+        <div 
+          className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+          style={{ borderColor: '#10b981' }}
+        ></div>
+        <p className="text-lg" style={{ color: '#111827' }}>Đang tải...</p>
+        <p className="text-sm mt-2" style={{ color: '#6b7280' }}>Vui lòng chờ trong giây lát</p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Component to handle default route based on user role
 function DefaultRoute() {
   const { user, loading } = useAuth();
+  
+  console.log('🎯 DefaultRoute - user:', user?.username, 'loading:', loading);
   
   if (loading) {
     return <LoadingScreen />;
   }
   
   if (!user) {
+    console.log('🔒 No user, redirecting to login');
     return <Navigate to="/login" replace />;
   }
   
   // Regular users go to asset-entry, admins/NQ go to dashboard
   if (user.role === 'user') {
+    console.log('👤 User role, redirecting to asset-entry');
     return <Navigate to="/asset-entry" replace />;
   } else {
+    console.log('👑 Admin/NQ role, showing dashboard');
     return (
       <Layout>
         <Index />
@@ -67,13 +78,18 @@ function DefaultRoute() {
 function AppContent() {
   const { user, loading } = useAuth();
 
+  console.log('🚀 AppContent rendering - user:', user?.username, 'loading:', loading);
+
   useEffect(() => {
+    console.log('🌞 [APP] Forcing light theme...');
+    
     // Aggressive light theme forcing
     const forceLight = () => {
       // Remove all dark theme classes
       document.body.classList.remove('dark');
       document.documentElement.classList.remove('dark');
       document.documentElement.removeAttribute('data-theme');
+      document.body.removeAttribute('data-theme');
       
       // Set light color scheme
       document.documentElement.style.colorScheme = 'light';
@@ -85,44 +101,28 @@ function AppContent() {
       document.documentElement.style.backgroundColor = '#ffffff';
       document.documentElement.style.color = '#111827';
       
-      // Remove any dark theme attributes
-      document.body.removeAttribute('data-theme');
-      document.body.removeAttribute('class');
-      document.body.className = '';
-      
-      console.log('🌞 [THEME] Forced light theme applied');
+      console.log('✅ [APP] Light theme applied');
     };
 
     // Apply immediately
     forceLight();
 
-    // Apply on DOM changes (for dynamic content)
-    const observer = new MutationObserver(() => {
-      forceLight();
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class', 'data-theme'],
-      subtree: false
-    });
-
-    observer.observe(document.body, {
-      attributes: true,
-      attributeFilter: ['class', 'data-theme'],
-      subtree: false
-    });
+    // Apply periodically
+    const interval = setInterval(forceLight, 1000);
 
     // Cleanup
     return () => {
-      observer.disconnect();
+      clearInterval(interval);
     };
   }, []);
 
   // Show loading screen while checking authentication
   if (loading) {
+    console.log('⏳ App loading...');
     return <LoadingScreen />;
   }
+
+  console.log('🎯 App rendering routes...');
 
   return (
     <Router future={{ 
@@ -131,8 +131,10 @@ function AppContent() {
     }}>
       <Routes>
         {/* Public routes without Layout */}
-        <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-        <Route path="/reset-password" element={user ? <Navigate to="/" replace /> : <ResetPassword />} />
+        <Route 
+          path="/login" 
+          element={user ? <Navigate to="/" replace /> : <Login />} 
+        />
         
         {/* Default route - redirects based on user role */}
         <Route path="/" element={
@@ -150,62 +152,6 @@ function AppContent() {
           </ProtectedRoute>
         } />
         
-        <Route path="/daily-report" element={
-          <ProtectedRoute>
-            <Layout>
-              <DailyReport />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/borrow-report" element={
-          <ProtectedRoute>
-            <Layout>
-              <BorrowReport />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/asset-reminders" element={
-          <ProtectedRoute>
-            <Layout>
-              <AssetReminders />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/crc-reminders" element={
-          <ProtectedRoute>
-            <Layout>
-              <CRCReminders />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/other-assets" element={
-          <ProtectedRoute>
-            <Layout>
-              <OtherAssets />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/data-management" element={
-          <ProtectedRoute>
-            <Layout>
-              <DataManagement />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/notifications" element={
-          <ProtectedRoute>
-            <Layout>
-              <Notifications />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
         {/* 404 route */}
         <Route path="*" element={user ? (
           <Layout>
@@ -218,6 +164,8 @@ function AppContent() {
 }
 
 function App() {
+  console.log('🚀 App component initializing...');
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
