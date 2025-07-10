@@ -1,44 +1,75 @@
 import React from 'react';
-import { AssetEntryFormState } from '@/types/assetEntryFormState';
-import DateInput from '@/components/DateInput';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Calendar, Clock } from 'lucide-react';
+import { AssetEntryFormState } from '@/types/assetEntryFormState';
 
 interface TransactionDetailsProps {
   formData: AssetEntryFormState;
-  setFormData: React.Dispatch<React.SetStateAction<AssetEntryFormState>>;
-  disabledBeforeDate?: Date;
+  setFormData: (data: AssetEntryFormState) => void;
+  disabledBeforeDate: Date;
 }
 
-const TransactionDetails: React.FC<TransactionDetailsProps> = ({ formData, setFormData, disabledBeforeDate }) => {
-  const handleInputChange = (field: keyof AssetEntryFormState, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+const TransactionDetails: React.FC<TransactionDetailsProps> = ({
+  formData,
+  setFormData,
+  disabledBeforeDate,
+}) => {
+  const timeSlots = [
+    { value: 'sang', label: 'Sáng' },
+    { value: 'chieu', label: 'Chiều' },
+    { value: 'toi', label: 'Tối' },
+  ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Buổi và ngày lấy TS */}
-      <div className="space-y-2 md:col-span-2"> {/* Changed to col-span-2 for better layout */}
-        <Label>Buổi và ngày lấy TS</Label>
-        <div className="grid grid-cols-2 gap-2">
-          <Select
-            value={formData.parts_day}
-            onValueChange={(value) => handleInputChange('parts_day', value)}
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-base font-medium text-gray-900 flex items-center space-x-2">
+            <Clock className="w-4 h-4 text-purple-600" />
+            <span>Buổi và ngày lấy TS</span>
+          </Label>
+          <Select 
+            value={formData.parts_day} 
+            onValueChange={(value) => setFormData({ ...formData, parts_day: value })}
           >
             <SelectTrigger>
               <SelectValue placeholder="Chọn buổi" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Sáng">Sáng</SelectItem>
-              <SelectItem value="Chiều">Chiều</SelectItem>
+              {timeSlots.map((slot) => (
+                <SelectItem key={slot.value} value={slot.value}>
+                  {slot.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <DateInput
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-base font-medium text-gray-900 flex items-center space-x-2">
+            <Calendar className="w-4 h-4 text-orange-600" />
+            <span>Ngày</span>
+          </Label>
+          <Input
+            type="date"
             value={formData.transaction_date}
-            onChange={(date) => handleInputChange('transaction_date', date)}
-            disabledBefore={disabledBeforeDate}
+            onChange={(e) => setFormData({ ...formData, transaction_date: e.target.value })}
+            min={disabledBeforeDate.toISOString().split('T')[0]}
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-base font-medium text-gray-900">
+          Ghi chú (tùy chọn)
+        </Label>
+        <Input
+          placeholder="Nhập ghi chú nếu có..."
+          value={formData.note}
+          onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+        />
       </div>
     </div>
   );

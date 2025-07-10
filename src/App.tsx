@@ -8,6 +8,17 @@ import Layout from '@/components/Layout';
 import Login from '@/pages/Login';
 import Index from '@/pages/Index';
 import AssetEntry from '@/pages/AssetEntry';
+import DailyReport from '@/pages/DailyReport';
+import AssetReminders from '@/pages/AssetReminders';
+import CRCReminders from '@/pages/CRCReminders';
+import BorrowReport from '@/pages/BorrowReport';
+import OtherAssets from '@/pages/OtherAssets';
+import DataManagement from '@/pages/DataManagement';
+import SecurityMonitor from '@/pages/SecurityMonitor';
+import ErrorMonitoring from '@/pages/ErrorMonitoring';
+import UsageMonitoring from '@/pages/UsageMonitoring';
+import Notifications from '@/pages/Notifications';
+import ResetPassword from '@/pages/ResetPassword';
 import NotFound from '@/pages/NotFound';
 
 const queryClient = new QueryClient({
@@ -99,6 +110,94 @@ function AppContent() {
           <ProtectedRoute>
             <Layout>
               <AssetEntry />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/daily-report" element={
+          <ProtectedRoute>
+            <Layout>
+              <DailyReport />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/borrow-report" element={
+          <ProtectedRoute>
+            <Layout>
+              <BorrowReport />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/asset-reminders" element={
+          <ProtectedRoute>
+            <Layout>
+              <AssetReminders />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/crc-reminders" element={
+          <ProtectedRoute>
+            <Layout>
+              <CRCReminders />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/other-assets" element={
+          <ProtectedRoute>
+            <Layout>
+              <OtherAssets />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/data-management" element={
+          <ProtectedRoute>
+            <Layout>
+              <DataManagement />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/security-monitor" element={
+          <ProtectedRoute>
+            <Layout>
+              <SecurityMonitor />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/error-monitoring" element={
+          <ProtectedRoute>
+            <Layout>
+              <ErrorMonitoring />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/usage-monitoring" element={
+          <ProtectedRoute>
+            <Layout>
+              <UsageMonitoring />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/notifications" element={
+          <ProtectedRoute>
+            <Layout>
+              <Notifications />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/reset-password" element={
+          <ProtectedRoute>
+            <Layout>
+              <ResetPassword />
             </Layout>
           </ProtectedRoute>
         } />

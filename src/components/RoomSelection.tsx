@@ -1,34 +1,44 @@
-import { Building } from 'lucide-react';
+import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Building } from 'lucide-react';
 
 interface RoomSelectionProps {
   selectedRoom: string;
-  onRoomChange: (value: string) => void;
+  onRoomChange: (room: string) => void;
 }
 
-const RoomSelection = ({ selectedRoom, onRoomChange }: RoomSelectionProps) => {
+const RoomSelection: React.FC<RoomSelectionProps> = ({
+  selectedRoom,
+  onRoomChange,
+}) => {
+  const rooms = [
+    'A101', 'A102', 'A103', 'A104', 'A105',
+    'B101', 'B102', 'B103', 'B104', 'B105',
+    'C101', 'C102', 'C103', 'C104', 'C105',
+    'D101', 'D102', 'D103', 'D104', 'D105',
+    'Phòng họp 1', 'Phòng họp 2', 'Phòng họp 3',
+    'Kho tài sản', 'Phòng IT', 'Phòng kế toán'
+  ];
+
   return (
-    <div className="space-y-4">
-      <Label className="flex items-center text-base font-semibold">
-        <Building className="w-5 h-5 mr-2 text-green-600" />
-        Tài sản của phòng
+    <div className="space-y-2">
+      <Label className="text-base font-medium text-gray-900 flex items-center space-x-2">
+        <Building className="w-4 h-4 text-green-600" />
+        <span>Tài sản của phòng</span>
       </Label>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Select value={selectedRoom} onValueChange={onRoomChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Chọn phòng" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="QLN">QLN</SelectItem>
-            <SelectItem value="CMT8">CMT8</SelectItem>
-            <SelectItem value="NS">NS</SelectItem>
-            <SelectItem value="ĐS">ĐS</SelectItem>
-            <SelectItem value="LĐH">LĐH</SelectItem>
-            <SelectItem value="DVKH">DVKH</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Select value={selectedRoom} onValueChange={onRoomChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Chọn phòng" />
+        </SelectTrigger>
+        <SelectContent>
+          {rooms.map((room) => (
+            <SelectItem key={room} value={room}>
+              {room}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 };

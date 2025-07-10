@@ -85,51 +85,7 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      {/* AI Assistant Card */}
-      <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <CardContent className="p-4">
-          <div className="flex items-start space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-blue-900 mb-2">
-                🤖 Hướng dẫn sử dụng AI
-              </h3>
-              <div className="text-sm text-blue-800 space-y-1">
-                <p>• Nhấn nút <strong>"AI"</strong> để mở dialog phân tích ảnh</p>
-                <p>• Chọn <strong>"Chụp ảnh bằng Camera"</strong> để chụp trực tiếp</p>
-                <p>• Hoặc chọn <strong>"Upload từ thiết bị"</strong> để chọn ảnh có sẵn</p>
-                <p>• AI sẽ tự động phát hiện mã tài sản và điền vào form</p>
-                <p>• Đảm bảo ảnh rõ nét và mã tài sản hiển thị đầy đủ</p>
-              </div>
-              <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-                <p className="text-xs font-medium flex items-center text-yellow-800">
-                  💡 <span className="ml-1">Meo: Chụp ảnh trong điều kiện ánh sáng tốt và giữ camera ổn định để có kết quả tốt nhất.</span>
-                </p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Time Restriction Warning */}
-      {isRestrictedTime && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4" />
-              <span>
-                Đang trong khung giờ cấm (7:45-8:05 hoặc 12:45-13:05). 
-                Vui lòng sử dụng Zalo để thông báo.
-              </span>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
+    <div className="space-y-8">
       {/* Room Selection */}
       <div className="space-y-3">
         <RoomSelection
@@ -138,31 +94,19 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
         />
       </div>
 
-      <Separator />
-
-      {/* Transaction Type Selection */}
-      <div className="space-y-3">
-        <TransactionTypeSelection
-          selectedType={formData.transaction_type}
-          onTypeChange={(type) => setFormData({ ...formData, transaction_type: type })}
-        />
-      </div>
-
-      <Separator />
-
       {/* Asset Code Inputs with AI Integration */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold flex items-center space-x-2">
-              <span>Nhập [Mã TS].[Năm TS]: Có dấu CHẤM giữa mã TS và năm TS</span>
+            <h3 className="text-lg font-medium text-gray-900">
+              Nhập [Mã TS].[Năm TS]: Có dấu CHẤM giữa mã TS và năm TS
             </h3>
           </div>
           <Button
             type="button"
             onClick={() => setIsDialogOpen(true)}
             disabled={isProcessingImage}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium px-4 py-2 rounded-lg shadow-md transition-all duration-200"
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium"
           >
             {isProcessingImage ? (
               <>
@@ -188,7 +132,13 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
         />
       </div>
 
-      <Separator />
+      {/* Transaction Type Selection */}
+      <div className="space-y-3">
+        <TransactionTypeSelection
+          selectedType={formData.transaction_type}
+          onTypeChange={(type) => setFormData({ ...formData, transaction_type: type })}
+        />
+      </div>
 
       {/* Transaction Details */}
       <div className="space-y-4">
@@ -198,8 +148,6 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
           disabledBeforeDate={disabledBeforeDate}
         />
       </div>
-
-      <Separator />
 
       {/* Submit Buttons */}
       <div className="pt-4">
@@ -214,19 +162,18 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
       {/* Image Processing Dialog */}
       {isDialogOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-background rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900">
               🤖 Chọn phương thức AI
             </h3>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-gray-600 mb-4">
               AI sẽ phân tích ảnh và tự động điền mã tài sản vào form
             </p>
             <div className="space-y-3">
               <Button
                 onClick={openCamera}
                 disabled={isProcessingImage}
-                className="w-full"
-                variant="default"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               >
                 <Camera className="w-4 h-4 mr-2" />
                 📱 Chụp ảnh bằng Camera
@@ -234,8 +181,7 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
               <Button
                 onClick={handleFileUpload}
                 disabled={isProcessingImage}
-                className="w-full"
-                variant="secondary"
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
               >
                 <Upload className="w-4 h-4 mr-2" />
                 📁 Upload từ thiết bị
@@ -243,17 +189,17 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
               <Button
                 onClick={() => setIsDialogOpen(false)}
                 variant="outline"
-                className="w-full"
+                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 ❌ Hủy
               </Button>
             </div>
             
             {isProcessingImage && (
-              <div className="mt-4 p-3 bg-muted rounded-md">
+              <div className="mt-4 p-3 bg-blue-50 rounded-md">
                 <div className="flex items-center space-x-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <span className="text-sm text-blue-800">
                     🤖 AI đang phân tích ảnh...
                   </span>
                 </div>

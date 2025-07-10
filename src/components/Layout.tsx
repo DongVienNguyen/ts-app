@@ -25,7 +25,11 @@ import {
   BarChart3,
   LogOut,
   User,
-  ChevronDown
+  ChevronDown,
+  Home,
+  Shield,
+  Activity,
+  Key
 } from 'lucide-react';
 import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -61,45 +65,69 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const navigationItems = [
     {
-      name: 'Thông báo Mượn/Xuất',
+      name: 'Trang chủ',
+      href: '/',
+      icon: Home,
+      show: true
+    },
+    {
+      name: 'Thông báo M/X',
       href: '/asset-entry',
       icon: Package,
       show: true
     },
     {
-      name: 'Danh sách TS cần lấy',
+      name: 'DS TS cần lấy',
       href: '/daily-report',
       icon: FileText,
       show: true
     },
     {
-      name: 'Nhắc tài sản đến hạn',
-      href: '/asset-reminders',
-      icon: Bell,
-      show: isNqOrAdmin(user)
-    },
-    {
-      name: 'Nhắc duyệt CRC',
-      href: '/crc-reminders',
-      icon: Bell,
-      show: isNqOrAdmin(user)
-    },
-    {
-      name: 'Báo cáo TS đã mượn',
+      name: 'Báo cáo TS',
       href: '/borrow-report',
       icon: BarChart3,
       show: isNqOrAdmin(user)
     },
     {
-      name: 'Tài sản khác gửi kho',
+      name: 'Nhắc nhở TS',
+      href: '/asset-reminders',
+      icon: Bell,
+      show: isNqOrAdmin(user)
+    },
+    {
+      name: 'Nhắc nhở CRC',
+      href: '/crc-reminders',
+      icon: Bell,
+      show: isNqOrAdmin(user)
+    },
+    {
+      name: 'Tài sản khác',
       href: '/other-assets',
       icon: Package,
       show: isNqOrAdmin(user)
     },
     {
-      name: 'Quản lý dữ liệu',
+      name: 'Quản lý DL',
       href: '/data-management',
       icon: Database,
+      show: isAdmin(user)
+    },
+    {
+      name: 'Bảo mật',
+      href: '/security-monitor',
+      icon: Shield,
+      show: isAdmin(user)
+    },
+    {
+      name: 'Lỗi hệ thống',
+      href: '/error-monitoring',
+      icon: Activity,
+      show: isAdmin(user)
+    },
+    {
+      name: 'Sử dụng',
+      href: '/usage-monitoring',
+      icon: BarChart3,
       show: isAdmin(user)
     },
     {
@@ -264,6 +292,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       {user.role} - {user.department}
                     </div>
                   </div>
+                  <DropdownMenuSeparator className="bg-gray-200" />
+                  <DropdownMenuItem asChild>
+                    <Link to="/reset-password" className="flex items-center cursor-pointer">
+                      <Key className="w-4 h-4 mr-2" />
+                      Đổi mật khẩu
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-gray-200" />
                   <DropdownMenuItem 
                     onClick={handleLogout} 

@@ -1,50 +1,77 @@
-import { Bug } from 'lucide-react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { Send, Loader2, AlertTriangle } from 'lucide-react';
 
 interface SubmitButtonsProps {
-  isRestrictedTime: boolean;
   isFormValid: boolean;
   isSubmitting: boolean;
-  onSubmit: () => void;
+  isRestrictedTime: boolean;
+  onSubmit: () => Promise<void>;
 }
 
-const SubmitButtons = ({
-  isRestrictedTime,
+const SubmitButtons: React.FC<SubmitButtonsProps> = ({
   isFormValid,
   isSubmitting,
-  onSubmit
-}: SubmitButtonsProps) => {
-  const navigate = useNavigate();
+  isRestrictedTime,
+  onSubmit,
+}) => {
+  const handleClear = () => {
+    // Clear form logic would be handled by parent component
+    window.location.reload();
+  };
 
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="flex space-x-4">
-        {!isRestrictedTime ? (
-          <Button
-            type="submit"
-            className="bg-green-600 hover:bg-green-700"
-            disabled={!isFormValid || isSubmitting}
-            onClick={onSubmit}
-          >
-            {isSubmitting ? 'Đang gửi...' : 'Gửi thông báo'}
-          </Button>
-        ) : (
-          <div className="text-orange-600 font-medium">
-            Không thể lưu dữ liệu trong giờ nghỉ
-          </div>
-        )}
-      </div>
-      
+    <div className="flex justify-between items-center pt-4">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleClear}
+        disabled={isSubmitting}
+        className="px-6"
+      >
+        Clear
+      </Button>
+
       <div className="flex space-x-4">
         <Button
           type="button"
           variant="outline"
-          onClick={() => navigate('/error-report')}
-          className="text-red-600 border-red-200 hover:bg-red-50"
+          className="text-blue-600 border-blue-300 hover:bg-blue-50"
+          disabled={isSubmitting}
         >
-          <Bug className="w-4 h-4 mr-2" />
-          Báo lỗi và gửi hình lỗi
+          📧 Test Email
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="text-red-600 border-red-300 hover:bg-red-50"
+          disabled={isSubmitting}
+        >
+          ⚠️ Báo lỗi và gửi hình lỗi
+        </Button>
+
+        <Button
+          onClick={onSubmit}
+          disabled={!isFormValid || isSubmitting || isRestrictedTime}
+          className="bg-green-600 hover:bg-green-700 text-white px-8"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Đang gửi...
+            </>
+          ) : isRestrictedTime ? (
+            <>
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              Khung giờ cấm
+            </>
+          ) : (
+            <>
+              <Send className="w-4 h-4 mr-2" />
+              Gửi thông báo
+            </>
+          )}
         </Button>
       </div>
     </div>
