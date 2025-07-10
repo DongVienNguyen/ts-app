@@ -8,6 +8,19 @@ let currentAuthToken: string | null = null;
 let currentUsername: string | null = null;
 let authenticatedClient: SupabaseClient | null = null;
 
+// Create service role client for system operations (bypasses RLS)
+const serviceRoleClient = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+  global: {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }
+});
+
 // Create authenticated Supabase client
 export function createAuthenticatedClient(token: string): SupabaseClient {
   return createClient(supabaseUrl, supabaseAnonKey, {
@@ -50,6 +63,11 @@ export function getAuthenticatedClient(): SupabaseClient | null {
   return authenticatedClient;
 }
 
+// Get service role client for system operations
+export function getServiceRoleClient(): SupabaseClient {
+  return serviceRoleClient;
+}
+
 // Get current auth info
 export function getCurrentAuth() {
   return {
@@ -59,16 +77,24 @@ export function getCurrentAuth() {
   };
 }
 
-// Safe database operation wrapper
+// Safe database operation wrapper - uses service role for system operations
 export async function safeDbOperation<T>(
   operation: (client: SupabaseClient) => Promise<T>,
-  fallbackValue?: T
+  fallbackValue?: T,
+  useServiceRole: boolean = false
 ): Promise<T | null> {
-  const client = getAuthenticatedClient();
+  let client: SupabaseClient | null = null;
   
-  if (!client) {
-    console.warn('⚠️ Cannot perform database operation: not authenticated');
-    return fallbackValue || null;
+  if (useServiceRole) {
+    // Use service role client for system operations (bypasses RLS)
+    client = serviceRoleClient;
+  } else {
+    // Use authenticated client for user operations
+    client = getAuthenticatedClient();
+    if (!client) {
+      console.warn('⚠️ Cannot perform database operation: not authenticated');
+      return fallbackValue || null;
+    }
   }
 
   try {
@@ -77,4 +103,12 @@ export async function safeDbOperation<T>(
     console.error('❌ Database operation failed:', error);
     return fallbackValue || null;
   }
+}
+
+// System operation wrapper - always uses service role
+export async function systemDbOperation<T>(
+  operation: (client: SupabaseClient) => Promise<T>,
+  fallbackValue?: T
+): Promise<T | null> {
+  return safeDbOperation(operation, fallbackValue, true);
 }

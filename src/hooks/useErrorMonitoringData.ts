@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { safeDbOperation } from '@/utils/supabaseAuth';
+import { systemDbOperation } from '@/utils/supabaseAuth';
 import { SystemError, SystemMetric, SystemStatus, checkServiceHealth, monitorResources } from '@/utils/errorTracking';
 
 interface ErrorStats {
@@ -44,8 +44,8 @@ export function useErrorMonitoringData() {
     try {
       setIsLoading(true);
 
-      // Get error statistics using safe database operation
-      const errors = await safeDbOperation(async (client) => {
+      // Get error statistics using system database operation
+      const errors = await systemDbOperation(async (client) => {
         const { data, error } = await client
           .from('system_errors')
           .select('*')
@@ -56,7 +56,7 @@ export function useErrorMonitoringData() {
       }, []);
 
       if (!errors) {
-        console.warn('⚠️ Could not load error data - not authenticated');
+        console.warn('⚠️ Could not load error data');
         setIsLoading(false);
         return;
       }
@@ -122,7 +122,7 @@ export function useErrorMonitoringData() {
 
   const loadSystemMetrics = useCallback(async () => {
     try {
-      const metrics = await safeDbOperation(async (client) => {
+      const metrics = await systemDbOperation(async (client) => {
         const { data, error } = await client
           .from('system_metrics')
           .select('*')

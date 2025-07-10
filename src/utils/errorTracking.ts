@@ -1,4 +1,4 @@
-import { safeDbOperation } from '@/utils/supabaseAuth';
+import { safeDbOperation, systemDbOperation } from '@/utils/supabaseAuth';
 
 export interface SystemError {
   id?: string;
@@ -35,10 +35,10 @@ export interface SystemStatus {
   status_data?: any;
 }
 
-// Log system error
+// Log system error - uses service role to bypass RLS
 export async function logSystemError(error: Omit<SystemError, 'id' | 'created_at'>) {
   try {
-    const result = await safeDbOperation(async (client) => {
+    const result = await systemDbOperation(async (client) => {
       const { data, error: dbError } = await client
         .from('system_errors')
         .insert({
@@ -83,9 +83,9 @@ export async function logSystemError(error: Omit<SystemError, 'id' | 'created_at
   }
 }
 
-// Log system metric
+// Log system metric - uses service role to bypass RLS
 export async function logSystemMetric(metric: SystemMetric) {
-  const result = await safeDbOperation(async (client) => {
+  const result = await systemDbOperation(async (client) => {
     const { data, error } = await client
       .from('system_metrics')
       .insert(metric)
@@ -97,15 +97,15 @@ export async function logSystemMetric(metric: SystemMetric) {
   });
 
   if (!result) {
-    console.warn('⚠️ Failed to log system metric - not authenticated or database error');
+    console.warn('⚠️ Failed to log system metric - database error');
   }
 
   return result;
 }
 
-// Update system status
+// Update system status - uses service role to bypass RLS
 export async function updateSystemStatus(status: SystemStatus) {
-  const result = await safeDbOperation(async (client) => {
+  const result = await systemDbOperation(async (client) => {
     const { data, error } = await client
       .from('system_status')
       .insert(status)
@@ -117,7 +117,7 @@ export async function updateSystemStatus(status: SystemStatus) {
   });
 
   if (!result) {
-    console.warn('⚠️ Failed to update system status - not authenticated or database error');
+    console.warn('⚠️ Failed to update system status - database error');
   }
 
   return result;
@@ -253,7 +253,7 @@ export async function checkServiceHealth(serviceName: string, checkUrl?: string)
       }
     } else {
       // For services without URL, check based on recent errors
-      const recentErrors = await safeDbOperation(async (client) => {
+      const recentErrors = await systemDbOperation(async (client) => {
         const { data } = await client
           .from('system_errors')
           .select('*')

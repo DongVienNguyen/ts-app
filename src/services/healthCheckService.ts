@@ -1,4 +1,4 @@
-import { safeDbOperation, getCurrentAuth } from '@/utils/supabaseAuth';
+import { systemDbOperation } from '@/utils/supabaseAuth';
 import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
 import { emailService } from './emailService';
 import { notificationService } from './notificationService';
@@ -15,16 +15,9 @@ export class HealthCheckService {
     return HealthCheckService.instance;
   }
 
-  // Start health monitoring (only if authenticated)
+  // Start health monitoring
   startMonitoring(intervalMinutes: number = 5) {
     if (this.isRunning) return;
-
-    // Check if user is authenticated before starting
-    const { isAuthenticated } = getCurrentAuth();
-    if (!isAuthenticated) {
-      console.log('🏥 Health monitoring skipped - user not authenticated');
-      return;
-    }
 
     this.isRunning = true;
     console.log('🏥 Starting health monitoring...');
@@ -34,13 +27,6 @@ export class HealthCheckService {
 
     // Set up periodic checks
     this.checkInterval = setInterval(() => {
-      // Check authentication before each run
-      const { isAuthenticated } = getCurrentAuth();
-      if (!isAuthenticated) {
-        console.log('🏥 Stopping health monitoring - user no longer authenticated');
-        this.stopMonitoring();
-        return;
-      }
       this.runHealthChecks();
     }, intervalMinutes * 60 * 1000);
   }
@@ -55,14 +41,8 @@ export class HealthCheckService {
     console.log('🏥 Health monitoring stopped');
   }
 
-  // Run all health checks (only if authenticated)
+  // Run all health checks
   private async runHealthChecks() {
-    const { isAuthenticated } = getCurrentAuth();
-    if (!isAuthenticated) {
-      console.log('🔍 Health checks skipped - not authenticated');
-      return;
-    }
-
     console.log('🔍 Running health checks...');
     
     try {
@@ -83,8 +63,8 @@ export class HealthCheckService {
     const startTime = performance.now();
     
     try {
-      // Simple query to test database connectivity
-      const result = await safeDbOperation(async (client) => {
+      // Simple query to test database connectivity using system operation
+      const result = await systemDbOperation(async (client) => {
         const { error } = await client
           .from('staff')
           .select('count')
@@ -97,7 +77,7 @@ export class HealthCheckService {
       const responseTime = Math.round(performance.now() - startTime);
 
       if (!result) {
-        throw new Error('Database query failed - not authenticated');
+        throw new Error('Database query failed');
       }
 
       await updateSystemStatus({
@@ -160,8 +140,8 @@ export class HealthCheckService {
     const startTime = performance.now();
     
     try {
-      // Test API connectivity by calling a simple function
-      const result = await safeDbOperation(async (client) => {
+      // Test API connectivity by calling a simple function using system operation
+      const result = await systemDbOperation(async (client) => {
         await client.functions.invoke('check-account-status', {
           body: { test: true }
         });
@@ -170,8 +150,6 @@ export class HealthCheckService {
 
       const responseTime = Math.round(performance.now() - startTime);
 
-      // Even if the function returns an error for test data, 
-      // if we get a response, the API is working
       await updateSystemStatus({
         service_name: 'api',
         status: result ? 'online' : 'degraded',
@@ -285,7 +263,7 @@ export class HealthCheckService {
       }
 
       // Active sessions count
-      const activeSessions = await safeDbOperation(async (client) => {
+      const activeSessions = await systemDbOperation(async (client) => {
         const { data } = await client
           .from('user_sessions')
           .select('count')
@@ -310,18 +288,8 @@ export class HealthCheckService {
 
   // Get current system health summary
   async getHealthSummary() {
-    const { isAuthenticated } = getCurrentAuth();
-    if (!isAuthenticated) {
-      console.warn('⚠️ Cannot get health summary - not authenticated');
-      return {
-        overallHealth: 0,
-        services: {},
-        summary: { total: 0, online: 0, degraded: 0, offline: 0 }
-      };
-    }
-
     try {
-      const statuses = await safeDbOperation(async (client) => {
+      const statuses = await systemDbOperation(async (client) => {
         const { data, error } = await client
           .from('system_status')
           .select('*')
