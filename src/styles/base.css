@@ -50,114 +50,194 @@
     min-height: 100vh;
   }
 
-  /* Force light theme for ALL components */
+  /* FORCE LIGHT THEME FOR ALL COMPONENTS */
+  
+  /* Background colors */
   .bg-background,
   [data-theme="dark"] .bg-background,
-  .dark .bg-background {
+  .dark .bg-background,
+  html.dark .bg-background,
+  html[data-theme="dark"] .bg-background {
     background-color: #ffffff !important;
   }
 
   .text-foreground,
   [data-theme="dark"] .text-foreground,
-  .dark .text-foreground {
+  .dark .text-foreground,
+  html.dark .text-foreground,
+  html[data-theme="dark"] .text-foreground {
     color: #111827 !important;
   }
 
+  /* Card components */
   .bg-card,
   [data-theme="dark"] .bg-card,
-  .dark .bg-card {
+  .dark .bg-card,
+  html.dark .bg-card,
+  html[data-theme="dark"] .bg-card {
     background-color: #ffffff !important;
     border: 1px solid #e5e7eb !important;
   }
 
   .text-card-foreground,
   [data-theme="dark"] .text-card-foreground,
-  .dark .text-card-foreground {
+  .dark .text-card-foreground,
+  html.dark .text-card-foreground,
+  html[data-theme="dark"] .text-card-foreground {
     color: #111827 !important;
   }
 
+  /* Popover components */
   .bg-popover,
   [data-theme="dark"] .bg-popover,
-  .dark .bg-popover {
+  .dark .bg-popover,
+  html.dark .bg-popover,
+  html[data-theme="dark"] .bg-popover {
     background-color: #ffffff !important;
     border: 1px solid #e5e7eb !important;
   }
 
   .text-popover-foreground,
   [data-theme="dark"] .text-popover-foreground,
-  .dark .text-popover-foreground {
+  .dark .text-popover-foreground,
+  html.dark .text-popover-foreground,
+  html[data-theme="dark"] .text-popover-foreground {
     color: #111827 !important;
   }
 
+  /* Muted backgrounds */
   .bg-muted,
   [data-theme="dark"] .bg-muted,
-  .dark .bg-muted {
+  .dark .bg-muted,
+  html.dark .bg-muted,
+  html[data-theme="dark"] .bg-muted {
     background-color: #f9fafb !important;
   }
 
   .text-muted-foreground,
   [data-theme="dark"] .text-muted-foreground,
-  .dark .text-muted-foreground {
+  .dark .text-muted-foreground,
+  html.dark .text-muted-foreground,
+  html[data-theme="dark"] .text-muted-foreground {
     color: #6b7280 !important;
   }
 
-  /* Force all Radix components to light theme */
-  [data-radix-popper-content-wrapper],
-  [data-theme="dark"] [data-radix-popper-content-wrapper],
-  .dark [data-radix-popper-content-wrapper] {
-    background-color: #ffffff !important;
-  }
-
-  [data-radix-dialog-content],
-  [data-theme="dark"] [data-radix-dialog-content],
-  .dark [data-radix-dialog-content] {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-  }
-
-  [data-radix-dropdown-menu-content],
-  [data-theme="dark"] [data-radix-dropdown-menu-content],
-  .dark [data-radix-dropdown-menu-content] {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-    border: 1px solid #e5e7eb !important;
-  }
-
-  [data-radix-select-content],
-  [data-theme="dark"] [data-radix-select-content],
-  .dark [data-radix-select-content] {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-    border: 1px solid #e5e7eb !important;
-  }
-
-  /* Force all dark backgrounds to white */
+  /* FORCE ALL DARK BACKGROUNDS TO WHITE */
   .bg-slate-900,
   .bg-gray-900,
   .bg-zinc-900,
   .bg-neutral-900,
   .bg-stone-900,
   .bg-black,
+  .bg-slate-800,
+  .bg-gray-800,
+  .bg-zinc-800,
+  .bg-neutral-800,
+  .bg-stone-800,
+  .bg-slate-700,
+  .bg-gray-700,
+  .bg-zinc-700,
+  .bg-neutral-700,
+  .bg-stone-700,
   [data-theme="dark"] .bg-slate-900,
   [data-theme="dark"] .bg-gray-900,
   [data-theme="dark"] .bg-zinc-900,
   [data-theme="dark"] .bg-neutral-900,
   [data-theme="dark"] .bg-stone-900,
   [data-theme="dark"] .bg-black,
+  [data-theme="dark"] .bg-slate-800,
+  [data-theme="dark"] .bg-gray-800,
+  [data-theme="dark"] .bg-zinc-800,
+  [data-theme="dark"] .bg-neutral-800,
+  [data-theme="dark"] .bg-stone-800,
+  [data-theme="dark"] .bg-slate-700,
+  [data-theme="dark"] .bg-gray-700,
+  [data-theme="dark"] .bg-zinc-700,
+  [data-theme="dark"] .bg-neutral-700,
+  [data-theme="dark"] .bg-stone-700,
   .dark .bg-slate-900,
   .dark .bg-gray-900,
   .dark .bg-zinc-900,
   .dark .bg-neutral-900,
   .dark .bg-stone-900,
-  .dark .bg-black {
+  .dark .bg-black,
+  .dark .bg-slate-800,
+  .dark .bg-gray-800,
+  .dark .bg-zinc-800,
+  .dark .bg-neutral-800,
+  .dark .bg-stone-800,
+  .dark .bg-slate-700,
+  .dark .bg-gray-700,
+  .dark .bg-zinc-700,
+  .dark .bg-neutral-700,
+  .dark .bg-stone-700,
+  html.dark .bg-slate-900,
+  html.dark .bg-gray-900,
+  html.dark .bg-zinc-900,
+  html.dark .bg-neutral-900,
+  html.dark .bg-stone-900,
+  html.dark .bg-black,
+  html.dark .bg-slate-800,
+  html.dark .bg-gray-800,
+  html.dark .bg-zinc-800,
+  html.dark .bg-neutral-800,
+  html.dark .bg-stone-800,
+  html.dark .bg-slate-700,
+  html.dark .bg-gray-700,
+  html.dark .bg-zinc-700,
+  html.dark .bg-neutral-700,
+  html.dark .bg-stone-700,
+  html[data-theme="dark"] .bg-slate-900,
+  html[data-theme="dark"] .bg-gray-900,
+  html[data-theme="dark"] .bg-zinc-900,
+  html[data-theme="dark"] .bg-neutral-900,
+  html[data-theme="dark"] .bg-stone-900,
+  html[data-theme="dark"] .bg-black,
+  html[data-theme="dark"] .bg-slate-800,
+  html[data-theme="dark"] .bg-gray-800,
+  html[data-theme="dark"] .bg-zinc-800,
+  html[data-theme="dark"] .bg-neutral-800,
+  html[data-theme="dark"] .bg-stone-800,
+  html[data-theme="dark"] .bg-slate-700,
+  html[data-theme="dark"] .bg-gray-700,
+  html[data-theme="dark"] .bg-zinc-700,
+  html[data-theme="dark"] .bg-neutral-700,
+  html[data-theme="dark"] .bg-stone-700 {
     background-color: #ffffff !important;
     color: #111827 !important;
   }
 
-  /* Force all white text to dark */
+  /* FORCE ALL WHITE TEXT TO DARK */
   .text-white,
+  .text-slate-100,
+  .text-gray-100,
+  .text-zinc-100,
+  .text-neutral-100,
+  .text-stone-100,
   [data-theme="dark"] .text-white,
-  .dark .text-white {
+  [data-theme="dark"] .text-slate-100,
+  [data-theme="dark"] .text-gray-100,
+  [data-theme="dark"] .text-zinc-100,
+  [data-theme="dark"] .text-neutral-100,
+  [data-theme="dark"] .text-stone-100,
+  .dark .text-white,
+  .dark .text-slate-100,
+  .dark .text-gray-100,
+  .dark .text-zinc-100,
+  .dark .text-neutral-100,
+  .dark .text-stone-100,
+  html.dark .text-white,
+  html.dark .text-slate-100,
+  html.dark .text-gray-100,
+  html.dark .text-zinc-100,
+  html.dark .text-neutral-100,
+  html.dark .text-stone-100,
+  html[data-theme="dark"] .text-white,
+  html[data-theme="dark"] .text-slate-100,
+  html[data-theme="dark"] .text-gray-100,
+  html[data-theme="dark"] .text-zinc-100,
+  html[data-theme="dark"] .text-neutral-100,
+  html[data-theme="dark"] .text-stone-100 {
     color: #111827 !important;
   }
 
@@ -172,21 +252,65 @@
   }
 
   .dark *,
-  [data-theme="dark"] * {
+  [data-theme="dark"] *,
+  html.dark *,
+  html[data-theme="dark"] * {
     color-scheme: light !important;
+  }
+
+  /* FORCE ALL RADIX COMPONENTS TO LIGHT THEME */
+  [data-radix-popper-content-wrapper],
+  [data-theme="dark"] [data-radix-popper-content-wrapper],
+  .dark [data-radix-popper-content-wrapper],
+  html.dark [data-radix-popper-content-wrapper],
+  html[data-theme="dark"] [data-radix-popper-content-wrapper] {
+    background-color: #ffffff !important;
+  }
+
+  [data-radix-dialog-content],
+  [data-theme="dark"] [data-radix-dialog-content],
+  .dark [data-radix-dialog-content],
+  html.dark [data-radix-dialog-content],
+  html[data-theme="dark"] [data-radix-dialog-content] {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  [data-radix-dropdown-menu-content],
+  [data-theme="dark"] [data-radix-dropdown-menu-content],
+  .dark [data-radix-dropdown-menu-content],
+  html.dark [data-radix-dropdown-menu-content],
+  html[data-theme="dark"] [data-radix-dropdown-menu-content] {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  [data-radix-select-content],
+  [data-theme="dark"] [data-radix-select-content],
+  .dark [data-radix-select-content],
+  html.dark [data-radix-select-content],
+  html[data-theme="dark"] [data-radix-select-content] {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #e5e7eb !important;
   }
 
   /* Ensure buttons have proper styling */
   .bg-primary,
   [data-theme="dark"] .bg-primary,
-  .dark .bg-primary {
+  .dark .bg-primary,
+  html.dark .bg-primary,
+  html[data-theme="dark"] .bg-primary {
     background-color: #10b981 !important;
     color: #ffffff !important;
   }
 
   .bg-secondary,
   [data-theme="dark"] .bg-secondary,
-  .dark .bg-secondary {
+  .dark .bg-secondary,
+  html.dark .bg-secondary,
+  html[data-theme="dark"] .bg-secondary {
     background-color: #f3f4f6 !important;
     color: #111827 !important;
   }
@@ -194,7 +318,9 @@
   /* Table styles */
   .bg-muted\/50,
   [data-theme="dark"] .bg-muted\/50,
-  .dark .bg-muted\/50 {
+  .dark .bg-muted\/50,
+  html.dark .bg-muted\/50,
+  html[data-theme="dark"] .bg-muted\/50 {
     background-color: #f9fafb !important;
   }
 
@@ -226,6 +352,76 @@
   /* Smooth transitions */
   button, a, input, select, textarea {
     transition: all 0.2s ease-in-out;
+  }
+
+  /* FORCE SPECIFIC COMPONENT STYLES */
+  
+  /* Force all cards to be white */
+  .card,
+  [class*="card"],
+  [data-theme="dark"] .card,
+  [data-theme="dark"] [class*="card"],
+  .dark .card,
+  .dark [class*="card"],
+  html.dark .card,
+  html.dark [class*="card"],
+  html[data-theme="dark"] .card,
+  html[data-theme="dark"] [class*="card"] {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  /* Force all forms to be white */
+  form,
+  .form,
+  [class*="form"],
+  [data-theme="dark"] form,
+  [data-theme="dark"] .form,
+  [data-theme="dark"] [class*="form"],
+  .dark form,
+  .dark .form,
+  .dark [class*="form"],
+  html.dark form,
+  html.dark .form,
+  html.dark [class*="form"],
+  html[data-theme="dark"] form,
+  html[data-theme="dark"] .form,
+  html[data-theme="dark"] [class*="form"] {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  /* Force all inputs to be white */
+  input,
+  textarea,
+  select,
+  [data-theme="dark"] input,
+  [data-theme="dark"] textarea,
+  [data-theme="dark"] select,
+  .dark input,
+  .dark textarea,
+  .dark select,
+  html.dark input,
+  html.dark textarea,
+  html.dark select,
+  html[data-theme="dark"] input,
+  html[data-theme="dark"] textarea,
+  html[data-theme="dark"] select {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #d1d5db !important;
+  }
+
+  /* Force all buttons to proper colors */
+  button:not(.bg-primary):not(.bg-secondary):not(.bg-destructive),
+  [data-theme="dark"] button:not(.bg-primary):not(.bg-secondary):not(.bg-destructive),
+  .dark button:not(.bg-primary):not(.bg-secondary):not(.bg-destructive),
+  html.dark button:not(.bg-primary):not(.bg-secondary):not(.bg-destructive),
+  html[data-theme="dark"] button:not(.bg-primary):not(.bg-secondary):not(.bg-destructive) {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #d1d5db !important;
   }
 }
 

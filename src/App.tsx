@@ -68,13 +68,55 @@ function AppContent() {
   const { user, loading } = useAuth();
 
   useEffect(() => {
-    // Force light theme on body
-    document.body.classList.remove('dark');
-    document.documentElement.classList.remove('dark');
-    document.documentElement.removeAttribute('data-theme');
-    
-    // Set light color scheme
-    document.documentElement.style.colorScheme = 'light';
+    // Aggressive light theme forcing
+    const forceLight = () => {
+      // Remove all dark theme classes
+      document.body.classList.remove('dark');
+      document.documentElement.classList.remove('dark');
+      document.documentElement.removeAttribute('data-theme');
+      
+      // Set light color scheme
+      document.documentElement.style.colorScheme = 'light';
+      document.body.style.colorScheme = 'light';
+      
+      // Force light background and text
+      document.body.style.backgroundColor = '#ffffff';
+      document.body.style.color = '#111827';
+      document.documentElement.style.backgroundColor = '#ffffff';
+      document.documentElement.style.color = '#111827';
+      
+      // Remove any dark theme attributes
+      document.body.removeAttribute('data-theme');
+      document.body.removeAttribute('class');
+      document.body.className = '';
+      
+      console.log('🌞 [THEME] Forced light theme applied');
+    };
+
+    // Apply immediately
+    forceLight();
+
+    // Apply on DOM changes (for dynamic content)
+    const observer = new MutationObserver(() => {
+      forceLight();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme'],
+      subtree: false
+    });
+
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme'],
+      subtree: false
+    });
+
+    // Cleanup
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   // Show loading screen while checking authentication
