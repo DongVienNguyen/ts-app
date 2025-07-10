@@ -24,6 +24,7 @@ export function ThemeProvider({
   // Always force light theme
   const [theme] = useState<Theme>('light');
   const [resolvedTheme] = useState<'light'>('light');
+  const [isForced, setIsForced] = useState(false);
 
   // Memoized setTheme function (does nothing, always light)
   const setTheme = useCallback((newTheme: Theme) => {
@@ -31,9 +32,11 @@ export function ThemeProvider({
     // Always stay light, ignore theme changes
   }, []);
 
-  // Aggressive light theme forcing function
+  // Optimized light theme forcing function
   const forceLightTheme = useCallback(() => {
     try {
+      if (isForced) return; // Skip if already forced recently
+      
       console.log('🌞 [THEME] Forcing light theme...');
       
       const root = document.documentElement;
@@ -55,48 +58,6 @@ export function ThemeProvider({
       body.style.backgroundColor = '#ffffff';
       body.style.color = '#111827';
       
-      // Force all dark background elements to white
-      const darkElements = document.querySelectorAll(`
-        .bg-slate-900, .bg-gray-900, .bg-zinc-900, .bg-neutral-900, .bg-stone-900, .bg-black,
-        .bg-slate-800, .bg-gray-800, .bg-zinc-800, .bg-neutral-800, .bg-stone-800,
-        .bg-slate-700, .bg-gray-700, .bg-zinc-700, .bg-neutral-700, .bg-stone-700,
-        [class*="bg-slate-9"], [class*="bg-gray-9"], [class*="bg-zinc-9"],
-        [class*="bg-neutral-9"], [class*="bg-stone-9"], [class*="bg-black"]
-      `);
-      
-      darkElements.forEach((element) => {
-        const el = element as HTMLElement;
-        el.style.backgroundColor = '#ffffff';
-        el.style.color = '#111827';
-        el.classList.add('force-light-bg');
-      });
-
-      // Force all white text elements to dark
-      const whiteTextElements = document.querySelectorAll(`
-        .text-white, .text-slate-100, .text-gray-100, .text-zinc-100, 
-        .text-neutral-100, .text-stone-100,
-        [class*="text-white"], [class*="text-slate-1"], [class*="text-gray-1"],
-        [class*="text-zinc-1"], [class*="text-neutral-1"], [class*="text-stone-1"]
-      `);
-      
-      whiteTextElements.forEach((element) => {
-        const el = element as HTMLElement;
-        // Don't change text color if it's inside a primary button
-        if (!el.closest('.bg-primary') && !el.closest('[class*="bg-primary"]')) {
-          el.style.color = '#111827';
-          el.classList.add('force-light-text');
-        }
-      });
-
-      // Force all form elements
-      const formElements = document.querySelectorAll('input, textarea, select, form, .card, [class*="card"]');
-      formElements.forEach((element) => {
-        const el = element as HTMLElement;
-        el.style.backgroundColor = '#ffffff';
-        el.style.color = '#111827';
-        el.style.borderColor = '#e5e7eb';
-      });
-      
       // Clear any stored dark theme preferences
       try {
         localStorage.removeItem(storageKey);
@@ -107,18 +68,19 @@ export function ThemeProvider({
         console.warn('Failed to clear theme storage:', error);
       }
       
+      setIsForced(true);
       console.log('✅ [THEME] Light theme forced successfully');
     } catch (error) {
       console.error('❌ [THEME] Failed to force light theme:', error);
     }
-  }, [storageKey]);
+  }, [storageKey, isForced]);
 
-  // Effect to force light theme
+  // Effect to force light theme - optimized
   useEffect(() => {
     // Apply immediately
     forceLightTheme();
 
-    // Set up mutation observer to prevent dark theme
+    // Set up mutation observer to prevent dark theme - but less aggressive
     const observer = new MutationObserver((mutations) => {
       let needsForce = false;
       
@@ -134,56 +96,35 @@ export function ThemeProvider({
             }
           }
         }
-        
-        // Check for added nodes with dark classes
-        if (mutation.type === 'childList') {
-          mutation.addedNodes.forEach((node) => {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-              const element = node as Element;
-              const hasDarkClass = element.classList && (
-                element.classList.contains('dark') ||
-                element.classList.toString().includes('bg-slate-9') ||
-                element.classList.toString().includes('bg-gray-9') ||
-                element.classList.toString().includes('bg-zinc-9') ||
-                element.classList.toString().includes('bg-black')
-              );
-              
-              if (hasDarkClass) {
-                needsForce = true;
-              }
-            }
-          });
-        }
       });
       
-      if (needsForce) {
+      if (needsForce && !isForced) {
         console.log('🚫 [THEME] Dark theme detected, forcing light theme');
-        setTimeout(forceLightTheme, 0); // Use setTimeout to avoid infinite loops
+        setIsForced(false); // Reset flag to allow forcing
+        setTimeout(forceLightTheme, 100); // Debounce
       }
     });
 
-    // Observe changes to html and body
+    // Observe changes to html and body only
     observer.observe(document.documentElement, {
       attributes: true,
-      childList: true,
-      subtree: true,
-      attributeFilter: ['class', 'data-theme', 'style']
+      attributeFilter: ['class', 'data-theme']
     });
 
     observer.observe(document.body, {
       attributes: true,
-      childList: true,
-      subtree: true,
-      attributeFilter: ['class', 'data-theme', 'style']
+      attributeFilter: ['class', 'data-theme']
     });
 
     // Also force on window focus (in case other scripts change theme)
     const handleFocus = () => {
+      setIsForced(false);
       forceLightTheme();
     };
 
     const handleVisibilityChange = () => {
       if (!document.hidden) {
+        setIsForced(false);
         forceLightTheme();
       }
     };
@@ -191,8 +132,11 @@ export function ThemeProvider({
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Periodic check every 2 seconds
-    const interval = setInterval(forceLightTheme, 2000);
+    // Reduced periodic check - only every 10 seconds instead of 2
+    const interval = setInterval(() => {
+      setIsForced(false);
+      forceLightTheme();
+    }, 10000);
 
     // Cleanup
     return () => {

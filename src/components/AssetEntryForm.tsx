@@ -69,35 +69,23 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
     onRoomDetected
   });
 
-  // Force light theme on component mount and updates
+  // Optimized light theme forcing - only once on mount
   useEffect(() => {
     const forceLightTheme = () => {
-      // Remove dark theme classes from all form elements
+      // Remove dark theme classes from form elements - one time only
       const formElements = document.querySelectorAll('form, .form, input, select, textarea, button, .card, [class*="card"]');
       formElements.forEach((element) => {
         const el = element as HTMLElement;
         el.classList.remove('dark');
         el.removeAttribute('data-theme');
-        
-        // Force white background for dark elements
-        if (el.classList.contains('bg-slate-900') || 
-            el.classList.contains('bg-gray-900') ||
-            el.classList.contains('bg-zinc-900') ||
-            el.classList.contains('bg-neutral-900') ||
-            el.classList.contains('bg-stone-900') ||
-            el.classList.contains('bg-black')) {
-          el.style.backgroundColor = '#ffffff';
-          el.style.color = '#111827';
-        }
       });
+      
+      console.log('🌞 [AssetEntryForm] Light theme applied (one time)');
     };
 
     forceLightTheme();
     
-    // Set up interval to continuously force light theme
-    const interval = setInterval(forceLightTheme, 500);
-    
-    return () => clearInterval(interval);
+    // No interval - just once on mount
   }, []);
 
   const handleFileUpload = async () => {
