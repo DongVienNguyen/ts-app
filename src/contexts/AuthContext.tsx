@@ -44,14 +44,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setSupabaseAuth(storedToken, userData.username);
           setAuthentication(storedToken, userData.username);
           
-          // Wait for authentication to be fully set up before starting tracking
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Wait for authentication to be fully set up
+          await new Promise(resolve => setTimeout(resolve, 500));
           
           // Setup usage tracking for restored session
           setupUsageTracking(userData.username);
           
-          // Start health monitoring for authenticated user
-          healthCheckService.onUserLogin();
+          // Start health monitoring for authenticated user (with delay)
+          setTimeout(() => {
+            healthCheckService.onUserLogin();
+          }, 2000);
           
           logSecurityEvent('SESSION_RESTORED', { username: userData.username });
           logSecurityEventRealTime('SESSION_RESTORED', { username: userData.username }, userData.username);
@@ -108,7 +110,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             error: error instanceof Error ? error.message : 'Unknown error'
           }, user.username);
         }
-      }, 5 * 60 * 1000); // Check every 5 minutes
+      }, 10 * 60 * 1000); // Check every 10 minutes
 
       return () => {
         clearInterval(sessionInterval);
@@ -152,14 +154,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setSupabaseAuth(result.token, result.user.username);
         setAuthentication(result.token, result.user.username);
         
-        // Wait for authentication to be fully set up before starting tracking
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Wait for authentication to be fully set up
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Setup usage tracking for new session
         setupUsageTracking(result.user.username);
         
-        // Start health monitoring for authenticated user
-        healthCheckService.onUserLogin();
+        // Start health monitoring for authenticated user (with delay)
+        setTimeout(() => {
+          healthCheckService.onUserLogin();
+        }, 2000);
         
         logSecurityEvent('LOGIN_SUCCESS', { username });
         logSecurityEventRealTime('LOGIN_SUCCESS', {

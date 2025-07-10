@@ -52,7 +52,7 @@ export const saveAssetTransactions = measurePerformance('saveAssetTransactions',
     captureError(error as Error, {
       functionName: 'saveAssetTransactions',
       severity: 'high',
-      error_data: { transactions }
+      additionalData: { transactions }
     });
     throw error;
   }
@@ -94,7 +94,7 @@ export const assetService = {
       captureError(error as Error, {
         functionName: 'createAssetTransaction',
         severity: 'high',
-        error_data: { transaction }
+        additionalData: { transaction }
       });
       throw error;
     }
@@ -116,7 +116,7 @@ export const assetService = {
       captureError(error as Error, {
         functionName: 'updateAssetTransaction',
         severity: 'medium',
-        error_data: { id, updates }
+        additionalData: { id, updates }
       });
       throw error;
     }
@@ -136,7 +136,7 @@ export const assetService = {
       captureError(error as Error, {
         functionName: 'deleteAssetTransaction',
         severity: 'high',
-        error_data: { id }
+        additionalData: { id }
       });
       throw error;
     }
@@ -176,7 +176,7 @@ export const assetService = {
       captureError(error as Error, {
         functionName: 'createAssetReminder',
         severity: 'high',
-        error_data: { reminder }
+        additionalData: { reminder }
       });
       throw error;
     }

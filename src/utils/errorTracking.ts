@@ -10,8 +10,8 @@ export interface SystemError {
   request_url?: string;
   user_agent?: string;
   ip_address?: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  status: 'open' | 'investigating' | 'resolved' | 'ignored';
+  severity?: string;
+  status?: string;
   error_data?: any;
   created_at?: string;
   resolved_at?: string;
@@ -19,184 +19,224 @@ export interface SystemError {
 }
 
 export interface SystemMetric {
+  id?: string;
   metric_type: string;
   metric_name: string;
   metric_value: number;
   metric_unit?: string;
   additional_data?: any;
+  created_at?: string;
 }
 
 export interface SystemStatus {
+  id?: string;
   service_name: string;
-  status: 'online' | 'offline' | 'degraded' | 'maintenance';
+  status: string;
   response_time_ms?: number;
   error_rate?: number;
   uptime_percentage?: number;
   status_data?: any;
+  last_check?: string;
+  created_at?: string;
 }
 
-// Log system error - uses service role to bypass RLS
-export async function logSystemError(error: Omit<SystemError, 'id' | 'created_at'>) {
-  try {
-    const result = await systemDbOperation(async (client) => {
-      const { data, error: dbError } = await client
-        .from('system_errors')
-        .insert({
-          ...error,
-          user_agent: error.user_agent || navigator.userAgent,
-          request_url: error.request_url || window.location.href,
-          ip_address: error.ip_address || await getClientIP()
-        })
-        .select()
-        .single();
+// Global error handler
+let globalErrorHandler: ((error: Error, context?: any) => void) | null = null;
 
-      if (dbError) throw dbError;
-      return data;
-    });
-
-    if (result) {
-      console.log('✅ System error logged successfully');
-      return result;
-    } else {
-      throw new Error('Failed to log system error');
-    }
-  } catch (dbError) {
-    console.error('❌ Failed to log system error:', dbError);
-    // Fallback to localStorage if database fails
-    const localErrors = JSON.parse(localStorage.getItem('system_errors') || '[]');
-    const errorWithTimestamp = {
-      ...error,
-      user_agent: error.user_agent || navigator.userAgent,
-      request_url: error.request_url || window.location.href,
-      created_at: new Date().toISOString()
-    };
-    localErrors.unshift(errorWithTimestamp);
-    localStorage.setItem('system_errors', JSON.stringify(localErrors.slice(0, 100)));
-    console.log('📝 Error logged to localStorage as fallback');
-  }
-}
-
-// Log system metric - uses service role to bypass RLS
-export async function logSystemMetric(metric: SystemMetric) {
-  const result = await systemDbOperation(async (client) => {
-    const { data, error } = await client
-      .from('system_metrics')
-      .insert(metric)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  });
-
-  if (result) {
-    console.log('✅ System metric logged successfully');
-  } else {
-    console.warn('⚠️ Failed to log system metric');
-  }
-
-  return result;
-}
-
-// Update system status - uses service role to bypass RLS
-export async function updateSystemStatus(status: SystemStatus) {
-  const result = await systemDbOperation(async (client) => {
-    const { data, error } = await client
-      .from('system_status')
-      .insert(status)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  });
-
-  if (result) {
-    console.log('✅ System status updated successfully');
-  } else {
-    console.warn('⚠️ Failed to update system status');
-  }
-
-  return result;
-}
-
-// Get client IP
-async function getClientIP(): Promise<string | null> {
-  try {
-    const response = await fetch('https://api.ipify.org?format=json');
-    const data = await response.json();
-    return data.ip;
-  } catch (error) {
-    return null;
-  }
-}
-
-// Error boundary helper
-export function captureError(error: Error, context?: any) {
-  const errorInfo: Omit<SystemError, 'id' | 'created_at'> = {
-    error_type: error.name || 'UnknownError',
-    error_message: error.message,
-    error_stack: error.stack,
-    function_name: context?.functionName,
-    user_id: context?.userId,
-    severity: context?.severity || 'medium',
-    status: 'open',
-    error_data: context
-  };
-
-  logSystemError(errorInfo);
-}
-
-// Performance monitoring
-export function measurePerformance<T extends (...args: any[]) => Promise<any>>(name: string, fn: T): T {
-  return (async (...args: Parameters<T>) => {
+// Performance measurement decorator
+export function measurePerformance<T extends (...args: any[]) => Promise<any>>(
+  name: string,
+  fn: T
+): T {
+  return (async (...args: any[]) => {
     const startTime = performance.now();
-    let error: Error | null = null;
-    
     try {
       const result = await fn(...args);
-      return result;
-    } catch (err) {
-      error = err as Error;
-      throw err;
-    } finally {
-      const endTime = performance.now();
-      const duration = endTime - startTime;
+      const duration = performance.now() - startTime;
       
-      // Log performance metric (non-blocking)
-      logSystemMetric({
+      await logSystemMetric({
         metric_type: 'performance',
-        metric_name: name,
+        metric_name: `${name}_duration`,
         metric_value: duration,
-        metric_unit: 'ms',
-        additional_data: {
-          success: !error,
-          error: error?.message
-        }
-      }).catch(() => {
-        // Silently fail if metric logging fails
+        metric_unit: 'ms'
       });
+      
+      return result;
+    } catch (error) {
+      const duration = performance.now() - startTime;
+      
+      await logSystemMetric({
+        metric_type: 'performance',
+        metric_name: `${name}_error_duration`,
+        metric_value: duration,
+        metric_unit: 'ms'
+      });
+      
+      throw error;
     }
   }) as T;
 }
 
-// Resource monitoring
-export async function monitorResources() {
+// Log system error with proper error handling
+export async function logSystemError(errorData: SystemError): Promise<void> {
+  try {
+    const result = await systemDbOperation(async (client) => {
+      const { error } = await client
+        .from('system_errors')
+        .insert({
+          ...errorData,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      return true;
+    });
+
+    if (result) {
+      console.log('✅ System error logged successfully');
+    } else {
+      throw new Error('Failed to log system error');
+    }
+  } catch (error) {
+    console.error('❌ Failed to log system error:', error);
+    
+    // Fallback to localStorage
+    try {
+      const existingErrors = JSON.parse(localStorage.getItem('system_errors') || '[]');
+      existingErrors.push({
+        ...errorData,
+        timestamp: new Date().toISOString(),
+        fallback: true
+      });
+      
+      // Keep only last 100 errors
+      if (existingErrors.length > 100) {
+        existingErrors.splice(0, existingErrors.length - 100);
+      }
+      
+      localStorage.setItem('system_errors', JSON.stringify(existingErrors));
+      console.log('📝 Error logged to localStorage as fallback');
+    } catch (storageError) {
+      console.error('❌ Failed to log to localStorage:', storageError);
+    }
+  }
+}
+
+// Log system metric with proper error handling
+export async function logSystemMetric(metricData: SystemMetric): Promise<void> {
+  try {
+    const result = await systemDbOperation(async (client) => {
+      const { error } = await client
+        .from('system_metrics')
+        .insert({
+          ...metricData,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      return true;
+    });
+
+    if (!result) {
+      console.warn('⚠️ Failed to log system metric');
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to log system metric:', error);
+    // Don't throw error for metrics - they're not critical
+  }
+}
+
+// Update system status with proper error handling
+export async function updateSystemStatus(statusData: SystemStatus): Promise<void> {
+  try {
+    const result = await systemDbOperation(async (client) => {
+      const { error } = await client
+        .from('system_status')
+        .insert({
+          ...statusData,
+          last_check: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      return true;
+    });
+
+    if (!result) {
+      console.warn('⚠️ Failed to update system status');
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to update system status:', error);
+    // Don't throw error for status updates - they're not critical
+  }
+}
+
+// Check service health
+export async function checkServiceHealth(serviceName: string): Promise<SystemStatus> {
+  const startTime = performance.now();
+  
+  try {
+    // Simple health check based on service name
+    let isHealthy = true;
+    let responseTime = Math.round(performance.now() - startTime);
+    
+    switch (serviceName) {
+      case 'database':
+        const dbResult = await systemDbOperation(async (client) => {
+          const { error } = await client.from('staff').select('count').limit(1);
+          return !error;
+        });
+        isHealthy = !!dbResult;
+        break;
+      
+      case 'email':
+      case 'push_notification':
+      case 'api':
+        // For other services, assume they're healthy for now
+        isHealthy = true;
+        break;
+    }
+    
+    responseTime = Math.round(performance.now() - startTime);
+    
+    return {
+      service_name: serviceName,
+      status: isHealthy ? 'online' : 'offline',
+      response_time_ms: responseTime,
+      uptime_percentage: isHealthy ? 100 : 0,
+      status_data: {
+        lastCheck: new Date().toISOString(),
+        result: isHealthy ? 'success' : 'failed'
+      }
+    };
+  } catch (error) {
+    const responseTime = Math.round(performance.now() - startTime);
+    
+    return {
+      service_name: serviceName,
+      status: 'offline',
+      response_time_ms: responseTime,
+      uptime_percentage: 0,
+      status_data: {
+        lastCheck: new Date().toISOString(),
+        result: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    };
+  }
+}
+
+// Monitor system resources
+export async function monitorResources(): Promise<void> {
   try {
     // Memory usage
     if ('memory' in performance) {
       const memory = (performance as any).memory;
+      
       await logSystemMetric({
         metric_type: 'memory',
         metric_name: 'used_heap_size',
         metric_value: memory.usedJSHeapSize,
-        metric_unit: 'bytes'
-      });
-      
-      await logSystemMetric({
-        metric_type: 'memory',
-        metric_name: 'total_heap_size',
-        metric_value: memory.totalJSHeapSize,
         metric_unit: 'bytes'
       });
     }
@@ -204,19 +244,23 @@ export async function monitorResources() {
     // Connection info
     if ('connection' in navigator) {
       const connection = (navigator as any).connection;
-      if (connection.effectiveType) {
+      
+      if (connection?.effectiveType) {
+        const effectiveTypeValue = 
+          connection.effectiveType === '4g' ? 4 : 
+          connection.effectiveType === '3g' ? 3 : 
+          connection.effectiveType === '2g' ? 2 : 1;
+
         await logSystemMetric({
           metric_type: 'network',
           metric_name: 'effective_type',
-          metric_value: connection.effectiveType === '4g' ? 4 : 
-                       connection.effectiveType === '3g' ? 3 : 
-                       connection.effectiveType === '2g' ? 2 : 1,
+          metric_value: effectiveTypeValue,
           metric_unit: 'generation'
         });
       }
     }
 
-    // Page load time
+    // Page performance
     const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
     if (navigation) {
       await logSystemMetric({
@@ -227,95 +271,157 @@ export async function monitorResources() {
       });
     }
   } catch (error) {
-    console.error('❌ Failed to monitor resources:', error);
+    console.warn('⚠️ Error monitoring resources:', error);
   }
 }
 
-// Service health check
-export async function checkServiceHealth(serviceName: string, checkUrl?: string): Promise<SystemStatus> {
-  const startTime = performance.now();
-  let status: SystemStatus['status'] = 'online';
-  let responseTime = 0;
-  let errorRate = 0;
-
-  try {
-    if (checkUrl) {
-      const response = await fetch(checkUrl, { 
-        method: 'HEAD',
-        cache: 'no-cache'
-      });
-      responseTime = performance.now() - startTime;
-      
-      if (!response.ok) {
-        status = 'degraded';
-        errorRate = 1;
-      }
-    } else {
-      // For services without URL, check based on recent errors
-      const recentErrors = await systemDbOperation(async (client) => {
-        const { data } = await client
-          .from('system_errors')
-          .select('*')
-          .eq('function_name', serviceName)
-          .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
-        return data;
-      });
-
-      if (recentErrors && recentErrors.length > 5) {
-        status = 'degraded';
-        errorRate = recentErrors.length / 10; // Normalize to 0-1
-      }
-    }
-  } catch (error) {
-    status = 'offline';
-    errorRate = 1;
-    responseTime = performance.now() - startTime;
+// Capture and log application errors
+export async function captureError(
+  error: Error,
+  context?: {
+    functionName?: string;
+    userId?: string;
+    severity?: 'low' | 'medium' | 'high' | 'critical';
+    additionalData?: any;
   }
-
-  const statusData: SystemStatus = {
-    service_name: serviceName,
-    status,
-    response_time_ms: Math.round(responseTime),
-    error_rate: errorRate,
-    uptime_percentage: status === 'online' ? 100 : status === 'degraded' ? 75 : 0
+): Promise<void> {
+  const errorData: SystemError = {
+    error_type: error.name || 'Error',
+    error_message: error.message,
+    error_stack: error.stack,
+    function_name: context?.functionName,
+    user_id: context?.userId,
+    request_url: window.location.href,
+    user_agent: navigator.userAgent,
+    severity: context?.severity || 'medium',
+    status: 'open',
+    error_data: context?.additionalData
   };
 
-  await updateSystemStatus(statusData);
-  return statusData;
+  await logSystemError(errorData);
+
+  // Also log performance metrics if it's a performance-related error
+  if (error.message.includes('timeout') || error.message.includes('slow')) {
+    await logSystemMetric({
+      metric_type: 'error',
+      metric_name: 'error_count',
+      metric_value: 1,
+      metric_unit: 'count',
+      additional_data: {
+        error_type: error.name,
+        function_name: context?.functionName
+      }
+    });
+  }
+
+  // Call global error handler if set
+  if (globalErrorHandler) {
+    try {
+      globalErrorHandler(error, context);
+    } catch (handlerError) {
+      console.error('❌ Global error handler failed:', handlerError);
+    }
+  }
 }
 
-// Global error handler
-export function setupGlobalErrorHandling() {
-  // Unhandled promise rejections
+// Setup global error handling
+export function setupGlobalErrorHandling(): void {
+  // Handle unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
-    captureError(new Error(event.reason), {
+    console.error('🚨 Unhandled promise rejection:', event.reason);
+    
+    const error = event.reason instanceof Error ? event.reason : new Error(String(event.reason));
+    captureError(error, {
+      functionName: 'unhandledrejection',
       severity: 'high',
-      functionName: 'unhandledrejection'
+      additionalData: { type: 'unhandled_promise_rejection' }
     });
   });
 
-  // JavaScript errors
+  // Handle uncaught errors
   window.addEventListener('error', (event) => {
-    captureError(event.error || new Error(event.message), {
+    console.error('🚨 Uncaught error:', event.error);
+    
+    const error = event.error instanceof Error ? event.error : new Error(event.message);
+    captureError(error, {
+      functionName: 'uncaught_error',
       severity: 'high',
-      functionName: event.filename,
-      error_data: {
-        line: event.lineno,
-        column: event.colno
+      additionalData: {
+        type: 'uncaught_error',
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno
       }
     });
   });
 
-  // Resource loading errors
-  window.addEventListener('error', (event) => {
-    if (event.target !== window) {
-      logSystemError({
-        error_type: 'ResourceError',
-        error_message: `Failed to load resource: ${(event.target as any)?.src || 'unknown'}`,
-        severity: 'medium',
-        status: 'open',
-        function_name: 'resource_loading'
-      });
+  console.log('🛡️ Global error handling setup completed');
+}
+
+// Set global error handler
+export function setGlobalErrorHandler(handler: (error: Error, context?: any) => void): void {
+  globalErrorHandler = handler;
+}
+
+// Get error statistics
+export async function getErrorStatistics(timeRange: 'day' | 'week' | 'month' = 'day') {
+  try {
+    const now = new Date();
+    let startDate: Date;
+
+    switch (timeRange) {
+      case 'day':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
     }
-  }, true);
+
+    const result = await systemDbOperation(async (client) => {
+      const { data, error } = await client
+        .from('system_errors')
+        .select('*')
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    });
+
+    if (!result) {
+      return {
+        total: 0,
+        byType: {},
+        bySeverity: {},
+        recent: []
+      };
+    }
+
+    const byType: { [key: string]: number } = {};
+    const bySeverity: { [key: string]: number } = {};
+
+    result.forEach(error => {
+      byType[error.error_type] = (byType[error.error_type] || 0) + 1;
+      bySeverity[error.severity || 'medium'] = (bySeverity[error.severity || 'medium'] || 0) + 1;
+    });
+
+    return {
+      total: result.length,
+      byType,
+      bySeverity,
+      recent: result.slice(0, 10)
+    };
+  } catch (error) {
+    console.error('❌ Failed to get error statistics:', error);
+    return {
+      total: 0,
+      byType: {},
+      bySeverity: {},
+      recent: []
+    };
+  }
 }
