@@ -29,9 +29,24 @@ const queryClient = new QueryClient({
   },
 });
 
+// Loading component
+const LoadingScreen = () => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+      <p className="text-gray-600 text-lg">Đang tải...</p>
+      <p className="text-gray-500 text-sm mt-2">Vui lòng chờ trong giây lát</p>
+    </div>
+  </div>
+);
+
 // Component to handle default route based on user role
 function DefaultRoute() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <LoadingScreen />;
+  }
   
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -50,7 +65,7 @@ function DefaultRoute() {
 }
 
 function AppContent() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     // Force light theme on body
@@ -62,6 +77,11 @@ function AppContent() {
     document.documentElement.style.colorScheme = 'light';
   }, []);
 
+  // Show loading screen while checking authentication
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <Router future={{ 
       v7_startTransition: true,
@@ -70,7 +90,7 @@ function AppContent() {
       <Routes>
         {/* Public routes without Layout */}
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/reset-password" element={user ? <Navigate to="/" replace /> : <ResetPassword />} />
         
         {/* Default route - redirects based on user role */}
         <Route path="/" element={
@@ -145,7 +165,11 @@ function AppContent() {
         } />
         
         {/* 404 route */}
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={user ? (
+          <Layout>
+            <NotFound />
+          </Layout>
+        ) : <Navigate to="/login" replace />} />
       </Routes>
     </Router>
   );

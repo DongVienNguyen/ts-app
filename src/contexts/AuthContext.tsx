@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Staff } from '@/types/auth';
-import { secureLoginUser, validateSession } from '@/services/secureAuthService';
+import { secureLoginUser } from '@/services/secureAuthService';
 import { clearSupabaseAuth, setSupabaseAuth } from '@/integrations/supabase/client';
 import { healthCheckService } from '@/services/healthCheckService';
 import { toast } from 'sonner';
@@ -24,135 +24,196 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Create complete auth service using the exported functions
-const secureAuthService = {
-  async login(username: string, password: string) {
-    return await secureLoginUser(username, password);
-  },
-  
-  async getCurrentUser(): Promise<AuthenticatedStaff | null> {
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<AuthenticatedStaff | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Enhanced session validation with detailed logging
+  const validateAndRestoreSession = async (): Promise<AuthenticatedStaff | null> => {
     try {
+      console.log('🔍 [AUTH] Starting session validation...');
+      
       const token = localStorage.getItem('auth_token');
       const userStr = localStorage.getItem('auth_user');
       const loginTime = localStorage.getItem('auth_login_time');
       
+      // Check if all required data exists
       if (!token || !userStr || !loginTime) {
-        console.log('Missing auth data in localStorage');
+        console.log('❌ [AUTH] Missing session data:', { 
+          hasToken: !!token, 
+          hasUser: !!userStr, 
+          hasLoginTime: !!loginTime 
+        });
         return null;
       }
 
-      // Check if session is older than 7 days
-      const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+      // Validate login timestamp
       const loginTimestamp = parseInt(loginTime);
+      if (isNaN(loginTimestamp) || loginTimestamp <= 0) {
+        console.log('❌ [AUTH] Invalid login timestamp:', loginTime);
+        return null;
+      }
+
+      // Check session age (7 days = 604800000 ms)
       const now = Date.now();
+      const sessionAge = now - loginTimestamp;
+      const maxSessionAge = 7 * 24 * 60 * 60 * 1000; // 7 days
       
-      if (now - loginTimestamp > sevenDaysInMs) {
-        console.log('Session expired (older than 7 days)');
-        this.logout();
+      if (sessionAge > maxSessionAge) {
+        console.log('❌ [AUTH] Session expired:', {
+          sessionAgeHours: Math.round(sessionAge / (60 * 60 * 1000)),
+          maxAgeHours: Math.round(maxSessionAge / (60 * 60 * 1000)),
+          loginDate: new Date(loginTimestamp).toISOString()
+        });
         return null;
       }
 
-      // Basic token validation
+      // Validate token format (JWT should have 3 parts)
+      const tokenParts = token.split('.');
+      if (tokenParts.length !== 3) {
+        console.log('❌ [AUTH] Invalid token format, parts:', tokenParts.length);
+        return null;
+      }
+
+      // Parse and validate token payload
       try {
-        const parts = token.split('.');
-        if (parts.length !== 3) {
-          console.log('Invalid token format');
-          this.logout();
+        const payload = JSON.parse(atob(tokenParts[1]));
+        const currentTime = Math.floor(Date.now() / 1000);
+        
+        if (payload.exp && payload.exp < currentTime) {
+          console.log('❌ [AUTH] Token expired:', {
+            tokenExp: payload.exp,
+            currentTime: currentTime,
+            expiredSecondsAgo: currentTime - payload.exp
+          });
           return null;
         }
 
-        // Check token expiration
-        const payload = JSON.parse(atob(parts[1]));
-        if (payload.exp && payload.exp < Date.now() / 1000) {
-          console.log('Token expired');
-          this.logout();
-          return null;
-        }
+        console.log('✅ [AUTH] Token valid:', {
+          exp: payload.exp,
+          timeUntilExp: payload.exp ? payload.exp - currentTime : 'no expiration',
+          username: payload.username
+        });
       } catch (tokenError) {
-        console.log('Token validation error:', tokenError);
-        this.logout();
+        console.log('❌ [AUTH] Token parsing error:', tokenError);
         return null;
       }
-      
-      const user = JSON.parse(userStr) as Staff;
-      console.log('Successfully restored user session:', user.username);
-      return { ...user, token };
+
+      // Parse and validate user data
+      let userData: Staff;
+      try {
+        userData = JSON.parse(userStr);
+        
+        // Validate required user fields
+        if (!userData.username || !userData.role) {
+          console.log('❌ [AUTH] Invalid user data structure:', {
+            hasUsername: !!userData.username,
+            hasRole: !!userData.role,
+            userData: userData
+          });
+          return null;
+        }
+      } catch (userError) {
+        console.log('❌ [AUTH] User data parsing error:', userError);
+        return null;
+      }
+
+      console.log('✅ [AUTH] Session validation successful:', {
+        username: userData.username,
+        role: userData.role,
+        department: userData.department,
+        sessionAgeHours: Math.round(sessionAge / (60 * 60 * 1000)),
+        loginDate: new Date(loginTimestamp).toLocaleString()
+      });
+
+      return { ...userData, token };
     } catch (error) {
-      console.error('Error getting current user:', error);
-      this.logout();
+      console.error('❌ [AUTH] Session validation error:', error);
       return null;
     }
-  },
-  
-  logout() {
-    console.log('Logging out user');
+  };
+
+  // Clear invalid session data
+  const clearSessionData = () => {
+    console.log('🧹 [AUTH] Clearing session data...');
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_login_time');
-    // Clear legacy storage keys
+    
+    // Clear legacy keys
     localStorage.removeItem('secure_user');
     localStorage.removeItem('secure_token');
     localStorage.removeItem('loggedInStaff');
     localStorage.removeItem('currentUser');
-  }
-};
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<AuthenticatedStaff | null>(null);
-  const [loading, setLoading] = useState(true);
+  };
 
   const checkAuth = async () => {
     try {
-      console.log('Checking authentication...');
-      const currentUser = await secureAuthService.getCurrentUser();
+      console.log('🔄 [AUTH] Checking authentication state...');
+      
+      const currentUser = await validateAndRestoreSession();
+      
       if (currentUser) {
-        console.log('User authenticated:', currentUser.username);
+        console.log('✅ [AUTH] User authenticated successfully:', currentUser.username);
         setUser(currentUser);
-        // Set Supabase auth for RLS policies
         setSupabaseAuth(currentUser.token || '', currentUser.username);
-        // Start health monitoring
         healthCheckService.onUserLogin();
       } else {
-        console.log('No authenticated user found');
+        console.log('❌ [AUTH] No valid session found, clearing data');
+        clearSessionData();
         setUser(null);
         clearSupabaseAuth();
         healthCheckService.onUserLogout();
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('❌ [AUTH] Auth check failed:', error);
+      clearSessionData();
       setUser(null);
       clearSupabaseAuth();
       healthCheckService.onUserLogout();
     } finally {
       setLoading(false);
+      setIsInitialized(true);
+      console.log('✅ [AUTH] Auth check completed');
     }
   };
 
   const login = async (username: string, password: string) => {
     try {
+      console.log('🔐 [AUTH] Starting login process for:', username);
       setLoading(true);
-      const result = await secureAuthService.login(username, password);
+      
+      const result = await secureLoginUser(username, password);
       
       if (result.success && result.user && result.token) {
-        // Store auth data with login timestamp
         const loginTime = Date.now().toString();
+        
+        // Store auth data
         localStorage.setItem('auth_token', result.token);
         localStorage.setItem('auth_user', JSON.stringify(result.user));
         localStorage.setItem('auth_login_time', loginTime);
         
-        console.log('Login successful, storing user data:', result.user.username);
+        console.log('✅ [AUTH] Login successful, data stored:', {
+          username: result.user.username,
+          role: result.user.role,
+          department: result.user.department,
+          loginTime: new Date(parseInt(loginTime)).toISOString()
+        });
         
         const userWithToken: AuthenticatedStaff = { ...result.user, token: result.token };
         setUser(userWithToken);
         setSupabaseAuth(result.token, result.user.username);
         healthCheckService.onUserLogin();
+        
         toast.success('Đăng nhập thành công!');
         return { success: true };
       } else {
+        console.log('❌ [AUTH] Login failed:', result.error);
         return { success: false, error: result.error || 'Đăng nhập thất bại' };
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('❌ [AUTH] Login error:', error);
       return { success: false, error: error.message || 'Lỗi hệ thống' };
     } finally {
       setLoading(false);
@@ -160,65 +221,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    console.log('Manual logout triggered');
-    secureAuthService.logout();
+    console.log('🚪 [AUTH] Logging out user');
+    clearSessionData();
     setUser(null);
     clearSupabaseAuth();
     healthCheckService.onUserLogout();
     toast.success('Đã đăng xuất');
   };
 
-  // Check session expiration every 5 minutes
+  // Initial auth check on mount
   useEffect(() => {
-    const interval = setInterval(() => {
+    console.log('🚀 [AUTH] AuthProvider mounted, starting initial auth check');
+    checkAuth();
+  }, []);
+
+  // Periodic session validation (every 5 minutes)
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const interval = setInterval(async () => {
       if (user) {
-        const token = localStorage.getItem('auth_token');
-        const loginTime = localStorage.getItem('auth_login_time');
+        console.log('⏰ [AUTH] Periodic session validation...');
+        const validUser = await validateAndRestoreSession();
         
-        if (!token || !loginTime) {
-          console.log('Session data missing, logging out');
+        if (!validUser) {
+          console.log('⚠️ [AUTH] Session invalid during periodic check, logging out');
           logout();
           toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-          return;
-        }
-
-        // Check 7-day expiration
-        const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
-        const loginTimestamp = parseInt(loginTime);
-        const now = Date.now();
-        
-        if (now - loginTimestamp > sevenDaysInMs) {
-          console.log('Session expired (7 days), logging out');
-          logout();
-          toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-          return;
-        }
-
-        // Check token expiration
-        try {
-          const parts = token.split('.');
-          if (parts.length === 3) {
-            const payload = JSON.parse(atob(parts[1]));
-            if (payload.exp && payload.exp < Date.now() / 1000) {
-              console.log('Token expired, logging out');
-              logout();
-              toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-            }
-          }
-        } catch (error) {
-          console.log('Token validation error during interval check:', error);
+        } else {
+          console.log('✅ [AUTH] Periodic validation passed');
         }
       }
     }, 5 * 60 * 1000); // 5 minutes
 
-    return () => clearInterval(interval);
-  }, [user]);
+    return () => {
+      console.log('🧹 [AUTH] Clearing periodic validation interval');
+      clearInterval(interval);
+    };
+  }, [isInitialized, user]);
 
-  // Initial auth check on mount
+  // Handle page visibility change (when user returns to tab)
   useEffect(() => {
-    console.log('AuthProvider mounted, checking initial auth state');
-    checkAuth();
-  }, []);
+    const handleVisibilityChange = async () => {
+      if (!document.hidden && isInitialized && user) {
+        console.log('👁️ [AUTH] Tab became visible, validating session...');
+        const validUser = await validateAndRestoreSession();
+        
+        if (!validUser) {
+          console.log('⚠️ [AUTH] Session invalid after tab focus, logging out');
+          logout();
+          toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        } else {
+          console.log('✅ [AUTH] Session valid after tab focus');
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isInitialized, user]);
 
   const value: AuthContextType = {
     user,
@@ -235,7 +298,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 };
 
-// Primary hook - use this consistently
 export const useSecureAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -244,7 +306,6 @@ export const useSecureAuth = (): AuthContextType => {
   return context;
 };
 
-// Alias for backward compatibility - both point to same context
 export const useAuth = useSecureAuth;
 
 export default AuthProvider;
