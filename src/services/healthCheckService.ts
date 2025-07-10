@@ -1,4 +1,4 @@
-import { systemDbOperation } from '@/utils/supabaseAuth';
+import { safeDbOperation } from '@/utils/supabaseAuth';
 import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
 import { emailService } from './emailService';
 import { notificationService } from './notificationService';
@@ -7,6 +7,7 @@ export class HealthCheckService {
   private static instance: HealthCheckService;
   private checkInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private isEnabled = false; // Temporarily disabled
 
   static getInstance(): HealthCheckService {
     if (!HealthCheckService.instance) {
@@ -15,8 +16,13 @@ export class HealthCheckService {
     return HealthCheckService.instance;
   }
 
-  // Start health monitoring
+  // Start health monitoring (temporarily disabled)
   startMonitoring(intervalMinutes: number = 5) {
+    if (!this.isEnabled) {
+      console.log('🏥 Health monitoring is temporarily disabled to prevent error spam');
+      return;
+    }
+
     if (this.isRunning) return;
 
     this.isRunning = true;
@@ -41,8 +47,23 @@ export class HealthCheckService {
     console.log('🏥 Health monitoring stopped');
   }
 
+  // Enable health monitoring (for future use when service role is properly configured)
+  enableMonitoring() {
+    this.isEnabled = true;
+    console.log('🏥 Health monitoring enabled');
+  }
+
+  // Disable health monitoring
+  disableMonitoring() {
+    this.isEnabled = false;
+    this.stopMonitoring();
+    console.log('🏥 Health monitoring disabled');
+  }
+
   // Run all health checks
   private async runHealthChecks() {
+    if (!this.isEnabled) return;
+
     console.log('🔍 Running health checks...');
     
     try {
@@ -63,8 +84,8 @@ export class HealthCheckService {
     const startTime = performance.now();
     
     try {
-      // Simple query to test database connectivity using system operation
-      const result = await systemDbOperation(async (client) => {
+      // Simple query to test database connectivity
+      const result = await safeDbOperation(async (client) => {
         const { error } = await client
           .from('staff')
           .select('count')
@@ -77,7 +98,7 @@ export class HealthCheckService {
       const responseTime = Math.round(performance.now() - startTime);
 
       if (!result) {
-        throw new Error('Database query failed');
+        throw new Error('Database query failed - not authenticated');
       }
 
       await updateSystemStatus({
@@ -140,8 +161,8 @@ export class HealthCheckService {
     const startTime = performance.now();
     
     try {
-      // Test API connectivity by calling a simple function using system operation
-      const result = await systemDbOperation(async (client) => {
+      // Test API connectivity by calling a simple function
+      const result = await safeDbOperation(async (client) => {
         await client.functions.invoke('check-account-status', {
           body: { test: true }
         });
@@ -263,7 +284,7 @@ export class HealthCheckService {
       }
 
       // Active sessions count
-      const activeSessions = await systemDbOperation(async (client) => {
+      const activeSessions = await safeDbOperation(async (client) => {
         const { data } = await client
           .from('user_sessions')
           .select('count')
@@ -289,7 +310,7 @@ export class HealthCheckService {
   // Get current system health summary
   async getHealthSummary() {
     try {
-      const statuses = await systemDbOperation(async (client) => {
+      const statuses = await safeDbOperation(async (client) => {
         const { data, error } = await client
           .from('system_status')
           .select('*')
@@ -342,10 +363,10 @@ export class HealthCheckService {
     }
   }
 
-  // Start monitoring when user logs in
+  // Start monitoring when user logs in (temporarily disabled)
   onUserLogin() {
-    console.log('🔐 User logged in, starting health monitoring...');
-    this.startMonitoring();
+    console.log('🔐 User logged in, health monitoring is temporarily disabled');
+    // this.startMonitoring(); // Commented out temporarily
   }
 
   // Stop monitoring when user logs out
