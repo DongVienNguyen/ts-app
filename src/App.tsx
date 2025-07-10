@@ -9,7 +9,6 @@ import Login from '@/pages/Login';
 import Index from '@/pages/Index';
 import AssetEntry from '@/pages/AssetEntry';
 import NotFound from '@/pages/NotFound';
-import { useEffect } from 'react';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,24 +22,12 @@ const queryClient = new QueryClient({
 
 // Loading component
 const LoadingScreen = () => {
-  console.log('🔄 LoadingScreen rendering...');
-  
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center"
-      style={{ 
-        backgroundColor: '#ffffff',
-        color: '#111827',
-        minHeight: '100vh'
-      }}
-    >
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center">
-        <div 
-          className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-          style={{ borderColor: '#10b981' }}
-        ></div>
-        <p className="text-lg" style={{ color: '#111827' }}>Đang tải...</p>
-        <p className="text-sm mt-2" style={{ color: '#6b7280' }}>Vui lòng chờ trong giây lát</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-lg text-foreground">Đang tải...</p>
+        <p className="text-sm mt-2 text-muted-foreground">Vui lòng chờ trong giây lát</p>
       </div>
     </div>
   );
@@ -79,42 +66,6 @@ function AppContent() {
   const { user, loading } = useAuth();
 
   console.log('🚀 AppContent rendering - user:', user?.username, 'loading:', loading);
-
-  useEffect(() => {
-    console.log('🌞 [APP] Forcing light theme...');
-    
-    // Aggressive light theme forcing
-    const forceLight = () => {
-      // Remove all dark theme classes
-      document.body.classList.remove('dark');
-      document.documentElement.classList.remove('dark');
-      document.documentElement.removeAttribute('data-theme');
-      document.body.removeAttribute('data-theme');
-      
-      // Set light color scheme
-      document.documentElement.style.colorScheme = 'light';
-      document.body.style.colorScheme = 'light';
-      
-      // Force light background and text
-      document.body.style.backgroundColor = '#ffffff';
-      document.body.style.color = '#111827';
-      document.documentElement.style.backgroundColor = '#ffffff';
-      document.documentElement.style.color = '#111827';
-      
-      console.log('✅ [APP] Light theme applied');
-    };
-
-    // Apply immediately
-    forceLight();
-
-    // Apply periodically
-    const interval = setInterval(forceLight, 1000);
-
-    // Cleanup
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
 
   // Show loading screen while checking authentication
   if (loading) {
@@ -171,16 +122,7 @@ function App() {
       <ThemeProvider>
         <AuthProvider>
           <AppContent />
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: '#ffffff',
-                color: '#111827',
-                border: '1px solid #e5e7eb'
-              }
-            }}
-          />
+          <Toaster position="top-right" />
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

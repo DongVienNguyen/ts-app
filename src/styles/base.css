@@ -25,161 +25,57 @@
     --ring: 142.1 76.2% 36.3%;
     --radius: 0.5rem;
   }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 142.1 76.2% 36.3%;
+  }
 }
 
 @layer base {
   * {
-    border-color: hsl(var(--border));
+    @apply border-border;
   }
-  
-  html {
-    color-scheme: light !important;
-    background-color: #ffffff !important;
-    color: #111827 !important;
-  }
-  
   body {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-    background-image: none !important;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    font-size: 16px;
-    min-height: 100vh;
-  }
-
-  /* Force light theme for semantic classes */
-  .bg-background {
-    background-color: #ffffff !important;
-  }
-
-  .text-foreground {
-    color: #111827 !important;
-  }
-
-  .bg-card {
-    background-color: #ffffff !important;
-    border: 1px solid #e5e7eb !important;
-  }
-
-  .text-card-foreground {
-    color: #111827 !important;
-  }
-
-  .bg-popover {
-    background-color: #ffffff !important;
-    border: 1px solid #e5e7eb !important;
-  }
-
-  .text-popover-foreground {
-    color: #111827 !important;
-  }
-
-  .bg-muted {
-    background-color: #f9fafb !important;
-  }
-
-  .text-muted-foreground {
-    color: #6b7280 !important;
-  }
-
-  .bg-primary {
-    background-color: #10b981 !important;
-    color: #ffffff !important;
-  }
-
-  .bg-secondary {
-    background-color: #f3f4f6 !important;
-    color: #111827 !important;
-  }
-
-  /* Force light theme for all form elements */
-  input,
-  textarea,
-  select,
-  button {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-    border-color: #d1d5db !important;
-  }
-
-  /* Force light theme for cards and forms */
-  .card,
-  form,
-  [class*="card"],
-  [class*="form"] {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-    border-color: #e5e7eb !important;
-  }
-
-  /* Override dark theme classes */
-  .dark,
-  [data-theme="dark"],
-  html.dark,
-  html[data-theme="dark"] {
-    color-scheme: light !important;
-    background-color: #ffffff !important;
-    color: #111827 !important;
-  }
-
-  .dark *,
-  [data-theme="dark"] *,
-  html.dark *,
-  html[data-theme="dark"] * {
-    color-scheme: light !important;
-  }
-
-  /* Force Radix components to light theme */
-  [data-radix-popper-content-wrapper],
-  [data-radix-dialog-content],
-  [data-radix-dropdown-menu-content],
-  [data-radix-select-content] {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-    border: 1px solid #e5e7eb !important;
-  }
-
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 3px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #10b981;
-    border-radius: 3px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #059669;
-  }
-
-  /* Green focus styles */
-  .focus\:ring-2:focus {
-    --tw-ring-color: rgb(16 185 129 / 0.5);
-  }
-
-  /* Smooth transitions */
-  button, a, input, select, textarea {
-    transition: all 0.2s ease-in-out;
+    @apply bg-background text-foreground;
   }
 }
 
-/* Force specific dark utility classes to light - using separate selectors to avoid conflicts */
-.force-light-bg {
-  background-color: #ffffff !important;
-  color: #111827 !important;
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-.force-light-text {
-  color: #111827 !important;
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary/80;
 }
 
 /* Custom animations */
@@ -203,19 +99,4 @@
 
 .shadow-elegant-lg {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-/* Additional utility classes for forcing light theme */
-@layer utilities {
-  .force-white-bg {
-    background-color: #ffffff !important;
-  }
-  
-  .force-dark-text {
-    color: #111827 !important;
-  }
-  
-  .force-light-border {
-    border-color: #e5e7eb !important;
-  }
 }
