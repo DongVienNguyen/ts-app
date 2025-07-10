@@ -1,4 +1,4 @@
-import { getAuthenticatedSupabaseClient } from '@/integrations/supabase/client';
+import { safeDbOperation } from '@/utils/supabaseAuth';
 import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
 import { emailService } from './emailService';
 import { notificationService } from './notificationService';
@@ -64,15 +64,21 @@ export class HealthCheckService {
     
     try {
       // Simple query to test database connectivity
-      const client = getAuthenticatedSupabaseClient();
-      const { error } = await client
-        .from('staff')
-        .select('count')
-        .limit(1);
+      const result = await safeDbOperation(async (client) => {
+        const { error } = await client
+          .from('staff')
+          .select('count')
+          .limit(1);
+
+        if (error) throw error;
+        return true;
+      });
 
       const responseTime = Math.round(performance.now() - startTime);
 
-      if (error) throw error;
+      if (!result) {
+        throw new Error('Database query failed - not authenticated');
+      }
 
       await updateSystemStatus({
         service_name: 'database',
@@ -135,9 +141,11 @@ export class HealthCheckService {
     
     try {
       // Test API connectivity by calling a simple function
-      const client = getAuthenticatedSupabaseClient();
-      await client.functions.invoke('check-account-status', {
-        body: { test: true }
+      const result = await safeDbOperation(async (client) => {
+        await client.functions.invoke('check-account-status', {
+          body: { test: true }
+        });
+        return true;
       });
 
       const responseTime = Math.round(performance.now() - startTime);
@@ -146,13 +154,13 @@ export class HealthCheckService {
       // if we get a response, the API is working
       await updateSystemStatus({
         service_name: 'api',
-        status: 'online',
+        status: result ? 'online' : 'degraded',
         response_time_ms: responseTime,
-        uptime_percentage: 100,
+        uptime_percentage: result ? 100 : 50,
         status_data: {
           lastCheck: new Date().toISOString(),
           responseTime,
-          result: 'success'
+          result: result ? 'success' : 'partial'
         }
       });
 
@@ -257,12 +265,14 @@ export class HealthCheckService {
       }
 
       // Active sessions count
-      const client = getAuthenticatedSupabaseClient();
-      const { data: activeSessions } = await client
-        .from('user_sessions')
-        .select('count')
-        .gte('session_start', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-        .is('session_end', null);
+      const activeSessions = await safeDbOperation(async (client) => {
+        const { data } = await client
+          .from('user_sessions')
+          .select('count')
+          .gte('session_start', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+          .is('session_end', null);
+        return data;
+      });
 
       if (activeSessions) {
         await logSystemMetric({
@@ -281,18 +291,28 @@ export class HealthCheckService {
   // Get current system health summary
   async getHealthSummary() {
     try {
-      const client = getAuthenticatedSupabaseClient();
-      const { data: statuses, error } = await client
-        .from('system_status')
-        .select('*')
-        .in('service_name', ['database', 'email', 'push_notification', 'api'])
-        .order('created_at', { ascending: false });
+      const statuses = await safeDbOperation(async (client) => {
+        const { data, error } = await client
+          .from('system_status')
+          .select('*')
+          .in('service_name', ['database', 'email', 'push_notification', 'api'])
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
+        if (error) throw error;
+        return data;
+      });
+
+      if (!statuses) {
+        return {
+          overallHealth: 0,
+          services: {},
+          summary: { total: 0, online: 0, degraded: 0, offline: 0 }
+        };
+      }
 
       // Get the latest status for each service
       const latestStatuses: { [key: string]: any } = {};
-      statuses?.forEach(status => {
+      statuses.forEach(status => {
         if (!latestStatuses[status.service_name]) {
           latestStatuses[status.service_name] = status;
         }

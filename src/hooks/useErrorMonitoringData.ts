@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAuthenticatedSupabaseClient } from '@/integrations/supabase/client';
+import { safeDbOperation } from '@/utils/supabaseAuth';
 import { SystemError, SystemMetric, SystemStatus, checkServiceHealth, monitorResources } from '@/utils/errorTracking';
 
 interface ErrorStats {
@@ -44,28 +44,36 @@ export function useErrorMonitoringData() {
     try {
       setIsLoading(true);
 
-      // Get error statistics using authenticated client
-      const client = getAuthenticatedSupabaseClient();
-      const { data: errors, error } = await client
-        .from('system_errors')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Get error statistics using safe database operation
+      const errors = await safeDbOperation(async (client) => {
+        const { data, error } = await client
+          .from('system_errors')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
+        if (error) throw error;
+        return data;
+      }, []);
+
+      if (!errors) {
+        console.warn('⚠️ Could not load error data - not authenticated');
+        setIsLoading(false);
+        return;
+      }
 
       const now = new Date();
       const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      const recentErrors24h = errors?.filter(e => new Date(e.created_at) > last24Hours) || [];
-      const criticalErrors = errors?.filter(e => e.severity === 'critical') || [];
-      const resolvedErrors = errors?.filter(e => e.status === 'resolved') || [];
+      const recentErrors24h = errors.filter(e => new Date(e.created_at) > last24Hours);
+      const criticalErrors = errors.filter(e => e.severity === 'critical');
+      const resolvedErrors = errors.filter(e => e.status === 'resolved');
 
       // Calculate error rate (errors per hour in last 24h)
       const errorRate = recentErrors24h.length / 24;
 
       // Top error types
       const errorTypeCounts: { [key: string]: number } = {};
-      errors?.forEach(error => {
+      errors.forEach(error => {
         errorTypeCounts[error.error_type] = (errorTypeCounts[error.error_type] || 0) + 1;
       });
 
@@ -82,10 +90,10 @@ export function useErrorMonitoringData() {
         const dayStart = new Date(date.setHours(0, 0, 0, 0));
         const dayEnd = new Date(date.setHours(23, 59, 59, 999));
         
-        const dayErrors = errors?.filter(e => {
+        const dayErrors = errors.filter(e => {
           const errorDate = new Date(e.created_at);
           return errorDate >= dayStart && errorDate <= dayEnd;
-        }) || [];
+        });
 
         errorTrend.push({
           date: dateStr,
@@ -94,7 +102,7 @@ export function useErrorMonitoringData() {
       }
 
       setErrorStats({
-        totalErrors: errors?.length || 0,
+        totalErrors: errors.length,
         criticalErrors: criticalErrors.length,
         resolvedErrors: resolvedErrors.length,
         errorRate,
@@ -102,7 +110,7 @@ export function useErrorMonitoringData() {
         errorTrend
       });
 
-      setRecentErrors(errors?.slice(0, 20) || []);
+      setRecentErrors(errors.slice(0, 20));
       setLastUpdated(new Date());
 
     } catch (error) {
@@ -114,18 +122,25 @@ export function useErrorMonitoringData() {
 
   const loadSystemMetrics = useCallback(async () => {
     try {
-      const client = getAuthenticatedSupabaseClient();
-      const { data: metrics, error } = await client
-        .from('system_metrics')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const metrics = await safeDbOperation(async (client) => {
+        const { data, error } = await client
+          .from('system_metrics')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100);
 
-      if (error) throw error;
-      setSystemMetrics(metrics || []);
+        if (error) throw error;
+        return data;
+      }, []);
 
-      // Monitor current resources
-      await monitorResources();
+      if (metrics) {
+        setSystemMetrics(metrics);
+      }
+
+      // Monitor current resources (non-blocking)
+      monitorResources().catch(() => {
+        // Silently fail if resource monitoring fails
+      });
     } catch (error) {
       console.error('Error loading system metrics:', error);
     }

@@ -1,4 +1,4 @@
-import { supabase, getAuthenticatedSupabaseClient } from '@/integrations/supabase/client';
+import { safeDbOperation } from '@/utils/supabaseAuth';
 
 export interface SystemError {
   id?: string;
@@ -38,22 +38,28 @@ export interface SystemStatus {
 // Log system error
 export async function logSystemError(error: Omit<SystemError, 'id' | 'created_at'>) {
   try {
-    const client = getAuthenticatedSupabaseClient();
-    const { data, error: dbError } = await client
-      .from('system_errors')
-      .insert({
-        ...error,
-        user_agent: error.user_agent || navigator.userAgent,
-        request_url: error.request_url || window.location.href,
-        ip_address: error.ip_address || await getClientIP()
-      })
-      .select()
-      .single();
+    const result = await safeDbOperation(async (client) => {
+      const { data, error: dbError } = await client
+        .from('system_errors')
+        .insert({
+          ...error,
+          user_agent: error.user_agent || navigator.userAgent,
+          request_url: error.request_url || window.location.href,
+          ip_address: error.ip_address || await getClientIP()
+        })
+        .select()
+        .single();
 
-    if (dbError) throw dbError;
-    
-    console.log('✅ System error logged:', data);
-    return data;
+      if (dbError) throw dbError;
+      return data;
+    });
+
+    if (result) {
+      console.log('✅ System error logged:', result);
+      return result;
+    } else {
+      throw new Error('Failed to log system error');
+    }
   } catch (dbError) {
     console.error('❌ Failed to log system error:', dbError);
     // Fallback to localStorage if database fails
@@ -79,8 +85,7 @@ export async function logSystemError(error: Omit<SystemError, 'id' | 'created_at
 
 // Log system metric
 export async function logSystemMetric(metric: SystemMetric) {
-  try {
-    const client = getAuthenticatedSupabaseClient();
+  const result = await safeDbOperation(async (client) => {
     const { data, error } = await client
       .from('system_metrics')
       .insert(metric)
@@ -89,15 +94,18 @@ export async function logSystemMetric(metric: SystemMetric) {
 
     if (error) throw error;
     return data;
-  } catch (error) {
-    console.error('❌ Failed to log system metric:', error);
+  });
+
+  if (!result) {
+    console.warn('⚠️ Failed to log system metric - not authenticated or database error');
   }
+
+  return result;
 }
 
 // Update system status
 export async function updateSystemStatus(status: SystemStatus) {
-  try {
-    const client = getAuthenticatedSupabaseClient();
+  const result = await safeDbOperation(async (client) => {
     const { data, error } = await client
       .from('system_status')
       .insert(status)
@@ -106,9 +114,13 @@ export async function updateSystemStatus(status: SystemStatus) {
 
     if (error) throw error;
     return data;
-  } catch (error) {
-    console.error('❌ Failed to update system status:', error);
+  });
+
+  if (!result) {
+    console.warn('⚠️ Failed to update system status - not authenticated or database error');
   }
+
+  return result;
 }
 
 // Get client IP
@@ -154,7 +166,7 @@ export function measurePerformance<T extends (...args: any[]) => Promise<any>>(n
       const endTime = performance.now();
       const duration = endTime - startTime;
       
-      // Log performance metric
+      // Log performance metric (non-blocking)
       logSystemMetric({
         metric_type: 'performance',
         metric_name: name,
@@ -164,6 +176,8 @@ export function measurePerformance<T extends (...args: any[]) => Promise<any>>(n
           success: !error,
           error: error?.message
         }
+      }).catch(() => {
+        // Silently fail if metric logging fails
       });
     }
   }) as T;
@@ -239,12 +253,14 @@ export async function checkServiceHealth(serviceName: string, checkUrl?: string)
       }
     } else {
       // For services without URL, check based on recent errors
-      const client = getAuthenticatedSupabaseClient();
-      const { data: recentErrors } = await client
-        .from('system_errors')
-        .select('*')
-        .eq('function_name', serviceName)
-        .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+      const recentErrors = await safeDbOperation(async (client) => {
+        const { data } = await client
+          .from('system_errors')
+          .select('*')
+          .eq('function_name', serviceName)
+          .gte('created_at', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+        return data;
+      });
 
       if (recentErrors && recentErrors.length > 5) {
         status = 'degraded';
