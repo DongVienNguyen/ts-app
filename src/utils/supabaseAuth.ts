@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getServiceRoleClient, getCurrentAuth } from '@/integrations/supabase/client';
 
 const supabaseUrl = 'https://itoapoyrxxmtbbuolfhk.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b2Fwb3lyeHhtdGJidW9sZmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2ODQ2NDgsImV4cCI6MjA2NjI2MDY0OH0.qT7L0MDAH-qArxaoMSkCYmVYAcwdEzbXWB1PayxD_rk';
@@ -7,19 +8,6 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 let currentAuthToken: string | null = null;
 let currentUsername: string | null = null;
 let authenticatedClient: SupabaseClient | null = null;
-
-// Create service role client for system operations (bypasses RLS)
-const serviceRoleClient = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-  global: {
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  }
-});
 
 // Create authenticated Supabase client
 export function createAuthenticatedClient(token: string): SupabaseClient {
@@ -63,21 +51,10 @@ export function getAuthenticatedClient(): SupabaseClient | null {
   return authenticatedClient;
 }
 
-// Get service role client for system operations
-export function getServiceRoleClient(): SupabaseClient {
-  return serviceRoleClient;
-}
-
 // Get current auth info
-export function getCurrentAuth() {
-  return {
-    token: currentAuthToken,
-    username: currentUsername,
-    isAuthenticated: !!(currentAuthToken && currentUsername)
-  };
-}
+export { getCurrentAuth };
 
-// Safe database operation wrapper - uses service role for system operations
+// Safe database operation wrapper
 export async function safeDbOperation<T>(
   operation: (client: SupabaseClient) => Promise<T>,
   fallbackValue?: T,
@@ -87,7 +64,8 @@ export async function safeDbOperation<T>(
   
   if (useServiceRole) {
     // Use service role client for system operations (bypasses RLS)
-    client = serviceRoleClient;
+    client = getServiceRoleClient();
+    console.log('🔧 Using service role client for system operation');
   } else {
     // Use authenticated client for user operations
     client = getAuthenticatedClient();
@@ -98,7 +76,11 @@ export async function safeDbOperation<T>(
   }
 
   try {
-    return await operation(client);
+    const result = await operation(client);
+    if (useServiceRole) {
+      console.log('✅ System operation completed successfully');
+    }
+    return result;
   } catch (error) {
     console.error('❌ Database operation failed:', error);
     return fallbackValue || null;

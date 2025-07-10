@@ -1,4 +1,4 @@
-import { safeDbOperation, systemDbOperation } from '@/utils/supabaseAuth';
+import { systemDbOperation } from '@/utils/supabaseAuth';
 
 export interface SystemError {
   id?: string;
@@ -55,7 +55,7 @@ export async function logSystemError(error: Omit<SystemError, 'id' | 'created_at
     });
 
     if (result) {
-      console.log('✅ System error logged:', result);
+      console.log('✅ System error logged successfully');
       return result;
     } else {
       throw new Error('Failed to log system error');
@@ -65,21 +65,14 @@ export async function logSystemError(error: Omit<SystemError, 'id' | 'created_at
     // Fallback to localStorage if database fails
     const localErrors = JSON.parse(localStorage.getItem('system_errors') || '[]');
     const errorWithTimestamp = {
-      error_type: error.error_type,
-      error_message: error.error_message,
-      error_stack: error.error_stack,
-      function_name: error.function_name,
-      user_id: error.user_id,
-      request_url: error.request_url,
-      user_agent: error.user_agent,
-      ip_address: error.ip_address,
-      severity: error.severity,
-      status: error.status,
-      error_data: error.error_data,
+      ...error,
+      user_agent: error.user_agent || navigator.userAgent,
+      request_url: error.request_url || window.location.href,
       created_at: new Date().toISOString()
     };
     localErrors.unshift(errorWithTimestamp);
     localStorage.setItem('system_errors', JSON.stringify(localErrors.slice(0, 100)));
+    console.log('📝 Error logged to localStorage as fallback');
   }
 }
 
@@ -96,8 +89,10 @@ export async function logSystemMetric(metric: SystemMetric) {
     return data;
   });
 
-  if (!result) {
-    console.warn('⚠️ Failed to log system metric - database error');
+  if (result) {
+    console.log('✅ System metric logged successfully');
+  } else {
+    console.warn('⚠️ Failed to log system metric');
   }
 
   return result;
@@ -116,8 +111,10 @@ export async function updateSystemStatus(status: SystemStatus) {
     return data;
   });
 
-  if (!result) {
-    console.warn('⚠️ Failed to update system status - database error');
+  if (result) {
+    console.log('✅ System status updated successfully');
+  } else {
+    console.warn('⚠️ Failed to update system status');
   }
 
   return result;
@@ -150,7 +147,7 @@ export function captureError(error: Error, context?: any) {
   logSystemError(errorInfo);
 }
 
-// Performance monitoring - Fixed to accept function with parameters
+// Performance monitoring
 export function measurePerformance<T extends (...args: any[]) => Promise<any>>(name: string, fn: T): T {
   return (async (...args: Parameters<T>) => {
     const startTime = performance.now();
@@ -207,14 +204,16 @@ export async function monitorResources() {
     // Connection info
     if ('connection' in navigator) {
       const connection = (navigator as any).connection;
-      await logSystemMetric({
-        metric_type: 'network',
-        metric_name: 'effective_type',
-        metric_value: connection.effectiveType === '4g' ? 4 : 
-                     connection.effectiveType === '3g' ? 3 : 
-                     connection.effectiveType === '2g' ? 2 : 1,
-        metric_unit: 'generation'
-      });
+      if (connection.effectiveType) {
+        await logSystemMetric({
+          metric_type: 'network',
+          metric_name: 'effective_type',
+          metric_value: connection.effectiveType === '4g' ? 4 : 
+                       connection.effectiveType === '3g' ? 3 : 
+                       connection.effectiveType === '2g' ? 2 : 1,
+          metric_unit: 'generation'
+        });
+      }
     }
 
     // Page load time

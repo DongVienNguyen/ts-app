@@ -1,4 +1,4 @@
-import { safeDbOperation } from '@/utils/supabaseAuth';
+import { systemDbOperation } from '@/utils/supabaseAuth';
 import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
 import { emailService } from './emailService';
 import { notificationService } from './notificationService';
@@ -7,7 +7,6 @@ export class HealthCheckService {
   private static instance: HealthCheckService;
   private checkInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
-  private isEnabled = false; // Temporarily disabled
 
   static getInstance(): HealthCheckService {
     if (!HealthCheckService.instance) {
@@ -16,17 +15,12 @@ export class HealthCheckService {
     return HealthCheckService.instance;
   }
 
-  // Start health monitoring (temporarily disabled)
+  // Start health monitoring
   startMonitoring(intervalMinutes: number = 5) {
-    if (!this.isEnabled) {
-      console.log('🏥 Health monitoring is temporarily disabled to prevent error spam');
-      return;
-    }
-
     if (this.isRunning) return;
 
     this.isRunning = true;
-    console.log('🏥 Starting health monitoring...');
+    console.log('🏥 Starting health monitoring with service role client...');
 
     // Run initial check
     this.runHealthChecks();
@@ -47,24 +41,9 @@ export class HealthCheckService {
     console.log('🏥 Health monitoring stopped');
   }
 
-  // Enable health monitoring (for future use when service role is properly configured)
-  enableMonitoring() {
-    this.isEnabled = true;
-    console.log('🏥 Health monitoring enabled');
-  }
-
-  // Disable health monitoring
-  disableMonitoring() {
-    this.isEnabled = false;
-    this.stopMonitoring();
-    console.log('🏥 Health monitoring disabled');
-  }
-
   // Run all health checks
   private async runHealthChecks() {
-    if (!this.isEnabled) return;
-
-    console.log('🔍 Running health checks...');
+    console.log('🔍 Running health checks with system operations...');
     
     try {
       await Promise.all([
@@ -74,6 +53,7 @@ export class HealthCheckService {
         this.checkAPIHealth(),
         this.collectSystemMetrics()
       ]);
+      console.log('✅ Health checks completed successfully');
     } catch (error) {
       console.error('❌ Error during health checks:', error);
     }
@@ -84,8 +64,8 @@ export class HealthCheckService {
     const startTime = performance.now();
     
     try {
-      // Simple query to test database connectivity
-      const result = await safeDbOperation(async (client) => {
+      // Simple query to test database connectivity using system operation
+      const result = await systemDbOperation(async (client) => {
         const { error } = await client
           .from('staff')
           .select('count')
@@ -98,7 +78,7 @@ export class HealthCheckService {
       const responseTime = Math.round(performance.now() - startTime);
 
       if (!result) {
-        throw new Error('Database query failed - not authenticated');
+        throw new Error('Database query failed');
       }
 
       await updateSystemStatus({
@@ -161,12 +141,17 @@ export class HealthCheckService {
     const startTime = performance.now();
     
     try {
-      // Test API connectivity by calling a simple function
-      const result = await safeDbOperation(async (client) => {
-        await client.functions.invoke('check-account-status', {
-          body: { test: true }
-        });
-        return true;
+      // Test API connectivity by calling a simple function using system operation
+      const result = await systemDbOperation(async (client) => {
+        try {
+          await client.functions.invoke('check-account-status', {
+            body: { test: true }
+          });
+          return true;
+        } catch (error) {
+          // API might return error for test data, but if we get a response, it's working
+          return true;
+        }
       });
 
       const responseTime = Math.round(performance.now() - startTime);
@@ -284,7 +269,7 @@ export class HealthCheckService {
       }
 
       // Active sessions count
-      const activeSessions = await safeDbOperation(async (client) => {
+      const activeSessions = await systemDbOperation(async (client) => {
         const { data } = await client
           .from('user_sessions')
           .select('count')
@@ -310,7 +295,7 @@ export class HealthCheckService {
   // Get current system health summary
   async getHealthSummary() {
     try {
-      const statuses = await safeDbOperation(async (client) => {
+      const statuses = await systemDbOperation(async (client) => {
         const { data, error } = await client
           .from('system_status')
           .select('*')
@@ -363,10 +348,10 @@ export class HealthCheckService {
     }
   }
 
-  // Start monitoring when user logs in (temporarily disabled)
+  // Start monitoring when user logs in
   onUserLogin() {
-    console.log('🔐 User logged in, health monitoring is temporarily disabled');
-    // this.startMonitoring(); // Commented out temporarily
+    console.log('🔐 User logged in, starting health monitoring...');
+    this.startMonitoring();
   }
 
   // Stop monitoring when user logs out

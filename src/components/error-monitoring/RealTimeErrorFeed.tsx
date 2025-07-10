@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { AlertTriangle, Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { SystemError } from '@/utils/errorTracking';
-import { getAuthenticatedSupabaseClient } from '@/integrations/supabase/client';
+import { getAuthenticatedClient } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface RealTimeErrorFeedProps {
@@ -21,7 +21,13 @@ export function RealTimeErrorFeed({ onNewError }: RealTimeErrorFeedProps) {
   useEffect(() => {
     if (!isActive) return;
 
-    const client = getAuthenticatedSupabaseClient();
+    const client = getAuthenticatedClient();
+    
+    if (!client) {
+      console.warn('⚠️ Cannot start real-time error feed: not authenticated');
+      setIsActive(false);
+      return;
+    }
     
     // Subscribe to real-time changes
     const subscription = client

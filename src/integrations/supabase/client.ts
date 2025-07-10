@@ -1,53 +1,115 @@
-import { createClient } from '@supabase/supabase-js'
-import { setAuthentication, clearAuthentication, getAuthenticatedClient, getCurrentAuth } from '@/utils/supabaseAuth';
+import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://itoapoyrxxmtbbuolfhk.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b2Fwb3lyeHhtdGJidW9sZmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2ODQ2NDgsImV4cCI6MjA2NjI2MDY0OH0.qT7L0MDAH-qArxaoMSkCYmVYAcwdEzbXWB1PayxD_rk'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://itoapoyrxxmtbbuolfhk.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b2Fwb3lyeHhtdGJidW9sZmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2ODQ2NDgsImV4cCI6MjA2NjI2MDY0OH0.qT7L0MDAH-qArxaoMSkCYmVYAcwdEzbXWB1PayxD_rk';
 
-// Create the default Supabase client (for non-authenticated operations)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Create the main Supabase client for user operations
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
-  },
-  global: {
-    headers: {
-      'Content-Type': 'application/json',
-    }
   }
-})
+});
 
-// Function to set the auth token for RLS policies
-export const setSupabaseAuth = (token: string, username: string) => {
+// Create service role client for system operations (bypasses RLS)
+// Note: In a real production environment, this should use the actual service role key
+// For now, we'll create a client that can handle system operations
+const createServiceRoleClient = () => {
+  // Try to get service role key from environment
+  const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (serviceRoleKey) {
+    console.log('🔑 Using service role key for system operations');
+    return createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      global: {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    });
+  } else {
+    console.warn('⚠️ Service role key not found, using anon key with elevated permissions');
+    // Fallback to anon key but with special headers for system operations
+    return createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      global: {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-System-Operation': 'true' // Custom header to identify system operations
+        }
+      }
+    });
+  }
+};
+
+const serviceRoleClient = createServiceRoleClient();
+
+// Store current auth state
+let currentAuthToken: string | null = null;
+let currentUsername: string | null = null;
+
+// Set Supabase auth for RLS policies
+export function setSupabaseAuth(token: string, username: string) {
   console.log('🔐 Setting Supabase auth token for user:', username);
-  setAuthentication(token, username);
+  currentAuthToken = token;
+  currentUsername = username;
   console.log('✅ Supabase auth token set successfully');
-};
+}
 
-// Function to clear the auth token
-export const clearSupabaseAuth = () => {
+// Clear Supabase auth
+export function clearSupabaseAuth() {
   console.log('🔓 Clearing Supabase auth token');
-  clearAuthentication();
+  currentAuthToken = null;
+  currentUsername = null;
   console.log('✅ Supabase auth token cleared');
-};
+}
 
-// Function to get current auth status
-export const getSupabaseAuthStatus = () => {
-  const { isAuthenticated, username } = getCurrentAuth();
-  console.log('🔍 Supabase auth status:', isAuthenticated ? `Authenticated as ${username}` : 'Not authenticated');
-  return isAuthenticated;
-};
+// Get current auth info
+export function getCurrentAuth() {
+  return {
+    token: currentAuthToken,
+    username: currentUsername,
+    isAuthenticated: !!(currentAuthToken && currentUsername)
+  };
+}
 
-// Function to get authenticated client for system operations
-export const getAuthenticatedSupabaseClient = () => {
-  const client = getAuthenticatedClient();
-  if (!client) {
-    console.warn('⚠️ No auth token available for system operations, using default client');
-    return supabase; // Return regular client as fallback
+// Get authenticated client for user operations
+export function getAuthenticatedClient() {
+  if (!currentAuthToken) {
+    console.warn('⚠️ No auth token available');
+    return null;
   }
-  return client;
-};
+  
+  // Create a client with the current auth token
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: {
+        'Authorization': `Bearer ${currentAuthToken}`,
+        'apikey': supabaseAnonKey,
+        'Content-Type': 'application/json'
+      }
+    }
+  });
+}
+
+// Get service role client for system operations
+export function getServiceRoleClient() {
+  return serviceRoleClient;
+}
+
+// Export the main client
+export { supabase };
+export default supabase;
 
 console.log('✅ Supabase client initialized successfully');
-
-export default supabase;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { safeDbOperation } from '@/utils/supabaseAuth';
-import { SystemError, SystemMetric, SystemStatus, checkServiceHealth } from '@/utils/errorTracking';
+import { systemDbOperation } from '@/utils/supabaseAuth';
+import { SystemError, SystemMetric, SystemStatus, checkServiceHealth, monitorResources } from '@/utils/errorTracking';
 
 interface ErrorStats {
   totalErrors: number;
@@ -44,8 +44,8 @@ export function useErrorMonitoringData() {
     try {
       setIsLoading(true);
 
-      // Get error statistics using safe database operation
-      const errors = await safeDbOperation(async (client) => {
+      // Get error statistics using system database operation
+      const errors = await systemDbOperation(async (client) => {
         const { data, error } = await client
           .from('system_errors')
           .select('*')
@@ -122,7 +122,7 @@ export function useErrorMonitoringData() {
 
   const loadSystemMetrics = useCallback(async () => {
     try {
-      const metrics = await safeDbOperation(async (client) => {
+      const metrics = await systemDbOperation(async (client) => {
         const { data, error } = await client
           .from('system_metrics')
           .select('*')
@@ -137,10 +137,10 @@ export function useErrorMonitoringData() {
         setSystemMetrics(metrics);
       }
 
-      // Temporarily disable resource monitoring to prevent error spam
-      // monitorResources().catch(() => {
-      //   // Silently fail if resource monitoring fails
-      // });
+      // Monitor current resources
+      monitorResources().catch(() => {
+        // Silently fail if resource monitoring fails
+      });
     } catch (error) {
       console.error('Error loading system metrics:', error);
     }
@@ -148,22 +148,19 @@ export function useErrorMonitoringData() {
 
   const checkAllServices = useCallback(async () => {
     try {
-      // Temporarily disable service health checks to prevent error spam
-      // const [database, email, pushNotification, api] = await Promise.all([
-      //   checkServiceHealth('database'),
-      //   checkServiceHealth('email'),
-      //   checkServiceHealth('push_notification'),
-      //   checkServiceHealth('api')
-      // ]);
+      const [database, email, pushNotification, api] = await Promise.all([
+        checkServiceHealth('database'),
+        checkServiceHealth('email'),
+        checkServiceHealth('push_notification'),
+        checkServiceHealth('api')
+      ]);
 
-      // setServiceHealth({
-      //   database,
-      //   email,
-      //   pushNotification,
-      //   api
-      // });
-
-      console.log('⚠️ Service health checks temporarily disabled to prevent error spam');
+      setServiceHealth({
+        database,
+        email,
+        pushNotification,
+        api
+      });
     } catch (error) {
       console.error('Error checking service health:', error);
     }

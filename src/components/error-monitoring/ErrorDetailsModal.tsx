@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SystemError } from '@/utils/errorTracking';
 import { useState } from 'react';
-import { getAuthenticatedSupabaseClient } from '@/integrations/supabase/client';
+import { getAuthenticatedClient } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface ErrorDetailsModalProps {
@@ -27,7 +27,12 @@ export function ErrorDetailsModal({ error, isOpen, onClose, onErrorUpdated }: Er
   const handleUpdateError = async () => {
     try {
       setIsUpdating(true);
-      const client = getAuthenticatedSupabaseClient();
+      const client = getAuthenticatedClient();
+      
+      if (!client) {
+        toast.error('Không thể cập nhật lỗi - chưa xác thực');
+        return;
+      }
       
       const updateData: any = {
         status,
