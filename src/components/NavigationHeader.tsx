@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Package, Menu, LogOut, Key, Smartphone, Shield } from 'lucide-react';
+import { Package, Menu, LogOut, Key, Smartphone, Shield, Bug, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -105,6 +105,8 @@ export function NavigationHeader() {
     { label: 'Tài sản, thùng khác gửi kho', path: '/other-assets', icon: Package },
     { label: 'Quản lý dữ liệu', path: '/data-management', icon: Package },
     { label: 'Giám sát Bảo mật', path: '/security-monitor', icon: Shield },
+    { label: 'Theo dõi Lỗi', path: '/error-monitoring', icon: Bug },
+    { label: 'Theo dõi Sử dụng', path: '/usage-monitoring', icon: BarChart3 },
   ];
 
   const getVisibleMenuItems = () => {
@@ -123,7 +125,10 @@ export function NavigationHeader() {
 
       if (user.department === 'NQ') {
         return allMenuItems.filter(item => 
-          item.path !== '/data-management' && item.path !== '/security-monitor'
+          item.path !== '/data-management' && 
+          item.path !== '/security-monitor' &&
+          item.path !== '/error-monitoring' &&
+          item.path !== '/usage-monitoring'
         );
       }
     }

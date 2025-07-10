@@ -3,6 +3,8 @@ import { Staff } from '@/types/auth';
 import { secureLoginUser } from '@/services/secureAuthService';
 import { logSecurityEvent } from '@/utils/secureAuthUtils';
 import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
+import { setupGlobalErrorHandling, captureError } from '@/utils/errorTracking';
+import { setupUsageTracking, startUserSession, endUserSession } from '@/utils/usageTracking';
 import { setSupabaseAuth, clearSupabaseAuth } from '@/integrations/supabase/client';
 
 interface AuthContextType {
@@ -23,6 +25,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Setup global error handling
+    setupGlobalErrorHandling();
+
     // Check for existing session on app start
     const checkExistingSession = () => {
       try {
@@ -36,12 +41,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Set Supabase auth for RLS policies
           setSupabaseAuth(storedToken, userData.username);
           
+          // Setup usage tracking for restored session
+          setupUsageTracking(userData.username);
+          
           logSecurityEvent('SESSION_RESTORED', { username: userData.username });
           logSecurityEventRealTime('SESSION_RESTORED', { username: userData.username }, userData.username);
           console.log('🔐 Session restored for user:', userData.username);
         }
       } catch (error) {
         console.error('Error checking existing session:', error);
+        captureError(error as Error, {
+          functionName: 'checkExistingSession',
+          severity: 'medium'
+        });
+        
         // Clear invalid session data
         localStorage.removeItem('auth_user');
         localStorage.removeItem('auth_token');
@@ -76,6 +89,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         } catch (error) {
           console.error('Session validation error:', error);
+          captureError(error as Error, {
+            functionName: 'sessionValidation',
+            userId: user.username,
+            severity: 'medium'
+          });
           await logSecurityEventRealTime('SESSION_VALIDATION_ERROR', {
             error: error instanceof Error ? error.message : 'Unknown error'
           }, user.username);
@@ -84,6 +102,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       return () => {
         clearInterval(sessionInterval);
+        // End user session
+        const sessionId = localStorage.getItem('current_session_id');
+        if (sessionId) {
+          endUserSession(sessionId);
+        }
         // Log session end
         logSecurityEventRealTime('SESSION_END', {
           timestamp: new Date().toISOString()
@@ -121,6 +144,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Set Supabase auth for RLS policies
         setSupabaseAuth(result.token, result.user.username);
         
+        // Setup usage tracking for new session
+        setupUsageTracking(result.user.username);
+        
         logSecurityEvent('LOGIN_SUCCESS', { username });
         logSecurityEventRealTime('LOGIN_SUCCESS', {
           username,
@@ -142,6 +168,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     } catch (error) {
       console.error('Login error:', error);
+      captureError(error as Error, {
+        functionName: 'login',
+        userId: username,
+        severity: 'high'
+      });
       logSecurityEvent('LOGIN_ERROR', { username, error: error instanceof Error ? error.message : 'Unknown error' });
       logSecurityEventRealTime('LOGIN_ERROR', { 
         username, 
@@ -156,6 +187,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = () => {
     if (user) {
+      // End user session
+      const sessionId = localStorage.getItem('current_session_id');
+      if (sessionId) {
+        endUserSession(sessionId);
+      }
+      
       logSecurityEvent('LOGOUT', { username: user.username });
       logSecurityEventRealTime('LOGOUT_SUCCESS', {
         timestamp: new Date().toISOString()

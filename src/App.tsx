@@ -22,6 +22,8 @@ import ErrorReport from "./pages/ErrorReport";
 import PushNotificationTest from "./pages/PushNotificationTest";
 import Notifications from "./pages/Notifications";
 import SecurityMonitor from "./pages/SecurityMonitor";
+import ErrorMonitoring from "./pages/ErrorMonitoring";
+import UsageMonitoring from "./pages/UsageMonitoring";
 import NotFound from "./pages/NotFound";
 
 // Create QueryClient instance with error handling
@@ -189,6 +191,16 @@ function App() {
                   <Route path="/security-monitor" element={
                     <ProtectedRoute>
                       <SecurityMonitor />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/error-monitoring" element={
+                    <ProtectedRoute>
+                      <ErrorMonitoring />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/usage-monitoring" element={
+                    <ProtectedRoute>
+                      <UsageMonitoring />
                     </ProtectedRoute>
                   } />
                   <Route path="/error-report" element={
