@@ -1,341 +1,58 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Settings, Plus, Download, Upload, Trash2, Edit, Lock, AlertCircle, BarChart2, Database as DatabaseIcon, BellRing, Users, Shield, BookOpen, CheckCircle, ArrowRight, ChevronDown, Smartphone } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Settings, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Layout from '@/components/Layout';
-import { useSecureAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import JSZip from 'jszip';
-import DateInput from '@/components/DateInput';
-import { toCSV, fromCSV } from '@/utils/csvUtils';
-import PushNotificationTester from '@/components/PushNotificationTester';
-import { entityConfig } from '@/config/entityConfig';
-import { StatisticsTab } from '@/components/data-management/StatisticsTab';
+import { TabNavigation } from '@/components/data-management/TabNavigation';
+import { TabContent } from '@/components/data-management/TabContent';
 import { EditDialog } from '@/components/data-management/EditDialog';
-import { SecurityDashboard } from '@/components/SecurityDashboard';
-import { SecurityTestPanel } from '@/components/SecurityTestPanel';
-import { SecurityDocumentation } from '@/components/SecurityDocumentation';
-import { SecurityImplementationSummary } from '@/components/SecurityImplementationSummary';
-import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
-import { AccountManagementTab } from '@/components/data-management/AccountManagementTab';
-import { VAPIDKeyTester } from '@/components/VAPIDKeyTester';
-import { AdminEmailSettings } from '@/components/data-management/AdminEmailSettings';
-import TestDataButton from '@/components/TestDataButton';
-import { PWATestPanel } from '@/components/PWATestPanel';
+import { entityConfig } from '@/config/entityConfig';
+import { useDataManagement } from '@/hooks/useDataManagement';
 
 const DataManagement = () => {
-  const [selectedEntity, setSelectedEntity] = useState<string>('asset_transactions');
-  const [data, setData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [message, setMessage] = useState({ type: '', text: '' });
-  const [restoreFile, setRestoreFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState('management');
-  const restoreInputRef = useRef<HTMLInputElement>(null);
-
-  const { user } = useSecureAuth();
   const navigate = useNavigate();
-
-  const ITEMS_PER_PAGE = 20;
-
-  // Mobile-optimized tab configuration
-  const tabGroups = [
-    {
-      label: 'Quản lý chính',
-      icon: DatabaseIcon,
-      tabs: [
-        { value: 'management', label: 'Quản lý dữ liệu', icon: DatabaseIcon },
-        { value: 'statistics', label: 'Thống kê', icon: BarChart2 },
-        { value: 'accounts', label: 'Tài khoản', icon: Users },
-        { value: 'admin-settings', label: 'Cài đặt Admin', icon: Settings },
-      ]
-    },
-    {
-      label: 'Bảo mật',
-      icon: Shield,
-      tabs: [
-        { value: 'security-dashboard', label: 'Dashboard', icon: Shield },
-        { value: 'security-test', label: 'Test Bảo mật', icon: Shield },
-        { value: 'security-docs', label: 'Tài liệu', icon: BookOpen },
-        { value: 'security-summary', label: 'Tổng kết', icon: CheckCircle },
-        { value: 'security-workflow', label: 'Demo', icon: ArrowRight },
-      ]
-    },
-    {
-      label: 'Thông báo & PWA',
-      icon: BellRing,
-      tabs: [
-        { value: 'push-notifications', label: 'Thông báo đẩy', icon: BellRing },
-        { value: 'pwa-test', label: 'PWA Test', icon: Smartphone },
-      ]
-    }
-  ];
-
-  const runAsAdmin = useCallback(async (callback: () => Promise<void>) => {
-    if (!user || user.role !== 'admin') {
-      setMessage({ type: 'error', text: "Hành động yêu cầu quyền admin." });
-      return;
-    }
-    try {
-      await callback();
-    } catch (error: any) {
-      setMessage({ type: 'error', text: `Lỗi thực thi tác vụ admin: ${error.message}` });
-    }
-  }, [user]);
-
-  const loadData = useCallback(async () => {
-    if (!selectedEntity) return;
-    setIsLoading(true);
-    await runAsAdmin(async () => {
-      try {
-        const config = entityConfig[selectedEntity];
-        const hasCreatedAt = config.fields.some(f => f.key === 'created_at');
-        
-        let query = supabase.from(config.entity as any).select('*');
-        
-        if (hasCreatedAt) {
-          query = query.order('created_at', { ascending: false });
-        } else {
-          query = query.order('id', { ascending: false });
-        }
-
-        const { data: result, error } = await query;
-
-        if (error) throw error;
-        setData(result || []);
-      } catch (error: any) {
-        setMessage({ type: 'error', text: `Không thể tải dữ liệu: ${error.message || 'Lỗi không xác định'}` });
-        setData([]);
-      }
-    });
-    setIsLoading(false);
-  }, [selectedEntity, runAsAdmin]);
-
-  useEffect(() => {
-    if (user) {
-      loadData();
-    } else if (user === null) {
-      navigate('/login');
-    }
-  }, [user, selectedEntity, navigate, loadData]);
-
-  const filteredData = useMemo(() => data.filter(item => Object.values(item).some(value => value && value.toString().toLowerCase().includes(searchTerm.toLowerCase()))), [data, searchTerm]);
-  const paginatedData = useMemo(() => { const startIndex = (currentPage - 1) * ITEMS_PER_PAGE; return filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE); }, [filteredData, currentPage]);
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
-
-  const handleAdd = () => {
-    setEditingItem(null);
-    setDialogOpen(true);
-  };
-
-  const handleEdit = (item: any) => {
-    setEditingItem(item);
-    setDialogOpen(true);
-  };
-
-  const handleSave = async (formData: any) => {
-    if (!selectedEntity) return;
-    setMessage({ type: '', text: '' });
-    await runAsAdmin(async () => {
-      try {
-        const config = entityConfig[selectedEntity];
-        for (const field of config.fields.filter(f => f.required)) {
-          if (!formData[field.key]) {
-            setMessage({ type: 'error', text: `Vui lòng điền ${field.label}` });
-            return;
-          }
-        }
-        
-        const submitData: { [key: string]: any } = { ...formData };
-
-        config.fields.filter(f => f.type === 'boolean').forEach(field => {
-          if (submitData[field.key] !== undefined && submitData[field.key] !== null) {
-            submitData[field.key] = submitData[field.key] === 'true';
-          }
-        });
-
-        Object.keys(submitData).forEach(key => {
-            if (key !== 'password' && (submitData[key] === '' || submitData[key] === null)) {
-                delete submitData[key];
-            }
-        });
-
-        if (selectedEntity === 'staff') {
-            if (editingItem) {
-                if (submitData.password === '') {
-                    delete submitData.password;
-                }
-            } else {
-                if (!submitData.password) {
-                    submitData.password = '123456';
-                }
-            }
-        }
-
-        if (editingItem) {
-          delete submitData.id;
-          const { error } = await supabase.from(config.entity as any).update(submitData).eq('id', editingItem.id);
-          if (error) throw error;
-          setMessage({ type: 'success', text: "Cập nhật thành công" });
-        } else {
-          const { error } = await supabase.from(config.entity as any).insert([submitData]);
-          if (error) throw error;
-          setMessage({ type: 'success', text: "Thêm mới thành công" });
-        }
-        setDialogOpen(false);
-        loadData();
-      } catch (error: any) {
-        setMessage({ type: 'error', text: `Không thể lưu dữ liệu: ${error.message || 'Lỗi không xác định'}` });
-      }
-    });
-  };
-
-  const handleDelete = async (item: any) => {
-    if (!selectedEntity) return;
-    setMessage({ type: '', text: '' });
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa bản ghi này khỏi bảng ${entityConfig[selectedEntity].name}?`)) {
-      return;
-    }
-    await runAsAdmin(async () => {
-      try {
-        const config = entityConfig[selectedEntity];
-        const { error } = await supabase.from(config.entity as any).delete().eq('id', item.id);
-        if (error) throw error;
-        setMessage({ type: 'success', text: "Xóa thành công" });
-        loadData();
-      } catch (error: any) {
-        setMessage({ type: 'error', text: `Không thể xóa dữ liệu: ${error.message || 'Lỗi không xác định'}` });
-      }
-    });
-  };
-
-  const toggleStaffLock = async (staff: any) => {
-    setMessage({ type: '', text: '' });
-    await runAsAdmin(async () => {
-      try {
-        const newStatus = staff.account_status === 'active' ? 'locked' : 'active';
-        const { error } = await supabase.from('staff').update({ account_status: newStatus, failed_login_attempts: 0, locked_at: newStatus === 'locked' ? new Date().toISOString() : null }).eq('id', staff.id);
-        if (error) throw error;
-        setMessage({ type: 'success', text: `Đã ${newStatus === 'locked' ? 'khóa' : 'mở khóa'} tài khoản` });
-        loadData();
-      } catch (error: any) {
-        setMessage({ type: 'error', text: `Không thể thay đổi trạng thái tài khoản: ${error.message || 'Lỗi không xác định'}` });
-      }
-    });
-  };
-
-  const exportToCSV = () => {
-    if (filteredData.length === 0) {
-      setMessage({ type: 'error', text: "Không có dữ liệu để xuất." });
-      return;
-    }
-    const config = entityConfig[selectedEntity];
-    const csvContent = toCSV(filteredData, config.fields);
+  const {
+    // State
+    selectedEntity,
+    setSelectedEntity,
+    data,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    currentPage,
+    setCurrentPage,
+    dialogOpen,
+    setDialogOpen,
+    editingItem,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    message,
+    setMessage,
+    activeTab,
+    setActiveTab,
+    restoreInputRef,
     
-    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `${selectedEntity}_data.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setMessage({ type: 'success', text: "Xuất dữ liệu thành công." });
-  };
-
-  const handleRestoreData = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setRestoreFile(event.target.files[0]);
-      setMessage({ type: 'info', text: `Đã chọn tệp: ${event.target.files[0].name}. Nhấn Import lần nữa để bắt đầu.` });
-    }
-  };
-
-  const restoreAllData = async () => {
-    if (!restoreFile) {
-      setMessage({ type: 'error', text: "Vui lòng chọn tệp ZIP để import." });
-      return;
-    }
-    setMessage({ type: '', text: '' });
-    if (!window.confirm("Bạn có chắc chắn muốn import dữ liệu? Thao tác này sẽ GHI ĐÈ dữ liệu hiện có trong tất cả các bảng.")) {
-      return;
-    }
-
-    await runAsAdmin(async () => {
-      try {
-        const zip = await JSZip.loadAsync(restoreFile);
-        for (const key in entityConfig) {
-          const config = entityConfig[key];
-          const fileName = `${key}.csv`;
-          const file = zip.file(fileName);
-          if (file) {
-            const content = await file.async("text");
-            const dataToRestore = fromCSV(content, config.fields);
-            
-            const { error: deleteError } = await supabase.from(config.entity as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-            if (deleteError) throw deleteError;
-
-            if (dataToRestore.length > 0) {
-              const { error: insertError } = await supabase.from(config.entity as any).insert(dataToRestore);
-              if (insertError) throw insertError;
-            }
-          }
-        }
-        setMessage({ type: 'success', text: "Import dữ liệu thành công." });
-        loadData();
-      } catch (error: any) {
-        setMessage({ type: 'error', text: `Không thể import dữ liệu: ${error.message || 'Lỗi không xác định'}` });
-      } finally {
-        setRestoreFile(null);
-        if(restoreInputRef.current) restoreInputRef.current.value = '';
-      }
-    });
-  };
-  
-  const handleImportClick = () => {
-    if (restoreFile) {
-      restoreAllData();
-    } else {
-      restoreInputRef.current?.click();
-    }
-  };
-
-  const bulkDeleteTransactions = async () => {
-    setMessage({ type: '', text: '' });
-    if (!startDate || !endDate) {
-      setMessage({ type: 'error', text: "Vui lòng chọn cả ngày bắt đầu và ngày kết thúc." });
-      return;
-    }
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa tất cả giao dịch từ ${startDate} đến ${endDate}? Thao tác này không thể hoàn tác.`)) {
-      return;
-    }
-    await runAsAdmin(async () => {
-      try {
-        const { error } = await supabase
-          .from('asset_transactions')
-          .delete()
-          .gte('transaction_date', startDate)
-          .lte('transaction_date', endDate);
-
-        if (error) throw error;
-        setMessage({ type: 'success', text: `Đã xóa thành công các giao dịch từ ${startDate} đến ${endDate}.` });
-        loadData();
-      } catch (error: any) {
-        setMessage({ type: 'error', text: `Không thể xóa giao dịch hàng loạt: ${error.message || 'Lỗi không xác định'}` });
-      }
-    });
-  };
+    // Computed values
+    filteredData,
+    paginatedData,
+    totalPages,
+    
+    // Functions
+    runAsAdmin,
+    handleAdd,
+    handleEdit,
+    handleSave,
+    handleDelete,
+    toggleStaffLock,
+    exportToCSV,
+    handleRestoreData,
+    handleImportClick,
+    bulkDeleteTransactions,
+    
+    // User
+    user
+  } = useDataManagement();
 
   if (!user) return <Layout><div>Đang kiểm tra quyền truy cập...</div></Layout>;
   if (user.role !== 'admin') return <Layout><div>Chỉ admin mới có thể truy cập module này.</div></Layout>;
@@ -343,6 +60,7 @@ const DataManagement = () => {
   return (
     <Layout>
       <div className="space-y-6 p-4 md:p-6">
+        {/* Header */}
         <div className="flex items-center space-x-4">
           <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-lg">
             <Settings className="w-6 h-6 text-gray-600" />
@@ -353,311 +71,54 @@ const DataManagement = () => {
           </div>
         </div>
 
+        {/* Message Alert */}
         {message.text && (
-          <Alert variant={message.type === 'error' ? 'destructive' : (message.type === 'info' ? 'default' : 'default')} className={message.type === 'success' ? 'bg-green-100 border-green-400 text-green-800' : ''}>
+          <Alert 
+            variant={message.type === 'error' ? 'destructive' : 'default'} 
+            className={message.type === 'success' ? 'bg-green-100 border-green-400 text-green-800' : ''}
+          >
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{message.text}</AlertDescription>
           </Alert>
         )}
 
-        {/* Mobile-optimized Tab Navigation */}
-        <div className="w-full">
-          {/* Desktop Tabs */}
-          <div className="hidden lg:block">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8">
-                {tabGroups.flatMap(group => group.tabs).map((tab) => (
-                  <TabsTrigger key={tab.value} value={tab.value} className="text-xs">
-                    <tab.icon className="mr-1 h-3 w-3" />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              {/* Tab Contents */}
-              {renderTabContents()}
-            </Tabs>
-          </div>
+        {/* Tab Navigation */}
+        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-          {/* Mobile Dropdown */}
-          <div className="lg:hidden">
-            <div className="space-y-4">
-              {tabGroups.map((group) => (
-                <Card key={group.label}>
-                  <CardHeader className="pb-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between">
-                          <div className="flex items-center space-x-2">
-                            <group.icon className="w-4 h-4" />
-                            <span>{group.label}</span>
-                          </div>
-                          <ChevronDown className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-full">
-                        {group.tabs.map((tab) => (
-                          <DropdownMenuItem 
-                            key={tab.value}
-                            onClick={() => setActiveTab(tab.value)}
-                            className={activeTab === tab.value ? 'bg-blue-50' : ''}
-                          >
-                            <tab.icon className="mr-2 h-4 w-4" />
-                            {tab.label}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-
-            {/* Mobile Tab Content */}
-            <div className="mt-6">
-              {renderTabContents()}
-            </div>
-          </div>
+        {/* Tab Content */}
+        <div className="mt-6">
+          <TabContent
+            activeTab={activeTab}
+            selectedEntity={selectedEntity}
+            onEntityChange={setSelectedEntity}
+            data={data}
+            isLoading={isLoading}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            filteredData={filteredData}
+            paginatedData={paginatedData}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            onAdd={handleAdd}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onToggleStaffLock={toggleStaffLock}
+            onExportCSV={exportToCSV}
+            onImportClick={handleImportClick}
+            restoreInputRef={restoreInputRef}
+            onRestoreData={handleRestoreData}
+            startDate={startDate}
+            endDate={endDate}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            onBulkDeleteTransactions={bulkDeleteTransactions}
+            runAsAdmin={runAsAdmin}
+            setMessage={setMessage}
+          />
         </div>
-      </div>
-    </Layout>
-  );
 
-  function renderTabContents() {
-    return (
-      <>
-        {activeTab === 'management' && (
-          <div className="mt-6 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Chọn bảng dữ liệu</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-wrap items-center gap-4">
-                <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-                  <SelectTrigger className="w-[220px]">
-                    <SelectValue placeholder="Chọn bảng" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(entityConfig).map((key) => (
-                      <SelectItem key={key} value={key}>
-                        {entityConfig[key].name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleAdd} className="bg-green-600 hover:bg-green-700 text-white">
-                  <Plus className="mr-2 h-4 w-4" /> New
-                </Button>
-                <Button variant="outline" onClick={exportToCSV}>
-                  <Download className="mr-2 h-4 w-4" /> Export
-                </Button>
-                <Button variant="outline" onClick={handleImportClick}>
-                  <Upload className="mr-2 h-4 w-4" /> Import
-                </Button>
-                <input
-                  type="file"
-                  ref={restoreInputRef}
-                  onChange={handleRestoreData}
-                  accept=".zip"
-                  className="hidden"
-                />
-                {/* Test Data Buttons moved from AssetEntry */}
-                <TestDataButton />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Tìm kiếm trong bảng dữ liệu</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Input
-                  placeholder={`Tìm kiếm trong ${entityConfig[selectedEntity]?.name}...`}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </CardContent>
-            </Card>
-
-            {selectedEntity === 'asset_transactions' && (
-              <Card className="bg-red-50 border-red-200">
-                <CardHeader>
-                  <CardTitle>Xóa hàng loạt (Admin)</CardTitle>
-                  <p className="text-sm text-gray-600">Chọn khoảng thời gian để xóa tất cả các giao dịch trong khoảng đó. Hành động này không thể hoàn tác.</p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="startDate">Ngày bắt đầu</Label>
-                      <DateInput value={startDate} onChange={setStartDate} />
-                    </div>
-                    <div>
-                      <Label htmlFor="endDate">Ngày kết thúc</Label>
-                      <DateInput value={endDate} onChange={setEndDate} />
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button onClick={bulkDeleteTransactions} variant="destructive">
-                      <Trash2 className="mr-2 h-4 w-4" /> Xóa theo ngày
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardHeader>
-                <CardTitle>{entityConfig[selectedEntity]?.name} (Tổng: {filteredData.length} bản ghi)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                    <span className="ml-2">Đang tải dữ liệu...</span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {entityConfig[selectedEntity]?.fields.map((field) => (
-                              <TableHead key={field.key}>{field.label}</TableHead>
-                            ))}
-                            <TableHead className="text-right">Thao tác</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {paginatedData.length > 0 ? (
-                            paginatedData.map((item) => (
-                              <TableRow key={item.id}>
-                                {entityConfig[selectedEntity]?.fields.map((field) => (
-                                  <TableCell key={field.key} className="py-2 px-4 whitespace-nowrap">
-                                    {field.type === 'date' && item[field.key]
-                                      ? new Date(item[field.key]).toLocaleDateString('vi-VN')
-                                      : field.type === 'boolean' && item[field.key] !== undefined
-                                        ? (item[field.key] ? 'Có' : 'Không')
-                                        : (selectedEntity === 'staff' && field.key === 'password')
-                                          ? '********'
-                                          : item[field.key]?.toString()}
-                                  </TableCell>
-                                ))}
-                                <TableCell className="text-right py-2 px-4">
-                                  <div className="flex justify-end space-x-1">
-                                    {selectedEntity === 'staff' && (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => toggleStaffLock(item)}
-                                        title={item.account_status === 'active' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-                                      >
-                                        <Lock className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                    <Button variant="ghost" size="icon" onClick={() => handleEdit(item)} title="Chỉnh sửa">
-                                      <Edit className="h-4 w-4 text-blue-600" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(item)} title="Xóa">
-                                      <Trash2 className="h-4 w-4 text-red-600" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          ) : (
-                            <TableRow>
-                              <TableCell colSpan={(entityConfig[selectedEntity]?.fields.length || 0) + 1} className="text-center py-8">
-                                Không có dữ liệu
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-                    <div className="flex justify-between items-center mt-4">
-                      <Button
-                        onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        Trước
-                      </Button>
-                      <span>
-                        Trang {currentPage} / {totalPages}
-                      </span>
-                      <Button
-                        onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages || totalPages === 0}
-                      >
-                        Tiếp
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {activeTab === 'statistics' && (
-          <div className="mt-6 space-y-6">
-            <StatisticsTab runAsAdmin={runAsAdmin} setMessage={setMessage} onLoad={() => {}} />
-          </div>
-        )}
-
-        {activeTab === 'security-dashboard' && (
-          <div className="mt-6 space-y-6">
-            <SecurityDashboard />
-          </div>
-        )}
-
-        {activeTab === 'accounts' && (
-          <div className="mt-6 space-y-6">
-            <AccountManagementTab />
-          </div>
-        )}
-
-        {activeTab === 'admin-settings' && (
-          <div className="mt-6 space-y-6">
-            <AdminEmailSettings />
-          </div>
-        )}
-
-        {activeTab === 'security-test' && (
-          <div className="mt-6 space-y-6">
-            <SecurityTestPanel />
-          </div>
-        )}
-
-        {activeTab === 'security-docs' && (
-          <div className="mt-6 space-y-6">
-            <SecurityDocumentation />
-          </div>
-        )}
-
-        {activeTab === 'security-summary' && (
-          <div className="mt-6 space-y-6">
-            <SecurityImplementationSummary />
-          </div>
-        )}
-
-        {activeTab === 'security-workflow' && (
-          <div className="mt-6 space-y-6">
-            <SecurityWorkflowDemo />
-          </div>
-        )}
-
-        {activeTab === 'push-notifications' && (
-          <div className="mt-6 space-y-6">
-            <VAPIDKeyTester />
-            <PushNotificationTester />
-          </div>
-        )}
-
-        {activeTab === 'pwa-test' && (
-          <div className="mt-6 space-y-6">
-            <PWATestPanel />
-          </div>
-        )}
-
+        {/* Edit Dialog */}
         <EditDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
@@ -665,9 +126,9 @@ const DataManagement = () => {
           editingItem={editingItem}
           onSave={handleSave}
         />
-      </>
-    );
-  }
+      </div>
+    </Layout>
+  );
 };
 
 export default DataManagement;
