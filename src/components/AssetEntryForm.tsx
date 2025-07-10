@@ -13,15 +13,14 @@ import {
   Loader2
 } from 'lucide-react';
 
-// Import form components - fix named imports to default imports
+// Import form components
 import RoomSelection from '@/components/RoomSelection';
 import TransactionTypeSelection from '@/components/TransactionTypeSelection';
 import AssetCodeInputs from '@/components/AssetCodeInputs';
 import TransactionDetails from '@/components/TransactionDetails';
 import SubmitButtons from '@/components/SubmitButtons';
-import ImageProcessingDialog from '@/components/ImageProcessingDialog';
 
-// Import hooks and utilities - fix type import
+// Import hooks and utilities
 import { useImageProcessing } from '@/hooks/useImageProcessing';
 import { AssetEntryFormState } from '@/types/assetEntryFormState';
 
@@ -58,13 +57,13 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
   onAssetCodesDetected,
   onRoomDetected,
 }) => {
-  const [showImageDialog, setShowImageDialog] = useState(false);
-  
-  // Fix hook property names
+  // Use the actual useImageProcessing hook
   const {
     isProcessingImage,
+    isDialogOpen,
+    setIsDialogOpen,
     processImages,
-    openCamera
+    openCamera,
   } = useImageProcessing({
     onAssetCodesDetected,
     onRoomDetected
@@ -101,29 +100,20 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  const handleImageProcessing = async (type: 'camera' | 'upload') => {
-    try {
-      if (type === 'camera') {
-        await openCamera();
-      } else {
-        // Create file input for upload
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.multiple = true;
-        input.onchange = async (e) => {
-          const files = (e.target as HTMLInputElement).files;
-          if (files) {
-            await processImages(files);
-          }
-        };
-        input.click();
+  const handleFileUpload = async () => {
+    // Create file input for upload
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.onchange = async (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (files) {
+        await processImages(files);
       }
-    } catch (error) {
-      console.error('Image processing error:', error);
-    } finally {
-      setShowImageDialog(false);
-    }
+    };
+    input.click();
+    setIsDialogOpen(false);
   };
 
   return (
@@ -254,7 +244,7 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
           </div>
           <Button
             type="button"
-            onClick={() => setShowImageDialog(true)}
+            onClick={() => setIsDialogOpen(true)}
             disabled={isProcessingImage}
             className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium px-4 py-2 rounded-lg shadow-md transition-all duration-200"
             style={{ 
@@ -316,16 +306,63 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
       </div>
 
       {/* Image Processing Dialog */}
-      <ImageProcessingDialog
-        isProcessingImage={isProcessingImage}
-        isDialogOpen={showImageDialog}
-        setIsDialogOpen={setShowImageDialog}
-        onCameraClick={() => handleImageProcessing('camera')}
-        onUploadClick={async (files) => {
-          await processImages(files);
-          setShowImageDialog(false);
-        }}
-      />
+      {isDialogOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            style={{ backgroundColor: '#ffffff', color: '#111827' }}
+          >
+            <h3 className="text-lg font-semibold mb-4" style={{ color: '#111827' }}>
+              🤖 Chọn phương thức AI
+            </h3>
+            <p className="text-sm text-gray-600 mb-4" style={{ color: '#6b7280' }}>
+              AI sẽ phân tích ảnh và tự động điền mã tài sản vào form
+            </p>
+            <div className="space-y-3">
+              <Button
+                onClick={openCamera}
+                disabled={isProcessingImage}
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                style={{ backgroundColor: '#3b82f6', color: '#ffffff' }}
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                📱 Chụp ảnh bằng Camera
+              </Button>
+              <Button
+                onClick={handleFileUpload}
+                disabled={isProcessingImage}
+                className="w-full bg-green-500 hover:bg-green-600 text-white"
+                style={{ backgroundColor: '#10b981', color: '#ffffff' }}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                📁 Upload từ thiết bị
+              </Button>
+              <Button
+                onClick={() => setIsDialogOpen(false)}
+                variant="outline"
+                className="w-full"
+                style={{ backgroundColor: '#ffffff', color: '#111827', borderColor: '#d1d5db' }}
+              >
+                ❌ Hủy
+              </Button>
+            </div>
+            
+            {isProcessingImage && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-md" style={{ backgroundColor: '#eff6ff' }}>
+                <div className="flex items-center space-x-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  <span className="text-sm text-blue-800" style={{ color: '#1e40af' }}>
+                    🤖 AI đang phân tích ảnh...
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
