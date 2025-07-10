@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import Layout from '@/components/Layout';
 import AssetEntryForm from '@/components/AssetEntryForm';
 import { useTimeRestriction } from '@/hooks/useTimeRestriction';
 import { useAssetEntry } from '@/hooks/useAssetEntry';
@@ -99,48 +98,48 @@ const AssetEntry = () => {
   };
 
   return (
-    <Layout>
-      <div className="max-w-4xl mx-auto space-y-4 p-4">
-        {/* Time Restriction Alert */}
-        {isRestrictedTime && (
-          <Alert variant="destructive">
-            <Terminal className="h-4 w-4" />
-            <AlertTitle>Cảnh báo!</AlertTitle>
-            <AlertDescription>
-              Hiện tại đang trong khung giờ cấm (7:45-8:05 hoặc 12:45-13:05). Vui lòng nhắn Zalo thay vì dùng hệ thống.
-            </AlertDescription>
-          </Alert>
-        )}
+    <div className="space-y-6">
+      {/* Time Restriction Alert */}
+      {isRestrictedTime && (
+        <Alert variant="destructive" className="border-red-200 bg-red-50">
+          <Terminal className="h-4 w-4" />
+          <AlertTitle className="text-red-800">Cảnh báo!</AlertTitle>
+          <AlertDescription className="text-red-700">
+            Hiện tại đang trong khung giờ cấm (7:45-8:05 hoặc 12:45-13:05). Vui lòng nhắn Zalo thay vì dùng hệ thống.
+          </AlertDescription>
+        </Alert>
+      )}
 
-        {/* Main Form Card - Simplified */}
-        <Card className="shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-green-50 pb-4">
-            <CardTitle className="text-xl font-bold text-center text-gray-800 flex items-center justify-center space-x-2">
-              <Package className="w-5 h-5 text-green-600" />
-              <span>Thông báo Mượn/Xuất Tài sản</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 md:p-6">
-            <AssetEntryForm
-              isRestrictedTime={isRestrictedTime}
-              formData={formData}
-              setFormData={setFormData}
-              multipleAssets={multipleAssets}
-              handleRoomChange={handleRoomChange}
-              handleAssetChange={handleAssetChange}
-              addAssetField={addAssetField}
-              removeAssetField={removeAssetField}
-              isFormValid={isFormValid}
-              isSubmitting={isSubmitting}
-              onSubmit={handleSubmit}
-              disabledBeforeDate={disabledBeforeDate}
-              onAssetCodesDetected={handleAssetCodesDetected}
-              onRoomDetected={handleRoomDetected}
-            />
-          </CardContent>
-        </Card>
-      </div>
-    </Layout>
+      {/* Main Form Card */}
+      <Card className="shadow-lg border-green-100">
+        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100">
+          <CardTitle className="text-2xl font-bold text-center text-gray-800 flex items-center justify-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+              <Package className="w-6 h-6 text-white" />
+            </div>
+            <span>Thông báo Mượn/Xuất Tài sản</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 bg-white">
+          <AssetEntryForm
+            isRestrictedTime={isRestrictedTime}
+            formData={formData}
+            setFormData={setFormData}
+            multipleAssets={multipleAssets}
+            handleRoomChange={handleRoomChange}
+            handleAssetChange={handleAssetChange}
+            addAssetField={addAssetField}
+            removeAssetField={removeAssetField}
+            isFormValid={isFormValid}
+            isSubmitting={isSubmitting}
+            onSubmit={handleSubmit}
+            disabledBeforeDate={disabledBeforeDate}
+            onAssetCodesDetected={handleAssetCodesDetected}
+            onRoomDetected={handleRoomDetected}
+          />
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

@@ -123,27 +123,27 @@ export function NotificationBell() {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative">
+        <Button variant="ghost" size="sm" className="relative hover:bg-green-50 text-gray-600 hover:text-green-700">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <Badge 
               variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-green-500 hover:bg-green-600"
             >
               {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
+      <PopoverContent className="w-80 p-0 bg-white border border-green-100 shadow-xl" align="end">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold">Thông báo</h3>
+            <h3 className="font-semibold text-gray-900">Thông báo</h3>
             <Button
               onClick={handleViewAllNotifications}
               variant="ghost"
               size="sm"
-              className="text-xs"
+              className="text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
             >
               Xem tất cả
             </Button>
@@ -152,17 +152,17 @@ export function NotificationBell() {
           <ScrollArea className="h-64">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
               </div>
             ) : notifications.length > 0 ? (
               <div className="space-y-2">
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                    className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
                       notification.is_read
-                        ? 'bg-gray-50 border-gray-200'
-                        : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                        ? 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                        : 'bg-green-50 border-green-200 hover:bg-green-100'
                     }`}
                     onClick={() => {
                       if (!notification.is_read) {
@@ -176,11 +176,11 @@ export function NotificationBell() {
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-medium text-sm truncate">
+                          <h4 className="font-medium text-sm truncate text-gray-900">
                             {notification.title}
                           </h4>
                           {!notification.is_read && (
-                            <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0"></div>
+                            <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
                           )}
                         </div>
                         <p className="text-xs text-gray-600 mt-1 line-clamp-2">

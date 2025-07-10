@@ -18,6 +18,7 @@ import Notifications from '@/pages/Notifications';
 import NotFound from '@/pages/NotFound';
 import ResetPassword from '@/pages/ResetPassword';
 import { useEffect } from 'react';
+import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +28,26 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Component to handle default route based on user role
+function DefaultRoute() {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  // Regular users go to asset-entry, admins/NQ go to dashboard
+  if (user.role === 'user') {
+    return <Navigate to="/asset-entry" replace />;
+  } else {
+    return (
+      <Layout>
+        <Index />
+      </Layout>
+    );
+  }
+}
 
 function AppContent() {
   const { user } = useAuth();
@@ -42,15 +63,14 @@ function AppContent() {
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         
-        {/* Protected routes with Layout */}
+        {/* Default route - redirects based on user role */}
         <Route path="/" element={
           <ProtectedRoute>
-            <Layout>
-              <Index />
-            </Layout>
+            <DefaultRoute />
           </ProtectedRoute>
         } />
         
+        {/* Protected routes with Layout */}
         <Route path="/asset-entry" element={
           <ProtectedRoute>
             <Layout>
