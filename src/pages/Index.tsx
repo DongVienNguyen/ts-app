@@ -1,22 +1,10 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useSecureAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
-import { SecurityStatusWidget } from '@/components/SecurityStatusWidget';
-import { SystemHealthWidget } from '@/components/SystemHealthWidget';
 import { Package, Users, AlertTriangle, TrendingUp } from 'lucide-react';
 
 const Index = () => {
-  const navigate = useNavigate();
-  const { user, loading } = useSecureAuth();
-
-  // Remove automatic redirect - let user stay on dashboard
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/login');
-    }
-  }, [user, loading, navigate]);
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -27,7 +15,7 @@ const Index = () => {
   }
 
   if (!user) {
-    return null; // Will redirect to login in useEffect
+    return null;
   }
 
   const stats = [
@@ -92,14 +80,6 @@ const Index = () => {
           </Card>
         ))}
       </div>
-
-      {/* Admin Widgets */}
-      {isAdmin(user) && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <SecurityStatusWidget />
-          <SystemHealthWidget />
-        </div>
-      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -199,38 +179,6 @@ const Index = () => {
           </Card>
         </div>
       )}
-
-      {/* System Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Trạng thái hệ thống</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Database</span>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-green-600">Hoạt động</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Email Service</span>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-green-600">Hoạt động</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Push Notifications</span>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <span className="text-sm text-yellow-600">Hạn chế</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
