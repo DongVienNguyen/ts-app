@@ -21,6 +21,7 @@ import DataManagement from "./pages/DataManagement";
 import ErrorReport from "./pages/ErrorReport";
 import PushNotificationTest from "./pages/PushNotificationTest";
 import Notifications from "./pages/Notifications";
+import SecurityMonitor from "./pages/SecurityMonitor";
 import NotFound from "./pages/NotFound";
 
 // Create QueryClient instance with error handling
@@ -183,6 +184,11 @@ function App() {
                   <Route path="/data-management" element={
                     <ProtectedRoute>
                       <DataManagement />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/security-monitor" element={
+                    <ProtectedRoute>
+                      <SecurityMonitor />
                     </ProtectedRoute>
                   } />
                   <Route path="/error-report" element={

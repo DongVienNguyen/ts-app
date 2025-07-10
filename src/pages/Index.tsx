@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
+import { SecurityStatusWidget } from '@/components/SecurityStatusWidget';
 import Layout from '@/components/Layout';
 
 const Index = () => {
@@ -44,6 +45,9 @@ const Index = () => {
         </p>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {/* Security Status Widget (Admin only) */}
+          {isAdmin(user) && <SecurityStatusWidget />}
+          
           <Card>
             <CardHeader>
               <CardTitle>Thông báo Mượn/Xuất</CardTitle>

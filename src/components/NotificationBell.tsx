@@ -1,376 +1,289 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCheck, Trash2, ExternalLink, Search, X } from 'lucide-react';
+import { Bell, Shield, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
-import { useSecureAuth } from '@/contexts/AuthContext';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Tables } from '@/integrations/supabase/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { useSecurityNotifications } from '@/hooks/useSecurityNotifications';
 import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
 
-type Notification = Tables<'notifications'>;
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  notification_type: string;
+  is_read: boolean;
+  created_at: string;
+  related_data?: any;
+}
 
 export function NotificationBell() {
-  const { user } = useSecureAuth();
-  const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+  
+  // Security notifications hook
+  const {
+    notifications: securityNotifications,
+    unreadCount: securityUnreadCount,
+    markAsRead: markSecurityAsRead,
+    markAllAsRead: markAllSecurityAsRead,
+    isAdmin
+  } = useSecurityNotifications();
 
-  const fetchNotifications = async (): Promise<Notification[]> => {
-    if (!user) return [];
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('recipient_username', user.username)
-      .order('created_at', { ascending: false })
-      .limit(10); // Tăng lên 10 thông báo gần nhất
+  const loadNotifications = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('recipient_username', user.username)
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-    if (error) {
-      console.error('Lỗi tải thông báo:', error);
-      return [];
+      if (error) throw error;
+      setNotifications(data || []);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setIsLoading(false);
     }
-    return (data as Notification[]) || [];
   };
 
-  const { data: notifications = [], isLoading } = useQuery<Notification[]>({
-    queryKey: ['notifications', user?.username],
-    queryFn: fetchNotifications,
-    enabled: !!user,
-    refetchInterval: 30000, // Tự động làm mới mỗi 30 giây
-    staleTime: 10000, // Dữ liệu cũ sau 10 giây
-  });
-
-  // Realtime subscription với cải thiện
   useEffect(() => {
-    if (!user?.username) return;
+    if (user) {
+      loadNotifications();
+    }
+  }, [user]);
 
-    const channelName = `notifications_bell_${user.username}_${Date.now()}`;
-    
+  // Subscribe to real-time notifications
+  useEffect(() => {
+    if (!user) return;
+
     const channel = supabase
-      .channel(channelName)
+      .channel('notifications')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'notifications',
-          filter: `recipient_username=eq.${user.username}`,
+          filter: `recipient_username=eq.${user.username}`
         },
         (payload) => {
-          console.log('📨 Thông báo mới:', payload);
-          queryClient.invalidateQueries({ queryKey: ['notifications', user.username] });
-          
-          // Hiển thị toast cho thông báo mới
-          if (payload.eventType === 'INSERT' && payload.new) {
-            const newNotification = payload.new as Notification;
-            toast.info(`🔔 ${newNotification.title}`, {
-              description: newNotification.message,
-              duration: 5000,
-              action: {
-                label: 'Xem',
-                onClick: () => window.location.href = '/notifications'
-              }
-            });
-          }
+          setNotifications(prev => [payload.new as Notification, ...prev]);
         }
       )
-      .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`✅ Kênh thông báo '${channelName}' đã kết nối!`);
-        }
-        if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Lỗi kênh thông báo:', err);
-          // Thử kết nối lại sau 5 giây
-          setTimeout(() => {
-            channel.unsubscribe();
-          }, 5000);
-        }
-      });
+      .subscribe();
 
     return () => {
-      console.log(`🧹 Đóng kênh: ${channelName}`);
       supabase.removeChannel(channel);
     };
-  }, [user?.username, queryClient]);
+  }, [user]);
 
-  // Lọc thông báo theo tìm kiếm và loại
-  const filteredNotifications = notifications.filter(notification => {
-    const matchesSearch = searchTerm === '' || 
-      notification.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      notification.message.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = filterType === 'all' || 
-      (filterType === 'unread' && !notification.is_read) ||
-      (filterType === 'read' && notification.is_read) ||
-      notification.notification_type === filterType;
-    
-    return matchesSearch && matchesFilter;
-  });
-
-  const unreadCount = notifications.filter(n => !n.is_read).length;
-
-  const markAsRead = async (notificationId: string, event?: React.MouseEvent) => {
-    if (event) {
-      event.stopPropagation();
-    }
-    
+  const markAsRead = async (notificationId: string) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from('notifications')
         .update({ is_read: true })
         .eq('id', notificationId);
-      
-      queryClient.invalidateQueries({ queryKey: ['notifications', user?.username] });
-      toast.success('Đã đánh dấu đã đọc');
+
+      if (error) throw error;
+
+      setNotifications(prev =>
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      );
     } catch (error) {
-      console.error('Lỗi đánh dấu đã đọc:', error);
-      toast.error('Không thể đánh dấu đã đọc');
+      console.error('Error marking notification as read:', error);
     }
   };
 
-  const markAllAsRead = async (event?: React.MouseEvent) => {
-    if (event) {
-      event.stopPropagation();
-    }
-    
-    if (!user) return;
-    
+  const markAllAsRead = async () => {
     try {
-      await supabase
+      const { error } = await supabase
         .from('notifications')
         .update({ is_read: true })
-        .eq('recipient_username', user.username)
+        .eq('recipient_username', user?.username)
         .eq('is_read', false);
-      
-      queryClient.invalidateQueries({ queryKey: ['notifications', user?.username] });
-      toast.success('Đã đánh dấu tất cả đã đọc');
-    } catch (error) {
-      console.error('Lỗi đánh dấu tất cả:', error);
-      toast.error('Không thể đánh dấu tất cả đã đọc');
-    }
-  };
 
-  const deleteAllNotifications = async (event?: React.MouseEvent) => {
-    if (event) {
-      event.stopPropagation();
-    }
-    
-    if (!user) return;
-    
-    if (window.confirm('Bạn có chắc chắn muốn xóa tất cả thông báo?')) {
-      try {
-        await supabase
-          .from('notifications')
-          .delete()
-          .eq('recipient_username', user.username);
-        
-        queryClient.invalidateQueries({ queryKey: ['notifications', user?.username] });
-        toast.success('Đã xóa tất cả thông báo');
-        setIsDropdownOpen(false);
-      } catch (error) {
-        console.error('Lỗi xóa thông báo:', error);
-        toast.error('Không thể xóa tất cả thông báo');
-      }
+      if (error) throw error;
+
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      markAllSecurityAsRead();
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
     }
   };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'asset_reminder':
-        return '📦';
+        return <Clock className="w-4 h-4 text-orange-500" />;
       case 'crc_reminder':
-        return '✅';
-      case 'transaction_result':
-        return '💼';
-      case 'reply':
-        return '💬';
+        return <AlertTriangle className="w-4 h-4 text-red-500" />;
+      case 'system':
+        return <CheckCircle className="w-4 h-4 text-blue-500" />;
       default:
-        return '🔔';
+        return <Bell className="w-4 h-4 text-gray-500" />;
     }
   };
 
-  const getTimeAgo = (dateString: string) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'Vừa xong';
-    if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} giờ trước`;
-    return `${Math.floor(diffInMinutes / 1440)} ngày trước`;
+  const getSecurityIcon = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return <AlertTriangle className="w-4 h-4 text-red-600" />;
+      case 'high':
+        return <AlertTriangle className="w-4 h-4 text-orange-500" />;
+      case 'medium':
+        return <Shield className="w-4 h-4 text-yellow-500" />;
+      default:
+        return <Shield className="w-4 h-4 text-blue-500" />;
+    }
   };
 
-  if (!user) return null;
+  const unreadRegularCount = notifications.filter(n => !n.is_read).length;
+  const totalUnreadCount = unreadRegularCount + (isAdmin ? securityUnreadCount : 0);
 
   return (
-    <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative hover:bg-gray-100 transition-colors">
-          <Bell className={`h-5 w-5 ${unreadCount > 0 ? 'text-blue-600 animate-pulse' : 'text-gray-600'}`} />
-          {unreadCount > 0 && (
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center text-xs bg-red-500 hover:bg-red-600 animate-bounce">
-              {unreadCount > 99 ? '99+' : unreadCount}
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="sm" className="relative">
+          <Bell className="h-5 w-5" />
+          {totalUnreadCount > 0 && (
+            <Badge 
+              variant="destructive" 
+              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+            >
+              {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
             </Badge>
           )}
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-96 max-h-[600px] overflow-hidden">
-        {/* Header với tìm kiếm và bộ lọc */}
-        <DropdownMenuLabel className="p-4 border-b">
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-semibold text-lg">Thông báo</span>
-            <div className="flex items-center space-x-1">
-              {unreadCount > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={markAllAsRead} 
-                  title="Đánh dấu tất cả đã đọc"
-                  className="h-8 w-8 p-0"
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="end">
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Thông báo</CardTitle>
+              {totalUnreadCount > 0 && (
+                <Button
+                  onClick={markAllAsRead}
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
                 >
-                  <CheckCheck className="h-4 w-4 text-green-600" />
+                  Đánh dấu đã đọc
                 </Button>
               )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={deleteAllNotifications} 
-                title="Xóa tất cả thông báo"
-                className="h-8 w-8 p-0"
-              >
-                <Trash2 className="h-4 w-4 text-red-500" />
-              </Button>
             </div>
-          </div>
-          
-          {/* Thanh tìm kiếm */}
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Tìm kiếm thông báo..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-8 h-9"
-            />
-            {searchTerm && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-          
-          {/* Bộ lọc */}
-          <div className="flex space-x-1">
-            {[
-              { key: 'all', label: 'Tất cả', count: notifications.length },
-              { key: 'unread', label: 'Chưa đọc', count: unreadCount },
-              { key: 'asset_reminder', label: 'Tài sản', count: notifications.filter(n => n.notification_type === 'asset_reminder').length },
-              { key: 'crc_reminder', label: 'CRC', count: notifications.filter(n => n.notification_type === 'crc_reminder').length }
-            ].map(filter => (
-              <Button
-                key={filter.key}
-                variant={filterType === filter.key ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setFilterType(filter.key)}
-                className="h-7 text-xs"
-              >
-                {filter.label} ({filter.count})
-              </Button>
-            ))}
-          </div>
-        </DropdownMenuLabel>
-        
-        {/* Danh sách thông báo */}
-        <div className="max-h-80 overflow-y-auto custom-scrollbar">
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            </div>
-          ) : filteredNotifications.length === 0 ? (
-            <DropdownMenuItem disabled className="text-center py-8 flex-col">
-              <Bell className="h-12 w-12 text-gray-300 mb-2" />
-              <span className="text-gray-500">
-                {searchTerm || filterType !== 'all' ? 'Không tìm thấy thông báo' : 'Không có thông báo'}
-              </span>
-            </DropdownMenuItem>
-          ) : (
-            filteredNotifications.map((notification) => (
-              <DropdownMenuItem
-                key={notification.id}
-                className={`p-4 cursor-pointer border-b border-gray-100 last:border-b-0 ${
-                  !notification.is_read ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
-                }`}
-                onClick={() => {
-                  if (!notification.is_read) markAsRead(notification.id);
-                }}
-              >
-                <div className="flex items-start space-x-3 w-full">
-                  <div className="text-2xl flex-shrink-0 mt-1">
-                    {getNotificationIcon(notification.notification_type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-medium text-sm truncate pr-2">
-                        {notification.title}
-                      </h4>
-                      {!notification.is_read && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                      {notification.message}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400">
-                        {getTimeAgo(notification.created_at!)}
-                      </span>
-                      {!notification.is_read && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => markAsRead(notification.id, e)}
-                          className="h-6 px-2 text-xs text-blue-600 hover:text-blue-800"
-                        >
-                          Đánh dấu đã đọc
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-96">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                 </div>
-              </DropdownMenuItem>
-            ))
-          )}
-        </div>
-        
-        {/* Footer với link đến trang chi tiết */}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild className="p-0">
-          <Link 
-            to="/notifications" 
-            className="w-full text-center font-medium text-blue-600 hover:text-blue-800 py-3 flex items-center justify-center hover:bg-blue-50 transition-colors"
-            onClick={() => setIsDropdownOpen(false)}
-          >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Xem tất cả thông báo ({notifications.length})
-          </Link>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+              ) : (
+                <div className="space-y-1">
+                  {/* Security Notifications (Admin only) */}
+                  {isAdmin && securityNotifications.length > 0 && (
+                    <>
+                      <div className="px-4 py-2 bg-red-50 border-b">
+                        <div className="flex items-center space-x-2">
+                          <Shield className="w-4 h-4 text-red-600" />
+                          <span className="text-sm font-medium text-red-800">Cảnh báo Bảo mật</span>
+                          <Link 
+                            to="/security-monitor" 
+                            className="text-xs text-red-600 hover:underline ml-auto"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            Xem tất cả
+                          </Link>
+                        </div>
+                      </div>
+                      {securityNotifications.slice(0, 5).map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-4 ${
+                            notification.severity === 'critical' ? 'border-red-500' :
+                            notification.severity === 'high' ? 'border-orange-500' :
+                            notification.severity === 'medium' ? 'border-yellow-500' :
+                            'border-blue-500'
+                          } ${!notification.read ? 'bg-red-25' : ''}`}
+                          onClick={() => markSecurityAsRead(notification.id)}
+                        >
+                          <div className="flex items-start space-x-3">
+                            {getSecurityIcon(notification.severity)}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                Sự kiện bảo mật
+                              </p>
+                              <p className="text-xs text-gray-600 mt-1">
+                                {notification.event.type} - {notification.event.username || 'N/A'}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {notification.timestamp.toLocaleString('vi-VN')}
+                              </p>
+                            </div>
+                            {!notification.read && (
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <Separator />
+                    </>
+                  )}
+
+                  {/* Regular Notifications */}
+                  {notifications.length > 0 ? (
+                    notifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
+                          !notification.is_read ? 'bg-blue-25' : ''
+                        }`}
+                        onClick={() => markAsRead(notification.id)}
+                      >
+                        <div className="flex items-start space-x-3">
+                          {getNotificationIcon(notification.notification_type)}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {notification.title}
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {new Date(notification.created_at).toLocaleString('vi-VN')}
+                            </p>
+                          </div>
+                          {!notification.is_read && (
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    !isAdmin || securityNotifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-gray-500">
+                        <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Không có thông báo mới</p>
+                      </div>
+                    ) : null
+                  )}
+                </div>
+              )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </PopoverContent>
+    </Popover>
   );
 }

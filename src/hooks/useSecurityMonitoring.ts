@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getSecurityLogs, SecurityEvent, logSecurityEvent } from '@/utils/secureAuthUtils';
+import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
 
 interface SecurityStats {
   totalUsers: number;
@@ -66,21 +67,25 @@ export function useSecurityMonitoring() {
   // Initialize audio for alerts
   useEffect(() => {
     const createBeepSound = () => {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.frequency.value = 800;
-      oscillator.type = 'sine';
-      
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-      
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.5);
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+      } catch (error) {
+        console.warn('Audio context not available:', error);
+      }
     };
 
     audioRef.current = {
@@ -171,6 +176,7 @@ export function useSecurityMonitoring() {
     }
 
     logSecurityEvent('SECURITY_ALERT_TRIGGERED', { message, threshold: alertConfig.threshold });
+    logSecurityEventRealTime('SECURITY_ALERT_TRIGGERED', { message, threshold: alertConfig.threshold });
   }, [alertConfig]);
 
   const resetMetrics = useCallback(() => {
@@ -183,6 +189,7 @@ export function useSecurityMonitoring() {
       suspiciousActivities: 0
     });
     logSecurityEvent('METRICS_RESET', { resetBy: 'admin' });
+    logSecurityEventRealTime('METRICS_RESET', { resetBy: 'admin' });
   }, []);
 
   // Real-time data fetching
