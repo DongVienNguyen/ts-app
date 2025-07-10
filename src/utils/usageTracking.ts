@@ -14,6 +14,7 @@ export interface UserSession {
   browser_name?: string;
   os_name?: string;
   session_data?: any;
+  updated_at?: string; // Add this field
 }
 
 export interface UsageStats {
@@ -254,8 +255,8 @@ export async function getUsageStats(timeRange: 'day' | 'week' | 'month' | 'quart
   }
 }
 
-// Get average session duration
-export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'month' = 'month'): Promise<number> {
+// Get average session duration - Fix parameter type
+export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'month' | 'quarter' | 'year' = 'month'): Promise<number> {
   try {
     const now = new Date();
     let startDate: Date;
@@ -269,6 +270,12 @@ export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'mon
         break;
       case 'month':
         startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'quarter':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'year':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
         break;
     }
 
