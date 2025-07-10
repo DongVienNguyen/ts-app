@@ -51,17 +51,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setIsSidebarOpen(false);
   }, [location.pathname]);
 
-  // Prevent body scroll when sidebar is open
+  // Handle escape key to close sidebar
   useEffect(() => {
-    if (isSidebarOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    
-    return () => {
-      document.body.style.overflow = 'unset';
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isSidebarOpen) {
+        setIsSidebarOpen(false);
+      }
     };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
   }, [isSidebarOpen]);
 
   if (!user) {
@@ -126,10 +125,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     logout();
   };
 
+  const closeSidebar = () => {
+    setIsSidebarOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Light Top Navigation Bar */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
         isScrolled 
           ? 'bg-white shadow-lg border-b border-gray-200' 
           : 'bg-white shadow-sm border-b border-gray-100'
@@ -224,10 +227,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </nav>
 
-      {/* Mobile Sidebar - Fixed positioning with proper z-index */}
-      <div className={`fixed inset-y-0 left-0 z-[60] w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out lg:hidden ${
+      {/* Mobile Overlay - Must be rendered BEFORE sidebar for proper layering */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden"
+          onClick={closeSidebar}
+          onTouchStart={closeSidebar}
+        />
+      )}
+
+      {/* Mobile Sidebar - Higher z-index than overlay */}
+      <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out lg:hidden ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
+        {/* Sidebar Header */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 bg-white">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
@@ -238,14 +251,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setIsSidebarOpen(false)}
-            className="text-gray-500 hover:bg-gray-100 p-2"
+            onClick={closeSidebar}
+            className="text-gray-500 hover:bg-gray-100 hover:text-gray-700 p-2 rounded-md"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <nav className="mt-4 px-2 bg-white h-full overflow-y-auto">
+        {/* Sidebar Navigation */}
+        <nav className="flex-1 px-2 py-4 bg-white overflow-y-auto">
           <div className="space-y-1">
             {visibleItems.map((item) => {
               const isActive = location.pathname === item.href;
@@ -253,29 +267,47 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Link
                   key={item.href}
                   to={item.href}
-                  className={`group flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                  className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors ${
                     isActive
                       ? 'bg-green-100 text-green-700 border-r-2 border-green-600'
                       : 'text-gray-600 hover:bg-green-50 hover:text-green-700'
                   }`}
-                  onClick={() => setIsSidebarOpen(false)}
+                  onClick={closeSidebar}
                 >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                  <span className="truncate">{item.name}</span>
                 </Link>
               );
             })}
           </div>
         </nav>
-      </div>
 
-      {/* Mobile Overlay - Lower z-index than sidebar */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-[55] lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
+        {/* Sidebar Footer */}
+        <div className="border-t border-gray-200 p-4 bg-gray-50">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
+              <User className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-gray-900 truncate">
+                {user.staff_name || user.username}
+              </div>
+              <div className="text-xs text-gray-500 truncate">
+                {user.role} - {user.department}
+              </div>
+            </div>
+          </div>
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            size="sm"
+            className="w-full mt-3 text-red-600 border-red-200 hover:bg-red-50"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Đăng xuất
+          </Button>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="pt-16 bg-gray-50 min-h-screen">

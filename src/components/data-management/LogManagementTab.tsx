@@ -19,7 +19,8 @@ import {
   Activity,
   Shield,
   Users,
-  BarChart3
+  BarChart3,
+  RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -31,6 +32,8 @@ interface LogStats {
   user_sessions: number;
   notifications: number;
   asset_transactions: number;
+  sent_asset_reminders: number;
+  sent_crc_reminders: number;
   total: number;
 }
 
@@ -43,9 +46,12 @@ export const LogManagementTab = () => {
     user_sessions: 0,
     notifications: 0,
     asset_transactions: 0,
+    sent_asset_reminders: 0,
+    sent_crc_reminders: 0,
     total: 0
   });
   const [retentionPeriod, setRetentionPeriod] = useState<'90' | '365'>('90');
+  const [processingTable, setProcessingTable] = useState<string | null>(null);
 
   useEffect(() => {
     loadLogStats();
@@ -62,7 +68,9 @@ export const LogManagementTab = () => {
         'system_metrics',
         'user_sessions',
         'notifications',
-        'asset_transactions'
+        'asset_transactions',
+        'sent_asset_reminders',
+        'sent_crc_reminders'
       ];
 
       const counts: any = {};
@@ -218,10 +226,76 @@ export const LogManagementTab = () => {
     }
   };
 
+  const handleDeleteSpecificLog = async (tableName: string, displayName: string) => {
+    if (!confirm(`⚠️ Xóa tất cả logs "${displayName}"? Hành động này không thể hoàn tác!`)) {
+      return;
+    }
+
+    try {
+      setProcessingTable(tableName);
+      
+      const { error } = await supabase
+        .from(tableName)
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+
+      if (error) {
+        console.error(`Error deleting ${tableName}:`, error);
+        toast.error(`Lỗi khi xóa ${displayName}: ${error.message}`);
+      } else {
+        toast.success(`✅ Đã xóa thành công tất cả logs "${displayName}"!`);
+        await loadLogStats();
+      }
+    } catch (error) {
+      console.error(`Error deleting ${tableName}:`, error);
+      toast.error(`Lỗi khi xóa ${displayName}`);
+    } finally {
+      setProcessingTable(null);
+    }
+  };
+
+  const handleCleanupSpecificLog = async (tableName: string, displayName: string, dateField: string) => {
+    const days = parseInt(retentionPeriod);
+    const periodText = days === 90 ? '90 ngày' : '1 năm';
+    
+    if (!confirm(`Dọn dẹp logs "${displayName}" cũ hơn ${periodText}?`)) {
+      return;
+    }
+
+    try {
+      setProcessingTable(tableName);
+      
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      const cutoffISO = cutoffDate.toISOString();
+
+      const { count, error } = await supabase
+        .from(tableName)
+        .delete()
+        .lt(dateField, cutoffISO);
+
+      if (error) {
+        console.error(`Error cleaning up ${tableName}:`, error);
+        toast.error(`Lỗi khi dọn dẹp ${displayName}: ${error.message}`);
+      } else {
+        const deletedCount = count || 0;
+        toast.success(`✅ Đã xóa ${deletedCount} bản ghi "${displayName}" cũ hơn ${periodText}!`);
+        await loadLogStats();
+      }
+    } catch (error) {
+      console.error(`Error cleaning up ${tableName}:`, error);
+      toast.error(`Lỗi khi dọn dẹp ${displayName}`);
+    } finally {
+      setProcessingTable(null);
+    }
+  };
+
   const logCategories = [
     {
       name: 'Sự kiện bảo mật',
       key: 'security_events',
+      tableName: 'security_events',
+      dateField: 'created_at',
       count: stats.security_events,
       icon: Shield,
       color: 'bg-red-500',
@@ -229,7 +303,9 @@ export const LogManagementTab = () => {
     },
     {
       name: 'Lỗi hệ thống',
-      key: 'system_errors', 
+      key: 'system_errors',
+      tableName: 'system_errors',
+      dateField: 'created_at',
       count: stats.system_errors,
       icon: AlertTriangle,
       color: 'bg-orange-500',
@@ -238,6 +314,8 @@ export const LogManagementTab = () => {
     {
       name: 'Metrics hệ thống',
       key: 'system_metrics',
+      tableName: 'system_metrics',
+      dateField: 'created_at',
       count: stats.system_metrics,
       icon: BarChart3,
       color: 'bg-blue-500',
@@ -246,6 +324,8 @@ export const LogManagementTab = () => {
     {
       name: 'Phiên người dùng',
       key: 'user_sessions',
+      tableName: 'user_sessions',
+      dateField: 'created_at',
       count: stats.user_sessions,
       icon: Users,
       color: 'bg-green-500',
@@ -254,6 +334,8 @@ export const LogManagementTab = () => {
     {
       name: 'Thông báo',
       key: 'notifications',
+      tableName: 'notifications',
+      dateField: 'created_at',
       count: stats.notifications,
       icon: Activity,
       color: 'bg-purple-500',
@@ -262,10 +344,32 @@ export const LogManagementTab = () => {
     {
       name: 'Giao dịch tài sản',
       key: 'asset_transactions',
+      tableName: 'asset_transactions',
+      dateField: 'created_at',
       count: stats.asset_transactions,
       icon: Database,
       color: 'bg-indigo-500',
       description: 'Lịch sử mượn/trả tài sản'
+    },
+    {
+      name: 'Nhắc tài sản đã gửi',
+      key: 'sent_asset_reminders',
+      tableName: 'sent_asset_reminders',
+      dateField: 'created_at',
+      count: stats.sent_asset_reminders,
+      icon: Activity,
+      color: 'bg-teal-500',
+      description: 'Lịch sử gửi nhắc tài sản'
+    },
+    {
+      name: 'Nhắc CRC đã gửi',
+      key: 'sent_crc_reminders',
+      tableName: 'sent_crc_reminders',
+      dateField: 'created_at',
+      count: stats.sent_crc_reminders,
+      icon: Activity,
+      color: 'bg-cyan-500',
+      description: 'Lịch sử gửi nhắc CRC'
     }
   ];
 
@@ -282,6 +386,7 @@ export const LogManagementTab = () => {
           disabled={loading}
           variant="outline"
         >
+          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Làm mới
         </Button>
       </div>
@@ -295,22 +400,81 @@ export const LogManagementTab = () => {
         </AlertDescription>
       </Alert>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Retention Period Selection */}
+      <Card className="bg-white border border-gray-200">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2 text-gray-900">
+            <Calendar className="w-5 h-5" />
+            <span>Cài đặt thời gian lưu trữ</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4">
+            <label className="text-sm font-medium text-gray-700">
+              Thời gian lưu trữ logs:
+            </label>
+            <Select value={retentionPeriod} onValueChange={(value: '90' | '365') => setRetentionPeriod(value)}>
+              <SelectTrigger className="w-48 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                <SelectItem value="90">90 ngày gần nhất</SelectItem>
+                <SelectItem value="365">1 năm gần nhất</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Individual Log Categories */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {logCategories.map((category) => (
           <Card key={category.key} className="bg-white border border-gray-200">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{category.name}</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {category.count.toLocaleString()}
-                  </p>
-                  <p className="text-xs text-gray-500">{category.description}</p>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-8 h-8 ${category.color} rounded-lg flex items-center justify-center`}>
+                    <category.icon className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <span className="text-gray-900">{category.name}</span>
+                    <p className="text-sm text-gray-500 font-normal">{category.description}</p>
+                  </div>
                 </div>
-                <div className={`w-12 h-12 ${category.color} rounded-lg flex items-center justify-center`}>
-                  <category.icon className="w-6 h-6 text-white" />
-                </div>
+                <Badge variant="secondary" className="text-lg font-bold">
+                  {category.count.toLocaleString()}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex space-x-2">
+                <Button
+                  onClick={() => handleCleanupSpecificLog(category.tableName, category.name, category.dateField)}
+                  disabled={processingTable === category.tableName || category.count === 0}
+                  size="sm"
+                  className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  {processingTable === category.tableName ? (
+                    <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                  ) : (
+                    <Calendar className="w-3 h-3 mr-1" />
+                  )}
+                  Dọn dẹp cũ
+                </Button>
+                <Button
+                  onClick={() => handleDeleteSpecificLog(category.tableName, category.name)}
+                  disabled={processingTable === category.tableName || category.count === 0}
+                  size="sm"
+                  variant="destructive"
+                  className="flex-1"
+                >
+                  {processingTable === category.tableName ? (
+                    <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3 h-3 mr-1" />
+                  )}
+                  Xóa tất cả
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -335,35 +499,20 @@ export const LogManagementTab = () => {
         </CardContent>
       </Card>
 
-      {/* Actions */}
+      {/* Bulk Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Cleanup Old Logs */}
+        {/* Cleanup All Old Logs */}
         <Card className="bg-white border border-gray-200">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2 text-gray-900">
               <Calendar className="w-5 h-5" />
-              <span>Dọn dẹp Logs cũ</span>
+              <span>Dọn dẹp tất cả Logs cũ</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-gray-600">
-              Xóa logs cũ để tiết kiệm dung lượng và cải thiện hiệu suất
+              Xóa tất cả logs cũ hơn {retentionPeriod === '90' ? '90 ngày' : '1 năm'} từ tất cả các bảng
             </p>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">
-                Thời gian lưu trữ:
-              </label>
-              <Select value={retentionPeriod} onValueChange={(value: '90' | '365') => setRetentionPeriod(value)}>
-                <SelectTrigger className="bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white">
-                  <SelectItem value="90">90 ngày gần nhất</SelectItem>
-                  <SelectItem value="365">1 năm gần nhất</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
             <Button
               onClick={handleCleanupOldLogs}
@@ -371,7 +520,7 @@ export const LogManagementTab = () => {
               className="w-full bg-orange-600 hover:bg-orange-700 text-white"
             >
               <Calendar className="w-4 h-4 mr-2" />
-              Dọn dẹp logs cũ hơn {retentionPeriod === '90' ? '90 ngày' : '1 năm'}
+              Dọn dẹp tất cả logs cũ hơn {retentionPeriod === '90' ? '90 ngày' : '1 năm'}
             </Button>
           </CardContent>
         </Card>
@@ -387,7 +536,7 @@ export const LogManagementTab = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <p className="text-red-700 font-medium">
-                ⚠️ Hành động nguy hiểm
+                ⚠️ Hành động cực kỳ nguy hiểm
               </p>
               <p className="text-gray-600">
                 Xóa toàn bộ logs trong hệ thống. Hành động này không thể hoàn tác.
