@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,13 +27,11 @@ class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('🚨 ErrorBoundary caught an error:', error, errorInfo);
     
-    // Log error details
     this.setState({
       error,
       errorInfo
     });
 
-    // Log to localStorage for debugging
     try {
       const errorLog = {
         timestamp: new Date().toISOString(),
@@ -50,7 +48,7 @@ class ErrorBoundary extends Component<Props, State> {
       };
       
       const existingLogs = JSON.parse(localStorage.getItem('error_logs') || '[]');
-      const updatedLogs = [errorLog, ...existingLogs].slice(0, 10); // Keep last 10 errors
+      const updatedLogs = [errorLog, ...existingLogs].slice(0, 10);
       localStorage.setItem('error_logs', JSON.stringify(updatedLogs));
     } catch (logError) {
       console.error('Failed to log error:', logError);
@@ -92,7 +90,6 @@ class ErrorBoundary extends Component<Props, State> {
                 </p>
               </div>
 
-              {/* Error details for development */}
               {import.meta.env.DEV && this.state.error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <h3 className="font-semibold text-red-800 mb-2">Chi tiết lỗi (Development):</h3>
@@ -132,7 +129,6 @@ class ErrorBoundary extends Component<Props, State> {
                 </Button>
               </div>
 
-              {/* Help text */}
               <div className="text-center text-sm text-gray-500 border-t pt-4">
                 <p>
                   Nếu lỗi vẫn tiếp tục xảy ra, vui lòng liên hệ với quản trị viên hệ thống.

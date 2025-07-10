@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { UserPlus, CheckCircle, AlertCircle, Zap } from 'lucide-react';
+import { CheckCircle, AlertCircle, Zap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export const ForceCreateAdminButton = () => {
@@ -15,7 +15,6 @@ export const ForceCreateAdminButton = () => {
     try {
       console.log('🔥 Force creating admin user via Edge Function...');
 
-      // Use Edge Function to force create admin (bypasses RLS completely)
       console.log('🔧 Calling Edge Function to force create admin...');
       const { data: createResult, error: createError } = await supabase.functions.invoke('create-admin-user', {
         body: {
@@ -44,7 +43,6 @@ export const ForceCreateAdminButton = () => {
         text: `🔥 Force tạo admin thành công! Username: admin, Password: admin123, Email: ${createResult.data.email}`
       });
 
-      // Reload page after 2 seconds
       setTimeout(() => {
         window.location.reload();
       }, 2000);

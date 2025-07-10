@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -13,7 +13,6 @@ import {
   Database,
   Key,
   Send,
-  Eye,
   RefreshCw
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,7 +56,7 @@ export const EmailDebugPanel = () => {
       // Step 1: Database Connection
       console.log('🔍 Step 1: Testing database connection...');
       try {
-        const { data: testData, error: testError } = await supabase
+        const { error: testError } = await supabase
           .from('staff')
           .select('count')
           .limit(1);
@@ -90,7 +89,7 @@ export const EmailDebugPanel = () => {
             .from('staff')
             .insert({
               username: 'admin',
-              password: 'admin123', // Use plain text, will be hashed by trigger
+              password: 'admin123',
               staff_name: 'System Administrator',
               role: 'admin',
               email: 'admin@company.com',

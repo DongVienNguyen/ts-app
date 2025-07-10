@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Mail, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
@@ -15,11 +15,9 @@ export const EmailTestButton = () => {
     try {
       console.log('🧪 Direct email test starting...');
 
-      // Step 1: Ensure admin exists - GUARANTEED METHOD
       let adminEmail = '';
       let adminUser = null;
 
-      // First try to find existing admin
       const { data: existingAdmin, error: queryError } = await supabase
         .from('staff')
         .select('email, staff_name, username, id')
@@ -38,17 +36,15 @@ export const EmailTestButton = () => {
         console.log('✅ Found existing admin:', adminUser.username);
       }
 
-      // If no admin or no email, create/update admin
       if (!adminUser || !adminEmail) {
         console.log('🔧 Creating/updating admin with email...');
         
         if (!adminUser) {
-          // Create new admin
           const { data: newAdmin, error: createError } = await supabase
             .from('staff')
             .insert({
               username: 'admin',
-              password: 'admin123', // Will be hashed by trigger
+              password: 'admin123',
               staff_name: 'System Administrator',
               role: 'admin',
               email: 'admin@company.com',
@@ -68,7 +64,6 @@ export const EmailTestButton = () => {
           console.log('✅ Created new admin:', newAdmin);
           
         } else if (!adminEmail) {
-          // Update existing admin with email
           const { data: updatedAdmin, error: updateError } = await supabase
             .from('staff')
             .update({ email: 'admin@company.com' })
@@ -93,7 +88,6 @@ export const EmailTestButton = () => {
 
       console.log('📧 Sending test email to:', adminEmail);
 
-      // Step 2: Send test email
       const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-notification-email', {
         body: {
           type: 'test',
