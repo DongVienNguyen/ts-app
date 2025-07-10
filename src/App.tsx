@@ -15,9 +15,6 @@ import CRCReminders from '@/pages/CRCReminders';
 import OtherAssets from '@/pages/OtherAssets';
 import DataManagement from '@/pages/DataManagement';
 import Notifications from '@/pages/Notifications';
-import SecurityMonitor from '@/pages/SecurityMonitor';
-import ErrorMonitoring from '@/pages/ErrorMonitoring';
-import UsageMonitoring from '@/pages/UsageMonitoring';
 import NotFound from '@/pages/NotFound';
 import ResetPassword from '@/pages/ResetPassword';
 import { useEffect } from 'react';
@@ -114,30 +111,6 @@ function AppContent() {
           <ProtectedRoute>
             <Layout>
               <Notifications />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/security-monitor" element={
-          <ProtectedRoute>
-            <Layout>
-              <SecurityMonitor />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/error-monitoring" element={
-          <ProtectedRoute>
-            <Layout>
-              <ErrorMonitoring />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/usage-monitoring" element={
-          <ProtectedRoute>
-            <Layout>
-              <UsageMonitoring />
             </Layout>
           </ProtectedRoute>
         } />

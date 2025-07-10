@@ -75,10 +75,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       show: isAdmin(user)
     },
     {
-      name: 'Bảo lỗi ứng dụng',
-      href: '/error-monitoring',
-      icon: Activity,
-      show: isAdmin(user)
+      name: 'Thông báo',
+      href: '/notifications',
+      icon: Bell,
+      show: true
     }
   ];
 
@@ -158,21 +158,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content - NO TOP BAR */}
       <div className="flex-1 lg:ml-0">
-        {/* Top Bar */}
-        <div className="bg-white shadow-sm border-b h-16 flex items-center justify-between px-4 lg:px-6">
+        {/* Mobile Menu Button - Only visible on mobile */}
+        <div className="lg:hidden bg-white shadow-sm border-b h-16 flex items-center justify-between px-4">
           <Button
             variant="ghost"
             size="sm"
-            className="lg:hidden"
             onClick={() => setIsSidebarOpen(true)}
           >
             <Menu className="h-5 w-5" />
             <span className="ml-2">Menu</span>
           </Button>
           
-          <div className="flex items-center space-x-4 ml-auto">
+          <div className="flex items-center space-x-4">
             <NotificationBell />
           </div>
         </div>

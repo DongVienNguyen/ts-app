@@ -10,6 +10,10 @@ import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
 import { VAPIDKeyTester } from '@/components/VAPIDKeyTester';
 import PushNotificationTester from '@/components/PushNotificationTester';
 import { PWATestPanel } from '@/components/PWATestPanel';
+import { ErrorMonitoringDashboard } from '@/components/ErrorMonitoringDashboard';
+import { UsageMonitoringDashboard } from '@/components/UsageMonitoringDashboard';
+import { EnhancedSecurityDashboard } from '@/components/EnhancedSecurityDashboard';
+import { SystemHealthWidget } from '@/components/SystemHealthWidget';
 
 interface TabContentProps {
   activeTab: string;
@@ -72,6 +76,7 @@ export const TabContent = ({
 }: TabContentProps) => {
   const renderTabContent = () => {
     switch (activeTab) {
+      // Quản lý chính
       case 'management':
         return (
           <DataManagementTab
@@ -108,13 +113,6 @@ export const TabContent = ({
           </div>
         );
 
-      case 'security-dashboard':
-        return (
-          <div className="mt-6 space-y-6">
-            <SecurityDashboard />
-          </div>
-        );
-
       case 'accounts':
         return (
           <div className="mt-6 space-y-6">
@@ -129,6 +127,41 @@ export const TabContent = ({
           </div>
         );
 
+      // Dashboard & Giám sát
+      case 'security-dashboard':
+        return (
+          <div className="mt-6 space-y-6">
+            <EnhancedSecurityDashboard />
+          </div>
+        );
+
+      case 'error-monitoring':
+        return (
+          <div className="mt-6 space-y-6">
+            <ErrorMonitoringDashboard />
+          </div>
+        );
+
+      case 'usage-monitoring':
+        return (
+          <div className="mt-6 space-y-6">
+            <UsageMonitoringDashboard />
+          </div>
+        );
+
+      case 'system-health':
+        return (
+          <div className="mt-6 space-y-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <SystemHealthWidget />
+              <div className="space-y-4">
+                <SecurityDashboard />
+              </div>
+            </div>
+          </div>
+        );
+
+      // Bảo mật
       case 'security-test':
         return (
           <div className="mt-6 space-y-6">
@@ -157,6 +190,7 @@ export const TabContent = ({
           </div>
         );
 
+      // Thông báo & PWA
       case 'push-notifications':
         return (
           <div className="mt-6 space-y-6">
@@ -173,7 +207,12 @@ export const TabContent = ({
         );
 
       default:
-        return null;
+        return (
+          <div className="text-center py-12">
+            <h3 className="text-xl font-semibold text-gray-600 mb-2">Chọn một tab để bắt đầu</h3>
+            <p className="text-gray-500">Sử dụng các tab ở trên để truy cập các chức năng quản lý khác nhau</p>
+          </div>
+        );
     }
   };
 
