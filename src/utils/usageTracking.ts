@@ -1,4 +1,5 @@
-import { getAuthenticatedClient } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
+import { getCurrentAuth } from '@/integrations/supabase/client';
 
 interface UserSession {
   id?: string;
@@ -75,11 +76,16 @@ async function getClientIP(): Promise<string | null> {
   }
 }
 
+// Check if user is authenticated
+function isUserAuthenticated(): boolean {
+  const auth = getCurrentAuth();
+  return auth.isAuthenticated;
+}
+
 // Get average session duration
 export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'month' | 'quarter' | 'year'): Promise<number> {
   try {
-    const client = getAuthenticatedClient();
-    if (!client) {
+    if (!isUserAuthenticated()) {
       console.warn('⚠️ Cannot get session duration: not authenticated');
       return 0;
     }
@@ -105,7 +111,7 @@ export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'mon
         break;
     }
 
-    const { data: sessions, error } = await client
+    const { data: sessions, error } = await supabase
       .from('user_sessions')
       .select('duration_minutes')
       .gte('session_start', startDate.toISOString())
@@ -129,10 +135,9 @@ export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'mon
 export async function startUserSession(username: string): Promise<void> {
   try {
     // Wait a bit for authentication to be fully set up
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    const client = getAuthenticatedClient();
-    if (!client) {
+    if (!isUserAuthenticated()) {
       console.warn('⚠️ Could not start user session - not authenticated');
       // Create a local session if database fails
       currentSession = {
@@ -166,7 +171,7 @@ export async function startUserSession(username: string): Promise<void> {
       }
     };
 
-    const { data, error } = await client
+    const { data, error } = await supabase
       .from('user_sessions')
       .insert(sessionData)
       .select()
@@ -195,8 +200,7 @@ export async function endUserSession(): Promise<void> {
   if (!currentSession) return;
 
   try {
-    const client = getAuthenticatedClient();
-    if (!client || !currentSession.id) {
+    if (!isUserAuthenticated() || !currentSession.id) {
       console.warn('⚠️ Cannot end user session - not authenticated or no session ID');
       return;
     }
@@ -216,7 +220,7 @@ export async function endUserSession(): Promise<void> {
       }
     };
 
-    const { error } = await client
+    const { error } = await supabase
       .from('user_sessions')
       .update(updateData)
       .eq('id', currentSession.id);
@@ -282,8 +286,7 @@ export async function updateSession(): Promise<void> {
   if (!currentSession?.id) return;
 
   try {
-    const client = getAuthenticatedClient();
-    if (!client) {
+    if (!isUserAuthenticated()) {
       console.warn('⚠️ Cannot update session - not authenticated');
       return;
     }
@@ -299,7 +302,7 @@ export async function updateSession(): Promise<void> {
       }
     };
 
-    const { error } = await client
+    const { error } = await supabase
       .from('user_sessions')
       .update(updateData)
       .eq('id', currentSession.id);

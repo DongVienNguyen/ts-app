@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://itoapoyrxxmtbbuolfhk.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b2Fwb3lyeHhtdGJidW9sZmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2ODQ2NDgsImV4cCI6MjA2NjI2MDY0OH0.qT7L0MDAH-qArxaoMSkCYmVYAcwdEzbXWB1PayxD_rk';
 
-// Create the main Supabase client for user operations
+// Create SINGLE Supabase client instance - this is the root cause of the issue
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
@@ -11,42 +11,31 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Create service role client for system operations (bypasses RLS)
+// Create SINGLE service role client
+let serviceRoleClient: any = null;
+
 const createServiceRoleClient = () => {
-  // Try to get service role key from environment
+  if (serviceRoleClient) {
+    return serviceRoleClient; // Return existing instance
+  }
+
   const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
   
   if (serviceRoleKey) {
-    console.log('🔑 Using service role key for system operations');
-    return createClient(supabaseUrl, serviceRoleKey, {
+    console.log('🔑 Creating service role client');
+    serviceRoleClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
-      },
-      global: {
-        headers: {
-          'Content-Type': 'application/json'
-        }
       }
     });
   } else {
-    console.warn('⚠️ Service role key not found, using anon key for system operations');
-    // Fallback to anon key without custom headers to avoid CORS issues
-    return createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      global: {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    });
+    console.warn('⚠️ Service role key not found, using anon client');
+    serviceRoleClient = supabase; // Use the same instance
   }
+  
+  return serviceRoleClient;
 };
-
-const serviceRoleClient = createServiceRoleClient();
 
 // Store current auth state
 let currentAuthToken: string | null = null;
@@ -77,35 +66,23 @@ export function getCurrentAuth() {
   };
 }
 
-// Get authenticated client for user operations
+// Get authenticated client for user operations - REUSE SAME CLIENT
 export function getAuthenticatedClient() {
   if (!currentAuthToken) {
     console.warn('⚠️ No auth token available');
     return null;
   }
   
-  // Create a client with the current auth token
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-    global: {
-      headers: {
-        'Authorization': `Bearer ${currentAuthToken}`,
-        'apikey': supabaseAnonKey,
-        'Content-Type': 'application/json'
-      }
-    }
-  });
+  // DON'T CREATE NEW CLIENT - just return the existing one with auth info
+  return supabase;
 }
 
 // Get service role client for system operations
 export function getServiceRoleClient() {
-  return serviceRoleClient;
+  return createServiceRoleClient();
 }
 
-// Export the main client
+// Export the SINGLE client instance
 export { supabase };
 export default supabase;
 

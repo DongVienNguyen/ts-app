@@ -1,36 +1,14 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { getServiceRoleClient, getCurrentAuth } from '@/integrations/supabase/client';
-
-const supabaseUrl = 'https://itoapoyrxxmtbbuolfhk.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b2Fwb3lyeHhtdGJidW9sZmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2ODQ2NDgsImV4cCI6MjA2NjI2MDY0OH0.qT7L0MDAH-qArxaoMSkCYmVYAcwdEzbXWB1PayxD_rk';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { supabase, getServiceRoleClient, getCurrentAuth } from '@/integrations/supabase/client';
 
 // Store current auth state
 let currentAuthToken: string | null = null;
 let currentUsername: string | null = null;
-let authenticatedClient: SupabaseClient | null = null;
 
-// Create authenticated Supabase client
-export function createAuthenticatedClient(token: string): SupabaseClient {
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-    global: {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'apikey': supabaseAnonKey,
-        'Content-Type': 'application/json'
-      }
-    }
-  });
-}
-
-// Set authentication
+// Set authentication - DON'T CREATE NEW CLIENT
 export function setAuthentication(token: string, username: string) {
   currentAuthToken = token;
   currentUsername = username;
-  authenticatedClient = createAuthenticatedClient(token);
   console.log('🔐 Authentication set for user:', username);
 }
 
@@ -38,16 +16,17 @@ export function setAuthentication(token: string, username: string) {
 export function clearAuthentication() {
   currentAuthToken = null;
   currentUsername = null;
-  authenticatedClient = null;
   console.log('🔓 Authentication cleared');
 }
 
-// Get authenticated client
+// Get authenticated client - REUSE EXISTING CLIENT
 export function getAuthenticatedClient(): SupabaseClient | null {
-  if (!currentAuthToken || !authenticatedClient) {
+  if (!currentAuthToken) {
+    console.warn('⚠️ No authenticated client available');
     return null;
   }
-  return authenticatedClient;
+  // Return the same supabase client instance
+  return supabase;
 }
 
 // Get current auth info
@@ -104,35 +83,9 @@ export async function systemDbOperation<T>(
   return safeDbOperation(operation, fallbackValue, true);
 }
 
-// Retry operation with exponential backoff
-export async function retryOperation<T>(
-  operation: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
-): Promise<T | null> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      console.warn(`⚠️ Operation failed (attempt ${attempt}/${maxRetries}):`, error);
-      
-      if (attempt === maxRetries) {
-        console.error('❌ All retry attempts failed');
-        return null;
-      }
-      
-      // Exponential backoff
-      const delay = baseDelay * Math.pow(2, attempt - 1);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  
-  return null;
-}
-
 // Check if user is authenticated
 export function isAuthenticated(): boolean {
-  return !!(currentAuthToken && currentUsername && authenticatedClient);
+  return !!(currentAuthToken && currentUsername);
 }
 
 // Get current user info
