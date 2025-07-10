@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { getAuthenticatedSupabaseClient } from '@/integrations/supabase/client';
 import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
 import { emailService } from './emailService';
 import { notificationService } from './notificationService';
@@ -64,7 +64,8 @@ export class HealthCheckService {
     
     try {
       // Simple query to test database connectivity
-      const { error } = await supabase
+      const client = getAuthenticatedSupabaseClient();
+      const { error } = await client
         .from('staff')
         .select('count')
         .limit(1);
@@ -134,7 +135,8 @@ export class HealthCheckService {
     
     try {
       // Test API connectivity by calling a simple function
-      await supabase.functions.invoke('check-account-status', {
+      const client = getAuthenticatedSupabaseClient();
+      await client.functions.invoke('check-account-status', {
         body: { test: true }
       });
 
@@ -255,7 +257,8 @@ export class HealthCheckService {
       }
 
       // Active sessions count
-      const { data: activeSessions } = await supabase
+      const client = getAuthenticatedSupabaseClient();
+      const { data: activeSessions } = await client
         .from('user_sessions')
         .select('count')
         .gte('session_start', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
@@ -278,7 +281,8 @@ export class HealthCheckService {
   // Get current system health summary
   async getHealthSummary() {
     try {
-      const { data: statuses, error } = await supabase
+      const client = getAuthenticatedSupabaseClient();
+      const { data: statuses, error } = await client
         .from('system_status')
         .select('*')
         .in('service_name', ['database', 'email', 'push_notification', 'api'])

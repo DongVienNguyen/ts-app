@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getAuthenticatedSupabaseClient } from '@/integrations/supabase/client';
 import { SystemError, SystemMetric, SystemStatus, checkServiceHealth, monitorResources } from '@/utils/errorTracking';
 
 interface ErrorStats {
@@ -44,8 +44,9 @@ export function useErrorMonitoringData() {
     try {
       setIsLoading(true);
 
-      // Get error statistics
-      const { data: errors, error } = await supabase
+      // Get error statistics using authenticated client
+      const client = getAuthenticatedSupabaseClient();
+      const { data: errors, error } = await client
         .from('system_errors')
         .select('*')
         .order('created_at', { ascending: false });
@@ -113,7 +114,8 @@ export function useErrorMonitoringData() {
 
   const loadSystemMetrics = useCallback(async () => {
     try {
-      const { data: metrics, error } = await supabase
+      const client = getAuthenticatedSupabaseClient();
+      const { data: metrics, error } = await client
         .from('system_metrics')
         .select('*')
         .order('created_at', { ascending: false })

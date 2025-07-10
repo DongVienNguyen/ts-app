@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, getAuthenticatedSupabaseClient } from '@/integrations/supabase/client';
 
 export interface SystemError {
   id?: string;
@@ -38,7 +38,8 @@ export interface SystemStatus {
 // Log system error
 export async function logSystemError(error: Omit<SystemError, 'id' | 'created_at'>) {
   try {
-    const { data, error: dbError } = await supabase
+    const client = getAuthenticatedSupabaseClient();
+    const { data, error: dbError } = await client
       .from('system_errors')
       .insert({
         ...error,
@@ -79,7 +80,8 @@ export async function logSystemError(error: Omit<SystemError, 'id' | 'created_at
 // Log system metric
 export async function logSystemMetric(metric: SystemMetric) {
   try {
-    const { data, error } = await supabase
+    const client = getAuthenticatedSupabaseClient();
+    const { data, error } = await client
       .from('system_metrics')
       .insert(metric)
       .select()
@@ -95,7 +97,8 @@ export async function logSystemMetric(metric: SystemMetric) {
 // Update system status
 export async function updateSystemStatus(status: SystemStatus) {
   try {
-    const { data, error } = await supabase
+    const client = getAuthenticatedSupabaseClient();
+    const { data, error } = await client
       .from('system_status')
       .insert(status)
       .select()
@@ -236,7 +239,8 @@ export async function checkServiceHealth(serviceName: string, checkUrl?: string)
       }
     } else {
       // For services without URL, check based on recent errors
-      const { data: recentErrors } = await supabase
+      const client = getAuthenticatedSupabaseClient();
+      const { data: recentErrors } = await client
         .from('system_errors')
         .select('*')
         .eq('function_name', serviceName)
