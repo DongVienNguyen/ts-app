@@ -11,12 +11,12 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 142.1 76.2% 36.3%;
-    --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 210 40% 96%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 98%;
     --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
+    --muted: 210 40% 98%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
+    --accent: 210 40% 98%;
     --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -30,33 +30,6 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
   }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 142.1 70.6% 45.3%;
-    --primary-foreground: 144.9 80.4% 10%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 142.4 71.8% 29.2%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-  }
 }
 
 @layer base {
@@ -64,51 +37,82 @@
     @apply border-border;
   }
   
+  html {
+    color-scheme: light;
+  }
+  
   body {
-    @apply bg-gradient-to-br from-green-50 to-white text-gray-900;
-    /* Force elegant background and dark text */
-    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%) !important;
+    /* Force light theme */
+    background: #ffffff !important;
     color: #111827 !important;
+    /* Remove any dark gradients */
+    background-image: none !important;
     /* Optimize for mobile */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Prevent zoom when focusing input on iOS */
     font-size: 16px;
     min-height: 100vh;
   }
 
-  /* Force white theme for all components with green accents */
+  /* Force light theme for all components */
   .bg-background {
-    @apply bg-white !important;
+    background-color: #ffffff !important;
   }
 
   .text-foreground {
-    @apply text-gray-900 !important;
+    color: #111827 !important;
   }
 
   .bg-card {
-    @apply bg-white !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e5e7eb;
   }
 
   .text-card-foreground {
-    @apply text-gray-900 !important;
-  }
-
-  /* Ensure popover and dialog backgrounds are white */
-  [data-radix-popper-content-wrapper] {
-    background-color: white !important;
+    color: #111827 !important;
   }
 
   .bg-popover {
-    @apply bg-white !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e5e7eb;
   }
 
   .text-popover-foreground {
-    @apply text-gray-900 !important;
+    color: #111827 !important;
   }
 
-  /* Custom scrollbar */
+  .bg-muted {
+    background-color: #f9fafb !important;
+  }
+
+  .text-muted-foreground {
+    color: #6b7280 !important;
+  }
+
+  /* Ensure all radix components use light theme */
+  [data-radix-popper-content-wrapper] {
+    background-color: #ffffff !important;
+  }
+
+  [data-radix-dialog-content] {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  [data-radix-dropdown-menu-content] {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  [data-radix-select-content] {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  /* Custom scrollbar with green theme */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -120,33 +124,72 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #10b981, #059669);
+    background: #10b981;
     border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #059669, #047857);
+    background: #059669;
   }
 
-  /* Elegant focus styles */
+  /* Green focus styles */
   .focus\:ring-2:focus {
     --tw-ring-color: rgb(16 185 129 / 0.5);
   }
 
-  /* Smooth transitions for all interactive elements */
+  /* Smooth transitions */
   button, a, input, select, textarea {
     transition: all 0.2s ease-in-out;
   }
 
-  /* Glass effect for floating elements */
+  /* Light glass effect */
   .glass-effect {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(229, 231, 235, 0.8);
+  }
+
+  /* Override any dark mode classes */
+  .dark {
+    color-scheme: light !important;
+  }
+
+  .dark * {
+    color-scheme: light !important;
+  }
+
+  /* Force light backgrounds for common dark elements */
+  .bg-slate-900,
+  .bg-gray-900,
+  .bg-zinc-900,
+  .bg-neutral-900,
+  .bg-stone-900 {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  .text-white {
+    color: #111827 !important;
+  }
+
+  /* Ensure buttons have proper contrast */
+  .bg-primary {
+    background-color: #10b981 !important;
+    color: #ffffff !important;
+  }
+
+  .bg-secondary {
+    background-color: #f3f4f6 !important;
+    color: #111827 !important;
+  }
+
+  /* Table styles */
+  .bg-muted\/50 {
+    background-color: #f9fafb !important;
   }
 }
 
-/* Custom animations */
+/* Light theme animations */
 @keyframes gentle-bounce {
   0%, 100% {
     transform: translateY(0);
@@ -160,11 +203,11 @@
   animation: gentle-bounce 2s ease-in-out infinite;
 }
 
-/* Elegant shadows */
+/* Light elegant shadows */
 .shadow-elegant {
-  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.1), 0 2px 4px -1px rgba(16, 185, 129, 0.06);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .shadow-elegant-lg {
-  box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.1), 0 4px 6px -2px rgba(16, 185, 129, 0.05);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }

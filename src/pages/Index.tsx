@@ -1,29 +1,89 @@
-import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
-import { Package, Users, AlertTriangle, TrendingUp } from 'lucide-react';
+import { 
+  Package, 
+  FileText, 
+  Bell, 
+  Database,
+  BarChart3,
+  Users,
+  AlertTriangle,
+  TrendingUp
+} from 'lucide-react';
 
 const Index = () => {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   if (!user) {
     return null;
   }
 
+  const quickActions = [
+    {
+      title: 'Thông báo Mượn/Xuất Tài sản',
+      description: 'Ghi nhận các giao dịch mượn và xuất tài sản',
+      icon: Package,
+      color: 'bg-green-500',
+      href: '/asset-entry',
+      show: true,
+      buttonText: 'Bắt đầu ghi nhận',
+      buttonColor: 'bg-green-600 hover:bg-green-700'
+    },
+    {
+      title: 'Danh sách TS cần lấy',
+      description: 'Theo dõi danh sách tài sản cần lấy theo từng ca và phòng ban.',
+      icon: FileText,
+      color: 'bg-blue-500',
+      href: '/daily-report',
+      show: true,
+      buttonText: 'Xem báo cáo',
+      buttonColor: 'bg-blue-600 hover:bg-blue-700'
+    },
+    {
+      title: 'Nhắc tài sản',
+      description: 'Quản lý và gửi nhắc nhở tài sản đến hạn trả',
+      icon: Bell,
+      color: 'bg-orange-500',
+      href: '/asset-reminders',
+      show: isNqOrAdmin(user),
+      buttonText: 'Xem nhắc nhở',
+      buttonColor: 'bg-orange-600 hover:bg-orange-700'
+    },
+    {
+      title: 'Nhắc nhở CRC',
+      description: 'Quản lý nhắc nhở duyệt CRC',
+      icon: Bell,
+      color: 'bg-purple-500',
+      href: '/crc-reminders',
+      show: isNqOrAdmin(user),
+      buttonText: 'Xem CRC',
+      buttonColor: 'bg-purple-600 hover:bg-purple-700'
+    },
+    {
+      title: 'Tài sản Khác',
+      description: 'Quản lý tài sản, thùng khác gửi kho',
+      icon: Package,
+      color: 'bg-indigo-500',
+      href: '/other-assets',
+      show: isNqOrAdmin(user),
+      buttonText: 'Quản lý',
+      buttonColor: 'bg-indigo-600 hover:bg-indigo-700'
+    }
+  ];
+
+  const visibleActions = quickActions.filter(action => action.show);
+
+  // Mock statistics - in real app, these would come from API
   const stats = [
     {
       title: 'Tổng giao dịch',
       value: '1,234',
       description: 'Giao dịch trong tháng',
-      icon: Package,
+      icon: BarChart3,
       color: 'text-blue-600'
     },
     {
@@ -50,134 +110,90 @@ const Index = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">
-          Chào mừng, {user?.staff_name || user?.username}!
+    <div className="space-y-8">
+      {/* Welcome Header */}
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6 border border-green-100">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Chào mừng, {user.staff_name || user.username}!
         </h1>
-        <p className="text-green-100">
-          Hệ thống quản lý tài sản - {user?.department} ({user?.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'})
+        <p className="text-gray-600">
+          Hôm nay là {new Date().toLocaleDateString('vi-VN', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}
         </p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
-          <Card key={index} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-gray-500 mt-1">
-                {stat.description}
-              </p>
+          <Card key={index} className="bg-white border border-gray-200 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-xs text-gray-500">{stat.description}</p>
+                </div>
+                <stat.icon className={`h-8 w-8 ${stat.color}`} />
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-green-600" />
-              Thông báo Mượn/Xuất Tài sản
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 mb-4">
-              Ghi nhận các giao dịch mượn và xuất tài sản
-            </p>
-            <a 
-              href="/asset-entry" 
-              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-            >
-              Bắt đầu ghi nhận
-            </a>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-blue-600" />
-              Danh sách TS cần lấy
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-600 mb-4">
-              Theo dõi danh sách tài sản cần lấy theo từng ca và phòng ban.
-            </p>
-            <a 
-              href="/daily-report" 
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Xem báo cáo
-            </a>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {visibleActions.map((action, index) => (
+          <Card key={index} className="bg-white border border-gray-200 hover:shadow-lg transition-all duration-200">
+            <CardHeader className="pb-4">
+              <div className="flex items-center space-x-3">
+                <div className={`w-10 h-10 ${action.color} rounded-lg flex items-center justify-center`}>
+                  <action.icon className="w-6 h-6 text-white" />
+                </div>
+                <CardTitle className="text-xl font-semibold text-gray-900">
+                  {action.title}
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <p className="text-gray-600 mb-4">
+                {action.description}
+              </p>
+              <Button
+                onClick={() => navigate(action.href)}
+                className={`w-full ${action.buttonColor} text-white`}
+              >
+                {action.buttonText}
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Additional sections for NQ and Admin users */}
-      {isNqOrAdmin(user) && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Nhắc nhở Tài sản</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 mb-4">
-                Quản lý nhắc nhở tài sản đến hạn
-              </p>
-              <a 
-                href="/asset-reminders" 
-                className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors"
-              >
-                Xem nhắc nhở
-              </a>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Nhắc nhở CRC</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 mb-4">
-                Quản lý nhắc nhở duyệt CRC
-              </p>
-              <a 
-                href="/crc-reminders" 
-                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-              >
-                Xem CRC
-              </a>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Tài sản Khác</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 mb-4">
-                Quản lý tài sản, thùng khác gửi kho
-              </p>
-              <a 
-                href="/other-assets" 
-                className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
-              >
-                Quản lý
-              </a>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Admin Panel Access */}
+      {isAdmin(user) && (
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-blue-900">
+              <Database className="w-6 h-6" />
+              <span>Quản trị hệ thống</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-blue-700 mb-4">
+              Truy cập các công cụ quản trị và giám sát hệ thống
+            </p>
+            <Button
+              onClick={() => navigate('/data-management')}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Mở bảng điều khiển
+            </Button>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

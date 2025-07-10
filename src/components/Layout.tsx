@@ -103,12 +103,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const visibleItems = navigationItems.filter(item => item.show);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
-      {/* Floating Top Navigation Bar */}
+    <div className="min-h-screen bg-gray-50">
+      {/* Light Top Navigation Bar */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
-          ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-green-100' 
-          : 'bg-white/90 backdrop-blur-sm shadow-sm'
+          ? 'bg-white shadow-lg border-b border-gray-200' 
+          : 'bg-white shadow-sm border-b border-gray-100'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -117,17 +117,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="lg:hidden text-green-700 hover:bg-green-50"
+                className="lg:hidden text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 onClick={() => setIsSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
               </Button>
               
               <Link to="/" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
                   <Package className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
+                <span className="text-xl font-bold text-gray-900">
                   Asset Manager
                 </span>
               </Link>
@@ -143,7 +143,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     to={item.href}
                     className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                       isActive
-                        ? 'bg-green-100 text-green-700 shadow-sm'
+                        ? 'bg-green-100 text-green-700'
                         : 'text-gray-600 hover:text-green-700 hover:bg-green-50'
                     }`}
                   >
@@ -161,8 +161,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               {/* User Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2 hover:bg-green-50 px-3 py-2 rounded-lg">
-                    <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center">
+                  <Button variant="ghost" className="flex items-center space-x-2 hover:bg-gray-100 px-3 py-2 rounded-lg">
+                    <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
                       <User className="w-4 h-4 text-white" />
                     </div>
                     <div className="hidden sm:block text-left">
@@ -176,7 +176,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <ChevronDown className="w-4 h-4 text-gray-400" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-white border border-green-100">
+                <DropdownMenuContent align="end" className="w-56 bg-white border border-gray-200">
                   <div className="px-3 py-2">
                     <div className="font-medium text-gray-900">
                       {user.staff_name || user.username}
@@ -201,9 +201,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out lg:hidden ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="flex items-center justify-between h-16 px-4 border-b border-green-100">
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
               <Package className="h-5 w-5 text-white" />
             </div>
             <span className="text-lg font-bold text-gray-900">Asset Manager</span>
