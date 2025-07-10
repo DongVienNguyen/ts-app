@@ -12,7 +12,6 @@ const DataManagement = () => {
     // State
     selectedEntity,
     setSelectedEntity,
-    data,
     isLoading,
     searchTerm,
     setSearchTerm,
