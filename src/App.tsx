@@ -18,13 +18,13 @@ import Notifications from '@/pages/Notifications';
 import NotFound from '@/pages/NotFound';
 import ResetPassword from '@/pages/ResetPassword';
 import { useEffect } from 'react';
-import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
     },
   },
 });
@@ -53,11 +53,20 @@ function AppContent() {
   const { user } = useAuth();
 
   useEffect(() => {
-    console.log('🔍 App component rendering...');
+    // Force light theme on body
+    document.body.classList.remove('dark');
+    document.documentElement.classList.remove('dark');
+    document.documentElement.removeAttribute('data-theme');
+    
+    // Set light color scheme
+    document.documentElement.style.colorScheme = 'light';
   }, []);
 
   return (
-    <Router>
+    <Router future={{ 
+      v7_startTransition: true,
+      v7_relativeSplatPath: true 
+    }}>
       <Routes>
         {/* Public routes without Layout */}
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
@@ -148,7 +157,16 @@ function App() {
       <ThemeProvider>
         <AuthProvider>
           <AppContent />
-          <Toaster />
+          <Toaster 
+            position="top-right"
+            toastOptions={{
+              style: {
+                background: '#ffffff',
+                color: '#111827',
+                border: '1px solid #e5e7eb'
+              }
+            }}
+          />
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

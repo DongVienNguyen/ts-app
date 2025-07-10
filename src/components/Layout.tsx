@@ -35,6 +35,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -44,6 +45,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Close sidebar when route changes
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
 
   if (!user) {
     return null;
@@ -102,6 +108,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const visibleItems = navigationItems.filter(item => item.show);
 
+  const handleLogout = () => {
+    setIsUserMenuOpen(false);
+    logout();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Light Top Navigation Bar */}
@@ -159,7 +170,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <NotificationBell />
               
               {/* User Dropdown */}
-              <DropdownMenu>
+              <DropdownMenu open={isUserMenuOpen} onOpenChange={setIsUserMenuOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center space-x-2 hover:bg-gray-100 px-3 py-2 rounded-lg">
                     <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
@@ -176,8 +187,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <ChevronDown className="w-4 h-4 text-gray-400" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-white border border-gray-200">
-                  <div className="px-3 py-2">
+                <DropdownMenuContent align="end" className="w-56 bg-white border border-gray-200 shadow-lg">
+                  <div className="px-3 py-2 bg-gray-50">
                     <div className="font-medium text-gray-900">
                       {user.staff_name || user.username}
                     </div>
@@ -185,8 +196,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       {user.role} - {user.department}
                     </div>
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout} className="text-red-600 hover:bg-red-50">
+                  <DropdownMenuSeparator className="bg-gray-200" />
+                  <DropdownMenuItem 
+                    onClick={handleLogout} 
+                    className="text-red-600 hover:bg-red-50 cursor-pointer"
+                  >
                     <LogOut className="w-4 h-4 mr-2" />
                     Đăng xuất
                   </DropdownMenuItem>
@@ -251,7 +265,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
 
       {/* Main Content */}
-      <main className="pt-16">
+      <main className="pt-16 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
         </div>
