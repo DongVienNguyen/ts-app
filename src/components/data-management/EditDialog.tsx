@@ -6,10 +6,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input'; // Đã sửa lỗi đánh máy ở đây
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import DateInput from '@/components/DateInput';
 import { EntityConfig } from '@/config/entityConfig';
@@ -24,7 +23,7 @@ interface EditDialogProps {
 
 export const EditDialog: React.FC<EditDialogProps> = ({ open, onOpenChange, config, editingItem, onSave }) => {
   const [formData, setFormData] = useState<any>({});
-  const isEditing = !!editingItem; // Define isEditing here
+  const isEditing = !!editingItem;
 
   useEffect(() => {
     if (open) {

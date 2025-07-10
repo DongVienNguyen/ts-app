@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { performEmailTest } from '@/services/emailTestService';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { EmailTestButton } from '@/components/EmailTestButton';
-import { EmailDebugPanel } from '@/components/EmailDebugPanel';
 import { ResendAPIChecker } from '@/components/ResendAPIChecker';
 import { ResendSetupGuide } from '@/components/ResendSetupGuide';
 import { CreateAdminButton } from '@/components/CreateAdminButton';
