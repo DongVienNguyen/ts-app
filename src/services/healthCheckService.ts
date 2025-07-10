@@ -1,4 +1,4 @@
-import { safeDbOperation } from '@/utils/supabaseAuth';
+import { safeDbOperation, getCurrentAuth } from '@/utils/supabaseAuth';
 import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
 import { emailService } from './emailService';
 import { notificationService } from './notificationService';
@@ -15,9 +15,16 @@ export class HealthCheckService {
     return HealthCheckService.instance;
   }
 
-  // Start health monitoring
+  // Start health monitoring (only if authenticated)
   startMonitoring(intervalMinutes: number = 5) {
     if (this.isRunning) return;
+
+    // Check if user is authenticated before starting
+    const { isAuthenticated } = getCurrentAuth();
+    if (!isAuthenticated) {
+      console.log('🏥 Health monitoring skipped - user not authenticated');
+      return;
+    }
 
     this.isRunning = true;
     console.log('🏥 Starting health monitoring...');
@@ -27,6 +34,13 @@ export class HealthCheckService {
 
     // Set up periodic checks
     this.checkInterval = setInterval(() => {
+      // Check authentication before each run
+      const { isAuthenticated } = getCurrentAuth();
+      if (!isAuthenticated) {
+        console.log('🏥 Stopping health monitoring - user no longer authenticated');
+        this.stopMonitoring();
+        return;
+      }
       this.runHealthChecks();
     }, intervalMinutes * 60 * 1000);
   }
@@ -41,8 +55,14 @@ export class HealthCheckService {
     console.log('🏥 Health monitoring stopped');
   }
 
-  // Run all health checks
+  // Run all health checks (only if authenticated)
   private async runHealthChecks() {
+    const { isAuthenticated } = getCurrentAuth();
+    if (!isAuthenticated) {
+      console.log('🔍 Health checks skipped - not authenticated');
+      return;
+    }
+
     console.log('🔍 Running health checks...');
     
     try {
@@ -290,6 +310,16 @@ export class HealthCheckService {
 
   // Get current system health summary
   async getHealthSummary() {
+    const { isAuthenticated } = getCurrentAuth();
+    if (!isAuthenticated) {
+      console.warn('⚠️ Cannot get health summary - not authenticated');
+      return {
+        overallHealth: 0,
+        services: {},
+        summary: { total: 0, online: 0, degraded: 0, offline: 0 }
+      };
+    }
+
     try {
       const statuses = await safeDbOperation(async (client) => {
         const { data, error } = await client
@@ -342,6 +372,18 @@ export class HealthCheckService {
         summary: { total: 0, online: 0, degraded: 0, offline: 0 }
       };
     }
+  }
+
+  // Start monitoring when user logs in
+  onUserLogin() {
+    console.log('🔐 User logged in, starting health monitoring...');
+    this.startMonitoring();
+  }
+
+  // Stop monitoring when user logs out
+  onUserLogout() {
+    console.log('🔓 User logged out, stopping health monitoring...');
+    this.stopMonitoring();
   }
 }
 

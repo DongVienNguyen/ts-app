@@ -6,6 +6,7 @@ import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
 import { setupGlobalErrorHandling, captureError } from '@/utils/errorTracking';
 import { setupUsageTracking, endUserSession } from '@/utils/usageTracking';
 import { setSupabaseAuth, clearSupabaseAuth } from '@/integrations/supabase/client';
+import { healthCheckService } from '@/services/healthCheckService';
 
 interface AuthContextType {
   user: Staff | null;
@@ -43,6 +44,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           
           // Setup usage tracking for restored session
           setupUsageTracking(userData.username);
+          
+          // Start health monitoring for authenticated user
+          healthCheckService.onUserLogin();
           
           logSecurityEvent('SESSION_RESTORED', { username: userData.username });
           logSecurityEventRealTime('SESSION_RESTORED', { username: userData.username }, userData.username);
@@ -147,6 +151,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Setup usage tracking for new session
         setupUsageTracking(result.user.username);
         
+        // Start health monitoring for authenticated user
+        healthCheckService.onUserLogin();
+        
         logSecurityEvent('LOGIN_SUCCESS', { username });
         logSecurityEventRealTime('LOGIN_SUCCESS', {
           username,
@@ -192,6 +199,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (sessionId) {
         endUserSession(sessionId);
       }
+      
+      // Stop health monitoring
+      healthCheckService.onUserLogout();
       
       logSecurityEvent('LOGOUT', { username: user.username });
       logSecurityEventRealTime('LOGOUT_SUCCESS', {
