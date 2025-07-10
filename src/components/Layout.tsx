@@ -63,6 +63,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isSidebarOpen]);
 
+  // Prevent body scroll when sidebar is open
+  useEffect(() => {
+    if (isSidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isSidebarOpen]);
+
   if (!user) {
     return null;
   }
@@ -227,87 +240,88 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </nav>
 
-      {/* Mobile Overlay - Must be rendered BEFORE sidebar for proper layering */}
+      {/* Mobile Sidebar Container - Only show on mobile */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 lg:hidden"
-          onClick={closeSidebar}
-          onTouchStart={closeSidebar}
-        />
-      )}
-
-      {/* Mobile Sidebar - Higher z-index than overlay */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out lg:hidden ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        {/* Sidebar Header */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 bg-white">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-              <Package className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-lg font-bold text-gray-900">Asset Manager</span>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
+        <div className="lg:hidden">
+          {/* Overlay - Covers entire screen */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-[9998]"
             onClick={closeSidebar}
-            className="text-gray-500 hover:bg-gray-100 hover:text-gray-700 p-2 rounded-md"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
+            onTouchStart={closeSidebar}
+          />
 
-        {/* Sidebar Navigation */}
-        <nav className="flex-1 px-2 py-4 bg-white overflow-y-auto">
-          <div className="space-y-1">
-            {visibleItems.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-green-100 text-green-700 border-r-2 border-green-600'
-                      : 'text-gray-600 hover:bg-green-50 hover:text-green-700'
-                  }`}
-                  onClick={closeSidebar}
+          {/* Sidebar - Above overlay */}
+          <div className="fixed inset-y-0 left-0 z-[9999] w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out">
+            {/* Sidebar Header */}
+            <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 bg-white">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                  <Package className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-lg font-bold text-gray-900">Asset Manager</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={closeSidebar}
+                className="text-gray-500 hover:bg-gray-100 hover:text-gray-700 p-2 rounded-md"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Sidebar Navigation */}
+            <nav className="flex-1 px-2 py-4 bg-white overflow-y-auto h-full">
+              <div className="space-y-1">
+                {visibleItems.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-green-100 text-green-700 border-r-2 border-green-600'
+                          : 'text-gray-600 hover:bg-green-50 hover:text-green-700'
+                      }`}
+                      onClick={closeSidebar}
+                    >
+                      <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                      <span className="truncate">{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* Sidebar Footer - Fixed at bottom */}
+              <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 p-4 bg-gray-50">
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {user.staff_name || user.username}
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {user.role} - {user.department}
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleLogout}
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-red-600 border-red-200 hover:bg-red-50"
                 >
-                  <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                  <span className="truncate">{item.name}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-
-        {/* Sidebar Footer */}
-        <div className="border-t border-gray-200 p-4 bg-gray-50">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate">
-                {user.staff_name || user.username}
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Đăng xuất
+                </Button>
               </div>
-              <div className="text-xs text-gray-500 truncate">
-                {user.role} - {user.department}
-              </div>
-            </div>
+            </nav>
           </div>
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            size="sm"
-            className="w-full mt-3 text-red-600 border-red-200 hover:bg-red-50"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Đăng xuất
-          </Button>
         </div>
-      </div>
+      )}
 
       {/* Main Content */}
       <main className="pt-16 bg-gray-50 min-h-screen">
