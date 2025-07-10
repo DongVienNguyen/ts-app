@@ -1,6 +1,7 @@
 import { DataManagementTab } from './DataManagementTab';
 import { StatisticsTab } from './StatisticsTab';
 import { AccountManagementTab } from './AccountManagementTab';
+import { LogManagementTab } from './LogManagementTab';
 import { AdminEmailSettings } from './AdminEmailSettings';
 import { SecurityDashboard } from '@/components/SecurityDashboard';
 import { SecurityTestPanel } from '@/components/SecurityTestPanel';
@@ -117,6 +118,13 @@ export const TabContent = ({
         return (
           <div className="mt-6 space-y-6">
             <AccountManagementTab />
+          </div>
+        );
+
+      case 'log-management':
+        return (
+          <div className="mt-6 space-y-6">
+            <LogManagementTab />
           </div>
         );
 
