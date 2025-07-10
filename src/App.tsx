@@ -41,32 +41,109 @@ function AppContent() {
   return (
     <Router>
       <Routes>
+        {/* Public routes without Layout */}
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route
-          path="/*"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/asset-entry" element={<AssetEntry />} />
-                  <Route path="/daily-report" element={<DailyReport />} />
-                  <Route path="/borrow-report" element={<BorrowReport />} />
-                  <Route path="/asset-reminders" element={<AssetReminders />} />
-                  <Route path="/crc-reminders" element={<CRCReminders />} />
-                  <Route path="/other-assets" element={<OtherAssets />} />
-                  <Route path="/data-management" element={<DataManagement />} />
-                  <Route path="/notifications" element={<Notifications />} />
-                  <Route path="/security-monitor" element={<SecurityMonitor />} />
-                  <Route path="/error-monitoring" element={<ErrorMonitoring />} />
-                  <Route path="/usage-monitoring" element={<UsageMonitoring />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+        
+        {/* Protected routes with Layout */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout>
+              <Index />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/asset-entry" element={
+          <ProtectedRoute>
+            <Layout>
+              <AssetEntry />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/daily-report" element={
+          <ProtectedRoute>
+            <Layout>
+              <DailyReport />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/borrow-report" element={
+          <ProtectedRoute>
+            <Layout>
+              <BorrowReport />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/asset-reminders" element={
+          <ProtectedRoute>
+            <Layout>
+              <AssetReminders />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/crc-reminders" element={
+          <ProtectedRoute>
+            <Layout>
+              <CRCReminders />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/other-assets" element={
+          <ProtectedRoute>
+            <Layout>
+              <OtherAssets />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/data-management" element={
+          <ProtectedRoute>
+            <Layout>
+              <DataManagement />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/notifications" element={
+          <ProtectedRoute>
+            <Layout>
+              <Notifications />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/security-monitor" element={
+          <ProtectedRoute>
+            <Layout>
+              <SecurityMonitor />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/error-monitoring" element={
+          <ProtectedRoute>
+            <Layout>
+              <ErrorMonitoring />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/usage-monitoring" element={
+          <ProtectedRoute>
+            <Layout>
+              <UsageMonitoring />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        
+        {/* 404 route */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );
