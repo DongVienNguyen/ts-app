@@ -2,18 +2,6 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface AssetHistory {
-  id: string;
-  original_asset_id: string;
-  asset_name: string;
-  change_type: string;
-  changed_by: string;
-  change_reason: string | null;
-  old_data: any;
-  new_data: any;
-  created_at: string;
-}
-
 export const useAssetHistory = (user: any) => {
   const [isLoading, setIsLoading] = useState(false);
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { sendAssetReminderEmail } from '@/services/notifications/assetNotificationService';
-import { StaffMember, AssetReminder, Staff } from '@/types/staff';
+import { AssetReminder, Staff } from '@/types/staff';
 
 export const useAssetReminderEmail = (staff: Staff, loadData: () => Promise<void>, showMessage: (params: { type: 'success' | 'error' | 'info'; text: string }) => void) => {
   const [isSending, setIsSending] = useState(false);

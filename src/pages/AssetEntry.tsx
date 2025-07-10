@@ -1,7 +1,5 @@
-import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Layout from '@/components/Layout';
-import FormHeader from '@/components/FormHeader';
 import AssetEntryForm from '@/components/AssetEntryForm';
 import { useTimeRestriction } from '@/hooks/useTimeRestriction';
 import { useAssetEntry } from '@/hooks/useAssetEntry';

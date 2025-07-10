@@ -4,7 +4,6 @@ import { AlertCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSecureAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { LoginHeader } from '@/components/LoginHeader';
 import { LoginForm } from '@/components/LoginForm';
 import { AccountLockedMessage } from '@/components/AccountLockedMessage';

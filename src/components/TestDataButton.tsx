@@ -1,14 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Database, Settings } from 'lucide-react';
 
-interface TestDataButtonProps {
-  onTestData?: (testData: any) => void;
-}
-
-const TestDataButton = ({ onTestData }: TestDataButtonProps) => {
+const TestDataButton = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 

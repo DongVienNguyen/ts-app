@@ -26,8 +26,8 @@ const CRCReminders = () => {
     refreshData
   } = useCRCData();
 
-  const [currentUser, setCurrentUser] = useState<{ role: string; username: string } | null>(null);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [loaiCRC, setLoaiCRC] = useState('');
   const [ngayThucHien, setNgayThucHien] = useState('');
@@ -35,22 +35,11 @@ const CRCReminders = () => {
   const [selectedCBCRC, setSelectedCBCRC] = useState('');
   const [selectedQuyLCRC, setSelectedQuyLCRC] = useState('');
   const [editingReminder, setEditingReminder] = useState<any>(null);
-  const [searchTerm, setSearchTerm] = useState(''); // Added
-  const [sentSearchTerm, setSentSearchTerm] = useState(''); // Added
+  const [sentSearchTerm, setSentSearchTerm] = useState('');
 
   useEffect(() => {
-    loadCurrentUser();
     loadAllData();
   }, [loadAllData]);
-
-  const loadCurrentUser = async () => {
-    try {
-      const userStr = localStorage.getItem('currentUser');
-      if (userStr) setCurrentUser(JSON.parse(userStr));
-    } catch (error) {
-      console.error('Error loading current user:', error);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,7 +129,7 @@ const CRCReminders = () => {
       title,
       message,
       notification_type: 'crc_reminder',
-    } as any); // Cast to any to resolve type mismatch
+    } as any);
   };
 
   const sendSingleReminder = async (reminder: any) => {

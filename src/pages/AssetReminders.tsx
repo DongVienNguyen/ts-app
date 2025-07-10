@@ -19,6 +19,7 @@ import { AssetReminder } from '@/types/staff';
 
 const AssetReminders = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [searchTerm, setSearchTerm] = useState('');
 
   const showMessage = (params: { type: 'success' | 'error' | 'info'; text: string }) => {
     setMessage(params);
@@ -28,7 +29,6 @@ const AssetReminders = () => {
     reminders,
     sentReminders,
     staff,
-    currentUser,
     isLoading,
     loadData
   } = useAssetReminderData();
@@ -38,7 +38,6 @@ const AssetReminders = () => {
     handleDelete,
     handleDeleteSentReminder,
     handleDeleteAllSentReminders,
-    exportToCSV
   } = useAssetReminderOperations(loadData, showMessage);
 
   const {
@@ -104,7 +103,6 @@ const AssetReminders = () => {
     }
   };
 
-  const [searchTerm, setSearchTerm] = useState('');
   const [sentSearchTerm, setSentSearchTerm] = useState('');
   const [editingReminder, setEditingReminder] = useState<AssetReminder | null>(null);
   

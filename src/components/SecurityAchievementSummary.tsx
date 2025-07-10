@@ -1,5 +1,4 @@
-import React from 'react';
-import { Shield, CheckCircle, Star, Trophy, Zap, Lock, Users, Activity, BarChart3, FileText, TestTube, Workflow } from 'lucide-react';
+import { Shield, CheckCircle, Star, Trophy, Zap, Lock, Users, Activity, BarChart3, FileText, TestTube } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';

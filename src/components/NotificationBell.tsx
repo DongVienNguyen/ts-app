@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, CheckCheck, Trash2, ExternalLink, Filter, Search, X } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, ExternalLink, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,

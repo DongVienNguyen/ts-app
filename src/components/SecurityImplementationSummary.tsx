@@ -1,4 +1,3 @@
-import React from 'react';
 import { Shield, CheckCircle, Clock, AlertTriangle, Star } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -97,9 +96,7 @@ export function SecurityImplementationSummary() {
   );
 
   const completionPercentage = Math.round((completedItems / totalItems) * 100);
-  const partialPercentage = Math.round((partialItems / totalItems) * 100);
-
-  return (
+    return (
     <div className="space-y-6">
       <div className="flex items-center space-x-3">
         <Shield className="w-8 h-8 text-blue-600" />

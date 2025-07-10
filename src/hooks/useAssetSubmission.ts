@@ -61,7 +61,7 @@ export const useAssetSubmission = () => {
     setIsLoading(true);
     
     try {
-      const { savedTransactions, emailResult } = await submitAssetTransactions(
+      const { emailResult } = await submitAssetTransactions(
         formData,
         multipleAssets,
         username // Sử dụng username được truyền vào

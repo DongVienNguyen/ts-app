@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 type Theme = 'dark' | 'light' | 'system';
 
 interface ThemeContextType {

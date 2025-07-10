@@ -1,15 +1,10 @@
-import React, { useState } from 'react';
 import { Shield, User, UserCheck, Lock, Unlock, Key, AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function SecurityWorkflowDemo() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [userType, setUserType] = useState<'user' | 'admin'>('user');
-
   const userWorkflow = [
     {
       step: 1,
@@ -127,12 +122,7 @@ export function SecurityWorkflowDemo() {
     }
   ];
 
-  const getWorkflow = () => {
-    if (userType === 'admin') return adminWorkflow;
-    return currentStep <= 3 ? userWorkflow : failureWorkflow;
-  };
-
-  const getStepStatus = (step: number, status: string) => {
+  const getStepStatus = (status: string) => {
     switch (status) {
       case 'success':
         return 'bg-green-100 text-green-800 border-green-200';
@@ -176,7 +166,7 @@ export function SecurityWorkflowDemo() {
               <div className="space-y-4">
                 {userWorkflow.map((step, index) => (
                   <div key={step.step} className="flex items-start space-x-4">
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${getStepStatus(step.step, step.status)}`}>
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${getStepStatus(step.status)}`}>
                       {step.icon}
                     </div>
                     <div className="flex-1">
@@ -223,7 +213,7 @@ export function SecurityWorkflowDemo() {
               <div className="space-y-4">
                 {failureWorkflow.map((step, index) => (
                   <div key={step.step} className="flex items-start space-x-4">
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${getStepStatus(step.step, step.status)}`}>
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${getStepStatus(step.status)}`}>
                       {step.icon}
                     </div>
                     <div className="flex-1">
@@ -270,7 +260,7 @@ export function SecurityWorkflowDemo() {
               <div className="space-y-4">
                 {adminWorkflow.map((step, index) => (
                   <div key={step.step} className="flex items-start space-x-4">
-                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${getStepStatus(step.step, step.status)}`}>
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${getStepStatus(step.status)}`}>
                       {step.icon}
                     </div>
                     <div className="flex-1">

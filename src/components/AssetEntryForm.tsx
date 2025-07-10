@@ -83,18 +83,7 @@ const AssetEntryForm: React.FC<AssetEntryFormProps> = ({
 
         {/* Test Data Button (Development only) */}
         {import.meta.env.DEV && (
-          <TestDataButton
-            onTestData={(testData) => {
-              setFormData(prev => ({
-                ...prev,
-                ...testData.formData
-              }));
-              if (testData.multipleAssets) {
-                // This would need to be handled by the parent component
-                console.log('Test assets:', testData.multipleAssets);
-              }
-            }}
-          />
+          <TestDataButton />
         )}
       </CardContent>
     </Card>

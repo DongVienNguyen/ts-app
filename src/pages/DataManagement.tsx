@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Settings, Plus, Download, Upload, Trash2, Edit, Lock, AlertCircle, BarChart2, Database as DatabaseIcon, BellRing, Users, Shield, BookOpen, CheckCircle, ArrowRight, Trophy, ChevronDown, Mail, TestTube, Smartphone } from 'lucide-react';
+import { Settings, Plus, Download, Upload, Trash2, Edit, Lock, AlertCircle, BarChart2, Database as DatabaseIcon, BellRing, Users, Shield, BookOpen, CheckCircle, ArrowRight, ChevronDown, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Layout from '@/components/Layout';
@@ -461,7 +461,7 @@ const DataManagement = () => {
                   className="hidden"
                 />
                 {/* Test Data Buttons moved from AssetEntry */}
-                <TestDataButton onTestData={() => {}} />
+                <TestDataButton />
               </CardContent>
             </Card>
 
