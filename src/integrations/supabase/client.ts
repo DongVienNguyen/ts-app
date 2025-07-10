@@ -28,12 +28,11 @@ export const setSupabaseAuth = (token: string, username: string) => {
   currentAuthToken = token;
   currentUsername = username;
   
-  // Set the JWT token in the Authorization header for all requests
-  supabase.rest.headers = {
-    ...supabase.rest.headers,
-    'Authorization': `Bearer ${token}`,
-    'apikey': supabaseAnonKey
-  };
+  // Set the session using the proper Supabase auth method
+  supabase.auth.setSession({
+    access_token: token,
+    refresh_token: token
+  });
   
   // Also set for realtime if needed
   if (supabase.realtime) {
@@ -51,10 +50,8 @@ export const clearSupabaseAuth = () => {
   currentAuthToken = null;
   currentUsername = null;
   
-  // Remove the Authorization header
-  if (supabase.rest.headers) {
-    delete supabase.rest.headers['Authorization'];
-  }
+  // Sign out to clear session
+  supabase.auth.signOut();
   
   // Clear realtime auth
   if (supabase.realtime) {

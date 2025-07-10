@@ -4,3 +4,6 @@ export { ErrorListTab } from './ErrorListTab';
 export { ErrorAnalyticsTab } from './ErrorAnalyticsTab';
 export { ServiceStatusTab } from './ServiceStatusTab';
 export { ResourcesTab } from './ResourcesTab';
+export { ErrorFilters } from './ErrorFilters';
+export { ErrorDetailsModal } from './ErrorDetailsModal';
+export { RealTimeErrorFeed } from './RealTimeErrorFeed';
