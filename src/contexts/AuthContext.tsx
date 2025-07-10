@@ -1,19 +1,21 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Staff } from '@/types/auth';
-import { secureLoginUser } from '@/services/secureAuthService';
-import { logSecurityEvent } from '@/utils/secureAuthUtils';
-import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
-import { setupGlobalErrorHandling, captureError } from '@/utils/errorTracking';
-import { setupUsageTracking, endUserSession } from '@/utils/usageTracking';
-import { setSupabaseAuth, clearSupabaseAuth } from '@/integrations/supabase/client';
-import { setAuthentication, clearAuthentication } from '@/utils/supabaseAuth';
+import { secureLoginUser, validateSession } from '@/services/secureAuthService';
+import { clearSupabaseAuth, setSupabaseAuth } from '@/integrations/supabase/client';
 import { healthCheckService } from '@/services/healthCheckService';
+import { toast } from 'sonner';
+
+// Extend Staff type to include token
+interface AuthenticatedStaff extends Staff {
+  token?: string;
+}
 
 interface AuthContextType {
-  user: Staff | null;
+  user: AuthenticatedStaff | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  checkAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,223 +24,115 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<Staff | null>(null);
+// Create complete auth service using the exported functions
+const secureAuthService = {
+  async login(username: string, password: string) {
+    return await secureLoginUser(username, password);
+  },
+  
+  async getCurrentUser(): Promise<AuthenticatedStaff | null> {
+    try {
+      // First validate the session
+      if (!validateSession()) {
+        this.logout();
+        return null;
+      }
+
+      const token = localStorage.getItem('auth_token');
+      const userStr = localStorage.getItem('auth_user');
+      
+      if (!token || !userStr) {
+        return null;
+      }
+      
+      const user = JSON.parse(userStr) as Staff;
+      return { ...user, token }; // Now TypeScript knows token is allowed
+    } catch (error) {
+      console.error('Error getting current user:', error);
+      this.logout();
+      return null;
+    }
+  },
+  
+  logout() {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+  }
+};
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<AuthenticatedStaff | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Setup global error handling
-    setupGlobalErrorHandling();
-
-    // Check for existing session on app start
-    const checkExistingSession = async () => {
-      try {
-        const storedUser = localStorage.getItem('auth_user');
-        const storedToken = localStorage.getItem('auth_token');
-        
-        if (storedUser && storedToken) {
-          const userData = JSON.parse(storedUser);
-          setUser(userData);
-          
-          // Set authentication in both clients
-          setSupabaseAuth(storedToken, userData.username);
-          setAuthentication(storedToken, userData.username);
-          
-          // Wait for authentication to be fully set up
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          // Setup usage tracking for restored session
-          setupUsageTracking(userData.username);
-          
-          // Start health monitoring for authenticated user (with delay)
-          setTimeout(() => {
-            healthCheckService.onUserLogin();
-          }, 2000);
-          
-          logSecurityEvent('SESSION_RESTORED', { username: userData.username });
-          logSecurityEventRealTime('SESSION_RESTORED', { username: userData.username }, userData.username);
-          console.log('🔐 Session restored for user:', userData.username);
-        }
-      } catch (error) {
-        console.error('Error checking existing session:', error);
-        captureError(error as Error, {
-          functionName: 'checkExistingSession',
-          severity: 'medium'
-        });
-        
-        // Clear invalid session data
-        localStorage.removeItem('auth_user');
-        localStorage.removeItem('auth_token');
+  const checkAuth = async () => {
+    try {
+      const currentUser = await secureAuthService.getCurrentUser();
+      if (currentUser) {
+        setUser(currentUser);
+        // Set Supabase auth for RLS policies
+        setSupabaseAuth(currentUser.token || '', currentUser.username);
+        // Start health monitoring
+        healthCheckService.onUserLogin();
+      } else {
+        setUser(null);
         clearSupabaseAuth();
-        clearAuthentication();
-        logSecurityEventRealTime('SESSION_RESTORE_FAILED', { error: error instanceof Error ? error.message : 'Unknown error' });
-      } finally {
-        setLoading(false);
+        healthCheckService.onUserLogout();
       }
-    };
-
-    checkExistingSession();
-  }, []);
-
-  // Monitor for suspicious activity
-  useEffect(() => {
-    if (user) {
-      // Log user session start
-      logSecurityEventRealTime('SESSION_START', {
-        timestamp: new Date().toISOString()
-      }, user.username);
-
-      // Set up periodic session validation
-      const sessionInterval = setInterval(async () => {
-        try {
-          const token = localStorage.getItem('auth_token');
-          if (!token) {
-            await logSecurityEventRealTime('SESSION_EXPIRED', {
-              reason: 'No token found'
-            }, user.username);
-            logout();
-            return;
-          }
-        } catch (error) {
-          console.error('Session validation error:', error);
-          captureError(error as Error, {
-            functionName: 'sessionValidation',
-            userId: user.username,
-            severity: 'medium'
-          });
-          await logSecurityEventRealTime('SESSION_VALIDATION_ERROR', {
-            error: error instanceof Error ? error.message : 'Unknown error'
-          }, user.username);
-        }
-      }, 10 * 60 * 1000); // Check every 10 minutes
-
-      return () => {
-        clearInterval(sessionInterval);
-        // End user session
-        endUserSession();
-        // Log session end
-        logSecurityEventRealTime('SESSION_END', {
-          timestamp: new Date().toISOString()
-        }, user.username);
-      };
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      setUser(null);
+      clearSupabaseAuth();
+      healthCheckService.onUserLogout();
+    } finally {
+      setLoading(false);
     }
-  }, [user]);
-
-  // Monitor for page visibility changes (potential security concern)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (user) {
-        logSecurityEventRealTime(
-          document.hidden ? 'PAGE_HIDDEN' : 'PAGE_VISIBLE',
-          { timestamp: new Date().toISOString() },
-          user.username
-        );
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [user]);
+  };
 
   const login = async (username: string, password: string) => {
     try {
       setLoading(true);
-      const result = await secureLoginUser(username, password);
+      const result = await secureAuthService.login(username, password);
       
       if (result.success && result.user && result.token) {
-        setUser(result.user);
-        localStorage.setItem('auth_user', JSON.stringify(result.user));
+        // Store auth data
         localStorage.setItem('auth_token', result.token);
+        localStorage.setItem('auth_user', JSON.stringify(result.user));
         
-        // Set authentication in both clients
+        const userWithToken: AuthenticatedStaff = { ...result.user, token: result.token };
+        setUser(userWithToken);
         setSupabaseAuth(result.token, result.user.username);
-        setAuthentication(result.token, result.user.username);
-        
-        // Wait for authentication to be fully set up
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Setup usage tracking for new session
-        setupUsageTracking(result.user.username);
-        
-        // Start health monitoring for authenticated user (with delay)
-        setTimeout(() => {
-          healthCheckService.onUserLogin();
-        }, 2000);
-        
-        logSecurityEvent('LOGIN_SUCCESS', { username });
-        logSecurityEventRealTime('LOGIN_SUCCESS', {
-          username,
-          role: result.user.role,
-          department: result.user.department,
-          timestamp: new Date().toISOString()
-        }, username);
-        console.log('🔐 User logged in and Supabase auth set:', username);
-        
+        healthCheckService.onUserLogin();
+        toast.success('Đăng nhập thành công!');
         return { success: true };
       } else {
-        logSecurityEvent('LOGIN_FAILED', { username, error: result.error });
-        logSecurityEventRealTime('LOGIN_FAILED', { 
-          username, 
-          error: result.error,
-          timestamp: new Date().toISOString()
-        }, username);
-        return { success: false, error: result.error };
+        return { success: false, error: result.error || 'Đăng nhập thất bại' };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      captureError(error as Error, {
-        functionName: 'login',
-        userId: username,
-        severity: 'high'
-      });
-      logSecurityEvent('LOGIN_ERROR', { username, error: error instanceof Error ? error.message : 'Unknown error' });
-      logSecurityEventRealTime('LOGIN_ERROR', { 
-        username, 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      }, username);
-      return { success: false, error: 'Đã xảy ra lỗi trong quá trình đăng nhập' };
+      return { success: false, error: error.message || 'Lỗi hệ thống' };
     } finally {
       setLoading(false);
     }
   };
 
   const logout = () => {
-    if (user) {
-      // End user session
-      endUserSession();
-      
-      // Stop health monitoring
-      healthCheckService.onUserLogout();
-      
-      logSecurityEvent('LOGOUT', { username: user.username });
-      logSecurityEventRealTime('LOGOUT_SUCCESS', {
-        timestamp: new Date().toISOString()
-      }, user.username);
-      console.log('🔓 User logging out:', user.username);
-    }
-    
+    secureAuthService.logout();
     setUser(null);
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('auth_token');
-    
-    // Clear authentication in both clients
     clearSupabaseAuth();
-    clearAuthentication();
-    
-    // Clear any other user-specific data
-    localStorage.removeItem('user_preferences');
-    localStorage.removeItem('notification-permission-dismissed');
-    localStorage.removeItem('pwa-install-dismissed');
-    
-    console.log('🔓 User logged out and Supabase auth cleared');
+    healthCheckService.onUserLogout();
+    toast.success('Đã đăng xuất');
   };
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
   const value: AuthContextType = {
     user,
     loading,
     login,
     logout,
+    checkAuth,
   };
 
   return (
@@ -246,25 +140,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-// Primary hook name
-export function useSecureAuth() {
+// Primary hook - use this consistently
+export const useSecureAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useSecureAuth must be used within an AuthProvider');
   }
   return context;
-}
+};
 
-// Alias for backward compatibility
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
+// Alias for backward compatibility - both point to same context
+export const useAuth = useSecureAuth;
 
-// Default export for convenience
 export default AuthProvider;

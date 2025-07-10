@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSecureAuth } from '@/contexts/AuthContext'; // Use consistent auth
 import { useSecurityNotifications } from '@/hooks/useSecurityNotifications';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -22,13 +22,14 @@ interface Notification {
 }
 
 export function NotificationBell() {
+  // ALL HOOKS MUST BE CALLED UNCONDITIONALLY
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
+  const { user } = useSecureAuth(); // Use consistent auth hook
   const navigate = useNavigate();
   
-  // Security notifications hook
+  // Security notifications hook - always called
   const {
     notifications: securityNotifications,
     unreadCount: securityUnreadCount,
@@ -37,31 +38,15 @@ export function NotificationBell() {
     isAdmin
   } = useSecurityNotifications();
 
-  const loadNotifications = async () => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('recipient_username', user.username)
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-      setNotifications(data || []);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // useEffect hooks - always called
   useEffect(() => {
-    if (user) {
-      loadNotifications();
+    if (!user) {
+      // Reset state when no user
+      setNotifications([]);
+      return;
     }
+    
+    loadNotifications();
   }, [user]);
 
   // Subscribe to real-time notifications
@@ -88,6 +73,32 @@ export function NotificationBell() {
       supabase.removeChannel(channel);
     };
   }, [user]);
+
+  // Early return AFTER all hooks
+  if (!user) {
+    return null;
+  }
+
+  const loadNotifications = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('recipient_username', user.username)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      setNotifications(data || []);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const markAsRead = async (notificationId: string) => {
     try {

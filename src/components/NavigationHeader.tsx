@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,6 @@ import {
   Shield,
   Activity,
   BarChart3,
-  Settings,
   Home,
   Key,
   Smartphone
@@ -31,35 +30,30 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { requestNotificationPermission, subscribeUserToPush } from '@/utils/pushNotificationUtils';
 import { toast } from 'sonner';
 
-// Prevent multiple instances
-let isNavigationHeaderMounted = false;
-
 export const NavigationHeader: React.FC = () => {
+  // ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP
   const { user, logout } = useSecureAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
+  const isMountedRef = useRef(false);
 
-  // Prevent multiple instances
-  React.useEffect(() => {
-    if (isNavigationHeaderMounted) {
-      console.warn('⚠️ Multiple NavigationHeader instances detected - preventing duplicate');
+  // useEffect MUST be called unconditionally
+  useEffect(() => {
+    if (isMountedRef.current) {
+      console.warn('⚠️ Multiple NavigationHeader instances detected');
       return;
     }
-    isNavigationHeaderMounted = true;
+    isMountedRef.current = true;
     
     return () => {
-      isNavigationHeaderMounted = false;
+      isMountedRef.current = false;
     };
   }, []);
 
+  // Early return AFTER all hooks have been called
   if (!user) {
-    return null; // Don't render if no user
-  }
-
-  // If already mounted, don't render duplicate
-  if (isNavigationHeaderMounted && !React.useRef(true).current) {
     return null;
   }
 
@@ -337,5 +331,4 @@ export const NavigationHeader: React.FC = () => {
   );
 };
 
-// Export both named and default
 export default NavigationHeader;
