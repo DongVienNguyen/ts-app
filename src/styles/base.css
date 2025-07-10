@@ -29,7 +29,7 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   
   html {
@@ -120,125 +120,6 @@
   html.dark .text-muted-foreground,
   html[data-theme="dark"] .text-muted-foreground {
     color: #6b7280 !important;
-  }
-
-  /* FORCE ALL DARK BACKGROUNDS TO WHITE */
-  .bg-slate-900,
-  .bg-gray-900,
-  .bg-zinc-900,
-  .bg-neutral-900,
-  .bg-stone-900,
-  .bg-black,
-  .bg-slate-800,
-  .bg-gray-800,
-  .bg-zinc-800,
-  .bg-neutral-800,
-  .bg-stone-800,
-  .bg-slate-700,
-  .bg-gray-700,
-  .bg-zinc-700,
-  .bg-neutral-700,
-  .bg-stone-700,
-  [data-theme="dark"] .bg-slate-900,
-  [data-theme="dark"] .bg-gray-900,
-  [data-theme="dark"] .bg-zinc-900,
-  [data-theme="dark"] .bg-neutral-900,
-  [data-theme="dark"] .bg-stone-900,
-  [data-theme="dark"] .bg-black,
-  [data-theme="dark"] .bg-slate-800,
-  [data-theme="dark"] .bg-gray-800,
-  [data-theme="dark"] .bg-zinc-800,
-  [data-theme="dark"] .bg-neutral-800,
-  [data-theme="dark"] .bg-stone-800,
-  [data-theme="dark"] .bg-slate-700,
-  [data-theme="dark"] .bg-gray-700,
-  [data-theme="dark"] .bg-zinc-700,
-  [data-theme="dark"] .bg-neutral-700,
-  [data-theme="dark"] .bg-stone-700,
-  .dark .bg-slate-900,
-  .dark .bg-gray-900,
-  .dark .bg-zinc-900,
-  .dark .bg-neutral-900,
-  .dark .bg-stone-900,
-  .dark .bg-black,
-  .dark .bg-slate-800,
-  .dark .bg-gray-800,
-  .dark .bg-zinc-800,
-  .dark .bg-neutral-800,
-  .dark .bg-stone-800,
-  .dark .bg-slate-700,
-  .dark .bg-gray-700,
-  .dark .bg-zinc-700,
-  .dark .bg-neutral-700,
-  .dark .bg-stone-700,
-  html.dark .bg-slate-900,
-  html.dark .bg-gray-900,
-  html.dark .bg-zinc-900,
-  html.dark .bg-neutral-900,
-  html.dark .bg-stone-900,
-  html.dark .bg-black,
-  html.dark .bg-slate-800,
-  html.dark .bg-gray-800,
-  html.dark .bg-zinc-800,
-  html.dark .bg-neutral-800,
-  html.dark .bg-stone-800,
-  html.dark .bg-slate-700,
-  html.dark .bg-gray-700,
-  html.dark .bg-zinc-700,
-  html.dark .bg-neutral-700,
-  html.dark .bg-stone-700,
-  html[data-theme="dark"] .bg-slate-900,
-  html[data-theme="dark"] .bg-gray-900,
-  html[data-theme="dark"] .bg-zinc-900,
-  html[data-theme="dark"] .bg-neutral-900,
-  html[data-theme="dark"] .bg-stone-900,
-  html[data-theme="dark"] .bg-black,
-  html[data-theme="dark"] .bg-slate-800,
-  html[data-theme="dark"] .bg-gray-800,
-  html[data-theme="dark"] .bg-zinc-800,
-  html[data-theme="dark"] .bg-neutral-800,
-  html[data-theme="dark"] .bg-stone-800,
-  html[data-theme="dark"] .bg-slate-700,
-  html[data-theme="dark"] .bg-gray-700,
-  html[data-theme="dark"] .bg-zinc-700,
-  html[data-theme="dark"] .bg-neutral-700,
-  html[data-theme="dark"] .bg-stone-700 {
-    background-color: #ffffff !important;
-    color: #111827 !important;
-  }
-
-  /* FORCE ALL WHITE TEXT TO DARK */
-  .text-white,
-  .text-slate-100,
-  .text-gray-100,
-  .text-zinc-100,
-  .text-neutral-100,
-  .text-stone-100,
-  [data-theme="dark"] .text-white,
-  [data-theme="dark"] .text-slate-100,
-  [data-theme="dark"] .text-gray-100,
-  [data-theme="dark"] .text-zinc-100,
-  [data-theme="dark"] .text-neutral-100,
-  [data-theme="dark"] .text-stone-100,
-  .dark .text-white,
-  .dark .text-slate-100,
-  .dark .text-gray-100,
-  .dark .text-zinc-100,
-  .dark .text-neutral-100,
-  .dark .text-stone-100,
-  html.dark .text-white,
-  html.dark .text-slate-100,
-  html.dark .text-gray-100,
-  html.dark .text-zinc-100,
-  html.dark .text-neutral-100,
-  html.dark .text-stone-100,
-  html[data-theme="dark"] .text-white,
-  html[data-theme="dark"] .text-slate-100,
-  html[data-theme="dark"] .text-gray-100,
-  html[data-theme="dark"] .text-zinc-100,
-  html[data-theme="dark"] .text-neutral-100,
-  html[data-theme="dark"] .text-stone-100 {
-    color: #111827 !important;
   }
 
   /* Override any dark theme classes */
@@ -422,6 +303,135 @@
     background-color: #ffffff !important;
     color: #111827 !important;
     border: 1px solid #d1d5db !important;
+  }
+}
+
+/* FORCE ALL DARK BACKGROUNDS TO WHITE - Using direct CSS properties */
+@layer utilities {
+  .bg-slate-900,
+  .bg-gray-900,
+  .bg-zinc-900,
+  .bg-neutral-900,
+  .bg-stone-900,
+  .bg-black,
+  .bg-slate-800,
+  .bg-gray-800,
+  .bg-zinc-800,
+  .bg-neutral-800,
+  .bg-stone-800,
+  .bg-slate-700,
+  .bg-gray-700,
+  .bg-zinc-700,
+  .bg-neutral-700,
+  .bg-stone-700 {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  /* FORCE ALL WHITE TEXT TO DARK */
+  .text-white,
+  .text-slate-100,
+  .text-gray-100,
+  .text-zinc-100,
+  .text-neutral-100,
+  .text-stone-100 {
+    color: #111827 !important;
+  }
+
+  /* Dark theme variants */
+  [data-theme="dark"] .bg-slate-900,
+  [data-theme="dark"] .bg-gray-900,
+  [data-theme="dark"] .bg-zinc-900,
+  [data-theme="dark"] .bg-neutral-900,
+  [data-theme="dark"] .bg-stone-900,
+  [data-theme="dark"] .bg-black,
+  [data-theme="dark"] .bg-slate-800,
+  [data-theme="dark"] .bg-gray-800,
+  [data-theme="dark"] .bg-zinc-800,
+  [data-theme="dark"] .bg-neutral-800,
+  [data-theme="dark"] .bg-stone-800,
+  [data-theme="dark"] .bg-slate-700,
+  [data-theme="dark"] .bg-gray-700,
+  [data-theme="dark"] .bg-zinc-700,
+  [data-theme="dark"] .bg-neutral-700,
+  [data-theme="dark"] .bg-stone-700,
+  .dark .bg-slate-900,
+  .dark .bg-gray-900,
+  .dark .bg-zinc-900,
+  .dark .bg-neutral-900,
+  .dark .bg-stone-900,
+  .dark .bg-black,
+  .dark .bg-slate-800,
+  .dark .bg-gray-800,
+  .dark .bg-zinc-800,
+  .dark .bg-neutral-800,
+  .dark .bg-stone-800,
+  .dark .bg-slate-700,
+  .dark .bg-gray-700,
+  .dark .bg-zinc-700,
+  .dark .bg-neutral-700,
+  .dark .bg-stone-700,
+  html.dark .bg-slate-900,
+  html.dark .bg-gray-900,
+  html.dark .bg-zinc-900,
+  html.dark .bg-neutral-900,
+  html.dark .bg-stone-900,
+  html.dark .bg-black,
+  html.dark .bg-slate-800,
+  html.dark .bg-gray-800,
+  html.dark .bg-zinc-800,
+  html.dark .bg-neutral-800,
+  html.dark .bg-stone-800,
+  html.dark .bg-slate-700,
+  html.dark .bg-gray-700,
+  html.dark .bg-zinc-700,
+  html.dark .bg-neutral-700,
+  html.dark .bg-stone-700,
+  html[data-theme="dark"] .bg-slate-900,
+  html[data-theme="dark"] .bg-gray-900,
+  html[data-theme="dark"] .bg-zinc-900,
+  html[data-theme="dark"] .bg-neutral-900,
+  html[data-theme="dark"] .bg-stone-900,
+  html[data-theme="dark"] .bg-black,
+  html[data-theme="dark"] .bg-slate-800,
+  html[data-theme="dark"] .bg-gray-800,
+  html[data-theme="dark"] .bg-zinc-800,
+  html[data-theme="dark"] .bg-neutral-800,
+  html[data-theme="dark"] .bg-stone-800,
+  html[data-theme="dark"] .bg-slate-700,
+  html[data-theme="dark"] .bg-gray-700,
+  html[data-theme="dark"] .bg-zinc-700,
+  html[data-theme="dark"] .bg-neutral-700,
+  html[data-theme="dark"] .bg-stone-700 {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  [data-theme="dark"] .text-white,
+  [data-theme="dark"] .text-slate-100,
+  [data-theme="dark"] .text-gray-100,
+  [data-theme="dark"] .text-zinc-100,
+  [data-theme="dark"] .text-neutral-100,
+  [data-theme="dark"] .text-stone-100,
+  .dark .text-white,
+  .dark .text-slate-100,
+  .dark .text-gray-100,
+  .dark .text-zinc-100,
+  .dark .text-neutral-100,
+  .dark .text-stone-100,
+  html.dark .text-white,
+  html.dark .text-slate-100,
+  html.dark .text-gray-100,
+  html.dark .text-zinc-100,
+  html.dark .text-neutral-100,
+  html.dark .text-stone-100,
+  html[data-theme="dark"] .text-white,
+  html[data-theme="dark"] .text-slate-100,
+  html[data-theme="dark"] .text-gray-100,
+  html[data-theme="dark"] .text-zinc-100,
+  html[data-theme="dark"] .text-neutral-100,
+  html[data-theme="dark"] .text-stone-100 {
+    color: #111827 !important;
   }
 }
 
