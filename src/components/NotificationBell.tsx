@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSecurityNotifications } from '@/hooks/useSecurityNotifications';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface Notification {
   id: string;
@@ -26,6 +26,7 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   // Security notifications hook
   const {
@@ -122,6 +123,11 @@ export function NotificationBell() {
     }
   };
 
+  const handleViewAllNotifications = () => {
+    setIsOpen(false);
+    navigate('/notifications');
+  };
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'asset_reminder':
@@ -154,8 +160,8 @@ export function NotificationBell() {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative">
-          <Bell className="h-5 w-5" />
+        <Button variant="ghost" size="sm" className="relative bg-white hover:bg-gray-100">
+          <Bell className="h-5 w-5 text-gray-700" />
           {totalUnreadCount > 0 && (
             <Badge 
               variant="destructive" 
@@ -166,24 +172,34 @@ export function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="pb-3">
+      <PopoverContent className="w-80 p-0 bg-white border border-gray-200" align="end">
+        <Card className="border-0 shadow-lg bg-white">
+          <CardHeader className="pb-3 bg-white">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Thông báo</CardTitle>
-              {totalUnreadCount > 0 && (
+              <CardTitle className="text-lg text-gray-900">Thông báo</CardTitle>
+              <div className="flex items-center space-x-2">
+                {totalUnreadCount > 0 && (
+                  <Button
+                    onClick={markAllAsRead}
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-gray-600 hover:text-gray-900"
+                  >
+                    Đánh dấu đã đọc
+                  </Button>
+                )}
                 <Button
-                  onClick={markAllAsRead}
+                  onClick={handleViewAllNotifications}
                   variant="ghost"
                   size="sm"
-                  className="text-xs"
+                  className="text-xs text-blue-600 hover:text-blue-800"
                 >
-                  Đánh dấu đã đọc
+                  Xem tất cả
                 </Button>
-              )}
+              </div>
             </div>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0 bg-white">
             <ScrollArea className="h-96">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
@@ -243,7 +259,7 @@ export function NotificationBell() {
 
                   {/* Regular Notifications */}
                   {notifications.length > 0 ? (
-                    notifications.map((notification) => (
+                    notifications.slice(0, 10).map((notification) => (
                       <div
                         key={notification.id}
                         className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
@@ -257,7 +273,7 @@ export function NotificationBell() {
                             <p className="text-sm font-medium text-gray-900 truncate">
                               {notification.title}
                             </p>
-                            <p className="text-xs text-gray-600 mt-1">
+                            <p className="text-xs text-gray-600 mt-1 line-clamp-2">
                               {notification.message}
                             </p>
                             <p className="text-xs text-gray-500 mt-1">

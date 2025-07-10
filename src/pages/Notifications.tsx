@@ -21,7 +21,8 @@ export default function Notifications() {
   const queryClient = useQueryClient();
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [replyText, setReplyText] = useState('');
-    // Fetch notifications
+
+  // Fetch notifications
   const { data: notifications = [], isLoading, refetch } = useQuery<Notification[]>({
     queryKey: ['notifications', user?.username],
     queryFn: async () => {
@@ -225,12 +226,20 @@ export default function Notifications() {
   };
 
   if (!user) {
-    return <div>Vui lòng đăng nhập để xem thông báo</div>;
+    return (
+      <Layout>
+        <div className="container mx-auto p-6 max-w-4xl bg-white">
+          <div className="text-center py-8">
+            <p className="text-gray-600">Vui lòng đăng nhập để xem thông báo</p>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   return (
     <Layout>
-      <div className="container mx-auto p-6 max-w-4xl">
+      <div className="container mx-auto p-6 max-w-4xl bg-white min-h-screen">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <Bell className="h-8 w-8 text-green-600" />
@@ -248,6 +257,7 @@ export default function Notifications() {
               size="sm"
               onClick={() => refetch()}
               disabled={isLoading}
+              className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Làm mới
@@ -259,6 +269,7 @@ export default function Notifications() {
                 size="sm"
                 onClick={() => markAllAsReadMutation.mutate()}
                 disabled={markAllAsReadMutation.isPending}
+                className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
               >
                 <CheckCheck className="h-4 w-4 mr-2" />
                 Đánh dấu tất cả đã đọc
@@ -273,15 +284,15 @@ export default function Notifications() {
                     Xóa tất cả
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent className="bg-white">
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Xác nhận xóa tất cả thông báo</AlertDialogTitle>
-                    <AlertDialogDescription>
+                    <AlertDialogTitle className="text-gray-900">Xác nhận xóa tất cả thông báo</AlertDialogTitle>
+                    <AlertDialogDescription className="text-gray-600">
                       Bạn có chắc chắn muốn xóa tất cả thông báo? Hành động này không thể hoàn tác.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Hủy</AlertDialogCancel>
+                    <AlertDialogCancel className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300">Hủy</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => deleteAllNotificationsMutation.mutate()}
                       className="bg-red-600 hover:bg-red-700"
@@ -300,7 +311,7 @@ export default function Notifications() {
             <RefreshCw className="h-8 w-8 animate-spin text-green-600" />
           </div>
         ) : notifications.length === 0 ? (
-          <Card>
+          <Card className="bg-white border-gray-200">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Bell className="h-16 w-16 text-gray-300 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Không có thông báo</h3>
@@ -314,7 +325,7 @@ export default function Notifications() {
             {notifications.map((notification) => (
               <Card 
                 key={notification.id} 
-                className={`transition-all hover:shadow-md ${
+                className={`transition-all hover:shadow-md bg-white border-gray-200 ${
                   !notification.is_read ? 'border-l-4 border-l-blue-500 bg-blue-50/30' : ''
                 }`}
               >
@@ -347,6 +358,7 @@ export default function Notifications() {
                           onClick={() => markAsReadMutation.mutate(notification.id)}
                           disabled={markAsReadMutation.isPending}
                           title="Đánh dấu đã đọc"
+                          className="hover:bg-gray-100"
                         >
                           <Check className="h-4 w-4" />
                         </Button>
@@ -359,20 +371,21 @@ export default function Notifications() {
                             size="sm"
                             onClick={() => setSelectedNotification(notification)}
                             title="Phản hồi"
+                            className="hover:bg-gray-100"
                           >
                             <Reply className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-md">
+                        <DialogContent className="max-w-md bg-white">
                           <DialogHeader>
-                            <DialogTitle>Phản hồi thông báo</DialogTitle>
-                            <DialogDescription>
+                            <DialogTitle className="text-gray-900">Phản hồi thông báo</DialogTitle>
+                            <DialogDescription className="text-gray-600">
                               Gửi phản hồi cho thông báo này. Phản hồi sẽ được gửi đến quản trị viên.
                             </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4">
                             <div className="p-3 bg-gray-50 rounded-lg">
-                              <p className="font-medium text-sm">{notification.title}</p>
+                              <p className="font-medium text-sm text-gray-900">{notification.title}</p>
                               <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
                             </div>
                             <Textarea
@@ -380,6 +393,7 @@ export default function Notifications() {
                               value={replyText}
                               onChange={(e) => setReplyText(e.target.value)}
                               rows={4}
+                              className="bg-white border-gray-300"
                             />
                             <div className="flex justify-end space-x-2">
                               <Button
@@ -388,6 +402,7 @@ export default function Notifications() {
                                   setReplyText('');
                                   setSelectedNotification(null);
                                 }}
+                                className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
                               >
                                 Hủy
                               </Button>
@@ -412,19 +427,20 @@ export default function Notifications() {
                             variant="ghost"
                             size="sm"
                             title="Xóa thông báo"
+                            className="hover:bg-gray-100"
                           >
                             <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </AlertDialogTrigger>
-                        <AlertDialogContent>
+                        <AlertDialogContent className="bg-white">
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Xác nhận xóa thông báo</AlertDialogTitle>
-                            <AlertDialogDescription>
+                            <AlertDialogTitle className="text-gray-900">Xác nhận xóa thông báo</AlertDialogTitle>
+                            <AlertDialogDescription className="text-gray-600">
                               Bạn có chắc chắn muốn xóa thông báo này? Hành động này không thể hoàn tác.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Hủy</AlertDialogCancel>
+                            <AlertDialogCancel className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300">Hủy</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => deleteNotificationMutation.mutate(notification.id)}
                               className="bg-red-600 hover:bg-red-700"

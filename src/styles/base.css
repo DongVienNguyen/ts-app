@@ -65,12 +65,45 @@
   }
   
   body {
-    @apply bg-background text-foreground;
+    @apply bg-white text-gray-900;
+    /* Force white background and dark text */
+    background-color: white !important;
+    color: #111827 !important;
     /* Tối ưu cho mobile */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     /* Ngăn zoom khi focus input trên iOS */
     font-size: 16px;
+  }
+
+  /* Force white theme for all components */
+  .bg-background {
+    @apply bg-white !important;
+  }
+
+  .text-foreground {
+    @apply text-gray-900 !important;
+  }
+
+  .bg-card {
+    @apply bg-white !important;
+  }
+
+  .text-card-foreground {
+    @apply text-gray-900 !important;
+  }
+
+  /* Ensure popover and dialog backgrounds are white */
+  [data-radix-popper-content-wrapper] {
+    background-color: white !important;
+  }
+
+  .bg-popover {
+    @apply bg-white !important;
+  }
+
+  .text-popover-foreground {
+    @apply text-gray-900 !important;
   }
 }

@@ -1,6 +1,6 @@
-import { supabase } from '@/integrations/supabase/client';
+import { safeDbOperation } from '@/utils/supabaseAuth';
 
-export interface UserSession {
+interface UserSession {
   id?: string;
   username: string;
   session_start: string;
@@ -14,288 +14,27 @@ export interface UserSession {
   browser_name?: string;
   os_name?: string;
   session_data?: any;
-  updated_at?: string; // Add this field
 }
 
-export interface UsageStats {
-  hourly: { [hour: string]: number };
-  daily: { [date: string]: number };
-  monthly: { [month: string]: number };
-  quarterly: { [quarter: string]: number };
-  yearly: { [year: string]: number };
+interface PageView {
+  page: string;
+  timestamp: string;
+  duration?: number;
 }
 
-// Start user session
-export async function startUserSession(username: string): Promise<string | null> {
-  try {
-    const deviceInfo = getDeviceInfo();
-    
-    const { data, error } = await supabase
-      .from('user_sessions')
-      .insert({
-        username,
-        session_start: new Date().toISOString(),
-        pages_visited: 1,
-        actions_performed: 0,
-        ip_address: await getClientIP(),
-        user_agent: navigator.userAgent,
-        device_type: deviceInfo.deviceType,
-        browser_name: deviceInfo.browserName,
-        os_name: deviceInfo.osName,
-        session_data: {
-          screen_resolution: `${screen.width}x${screen.height}`,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          language: navigator.language
-        }
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    
-    // Store session ID in localStorage for tracking
-    localStorage.setItem('current_session_id', data.id);
-    return data.id;
-  } catch (error) {
-    console.error('❌ Failed to start user session:', error);
-    return null;
-  }
+interface UserAction {
+  action: string;
+  timestamp: string;
+  data?: any;
 }
 
-// Update user session
-export async function updateUserSession(sessionId: string, updates: Partial<UserSession>) {
-  try {
-    const { error } = await supabase
-      .from('user_sessions')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', sessionId);
-
-    if (error) throw error;
-  } catch (error) {
-    console.error('❌ Failed to update user session:', error);
-  }
-}
-
-// End user session
-export async function endUserSession(sessionId: string) {
-  try {
-    const sessionEnd = new Date();
-    
-    // Get session start time
-    const { data: session } = await supabase
-      .from('user_sessions')
-      .select('session_start')
-      .eq('id', sessionId)
-      .single();
-
-    if (session) {
-      const sessionStart = new Date(session.session_start);
-      const durationMinutes = Math.round((sessionEnd.getTime() - sessionStart.getTime()) / (1000 * 60));
-
-      await supabase
-        .from('user_sessions')
-        .update({
-          session_end: sessionEnd.toISOString(),
-          duration_minutes: durationMinutes,
-          updated_at: sessionEnd.toISOString()
-        })
-        .eq('id', sessionId);
-    }
-
-    localStorage.removeItem('current_session_id');
-  } catch (error) {
-    console.error('❌ Failed to end user session:', error);
-  }
-}
-
-// Track page visit
-export async function trackPageVisit(page: string) {
-  const sessionId = localStorage.getItem('current_session_id');
-  if (!sessionId) return;
-
-  try {
-    // Increment pages visited
-    const { data: session } = await supabase
-      .from('user_sessions')
-      .select('pages_visited, session_data')
-      .eq('id', sessionId)
-      .single();
-
-    if (session) {
-      const updatedSessionData = {
-        ...session.session_data,
-        pages: [...(session.session_data?.pages || []), {
-          page,
-          timestamp: new Date().toISOString(),
-          referrer: document.referrer
-        }]
-      };
-
-      await updateUserSession(sessionId, {
-        pages_visited: session.pages_visited + 1,
-        session_data: updatedSessionData
-      });
-    }
-  } catch (error) {
-    console.error('❌ Failed to track page visit:', error);
-  }
-}
-
-// Track user action
-export async function trackUserAction(action: string, data?: any) {
-  const sessionId = localStorage.getItem('current_session_id');
-  if (!sessionId) return;
-
-  try {
-    // Increment actions performed
-    const { data: session } = await supabase
-      .from('user_sessions')
-      .select('actions_performed, session_data')
-      .eq('id', sessionId)
-      .single();
-
-    if (session) {
-      const updatedSessionData = {
-        ...session.session_data,
-        actions: [...(session.session_data?.actions || []), {
-          action,
-          timestamp: new Date().toISOString(),
-          data
-        }]
-      };
-
-      await updateUserSession(sessionId, {
-        actions_performed: session.actions_performed + 1,
-        session_data: updatedSessionData
-      });
-    }
-  } catch (error) {
-    console.error('❌ Failed to track user action:', error);
-  }
-}
-
-// Get usage statistics
-export async function getUsageStats(timeRange: 'day' | 'week' | 'month' | 'quarter' | 'year' = 'month'): Promise<UsageStats> {
-  try {
-    const now = new Date();
-    let startDate: Date;
-
-    switch (timeRange) {
-      case 'day':
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        break;
-      case 'week':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case 'month':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case 'quarter':
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case 'year':
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-    }
-
-    const { data: sessions, error } = await supabase
-      .from('user_sessions')
-      .select('*')
-      .gte('session_start', startDate.toISOString())
-      .order('session_start', { ascending: true });
-
-    if (error) throw error;
-
-    const stats: UsageStats = {
-      hourly: {},
-      daily: {},
-      monthly: {},
-      quarterly: {},
-      yearly: {}
-    };
-
-    sessions?.forEach(session => {
-      const date = new Date(session.session_start);
-      
-      // Hourly stats
-      const hourKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:00`;
-      stats.hourly[hourKey] = (stats.hourly[hourKey] || 0) + 1;
-      
-      // Daily stats
-      const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      stats.daily[dayKey] = (stats.daily[dayKey] || 0) + 1;
-      
-      // Monthly stats
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      stats.monthly[monthKey] = (stats.monthly[monthKey] || 0) + 1;
-      
-      // Quarterly stats
-      const quarter = Math.floor(date.getMonth() / 3) + 1;
-      const quarterKey = `${date.getFullYear()}-Q${quarter}`;
-      stats.quarterly[quarterKey] = (stats.quarterly[quarterKey] || 0) + 1;
-      
-      // Yearly stats
-      const yearKey = `${date.getFullYear()}`;
-      stats.yearly[yearKey] = (stats.yearly[yearKey] || 0) + 1;
-    });
-
-    return stats;
-  } catch (error) {
-    console.error('❌ Failed to get usage stats:', error);
-    return {
-      hourly: {},
-      daily: {},
-      monthly: {},
-      quarterly: {},
-      yearly: {}
-    };
-  }
-}
-
-// Get average session duration - Fix parameter type
-export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'month' | 'quarter' | 'year' = 'month'): Promise<number> {
-  try {
-    const now = new Date();
-    let startDate: Date;
-
-    switch (timeRange) {
-      case 'day':
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        break;
-      case 'week':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case 'month':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case 'quarter':
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case 'year':
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-    }
-
-    const { data: sessions, error } = await supabase
-      .from('user_sessions')
-      .select('duration_minutes')
-      .gte('session_start', startDate.toISOString())
-      .not('duration_minutes', 'is', null);
-
-    if (error) throw error;
-
-    if (!sessions || sessions.length === 0) return 0;
-
-    const totalDuration = sessions.reduce((sum, session) => sum + (session.duration_minutes || 0), 0);
-    return Math.round(totalDuration / sessions.length);
-  } catch (error) {
-    console.error('❌ Failed to get average session duration:', error);
-    return 0;
-  }
-}
+// Current session data
+let currentSession: UserSession | null = null;
+let sessionStartTime: number = 0;
+let pageViews: PageView[] = [];
+let userActions: UserAction[] = [];
+let currentPageStart: number = 0;
+let currentPage: string = '';
 
 // Get device info
 function getDeviceInfo() {
@@ -303,20 +42,17 @@ function getDeviceInfo() {
   
   // Detect device type
   let deviceType = 'desktop';
-  if (/tablet|ipad|playbook|silk/i.test(userAgent)) {
-    deviceType = 'tablet';
-  } else if (/mobile|iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(userAgent)) {
-    deviceType = 'mobile';
+  if (/Mobile|Android|iPhone|iPad/.test(userAgent)) {
+    deviceType = /iPad/.test(userAgent) ? 'tablet' : 'mobile';
   }
-
+  
   // Detect browser
   let browserName = 'unknown';
   if (userAgent.includes('Chrome')) browserName = 'Chrome';
   else if (userAgent.includes('Firefox')) browserName = 'Firefox';
   else if (userAgent.includes('Safari')) browserName = 'Safari';
   else if (userAgent.includes('Edge')) browserName = 'Edge';
-  else if (userAgent.includes('Opera')) browserName = 'Opera';
-
+  
   // Detect OS
   let osName = 'unknown';
   if (userAgent.includes('Windows')) osName = 'Windows';
@@ -324,11 +60,11 @@ function getDeviceInfo() {
   else if (userAgent.includes('Linux')) osName = 'Linux';
   else if (userAgent.includes('Android')) osName = 'Android';
   else if (userAgent.includes('iOS')) osName = 'iOS';
-
+  
   return { deviceType, browserName, osName };
 }
 
-// Get client IP
+// Get client IP (fallback method)
 async function getClientIP(): Promise<string | null> {
   try {
     const response = await fetch('https://api.ipify.org?format=json');
@@ -339,47 +75,300 @@ async function getClientIP(): Promise<string | null> {
   }
 }
 
+// Get average session duration
+export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'month' | 'quarter' | 'year'): Promise<number> {
+  try {
+    const now = new Date();
+    let startDate: Date;
+
+    switch (timeRange) {
+      case 'day':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'quarter':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'year':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+    }
+
+    const sessions = await safeDbOperation(async (client) => {
+      const { data, error } = await client
+        .from('user_sessions')
+        .select('duration_minutes')
+        .gte('session_start', startDate.toISOString())
+        .not('duration_minutes', 'is', null);
+
+      if (error) throw error;
+      return data;
+    });
+
+    if (!sessions || sessions.length === 0) {
+      return 0;
+    }
+
+    const totalDuration = sessions.reduce((sum, session) => sum + (session.duration_minutes || 0), 0);
+    return Math.round(totalDuration / sessions.length);
+  } catch (error) {
+    console.error('Error getting average session duration:', error);
+    return 0;
+  }
+}
+
+// Start user session
+export async function startUserSession(username: string): Promise<void> {
+  try {
+    sessionStartTime = Date.now();
+    const deviceInfo = getDeviceInfo();
+    const ipAddress = await getClientIP();
+    
+    const sessionData: Omit<UserSession, 'id'> = {
+      username,
+      session_start: new Date().toISOString(),
+      pages_visited: 0,
+      actions_performed: 0,
+      ip_address: ipAddress,
+      user_agent: navigator.userAgent,
+      device_type: deviceInfo.deviceType,
+      browser_name: deviceInfo.browserName,
+      os_name: deviceInfo.osName,
+      session_data: {
+        screen_resolution: `${screen.width}x${screen.height}`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        language: navigator.language
+      }
+    };
+
+    // Use authenticated client instead of system operations for user sessions
+    const result = await safeDbOperation(async (client) => {
+      const { data, error } = await client
+        .from('user_sessions')
+        .insert(sessionData)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    });
+
+    if (result) {
+      currentSession = result;
+      console.log('✅ User session started successfully');
+    } else {
+      console.warn('⚠️ Could not start user session - not authenticated');
+    }
+  } catch (error) {
+    console.error('❌ Failed to start user session:', error);
+    // Create a local session if database fails
+    currentSession = {
+      username,
+      session_start: new Date().toISOString(),
+      pages_visited: 0,
+      actions_performed: 0,
+      ...getDeviceInfo()
+    };
+  }
+}
+
+// End user session
+export async function endUserSession(): Promise<void> {
+  if (!currentSession) return;
+
+  try {
+    const sessionEnd = new Date().toISOString();
+    const durationMinutes = Math.round((Date.now() - sessionStartTime) / 60000);
+
+    const updateData = {
+      session_end: sessionEnd,
+      duration_minutes: durationMinutes,
+      pages_visited: pageViews.length,
+      actions_performed: userActions.length,
+      session_data: {
+        ...currentSession.session_data,
+        page_views: pageViews,
+        user_actions: userActions.slice(-50) // Keep last 50 actions
+      }
+    };
+
+    if (currentSession.id) {
+      await safeDbOperation(async (client) => {
+        const { error } = await client
+          .from('user_sessions')
+          .update(updateData)
+          .eq('id', currentSession!.id);
+
+        if (error) throw error;
+      });
+    }
+
+    console.log('✅ User session ended successfully');
+  } catch (error) {
+    console.error('❌ Failed to end user session:', error);
+  } finally {
+    // Reset session data
+    currentSession = null;
+    sessionStartTime = 0;
+    pageViews = [];
+    userActions = [];
+    currentPageStart = 0;
+    currentPage = '';
+  }
+}
+
+// Track page view
+export function trackPageView(page: string): void {
+  // End previous page view
+  if (currentPage && currentPageStart > 0) {
+    const duration = Date.now() - currentPageStart;
+    pageViews.push({
+      page: currentPage,
+      timestamp: new Date(currentPageStart).toISOString(),
+      duration: Math.round(duration / 1000) // in seconds
+    });
+  }
+
+  // Start new page view
+  currentPage = page;
+  currentPageStart = Date.now();
+  
+  pageViews.push({
+    page,
+    timestamp: new Date().toISOString()
+  });
+
+  console.log(`📄 Page view tracked: ${page}`);
+}
+
+// Track user action
+export function trackUserAction(action: string, data?: any): void {
+  userActions.push({
+    action,
+    timestamp: new Date().toISOString(),
+    data
+  });
+
+  // Keep only last 100 actions in memory
+  if (userActions.length > 100) {
+    userActions = userActions.slice(-100);
+  }
+
+  console.log(`🎯 User action tracked: ${action}`);
+}
+
+// Update session periodically
+export async function updateSession(): Promise<void> {
+  if (!currentSession?.id) return;
+
+  try {
+    const updateData = {
+      pages_visited: pageViews.length,
+      actions_performed: userActions.length,
+      session_data: {
+        ...currentSession.session_data,
+        last_activity: new Date().toISOString(),
+        page_views: pageViews.slice(-20), // Keep last 20 page views
+        user_actions: userActions.slice(-20) // Keep last 20 actions
+      }
+    };
+
+    await safeDbOperation(async (client) => {
+      const { error } = await client
+        .from('user_sessions')
+        .update(updateData)
+        .eq('id', currentSession!.id);
+
+      if (error) throw error;
+    });
+  } catch (error) {
+    console.error('❌ Failed to update session:', error);
+  }
+}
+
+// Get session statistics
+export function getSessionStats() {
+  if (!currentSession) return null;
+
+  const currentDuration = Math.round((Date.now() - sessionStartTime) / 60000);
+  
+  return {
+    username: currentSession.username,
+    duration: currentDuration,
+    pagesVisited: pageViews.length,
+    actionsPerformed: userActions.length,
+    currentPage,
+    deviceInfo: {
+      type: currentSession.device_type,
+      browser: currentSession.browser_name,
+      os: currentSession.os_name
+    }
+  };
+}
+
 // Setup usage tracking
-export function setupUsageTracking(username: string) {
+export function setupUsageTracking(username: string): void {
   // Start session
   startUserSession(username);
 
-  // Track page changes
-  let currentPath = window.location.pathname;
+  // Track initial page
+  trackPageView(window.location.pathname);
+
+  // Track page changes (for SPAs)
+  let lastUrl = window.location.href;
   const observer = new MutationObserver(() => {
-    if (window.location.pathname !== currentPath) {
-      currentPath = window.location.pathname;
-      trackPageVisit(currentPath);
+    if (window.location.href !== lastUrl) {
+      lastUrl = window.location.href;
+      trackPageView(window.location.pathname);
     }
   });
-
+  
   observer.observe(document.body, {
     childList: true,
     subtree: true
   });
 
   // Track user interactions
-  ['click', 'keydown', 'scroll'].forEach(eventType => {
-    document.addEventListener(eventType, () => {
-      trackUserAction(eventType);
-    }, { passive: true });
-  });
-
-  // End session on page unload
-  window.addEventListener('beforeunload', () => {
-    const sessionId = localStorage.getItem('current_session_id');
-    if (sessionId) {
-      endUserSession(sessionId);
-    }
-  });
-
-  // Periodic session update (every 5 minutes)
-  setInterval(() => {
-    const sessionId = localStorage.getItem('current_session_id');
-    if (sessionId) {
-      updateUserSession(sessionId, {
-        updated_at: new Date().toISOString()
+  document.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName === 'BUTTON' || target.tagName === 'A' || target.closest('button') || target.closest('a')) {
+      const actionName = target.textContent?.trim() || target.getAttribute('aria-label') || 'click';
+      trackUserAction('click', {
+        element: target.tagName,
+        text: actionName,
+        page: window.location.pathname
       });
     }
-  }, 5 * 60 * 1000);
+  });
+
+  // Update session every 5 minutes
+  const updateInterval = setInterval(updateSession, 5 * 60 * 1000);
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    clearInterval(updateInterval);
+    observer.disconnect();
+    endUserSession();
+  });
+
+  // Handle visibility change (tab switching)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      trackUserAction('tab_hidden');
+    } else {
+      trackUserAction('tab_visible');
+    }
+  });
+
+  console.log('📊 Usage tracking setup completed for user:', username);
+}
+
+// Cleanup usage tracking
+export function cleanupUsageTracking(): void {
+  endUserSession();
 }

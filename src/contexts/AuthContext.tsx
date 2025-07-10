@@ -107,10 +107,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return () => {
         clearInterval(sessionInterval);
         // End user session
-        const sessionId = localStorage.getItem('current_session_id');
-        if (sessionId) {
-          endUserSession(sessionId);
-        }
+        endUserSession();
         // Log session end
         logSecurityEventRealTime('SESSION_END', {
           timestamp: new Date().toISOString()
@@ -195,10 +192,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = () => {
     if (user) {
       // End user session
-      const sessionId = localStorage.getItem('current_session_id');
-      if (sessionId) {
-        endUserSession(sessionId);
-      }
+      endUserSession();
       
       // Stop health monitoring
       healthCheckService.onUserLogout();
