@@ -94,9 +94,13 @@ export class DatabaseBackup {
     }
     
     const { metadata, data } = backupData;
-    const totalRecords = Object.values(data).reduce((sum: number, tableData: any) => {
-      return sum + (Array.isArray(tableData) ? tableData.length : 0);
-    }, 0);
+    
+    let totalRecords = 0;
+    for (const tableData of Object.values(data)) {
+      if (Array.isArray(tableData)) {
+        totalRecords += tableData.length;
+      }
+    }
     
     return {
       totalTables: metadata.totalTables,
