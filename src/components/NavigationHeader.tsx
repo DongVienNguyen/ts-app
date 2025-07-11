@@ -40,6 +40,7 @@ export const NavigationHeader: React.FC = () => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
+  const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false); // New state for system menu
   const isMountedRef = useRef(false);
 
   // useEffect MUST be called unconditionally
@@ -208,12 +209,12 @@ export const NavigationHeader: React.FC = () => {
 
             {/* SYSTEM MENU DROPDOWN - FORCE SHOW FOR ADMIN */}
             {systemNavItems.length > 0 && (
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={setIsSystemMenuOpen}> {/* Added onOpenChange */}
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     className={`px-3 py-2 text-sm font-medium transition-colors ${
-                      isSystemMenuActive
+                      isSystemMenuActive || isSystemMenuOpen // Updated active state
                         ? 'bg-green-100 text-green-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`}
