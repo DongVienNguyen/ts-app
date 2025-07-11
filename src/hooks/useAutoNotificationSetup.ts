@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { subscribeUserToPush, requestNotificationPermission } from '@/utils/pushNotificationUtils';
 
@@ -6,6 +6,7 @@ export const useAutoNotificationSetup = () => {
   const { user } = useSecureAuth();
   const hasSetupNotifications = useRef(false);
   const setupInProgress = useRef(false);
+  const [showManualPrompt, setShowManualPrompt] = useState(false);
 
   useEffect(() => {
     // Chỉ setup 1 lần khi user login và chưa setup
@@ -38,6 +39,12 @@ export const useAutoNotificationSetup = () => {
           hasSetupNotifications.current = true;
           console.log('✅ Notifications setup completed silently');
         }
+      } else if (permission === 'default') {
+        // Chỉ hiện manual prompt nếu permission là default
+        const dismissed = localStorage.getItem('notification-permission-dismissed');
+        if (!dismissed) {
+          setShowManualPrompt(true);
+        }
       }
     } catch (error) {
       console.error('Error setting up notifications:', error);
@@ -47,6 +54,8 @@ export const useAutoNotificationSetup = () => {
   };
 
   return {
-    isSetup: hasSetupNotifications.current
+    isSetup: hasSetupNotifications.current,
+    showManualPrompt,
+    setShowManualPrompt
   };
 };

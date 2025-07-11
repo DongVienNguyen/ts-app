@@ -67,7 +67,7 @@ export class SystemHealthService {
           requestsPerMinute: apiHealth.requestsPerMinute
         },
         storage: {
-          status: cachedMetrics.storageUsed > 80 ? 'warning' : cachedMetrics.storageUsed > 90 ? 'error' : 'healthy',
+          status: cachedMetrics.storageUsed > 90 ? 'error' : cachedMetrics.storageUsed > 80 ? 'warning' : 'healthy',
           used: cachedMetrics.storageUsed,
           total: 100,
           percentage: cachedMetrics.storageUsed,
@@ -75,7 +75,7 @@ export class SystemHealthService {
           lastCheck: new Date().toISOString()
         },
         memory: {
-          status: cachedMetrics.memoryUsed > 80 ? 'warning' : cachedMetrics.memoryUsed > 90 ? 'error' : 'healthy',
+          status: cachedMetrics.memoryUsed > 90 ? 'error' : cachedMetrics.memoryUsed > 80 ? 'warning' : 'healthy',
           used: cachedMetrics.memoryUsed,
           total: 100,
           percentage: cachedMetrics.memoryUsed,
@@ -117,7 +117,12 @@ export class SystemHealthService {
   }
 
   // Kiểm tra database cơ bản - luôn cần thiết
-  private static async checkBasicDatabaseHealth() {
+  private static async checkBasicDatabaseHealth(): Promise<{
+    status: 'healthy' | 'warning' | 'error';
+    responseTime: number;
+    connections: number;
+    uptime: number;
+  }> {
     const start = Date.now();
     
     try {
@@ -136,7 +141,7 @@ export class SystemHealthService {
       const connections = Math.floor(Math.random() * 10) + 1;
       const uptime = 99.9 - Math.random() * 0.5;
 
-      const status = responseTime > 2000 ? 'error' : 
+      const status: 'healthy' | 'warning' | 'error' = responseTime > 2000 ? 'error' : 
                     responseTime > 1000 ? 'warning' : 'healthy';
 
       return {
@@ -147,7 +152,7 @@ export class SystemHealthService {
       };
     } catch (error) {
       return {
-        status: 'error' as const,
+        status: 'error',
         responseTime: Date.now() - start,
         connections: 0,
         uptime: 0
@@ -167,7 +172,7 @@ export class SystemHealthService {
       const uptime = 99.9 - Math.random() * 0.5;
       const requestsPerMinute = Math.floor(Math.random() * 100) + 50;
 
-      const status = responseTime > 2000 ? 'error' : 
+      const status: 'healthy' | 'warning' | 'error' = responseTime > 2000 ? 'error' : 
                     responseTime > 1000 ? 'warning' : 'healthy';
 
       return {
@@ -204,7 +209,7 @@ export class SystemHealthService {
       const failedLoginCount = Math.floor(Math.random() * 5);
       const lastSecurityScan = new Date().toISOString();
 
-      const status = activeThreats > 0 ? 'error' : 
+      const status: 'healthy' | 'warning' | 'error' = activeThreats > 0 ? 'error' : 
                     failedLoginCount > 10 ? 'warning' : 'healthy';
 
       return {

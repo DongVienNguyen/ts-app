@@ -10,6 +10,7 @@ class PerformanceMonitor {
   private readonly maxMetrics = 50; // Giảm từ 100 xuống 50
   private isEnabled = false;
   private lastCleanup = 0;
+  private timings: Map<string, number> = new Map();
 
   static getInstance(): PerformanceMonitor {
     if (!PerformanceMonitor.instance) {
@@ -25,6 +26,24 @@ class PerformanceMonitor {
 
   disable() {
     this.isEnabled = false;
+  }
+
+  // Start timing function
+  startTiming(name: string) {
+    if (!this.isEnabled) return;
+    this.timings.set(name, performance.now());
+  }
+
+  // End timing function
+  endTiming(name: string) {
+    if (!this.isEnabled) return;
+    
+    const startTime = this.timings.get(name);
+    if (startTime !== undefined) {
+      const duration = performance.now() - startTime;
+      this.addMetric(name, duration);
+      this.timings.delete(name);
+    }
   }
 
   // Chỉ track khi enabled
@@ -103,6 +122,7 @@ class PerformanceMonitor {
   // Clear all metrics
   clear() {
     this.metrics = [];
+    this.timings.clear();
   }
 }
 
@@ -137,37 +157,21 @@ export const clearPerformanceMetrics = () => {
   performanceMonitor.clear();
 };
 
-export const enablePerformanceMonitoring = () =><think>Deciding which files are relevant...
-
-[
-  "src/components/system-health/performance/types.ts",
-  "src/components/system-health/performance/PerformanceScoreCard.tsx",
-  "src/components/system-health/performance/PerformanceCharts.tsx",
-  "src/components/system-health/performance/ResourceUsageCharts.tsx",
-  "src/components/system-health/performance/UserActivityChart.tsx",
-  "src/components/system-health/performance/PerformanceAnalysis.tsx",
-  "src/components/system-health/performance/PerformanceHeader.tsx",
-  "src/components/system-health/performance/performanceDataService.ts",
-  "src/components/system-health/performance/usePerformanceAnalytics.ts",
-  "src/components/system-health/performance/index.ts",
-  "src/components/system-health/PerformanceAnalytics.tsx",
-  "src/components/system-health/index.ts",
-  "src/services/systemHealthAlertService.ts",
-  "src/components/system-health/SystemHealthDashboard.tsx",
-  "src/pages/Index.tsx",
-  "public/sw.js",
-  "index.html",
-  "src/utils/pushNotificationUtils.ts",
-  "src/components/system-health/useSystemHealth.ts",
-  "src/components/system-health/systemHealthService.ts",
-  "src/hooks/useAutoNotificationSetup.ts",
-  "src/utils/performanceMonitor.ts"
-]</think><dyad-codebase-context files="src/components/system-health/performance/types.ts,src/components/system-health/performance/PerformanceScoreCard.tsx,src/components/system-health/performance/PerformanceCharts.tsx,src/components/system-health/performance/ResourceUsageCharts.tsx,src/components/system-health/performance/UserActivityChart.tsx,src/components/system-health/performance/PerformanceAnalysis.tsx,src/components/system-health/performance/PerformanceHeader.tsx,src/components/system-health/performance/performanceDataService.ts,src/components/system-health/performance/usePerformanceAnalytics.ts,src/components/system-health/performance/index.ts,src/components/system-health/PerformanceAnalytics.tsx,src/components/system-health/index.ts,src/services/systemHealthAlertService.ts,src/components/system-health/SystemHealthDashboard.tsx,src/pages/Index.tsx,public/sw.js,index.html,src/utils/pushNotificationUtils.ts,src/components/system-health/useSystemHealth.ts,src/components/system-health/systemHealthService.ts,src/hooks/useAutoNotificationSetup.ts,src/utils/performanceMonitor.ts"></dyad-codebase-context>  {
+export const enablePerformanceMonitoring = () => {
   performanceMonitor.enable();
 };
 
 export const disablePerformanceMonitoring = () => {
   performanceMonitor.disable();
+};
+
+// Export timing functions
+export const startTiming = (name: string) => {
+  performanceMonitor.startTiming(name);
+};
+
+export const endTiming = (name: string) => {
+  performanceMonitor.endTiming(name);
 };
 
 // Lightweight decorator for critical functions only
