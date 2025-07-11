@@ -13,6 +13,7 @@ interface BackupStatus {
   autoBackupEnabled: boolean;
   error: string | null;
   estimatedTimeRemaining: number | null;
+  currentBackupType?: string;
 }
 
 interface BackupItem {
@@ -38,6 +39,7 @@ interface BackupRecord {
   id: string;
   timestamp: string;
   type: 'automatic' | 'manual';
+  backupType?: string;
   filename?: string;
   size?: number;
   duration: number;
@@ -69,7 +71,7 @@ export const useBackupOperations = () => {
     {
       id: 'database',
       name: 'Database Tables',
-      description: 'All database tables and data',
+      description: 'All database tables exported as CSV files',
       size: '0 MB',
       lastBackup: 'Never',
       status: 'pending',
@@ -217,14 +219,14 @@ export const useBackupOperations = () => {
     }));
   }, []);
 
-  const performBackup = useCallback(async (isAuto: boolean = false) => {
+  const performBackup = useCallback(async (isAuto: boolean = false, backupType: string = 'full') => {
     if (backupStatus.isRunning) {
       console.log('⚠️ Backup already running, skipping...');
       toast.warning('Backup đang chạy, vui lòng đợi...');
       return;
     }
 
-    console.log('🚀 Starting backup process...', { isAuto });
+    console.log('🚀 Starting backup process...', { isAuto, backupType });
     const startTime = Date.now();
     
     setBackupStatus(prev => ({ 
@@ -232,7 +234,8 @@ export const useBackupOperations = () => {
       isRunning: true, 
       progress: 0, 
       error: null,
-      estimatedTimeRemaining: 30000 // 30 seconds estimate
+      estimatedTimeRemaining: 30000, // 30 seconds estimate
+      currentBackupType: backupType
     }));
     
     // Update backup items to show running status
@@ -242,24 +245,32 @@ export const useBackupOperations = () => {
     })));
     
     try {
-      updateProgress(5, 'Khởi tạo backup...', 25000);
+      updateProgress(5, `Khởi tạo ${backupType} backup...`, 25000);
       
-      updateProgress(15, 'Đang backup database...', 20000);
-      
-      updateProgress(40, 'Đang backup configuration...', 15000);
-      
-      updateProgress(60, 'Đang backup functions metadata...', 10000);
-      
-      updateProgress(80, 'Đang tạo file ZIP...', 5000);
-      
-      // Use the backup service
-      const result = await backupService.createFullBackup({
-        compress: true,
-        includeSystemData: true
-      });
+      let result;
+      if (backupType === 'full') {
+        updateProgress(15, 'Đang backup database...', 20000);
+        updateProgress(40, 'Đang backup configuration...', 15000);
+        updateProgress(60, 'Đang backup functions metadata...', 10000);
+        updateProgress(80, 'Đang tạo file ZIP...', 5000);
+        
+        result = await backupService.createFullBackup({
+          compress: true,
+          includeSystemData: true
+        });
+      } else {
+        updateProgress(25, `Đang backup ${backupType}...`, 15000);
+        updateProgress(60, 'Đang xử lý dữ liệu...', 10000);
+        updateProgress(80, 'Đang tạo file ZIP...', 5000);
+        
+        result = await backupService.createSelectiveBackup(backupType, {
+          compress: true,
+          exportFormat: backupType === 'database' ? 'csv' : 'json'
+        });
+      }
 
       if (result.success) {
-        updateProgress(100, 'Backup hoàn tất thành công!', 0);
+        updateProgress(100, `${backupType} backup hoàn tất thành công!`, 0);
         
         // Update backup history
         const now = new Date().toISOString();
@@ -269,6 +280,7 @@ export const useBackupOperations = () => {
           id: crypto.randomUUID(),
           timestamp: now,
           type: isAuto ? 'automatic' : 'manual',
+          backupType: backupType,
           filename: result.filename,
           size: result.size,
           duration,
@@ -289,7 +301,8 @@ export const useBackupOperations = () => {
           ...prev,
           lastBackup: now,
           isRunning: false,
-          estimatedTimeRemaining: null
+          estimatedTimeRemaining: null,
+          currentBackupType: undefined
         }));
         
         setBackupHistory(newHistory);
@@ -304,9 +317,7 @@ export const useBackupOperations = () => {
         })));
         
         toast.success(
-          isAuto 
-            ? `Auto backup hoàn tất! (${(duration / 1000).toFixed(1)}s)` 
-            : `Manual backup hoàn tất! (${(duration / 1000).toFixed(1)}s)`
+          `${backupType} backup hoàn tất! (${(duration / 1000).toFixed(1)}s)`
         );
         console.log('✅ Backup completed successfully:', result);
       } else {
@@ -324,7 +335,8 @@ export const useBackupOperations = () => {
         progress: 0,
         currentStep: '',
         error: errorMessage,
-        estimatedTimeRemaining: null
+        estimatedTimeRemaining: null,
+        currentBackupType: undefined
       }));
       
       // Update backup items to show error
@@ -338,6 +350,7 @@ export const useBackupOperations = () => {
         id: crypto.randomUUID(),
         timestamp: new Date().toISOString(),
         type: isAuto ? 'automatic' : 'manual',
+        backupType: backupType,
         duration,
         success: false,
         error: errorMessage
@@ -348,7 +361,7 @@ export const useBackupOperations = () => {
       localStorage.setItem('backupHistory', JSON.stringify(newHistory));
       setBackupHistory(newHistory);
       
-      toast.error(`Backup thất bại: ${errorMessage} (${(duration / 1000).toFixed(1)}s)`);
+      toast.error(`${backupType} backup thất bại: ${errorMessage} (${(duration / 1000).toFixed(1)}s)`);
     }
   }, [backupStatus.isRunning, updateProgress]);
 
@@ -442,6 +455,7 @@ export const useBackupOperations = () => {
   console.log('🔍 useBackupOperations state:', {
     backupRunning: backupStatus.isRunning,
     backupProgress: backupStatus.progress,
+    backupType: backupStatus.currentBackupType,
     restoreRunning: restoreStatus.isRunning,
     restoreProgress: restoreStatus.progress,
     backupItemsCount: backupItems.length,

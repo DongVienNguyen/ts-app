@@ -28,9 +28,9 @@ const SystemBackup: React.FC = () => {
 
   const [selectedRestoreFile, setSelectedRestoreFile] = useState<File | null>(null);
 
-  const handlePerformBackup = () => {
-    console.log('🔄 SystemBackup: Starting backup process...');
-    performBackup(false);
+  const handlePerformBackup = (backupType: string = 'full') => {
+    console.log('🔄 SystemBackup: Starting backup process...', { backupType });
+    performBackup(false, backupType);
   };
 
   const handlePerformRestore = async (file: File) => {
@@ -52,8 +52,6 @@ const SystemBackup: React.FC = () => {
 
   const handleCancelBackup = () => {
     console.log('🛑 SystemBackup: Canceling backup...');
-    // Note: This would need to be implemented in the hook
-    // For now, just show a warning
     alert('Backup cancellation is not yet implemented. Please wait for completion.');
   };
 
@@ -70,7 +68,6 @@ const SystemBackup: React.FC = () => {
       <div className="space-y-6">
         <BackupHeader />
         
-        {/* Backup Progress Card - Shows when backup is running */}
         <BackupProgressCard
           isRunning={backupStatus.isRunning}
           progress={backupStatus.progress}
@@ -93,16 +90,13 @@ const SystemBackup: React.FC = () => {
           </TabsList>
           
           <TabsContent value="backup" className="space-y-6 mt-6">
-            {/* System Health Check */}
             <SystemHealthCard />
             
-            {/* Backup Status */}
             <BackupStatusCard
               backupStatus={backupStatus}
               onToggleAutoBackup={handleToggleAutoBackup}
             />
             
-            {/* Backup Actions */}
             <BackupActionsCard
               isRunning={backupStatus.isRunning}
               progress={backupStatus.progress}
@@ -111,17 +105,14 @@ const SystemBackup: React.FC = () => {
               onRefreshStatus={handleRefreshStatus}
             />
             
-            {/* Backup Components */}
             <BackupComponentsCard
               backupItems={backupItems || []}
             />
             
-            {/* Information */}
             <BackupInfoAlert />
           </TabsContent>
           
           <TabsContent value="restore" className="space-y-6 mt-6">
-            {/* Restore Progress (similar to backup progress) */}
             {restoreStatus.isRunning && (
               <BackupProgressCard
                 isRunning={restoreStatus.isRunning}
@@ -131,17 +122,14 @@ const SystemBackup: React.FC = () => {
               />
             )}
             
-            {/* Restore Preview */}
             <RestorePreviewCard
               selectedFile={selectedRestoreFile}
             />
             
-            {/* Restore Actions */}
             <RestoreActionsCard
               onRestore={handlePerformRestore}
             />
             
-            {/* Last Restore Info */}
             {restoreStatus.lastRestore && (
               <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-sm text-green-800">
@@ -157,13 +145,11 @@ const SystemBackup: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="history" className="space-y-6 mt-6">
-            {/* Backup History */}
             <BackupHistoryCard
               backupHistory={backupHistory || []}
               onRefresh={handleRefreshStatus}
             />
             
-            {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h3 className="font-medium text-blue-900 mb-2">Quick Backup</h3>
@@ -172,7 +158,7 @@ const SystemBackup: React.FC = () => {
                 </p>
                 <div className="flex gap-2">
                   <button
-                    onClick={handlePerformBackup}
+                    onClick={() => handlePerformBackup('full')}
                     disabled={backupStatus.isRunning}
                     className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
@@ -182,8 +168,15 @@ const SystemBackup: React.FC = () => {
                         Creating...
                       </>
                     ) : (
-                      'Create Backup'
+                      'Full Backup'
                     )}
+                  </button>
+                  <button
+                    onClick={() => handlePerformBackup('database')}
+                    disabled={backupStatus.isRunning}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Database CSV
                   </button>
                   <button
                     onClick={handleRefreshStatus}
