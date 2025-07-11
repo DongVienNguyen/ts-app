@@ -135,7 +135,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent side="right" align="start" className="w-56">
+                  <DropdownMenuContent side="top" align="start" className="w-56">
                     {systemItems.map((item) => {
                       const isActive = location.pathname.startsWith(item.href);
                       return (
