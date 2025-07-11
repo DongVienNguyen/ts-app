@@ -130,7 +130,7 @@ export const NavigationHeader: React.FC = () => {
     }
   };
 
-  // Main navigation items (không bao gồm system items)
+  // MAIN NAVIGATION ITEMS - KHÔNG BAO GỒM SYSTEM ITEMS
   const navigationItems = [
     {
       name: 'Trang chủ',
@@ -180,9 +180,10 @@ export const NavigationHeader: React.FC = () => {
       icon: Bell,
       show: true
     }
+    // KHÔNG THÊM SYSTEM ITEMS VÀO ĐÂY NỮA!
   ];
 
-  // System menu items (chỉ dành cho admin)
+  // SYSTEM MENU ITEMS - CHỈ HIỂN THỊ TRONG DROPDOWN
   const systemMenuItems = [
     {
       name: 'Quản lý DL',
@@ -227,7 +228,8 @@ export const NavigationHeader: React.FC = () => {
     userRole: user?.role,
     userDepartment: user?.department,
     isAdmin: isAdmin(user),
-    visibleSystemItemsCount: visibleSystemItems.length,
+    visibleMainItems: visibleItems.length,
+    visibleSystemItems: visibleSystemItems.length,
     systemItems: visibleSystemItems.map(item => ({ name: item.name, href: item.href })),
     isSystemMenuActive,
     currentPath: location.pathname
@@ -249,7 +251,7 @@ export const NavigationHeader: React.FC = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-1">
-            {/* Main navigation items */}
+            {/* MAIN NAVIGATION ITEMS - KHÔNG BAO GỒM SYSTEM */}
             {visibleItems.map((item) => {
               const isActive = location.pathname === item.href;
               return (
@@ -268,7 +270,7 @@ export const NavigationHeader: React.FC = () => {
               );
             })}
 
-            {/* System Menu Dropdown */}
+            {/* SYSTEM MENU DROPDOWN - CHỈ HIỂN THỊ NẾU CÓ SYSTEM ITEMS */}
             {visibleSystemItems.length > 0 && (
               <DropdownMenu open={isSystemMenuOpen} onOpenChange={setIsSystemMenuOpen}>
                 <DropdownMenuTrigger asChild>
@@ -286,17 +288,20 @@ export const NavigationHeader: React.FC = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  {visibleSystemItems.map((item) => (
-                    <DropdownMenuItem key={item.href} asChild>
-                      <Link
-                        to={item.href}
-                        className="flex items-center w-full"
-                        onClick={() => setIsSystemMenuOpen(false)}
-                      >
-                        <item.icon className="mr-2 h-4 w-4" />
-                        {item.name}
-                      </Link>
-                    </DropdownMenuItem>
+                  {visibleSystemItems.map((item, index) => (
+                    <React.Fragment key={item.href}>
+                      <DropdownMenuItem asChild>
+                        <Link
+                          to={item.href}
+                          className="flex items-center w-full cursor-pointer"
+                          onClick={() => setIsSystemMenuOpen(false)}
+                        >
+                          <item.icon className="mr-2 h-4 w-4" />
+                          {item.name}
+                        </Link>
+                      </DropdownMenuItem>
+                      {index < visibleSystemItems.length - 1 && <DropdownMenuSeparator />}
+                    </React.Fragment>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -370,7 +375,7 @@ export const NavigationHeader: React.FC = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200">
             <div className="px-2 pt-2 pb-3 space-y-1">
-              {/* Main navigation items */}
+              {/* MAIN NAVIGATION ITEMS */}
               {visibleItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
@@ -390,7 +395,7 @@ export const NavigationHeader: React.FC = () => {
                 );
               })}
 
-              {/* Mobile System Menu */}
+              {/* MOBILE SYSTEM MENU SECTION */}
               {visibleSystemItems.length > 0 && (
                 <>
                   <div className="px-3 py-2 text-sm font-medium text-gray-500 border-t border-gray-200 mt-2 pt-4">
