@@ -18,7 +18,6 @@ class PerformanceMonitor {
     return PerformanceMonitor.instance;
   }
 
-  // Start timing a performance metric
   start(name: string, metadata?: any): void {
     const metric: PerformanceMetric = {
       name,
@@ -30,7 +29,6 @@ class PerformanceMonitor {
     console.log(`⏱️ Performance: Started timing "${name}"`);
   }
 
-  // End timing a performance metric
   end(name: string): number | null {
     const metric = this.metrics.get(name);
     if (!metric) {
@@ -60,7 +58,6 @@ class PerformanceMonitor {
     return duration;
   }
 
-  // Get performance statistics
   getStats(): {
     totalMetrics: number;
     averageDuration: number;
@@ -100,19 +97,16 @@ class PerformanceMonitor {
     };
   }
 
-  // Clear all metrics
   clear(): void {
     this.metrics.clear();
     this.completedMetrics = [];
     console.log('🧹 Performance: All metrics cleared');
   }
 
-  // Get metrics by name pattern
   getMetricsByName(pattern: string): PerformanceMetric[] {
     return this.completedMetrics.filter(m => m.name.includes(pattern));
   }
 
-  // Log performance summary
   logSummary(): void {
     const stats = this.getStats();
     console.group('📊 Performance Summary');

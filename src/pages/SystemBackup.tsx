@@ -14,6 +14,7 @@ import BackupRetentionCard from '@/components/backup/BackupRetentionCard';
 import BackupVerificationCard from '@/components/backup/BackupVerificationCard';
 import BackupSettingsCard from '@/components/backup/BackupSettingsCard';
 import BackupPerformanceCard from '@/components/backup/BackupPerformanceCard';
+import BackupAnalyticsCard from '@/components/backup/BackupAnalyticsCard';
 import SystemHealthCard from '@/components/backup/SystemHealthCard';
 import RestoreActionsCard from '@/components/backup/RestoreActionsCard';
 import RestorePreviewCard from '@/components/backup/RestorePreviewCard';
@@ -136,7 +137,7 @@ const SystemBackup: React.FC = () => {
         />
         
         <Tabs defaultValue="backup" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="backup" disabled={backupStatus.isRunning}>
               Backup
             </TabsTrigger>
@@ -151,6 +152,9 @@ const SystemBackup: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="analytics">
               Analytics
+            </TabsTrigger>
+            <TabsTrigger value="monitoring">
+              Monitoring
             </TabsTrigger>
             <TabsTrigger value="settings">
               Settings
@@ -237,13 +241,22 @@ const SystemBackup: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6 mt-6">
+            <BackupAnalyticsCard
+              backupHistory={backupHistory || []}
+              onRefresh={handleRefreshStatus}
+            />
+          </TabsContent>
+
+          <TabsContent value="monitoring" className="space-y-6 mt-6">
+            <SystemHealthCard />
+            
             <BackupPerformanceCard
               backupHistory={backupHistory || []}
             />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h3 className="font-medium text-blue-900 mb-2">Performance Summary</h3>
+                <h3 className="font-medium text-blue-900 mb-2">System Performance</h3>
                 <div className="space-y-2 text-sm text-blue-700">
                   <div className="flex justify-between">
                     <span>Total Backups:</span>
@@ -297,7 +310,7 @@ const SystemBackup: React.FC = () => {
             
             <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
               <h3 className="font-medium text-gray-900 mb-2">Quick Actions</h3>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => handlePerformBackup('full')}
                   disabled={backupStatus.isRunning}
@@ -311,6 +324,20 @@ const SystemBackup: React.FC = () => {
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Test Database Backup
+                </button>
+                <button
+                  onClick={() => handlePerformBackup('config')}
+                  disabled={backupStatus.isRunning}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Test Config Backup
+                </button>
+                <button
+                  onClick={() => handlePerformBackup('security')}
+                  disabled={backupStatus.isRunning}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Test Security Backup
                 </button>
                 <button
                   onClick={handleRefreshStatus}
