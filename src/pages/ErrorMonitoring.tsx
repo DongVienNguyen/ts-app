@@ -1,4 +1,3 @@
-import React from 'react';
 import Layout from '@/components/Layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -12,7 +11,6 @@ const ErrorMonitoring = () => {
   const {
     errorStats,
     recentErrors,
-    systemMetrics,
     serviceHealth,
     isLoading,
     lastUpdated,
@@ -219,7 +217,7 @@ const ErrorMonitoring = () => {
                 <div className="mb-6">
                   <h4 className="text-md font-medium text-gray-700 mb-3">Top Error Types</h4>
                   <div className="space-y-2">
-                    {errorStats.topErrorTypes.map((errorType, index) => (
+                    {errorStats.topErrorTypes.map((errorType) => (
                       <div key={errorType.type} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <span className="text-sm font-medium text-gray-900">{errorType.type}</span>
                         <span className="text-sm text-gray-600">{errorType.count} errors</span>

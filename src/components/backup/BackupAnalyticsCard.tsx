@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { 
   BarChart, 
   Bar, 
@@ -384,7 +382,7 @@ const BackupAnalyticsCard: React.FC<BackupAnalyticsProps> = ({
                   fill="#8884d8"
                   dataKey="count"
                 >
-                  {chartData.typeDistribution.map((entry, index) => (
+                  {chartData.typeDistribution.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>

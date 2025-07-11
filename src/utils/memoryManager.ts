@@ -170,14 +170,7 @@ class MemoryManager {
   private clearExpiredCaches(): void {
     console.log('🗑️ Clearing expired cache entries...');
     
-    // The cache managers should handle their own cleanup
-    // But we can force a cleanup cycle
     try {
-      // Clear expired entries from all caches
-      const beforeData = dataCache.getStats();
-      const beforeUI = uiCache.getStats();
-      const beforeAPI = apiCache.getStats();
-
       // Force cleanup by accessing stats (triggers internal cleanup)
       dataCache.getStats();
       uiCache.getStats();
@@ -198,8 +191,6 @@ class MemoryManager {
       databaseCache.invalidateTable('system_metrics');
       databaseCache.invalidateTable('security_events');
       
-      // Keep critical data but clear old entries
-      // This would need to be implemented in the database cache
       console.log('✅ Database cache cleanup completed');
     } catch (error) {
       console.error('❌ Error during database cache cleanup:', error);
@@ -233,9 +224,6 @@ class MemoryManager {
       if ('WeakMap' in window) {
         // WeakMaps will be garbage collected automatically
       }
-
-      // Clear any event listeners that might be holding references
-      // This would need to be implemented based on your specific app
 
       console.log('✅ Large objects cleanup completed');
     } catch (error) {

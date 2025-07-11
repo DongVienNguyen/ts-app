@@ -1,4 +1,35 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supa<think>Deciding which files are relevant...
+
+[
+  "src/components/backup/BackupActionsCard.tsx",
+  "src/components/backup/BackupAnalyticsCard.tsx",
+  "src/components/backup/BackupHistoryCard.tsx",
+  "src/components/backup/BackupPerformanceCard.tsx",
+  "src/components/backup/BackupProgressCard.tsx",
+  "src/components/backup/BackupRetentionCard.tsx",
+  "src/components/backup/RestorePreviewCard.tsx",
+  "src/components/CreateTestAdminButton.tsx",
+  "src/components/OptimizedTable.tsx",
+  "src/components/RealTimeSecurityMonitor.tsx",
+  "src/components/system-health/AdvancedSystemHealthService.ts",
+  "src/components/system-health/performance/ResourceUsageCharts.tsx",
+  "src/components/system-health/PerformanceAnalytics.tsx",
+  "src/components/system-health/SystemHealthDashboard.tsx",
+  "src/components/system-health/SystemHealthNotifications.tsx",
+  "src/hooks/useBackupOperations/index.ts",
+  "src/hooks/useDataManagement.ts",
+  "src/hooks/useErrorMonitoringData.ts",
+  "src/hooks/useUsageData.ts",
+  "src/pages/DataManagement.tsx",
+  "src/pages/ErrorMonitoring.tsx",
+  "src/pages/Index.tsx",
+  "src/pages/SecurityMonitor.tsx",
+  "src/pages/UsageMonitoring.tsx",
+  "src/utils/databaseCache.ts",
+  "src/utils/memoryManager.ts",
+  "src/utils/performanceMonitor.ts",
+  "src/utils/pushNotificationUtils.ts"
+]</think><dyad-codebase-context files="src/components/backup/BackupActionsCard.tsx,src/components/backup/BackupAnalyticsCard.tsx,src/components/backup/BackupHistoryCard.tsx,src/components/backup/BackupPerformanceCard.tsx,src/components/backup/BackupProgressCard.tsx,src/components/backup/BackupRetentionCard.tsx,src/components/backup/RestorePreviewCard.tsx,src/components/CreateTestAdminButton.tsx,src/components/OptimizedTable.tsx,src/components/RealTimeSecurityMonitor.tsx,src/components/system-health/AdvancedSystemHealthService.ts,src/components/system-health/performance/ResourceUsageCharts.tsx,src/components/system-health/PerformanceAnalytics.tsx,src/components/system-health/SystemHealthDashboard.tsx,src/components/system-health/SystemHealthNotifications.tsx,src/hooks/useBackupOperations/index.ts,src/hooks/useDataManagement.ts,src/hooks/useErrorMonitoringData.ts,src/hooks/useUsageData.ts,src/pages/DataManagement.tsx,src/pages/ErrorMonitoring.tsx,src/pages/Index.tsx,src/pages/SecurityMonitor.tsx,src/pages/UsageMonitoring.tsx,src/utils/databaseCache.ts,src/utils/memoryManager.ts,src/utils/performanceMonitor.ts,src/utils/pushNotificationUtils.ts"></dyad-codebase-context> base/client';
 import { dataCache } from './cacheManager';
 
 interface QueryCacheConfig {
@@ -7,17 +38,9 @@ interface QueryCacheConfig {
   staleWhileRevalidate: boolean;
 }
 
-interface CachedQuery {
-  key: string;
-  query: () => Promise<any>;
-  config: QueryCacheConfig;
-}
-
 class DatabaseCache {
   private static instance: DatabaseCache;
-  private queryCache = new Map<string, any>();
   private pendingQueries = new Map<string, Promise<any>>();
-  private queryConfigs = new Map<string, QueryCacheConfig>();
 
   static getInstance(): DatabaseCache {
     if (!DatabaseCache.instance) {
@@ -28,7 +51,7 @@ class DatabaseCache {
 
   // Default cache configurations for different query types
   private getDefaultConfig(queryType: string): QueryCacheConfig {
-    const configs = {
+    const configs: Record<string, QueryCacheConfig> = {
       'staff': { ttl: 10 * 60 * 1000, maxSize: 50, staleWhileRevalidate: true }, // 10 minutes
       'asset_transactions': { ttl: 2 * 60 * 1000, maxSize: 100, staleWhileRevalidate: true }, // 2 minutes
       'notifications': { ttl: 30 * 1000, maxSize: 20, staleWhileRevalidate: true }, // 30 seconds
@@ -163,8 +186,7 @@ class DatabaseCache {
   getCacheStats() {
     return {
       ...dataCache.getStats(),
-      pendingQueries: this.pendingQueries.size,
-      configuredTables: this.queryConfigs.size
+      pendingQueries: this.pendingQueries.size
     };
   }
 

@@ -151,20 +151,32 @@ class PerformanceMonitor {
 
   // Get performance stats for compatibility
   getStats() {
-    const allMetrics = this.getAllMetrics();
+    const timingMetrics = this.metrics.filter(m => m.type === 'timing');
+    
+    if (timingMetrics.length === 0) {
+      return {
+        totalMetrics: this.metrics.length,
+        averageDuration: 0,
+        slowestMetric: null,
+        fastestMetric: null
+      };
+    }
+
+    const averageDuration = timingMetrics.reduce((sum, m) => sum + m.value, 0) / timingMetrics.length;
+    
+    const slowestMetric = timingMetrics.reduce((slowest, current) => 
+      current.value > slowest.value ? current : slowest
+    );
+    
+    const fastestMetric = timingMetrics.reduce((fastest, current) => 
+      current.value < fastest.value ? current : fastest
+    );
+
     return {
       totalMetrics: this.metrics.length,
-      averageDuration: this.metrics
-        .filter(m => m.type === 'timing')
-        .reduce((sum, m, _, arr) => sum + m.value / arr.length, 0),
-      slowestMetric: this.metrics
-        .filter(m => m.type === 'timing')
-        .reduce((slowest, current) => 
-          current.value > (slowest?.value || 0) ? current : slowest, null),
-      fastestMetric: this.metrics
-        .filter(m => m.type === 'timing')
-        .reduce((fastest, current) => 
-          current.value < (fastest?.value || Infinity) ? current : fastest, null)
+      averageDuration,
+      slowestMetric,
+      fastestMetric
     };
   }
 

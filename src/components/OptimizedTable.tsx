@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useCallback } from 'react';
 import { FixedSizeList as List } from 'react-window';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface OptimizedTableProps {
   data: any[];
@@ -96,7 +96,38 @@ const OptimizedTable: React.FC<OptimizedTableProps> = memo(({
             ))}
           </TableRow>
         </TableHeader>
-      </Table>
+      </Table<think>Deciding which files are relevant...
+
+[
+  "src/components/backup/BackupActionsCard.tsx",
+  "src/components/backup/BackupAnalyticsCard.tsx",
+  "src/components/backup/BackupHistoryCard.tsx",
+  "src/components/backup/BackupPerformanceCard.tsx",
+  "src/components/backup/BackupProgressCard.tsx",
+  "src/components/backup/BackupRetentionCard.tsx",
+  "src/components/backup/RestorePreviewCard.tsx",
+  "src/components/CreateTestAdminButton.tsx",
+  "src/components/OptimizedTable.tsx",
+  "src/components/RealTimeSecurityMonitor.tsx",
+  "src/components/system-health/AdvancedSystemHealthService.ts",
+  "src/components/system-health/performance/ResourceUsageCharts.tsx",
+  "src/components/system-health/PerformanceAnalytics.tsx",
+  "src/components/system-health/SystemHealthDashboard.tsx",
+  "src/components/system-health/SystemHealthNotifications.tsx",
+  "src/hooks/useBackupOperations/index.ts",
+  "src/hooks/useDataManagement.ts",
+  "src/hooks/useErrorMonitoringData.ts",
+  "src/hooks/useUsageData.ts",
+  "src/pages/DataManagement.tsx",
+  "src/pages/ErrorMonitoring.tsx",
+  "src/pages/Index.tsx",
+  "src/pages/SecurityMonitor.tsx",
+  "src/pages/UsageMonitoring.tsx",
+  "src/utils/databaseCache.ts",
+  "src/utils/memoryManager.ts",
+  "src/utils/performanceMonitor.ts",
+  "src/utils/pushNotificationUtils.ts"
+]</think><dyad-codebase-context files="src/components/backup/BackupActionsCard.tsx,src/components/backup/BackupAnalyticsCard.tsx,src/components/backup/BackupHistoryCard.tsx,src/components/backup/BackupPerformanceCard.tsx,src/components/backup/BackupProgressCard.tsx,src/components/backup/BackupRetentionCard.tsx,src/components/backup/RestorePreviewCard.tsx,src/components/CreateTestAdminButton.tsx,src/components/OptimizedTable.tsx,src/components/RealTimeSecurityMonitor.tsx,src/components/system-health/AdvancedSystemHealthService.ts,src/components/system-health/performance/ResourceUsageCharts.tsx,src/components/system-health/PerformanceAnalytics.tsx,src/components/system-health/SystemHealthDashboard.tsx,src/components/system-health/SystemHealthNotifications.tsx,src/hooks/useBackupOperations/index.ts,src/hooks/useDataManagement.ts,src/hooks/useErrorMonitoringData.ts,src/hooks/useUsageData.ts,src/pages/DataManagement.tsx,src/pages/ErrorMonitoring.tsx,src/pages/Index.tsx,src/pages/SecurityMonitor.tsx,src/pages/UsageMonitoring.tsx,src/utils/databaseCache.ts,src/utils/memoryManager.ts,src/utils/performanceMonitor.ts,src/utils/pushNotificationUtils.ts"></dyad-codebase-context>>
       
       <List
         height={height}

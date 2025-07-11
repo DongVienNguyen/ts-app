@@ -22,8 +22,8 @@ const BackupProgressCard: React.FC<BackupProgressCardProps> = ({
   onCancel,
   onPause
 }) => {
-  const formatTime = (ms: number | null) => {
-    if (!ms) return 'Calculating...';
+  const formatTime = (ms: number | null | undefined) => {
+    if (!ms || ms <= 0) return 'Calculating...';
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
     

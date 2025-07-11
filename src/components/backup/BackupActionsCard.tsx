@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Download, RefreshCw, Play, Pause, Settings, Database, FileText, Code, Shield } from 'lucide-react';
+import { RefreshCw, Play, Pause, Settings, Database, FileText, Code, Shield } from 'lucide-react';
 
 interface BackupActionsCardProps {
   isRunning: boolean;
