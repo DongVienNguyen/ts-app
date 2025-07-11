@@ -24,19 +24,24 @@ const SystemBackup: React.FC = () => {
   const [selectedRestoreFile, setSelectedRestoreFile] = useState<File | null>(null);
 
   const handlePerformBackup = () => {
-    console.log('🔄 Starting backup process...');
+    console.log('🔄 SystemBackup: Starting backup process...');
     performBackup(false);
   };
 
   const handlePerformRestore = async (file: File) => {
-    console.log('🔄 Starting restore process with file:', file.name);
+    console.log('🔄 SystemBackup: Starting restore process with file:', file.name);
     setSelectedRestoreFile(file);
     await performRestore(file);
   };
 
   const handleRefreshStatus = () => {
-    console.log('🔄 Refreshing backup status...');
+    console.log('🔄 SystemBackup: Refreshing backup status...');
     loadBackupHistory();
+  };
+
+  const handleToggleAutoBackup = (enabled: boolean) => {
+    console.log('🔄 SystemBackup: Toggling auto backup:', enabled);
+    toggleAutoBackup(enabled);
   };
 
   console.log('🔍 SystemBackup DEBUG:', {
@@ -48,7 +53,7 @@ const SystemBackup: React.FC = () => {
 
   return (
     <Layout>
-      <div className="container-mobile py-responsive space-responsive-y">
+      <div className="space-y-6">
         <BackupHeader />
         
         <Tabs defaultValue="backup" className="w-full">
@@ -60,11 +65,13 @@ const SystemBackup: React.FC = () => {
           <TabsContent value="backup" className="space-y-6 mt-6">
             <BackupStatusCard
               backupStatus={backupStatus}
-              onToggleAutoBackup={toggleAutoBackup}
+              onToggleAutoBackup={handleToggleAutoBackup}
             />
             
             <BackupActionsCard
               isRunning={backupStatus.isRunning}
+              progress={backupStatus.progress}
+              currentStep={backupStatus.currentStep}
               onPerformBackup={handlePerformBackup}
               onRefreshStatus={handleRefreshStatus}
             />
@@ -88,7 +95,7 @@ const SystemBackup: React.FC = () => {
             {restoreStatus.lastRestore && (
               <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-sm text-green-800">
-                  <strong>Restore cuối cùng:</strong> {new Date(restoreStatus.lastRestore).toLocaleString('vi-VN')}
+                  <strong>Last Restore:</strong> {new Date(restoreStatus.lastRestore).toLocaleString('vi-VN')}
                 </p>
               </div>
             )}

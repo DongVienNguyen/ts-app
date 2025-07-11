@@ -40,20 +40,27 @@ export class BackupService {
   // Backup single table
   private async backupTable(tableName: string): Promise<any[]> {
     try {
+      console.log(`📊 Backing up table: ${tableName}`);
       const { data, error } = await supabase
         .from(tableName)
         .select('*');
       
-      if (error) throw error;
+      if (error) {
+        console.warn(`⚠️ Failed to backup table ${tableName}:`, error);
+        throw error;
+      }
+      
+      console.log(`✅ Table ${tableName} backed up: ${data?.length || 0} records`);
       return data || [];
     } catch (error) {
-      console.warn(`Failed to backup table ${tableName}:`, error);
+      console.warn(`❌ Failed to backup table ${tableName}:`, error);
       return [];
     }
   }
 
   // Create full database backup
   async createDatabaseBackup(options: BackupOptions = {}): Promise<any> {
+    console.log('🗄️ Creating database backup...');
     const tables = options.includeTables || await this.getAllTables();
     const excludeTables = options.excludeTables || [];
     
@@ -61,22 +68,30 @@ export class BackupService {
       metadata: {
         timestamp: new Date().toISOString(),
         version: '1.0.0',
-        tables: tables.filter(t => !excludeTables.includes(t))
+        tables: tables.filter(t => !excludeTables.includes(t)),
+        totalTables: tables.filter(t => !excludeTables.includes(t)).length
       },
       data: {}
     };
 
+    let totalRecords = 0;
     for (const table of tables) {
       if (!excludeTables.includes(table)) {
-        backupData.data[table] = await this.backupTable(table);
+        const tableData = await this.backupTable(table);
+        backupData.data[table] = tableData;
+        totalRecords += tableData.length;
       }
     }
 
+    backupData.metadata.totalRecords = totalRecords;
+    console.log(`✅ Database backup completed: ${totalRecords} total records from ${backupData.metadata.totalTables} tables`);
+    
     return backupData;
   }
 
   // Create system configuration backup
   async createConfigBackup(): Promise<any> {
+    console.log('⚙️ Creating configuration backup...');
     return {
       timestamp: new Date().toISOString(),
       supabase: {
@@ -89,31 +104,40 @@ export class BackupService {
         pushNotifications: true,
         errorTracking: true,
         usageTracking: true,
-        securityMonitoring: true
+        securityMonitoring: true,
+        backupRestore: true
       },
       settings: {
         theme: 'light',
         responsive: true,
-        autoBackup: localStorage.getItem('autoBackupEnabled') === 'true'
-      }
+        autoBackup: localStorage.getItem('autoBackupEnabled') === 'true',
+        language: 'vi-VN'
+      },
+      version: '1.0.0'
     };
   }
 
   // Create complete system backup
   async createFullBackup(options: BackupOptions = {}): Promise<BackupResult> {
+    const startTime = Date.now();
+    console.log('🚀 Starting full system backup...');
+    
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const zip = new JSZip();
 
       // Database backup
+      console.log('📊 Creating database backup...');
       const databaseBackup = await this.createDatabaseBackup(options);
       zip.file('database/backup.json', JSON.stringify(databaseBackup, null, 2));
 
       // Configuration backup
+      console.log('⚙️ Creating configuration backup...');
       const configBackup = await this.createConfigBackup();
       zip.file('config/settings.json', JSON.stringify(configBackup, null, 2));
 
       // Edge functions metadata
+      console.log('🔧 Creating functions backup...');
       const functionsBackup = {
         functions: [
           'send-notification-email',
@@ -125,7 +149,8 @@ export class BackupService {
           'reset-password',
           'analyze-asset-image'
         ],
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        count: 8
       };
       zip.file('functions/metadata.json', JSON.stringify(functionsBackup, null, 2));
 
@@ -134,11 +159,17 @@ export class BackupService {
         timestamp: new Date().toISOString(),
         type: 'full_system_backup',
         version: '1.0.0',
-        description: 'Complete system backup including database, configuration, and metadata'
+        description: 'Complete system backup including database, configuration, and metadata',
+        stats: {
+          totalTables: databaseBackup.metadata.totalTables,
+          totalRecords: databaseBackup.metadata.totalRecords,
+          backupDuration: Date.now() - startTime
+        }
       };
       zip.file('backup-info.json', JSON.stringify(metadata, null, 2));
 
       // Generate zip file
+      console.log('📦 Generating ZIP file...');
       const content = await zip.generateAsync({ 
         type: 'blob',
         compression: options.compress !== false ? 'DEFLATE' : 'STORE',
@@ -148,6 +179,7 @@ export class BackupService {
       const filename = `system-backup-${timestamp}.zip`;
       
       // Create download
+      console.log('💾 Initiating download...');
       const url = URL.createObjectURL(content);
       const a = document.createElement('a');
       a.href = url;
@@ -157,6 +189,10 @@ export class BackupService {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
+      const duration = Date.now() - startTime;
+      console.log(`✅ Full backup completed successfully in ${duration}ms`);
+      console.log(`📁 File: ${filename} (${(content.size / 1024 / 1024).toFixed(2)} MB)`);
+
       return {
         success: true,
         filename,
@@ -165,6 +201,9 @@ export class BackupService {
       };
 
     } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`❌ Backup failed after ${duration}ms:`, error);
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -175,6 +214,8 @@ export class BackupService {
 
   // Schedule automatic backup
   setupAutoBackup(): void {
+    console.log('⏰ Setting up auto backup scheduler...');
+    
     const checkAndBackup = async () => {
       const autoEnabled = localStorage.getItem('autoBackupEnabled') === 'true';
       if (!autoEnabled) return;
@@ -205,11 +246,14 @@ export class BackupService {
     
     // Initial check after 5 minutes
     setTimeout(checkAndBackup, 5 * 60 * 1000);
+    
+    console.log('✅ Auto backup scheduler initialized');
   }
 
   // Get backup statistics
   async getBackupStats(): Promise<any> {
     try {
+      console.log('📊 Getting backup statistics...');
       const tables = await this.getAllTables();
       const stats: any = {
         totalTables: tables.length,
@@ -234,9 +278,10 @@ export class BackupService {
         }
       }
 
+      console.log('✅ Backup statistics calculated:', stats);
       return stats;
     } catch (error) {
-      console.error('Error getting backup stats:', error);
+      console.error('❌ Error getting backup stats:', error);
       return {
         totalTables: 0,
         tableStats: {},
