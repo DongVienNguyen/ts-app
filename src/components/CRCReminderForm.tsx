@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -6,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import DateInput from '@/components/DateInput';
 import ComboBox from '@/components/ComboBox';
+import { DialogDescription } from '@/components/ui/dialog'; // Import DialogDescription
 
 interface CRCReminderFormProps {
   editingReminder: any;
@@ -52,6 +52,9 @@ const CRCReminderForm: React.FC<CRCReminderFormProps> = ({
         <DialogTitle>
           {editingReminder ? 'Chỉnh sửa nhắc nhở CRC' : 'Thêm nhắc nhở CRC mới'}
         </DialogTitle>
+        <DialogDescription>
+          Điền thông tin chi tiết cho nhắc nhở CRC. Nhấn lưu khi hoàn tất.
+        </DialogDescription>
       </DialogHeader>
       
       <form onSubmit={onSubmit} className="space-y-4">
