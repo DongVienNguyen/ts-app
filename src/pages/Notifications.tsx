@@ -74,15 +74,17 @@ export default function Notifications() {
           </div>
         )}
 
-        <ReplyDialog
-          notification={selectedNotification}
-          isOpen={isReplyDialogOpen}
-          onClose={() => setIsReplyDialogOpen(false)}
-          onSendReply={handleSendReply}
-          onQuickAction={handleQuickAction}
-          isReplying={isReplying}
-          isQuickActioning={isQuickActioning}
-        />
+        {selectedNotification && ( // Thêm điều kiện này để chỉ render khi có thông báo được chọn
+          <ReplyDialog
+            notification={selectedNotification}
+            isOpen={isReplyDialogOpen}
+            onClose={() => setIsReplyDialogOpen(false)}
+            onSendReply={handleSendReply}
+            onQuickAction={handleQuickAction}
+            isReplying={isReplying}
+            isQuickActioning={isQuickActioning}
+          />
+        )}
       </div>
     </Layout>
   );
