@@ -1,142 +1,162 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Eye, Database, Settings, Calendar, FileText } from 'lucide-react';
+import { FileText, Database, Calendar, Package } from 'lucide-react';
 import { restoreService } from '@/services/restoreService';
-import { toast } from 'sonner';
 
 interface RestorePreviewCardProps {
   selectedFile: File | null;
 }
 
-interface PreviewData {
-  metadata: any;
-  tables: Array<{ name: string; recordCount: number }>;
-  hasConfiguration: boolean;
-  totalRecords: number;
-}
+const RestorePreviewCard: React.FC<RestorePreviewCardProps> = ({
+  selectedFile
+}) => {
+  const [preview, setPreview] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-const RestorePreviewCard: React.FC<RestorePreviewCardProps> = ({ selectedFile }) => {
-  const [preview, setPreview] = useState<PreviewData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handlePreview = async () => {
-    if (!selectedFile) {
-      toast.error('Vui lòng chọn file backup trước');
-      return;
+  useEffect(() => {
+    if (selectedFile) {
+      loadPreview();
+    } else {
+      setPreview(null);
+      setError(null);
     }
+  }, [selectedFile]);
 
-    setIsLoading(true);
+  const loadPreview = async () => {
+    if (!selectedFile) return;
+
+    setLoading(true);
+    setError(null);
+
     try {
       const previewData = await restoreService.getRestorePreview(selectedFile);
       setPreview(previewData);
-    } catch (error) {
-      toast.error('Không thể xem trước backup: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load preview');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('vi-VN');
-  };
+  if (!selectedFile) {
+    return (
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Restore Preview
+          </CardTitle>
+          <CardDescription>
+            Select a backup file to preview its contents
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-gray-500">
+            No backup file selected
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Eye className="h-5 w-5" />
-          Xem trước Backup
+          <FileText className="h-5 w-5" />
+          Restore Preview
         </CardTitle>
         <CardDescription>
-          Xem thông tin chi tiết về file backup trước khi restore
+          Preview of backup file: {selectedFile.name}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <Button
-          onClick={handlePreview}
-          disabled={!selectedFile || isLoading}
-          variant="outline"
-          className="w-full"
-        >
-          <Eye className="mr-2 h-4 w-4" />
-          {isLoading ? 'Đang tải...' : 'Xem trước Backup'}
-        </Button>
+      <CardContent>
+        {loading && (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading preview...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="text-center py-8">
+            <p className="text-red-600">Error: {error}</p>
+          </div>
+        )}
 
         {preview && (
-          <div className="space-y-4 border rounded-lg p-4 bg-gray-50">
-            {/* Metadata */}
-            <div className="space-y-2">
-              <h4 className="font-medium flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Thông tin Backup
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Ngày tạo:</span>
-                  <p className="font-medium">{formatDate(preview.metadata.timestamp)}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600">Loại:</span>
-                  <p className="font-medium capitalize">{preview.metadata.type || 'manual'}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600">Phiên bản:</span>
-                  <p className="font-medium">{preview.metadata.version || '1.0.0'}</p>
-                </div>
-                <div>
-                  <span className="text-gray-600">Tổng bản ghi:</span>
-                  <p className="font-medium">{preview.totalRecords.toLocaleString()}</p>
-                </div>
+          <div className="space-y-6">
+            {/* File Info */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <Package className="h-8 w-8 mx-auto mb-2 text-blue-600" />
+                <div className="text-lg font-semibold">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</div>
+                <div className="text-sm text-gray-600">File Size</div>
+              </div>
+              
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <Database className="h-8 w-8 mx-auto mb-2 text-green-600" />
+                <div className="text-lg font-semibold">{preview.tables?.length || 0}</div>
+                <div className="text-sm text-gray-600">Tables</div>
+              </div>
+              
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <FileText className="h-8 w-8 mx-auto mb-2 text-purple-600" />
+                <div className="text-lg font-semibold">{preview.totalRecords || 0}</div>
+                <div className="text-sm text-gray-600">Total Records</div>
               </div>
             </div>
 
-            <Separator />
-
-            {/* Tables */}
-            <div className="space-y-2">
-              <h4 className="font-medium flex items-center gap-2">
-                <Database className="h-4 w-4" />
-                Bảng dữ liệu ({preview.tables.length})
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {preview.tables.map((table) => (
-                  <div key={table.name} className="flex items-center justify-between p-2 bg-white rounded border">
-                    <span className="text-sm font-medium">{table.name}</span>
-                    <Badge variant="secondary" className="text-xs">
-                      {table.recordCount} records
-                    </Badge>
+            {/* Backup Metadata */}
+            {preview.metadata && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-gray-900">Backup Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Created:</span>
+                    <span className="ml-2 font-medium">
+                      {new Date(preview.metadata.timestamp).toLocaleString('vi-VN')}
+                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Configuration */}
-            <div className="space-y-2">
-              <h4 className="font-medium flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Cấu hình
-              </h4>
-              <div className="flex items-center gap-2">
-                <Badge variant={preview.hasConfiguration ? "default" : "secondary"}>
-                  {preview.hasConfiguration ? 'Có cấu hình' : 'Không có cấu hình'}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Description */}
-            {preview.metadata.description && (
-              <>
-                <Separator />
-                <div className="space-y-2">
-                  <h4 className="font-medium">Mô tả</h4>
-                  <p className="text-sm text-gray-600">{preview.metadata.description}</p>
+                  <div>
+                    <span className="text-gray-600">Type:</span>
+                    <span className="ml-2">
+                      <Badge variant="outline">{preview.metadata.type || 'manual'}</Badge>
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Version:</span>
+                    <span className="ml-2 font-medium">{preview.metadata.version || '1.0.0'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Configuration:</span>
+                    <span className="ml-2">
+                      <Badge variant={preview.hasConfiguration ? "default" : "secondary"}>
+                        {preview.hasConfiguration ? 'Included' : 'Not included'}
+                      </Badge>
+                    </span>
+                  </div>
                 </div>
-              </>
+              </div>
+            )}
+
+            {/* Tables Preview */}
+            {preview.tables && preview.tables.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-gray-900">Database Tables ({preview.tables.length})</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                  {preview.tables.map((table: any) => (
+                    <div key={table.name} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <span className="text-sm font-medium">{table.name}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {table.recordCount} records
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}

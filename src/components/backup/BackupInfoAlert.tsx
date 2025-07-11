@@ -1,15 +1,19 @@
 import React from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { Info } from 'lucide-react';
 
 const BackupInfoAlert: React.FC = () => {
   return (
-    <Alert className="mt-6">
-      <AlertCircle className="h-4 w-4" />
+    <Alert>
+      <Info className="h-4 w-4" />
       <AlertDescription>
-        <strong>Important:</strong> Backups include all database data, configuration settings, and system metadata. 
-        For complete restoration, you'll also need to backup your source code repository and environment variables separately.
-        Auto backups run daily at 2:00 AM when enabled.
+        <strong>Backup Information:</strong>
+        <ul className="mt-2 space-y-1 text-sm">
+          <li>• Full system backup includes database, configuration, and metadata</li>
+          <li>• Auto backup runs daily at 2:00 AM when enabled</li>
+          <li>• Backup files are downloaded as ZIP archives</li>
+          <li>• Keep backup files in a safe location for disaster recovery</li>
+        </ul>
       </AlertDescription>
     </Alert>
   );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Code, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Database, Code, Settings, FileText } from 'lucide-react';
 
 interface BackupItem {
   id: string;
@@ -19,21 +19,36 @@ interface BackupComponentsCardProps {
 const BackupComponentsCard: React.FC<BackupComponentsCardProps> = ({
   backupItems
 }) => {
-  const getStatusIcon = (status: BackupItem['status']) => {
+  const getIcon = (id: string) => {
+    switch (id) {
+      case 'database':
+        return <Database className="h-5 w-5" />;
+      case 'functions':
+        return <Code className="h-5 w-5" />;
+      case 'source':
+        return <FileText className="h-5 w-5" />;
+      case 'config':
+        return <Settings className="h-5 w-5" />;
+      default:
+        return <FileText className="h-5 w-5" />;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <Badge variant="default" className="bg-green-100 text-green-800">Success</Badge>;
       case 'error':
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
+        return <Badge variant="destructive">Error</Badge>;
       case 'pending':
-        return <Clock className="h-5 w-5 text-gray-400" />;
+        return <Badge variant="secondary">Pending</Badge>;
       default:
-        return <Clock className="h-5 w-5 text-gray-400" />;
+        return <Badge variant="secondary">Unknown</Badge>;
     }
   };
 
   return (
-    <Card>
+    <Card className="mb-6">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Code className="h-5 w-5" />
@@ -45,24 +60,30 @@ const BackupComponentsCard: React.FC<BackupComponentsCardProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {backupItems.map((item, index) => (
-            <div key={item.id}>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(item.status)}
-                  </div>
-                  <div>
-                    <h4 className="font-medium">{item.name}</h4>
-                    <p className="text-sm text-gray-600">{item.description}</p>
-                  </div>
+          {backupItems.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="text-gray-600">
+                  {getIcon(item.id)}
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium">{item.size}</p>
-                  <p className="text-xs text-gray-500">{item.lastBackup}</p>
+                <div>
+                  <div className="font-medium text-gray-900">{item.name}</div>
+                  <div className="text-sm text-gray-500">{item.description}</div>
                 </div>
               </div>
-              {index < backupItems.length - 1 && <Separator className="my-2" />}
+              
+              <div className="flex items-center space-x-4">
+                <div className="text-right">
+                  <div className="text-sm font-medium text-gray-900">{item.size}</div>
+                  <div className="text-xs text-gray-500">
+                    Last: {item.lastBackup === 'Never' ? 'Never' : new Date(item.lastBackup).toLocaleDateString('vi-VN')}
+                  </div>
+                </div>
+                {getStatusBadge(item.status)}
+              </div>
             </div>
           ))}
         </div>

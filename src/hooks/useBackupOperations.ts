@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
 import { restoreService, RestoreResult } from '@/services/restoreService';
+import { backupService } from '@/services/backupService';
 
 interface BackupStatus {
   isRunning: boolean;
@@ -56,7 +57,7 @@ export const useBackupOperations = () => {
     {
       id: 'functions',
       name: 'Edge Functions',
-      description: 'Supabase Edge Functions code',
+      description: 'Supabase Edge Functions metadata',
       size: '0 MB',
       lastBackup: 'Never',
       status: 'pending'
@@ -64,7 +65,7 @@ export const useBackupOperations = () => {
     {
       id: 'source',
       name: 'Source Code',
-      description: 'Frontend application source',
+      description: 'Frontend application structure',
       size: '0 MB',
       lastBackup: 'Never',
       status: 'pending'
@@ -80,12 +81,14 @@ export const useBackupOperations = () => {
   ]);
 
   useEffect(() => {
+    console.log('🔄 Initializing backup operations...');
     loadBackupHistory();
     checkAutoBackupStatus();
   }, []);
 
   const loadBackupHistory = async () => {
     try {
+      console.log('📊 Loading backup history...');
       const lastBackup = localStorage.getItem('lastBackupTime');
       const lastRestore = localStorage.getItem('lastRestoreTime');
       const autoEnabled = localStorage.getItem('autoBackupEnabled') === 'true';
@@ -100,8 +103,19 @@ export const useBackupOperations = () => {
         ...prev,
         lastRestore
       }));
+
+      // Update backup items with last backup time
+      if (lastBackup) {
+        setBackupItems(prev => prev.map(item => ({
+          ...item,
+          lastBackup: new Date(lastBackup).toLocaleDateString('vi-VN'),
+          status: 'success' as const
+        })));
+      }
+
+      console.log('✅ Backup history loaded:', { lastBackup, lastRestore, autoEnabled });
     } catch (error) {
-      console.error('Error loading backup history:', error);
+      console.error('❌ Error loading backup history:', error);
     }
   };
 
@@ -112,12 +126,14 @@ export const useBackupOperations = () => {
     
     if (!lastAutoBackup || new Date(lastAutoBackup) < yesterday) {
       if (backupStatus.autoBackupEnabled) {
+        console.log('⏰ Auto backup is due, scheduling...');
         setTimeout(() => performBackup(true), 5000);
       }
     }
   };
 
   const updateProgress = (progress: number, step: string) => {
+    console.log(`📈 Backup progress: ${progress}% - ${step}`);
     setBackupStatus(prev => ({
       ...prev,
       progress,
@@ -126,6 +142,7 @@ export const useBackupOperations = () => {
   };
 
   const updateRestoreProgress = (progress: number, step: string) => {
+    console.log(`📈 Restore progress: ${progress}% - ${step}`);
     setRestoreStatus(prev => ({
       ...prev,
       progress,
@@ -133,202 +150,83 @@ export const useBackupOperations = () => {
     }));
   };
 
-  const backupDatabase = async (): Promise<any> => {
-    updateProgress(10, 'Backing up database tables...');
-    
-    const tables = [
-      'staff', 'asset_transactions', 'asset_reminders', 'sent_asset_reminders',
-      'crc_reminders', 'sent_crc_reminders', 'other_assets', 'notifications',
-      'cbqln', 'cbkh', 'ldpcrc', 'cbcrc', 'quycrc', 'push_subscriptions',
-      'system_errors', 'system_metrics', 'system_status', 'user_sessions',
-      'security_events', 'asset_history_archive'
-    ];
-
-    const backupData: any = {};
-    
-    for (let i = 0; i < tables.length; i++) {
-      const table = tables[i];
-      updateProgress(10 + (i / tables.length) * 30, `Backing up ${table}...`);
-      
-      try {
-        const { data, error } = await supabase
-          .from(table)
-          .select('*');
-        
-        if (error) throw error;
-        backupData[table] = data;
-      } catch (error) {
-        console.warn(`Failed to backup table ${table}:`, error);
-        backupData[table] = [];
-      }
+  const performBackup = async (isAuto: boolean = false) => {
+    if (backupStatus.isRunning) {
+      console.log('⚠️ Backup already running, skipping...');
+      toast.warning('Backup đang chạy, vui lòng đợi...');
+      return;
     }
 
-    return backupData;
-  };
-
-  const backupEdgeFunctions = async (): Promise<any> => {
-    updateProgress(45, 'Backing up Edge Functions...');
-    
-    const functions = [
-      'send-notification-email',
-      'login-user',
-      'create-admin-user',
-      'test-resend-api',
-      'send-push-notification',
-      'check-account-status',
-      'reset-password',
-      'analyze-asset-image'
-    ];
-
-    return {
-      functions: functions,
-      timestamp: new Date().toISOString(),
-      note: 'Edge function names and metadata. Source code should be backed up separately.'
-    };
-  };
-
-  const backupSourceCode = async (): Promise<any> => {
-    updateProgress(60, 'Backing up source code structure...');
-    
-    return {
-      timestamp: new Date().toISOString(),
-      structure: {
-        components: [
-          'AssetEntryForm', 'LoginForm', 'NavigationHeader', 'NotificationBell',
-          'SecurityDashboard', 'ErrorMonitoringDashboard', 'UsageMonitoringDashboard'
-        ],
-        pages: [
-          'Index', 'Login', 'AssetEntry', 'AssetReminders', 'CRCReminders',
-          'DataManagement', 'BorrowReport', 'DailyReport', 'OtherAssets',
-          'Notifications', 'SecurityMonitor', 'ErrorMonitoring', 'UsageMonitoring'
-        ],
-        services: [
-          'emailService', 'notificationService', 'secureAuthService',
-          'assetService', 'healthCheckService'
-        ],
-        utils: [
-          'secureAuthUtils', 'realTimeSecurityUtils', 'errorTracking',
-          'usageTracking', 'supabaseAuth'
-        ]
-      },
-      dependencies: {
-        react: '^18.2.0',
-        supabase: '^2.39.3',
-        tailwindcss: '^3.4.1'
-      }
-    };
-  };
-
-  const backupConfiguration = async (): Promise<any> => {
-    updateProgress(80, 'Backing up configuration...');
-    
-    return {
-      timestamp: new Date().toISOString(),
-      supabase: {
-        url: 'https://itoapoyrxxmtbbuolfhk.supabase.co',
-        note: 'API keys should be configured separately'
-      },
-      features: {
-        authentication: true,
-        notifications: true,
-        pushNotifications: true,
-        errorTracking: true,
-        usageTracking: true,
-        securityMonitoring: true
-      },
-      settings: {
-        autoBackup: backupStatus.autoBackupEnabled,
-        theme: 'light',
-        responsive: true
-      }
-    };
-  };
-
-  const performBackup = async (isAuto: boolean = false) => {
-    if (backupStatus.isRunning) return;
-
+    console.log('🚀 Starting backup process...', { isAuto });
     setBackupStatus(prev => ({ ...prev, isRunning: true, progress: 0 }));
     
     try {
-      updateProgress(5, 'Initializing backup...');
+      updateProgress(5, 'Khởi tạo backup...');
       
-      const zip = new JSZip();
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      
-      // Backup database
-      const databaseData = await backupDatabase();
-      zip.file('database/backup.json', JSON.stringify(databaseData, null, 2));
-      
-      // Backup edge functions
-      const functionsData = await backupEdgeFunctions();
-      zip.file('functions/functions.json', JSON.stringify(functionsData, null, 2));
-      
-      // Backup source code manifest
-      const sourceData = await backupSourceCode();
-      zip.file('source/manifest.json', JSON.stringify(sourceData, null, 2));
-      
-      // Backup configuration
-      const configData = await backupConfiguration();
-      zip.file('config/settings.json', JSON.stringify(configData, null, 2));
-      
-      // Add backup metadata
-      const metadata = {
-        timestamp: new Date().toISOString(),
-        type: isAuto ? 'automatic' : 'manual',
-        version: '1.0.0',
-        description: 'Complete system backup including database, functions, and configuration'
-      };
-      zip.file('backup-info.json', JSON.stringify(metadata, null, 2));
-      
-      updateProgress(90, 'Generating backup file...');
-      
-      // Generate zip file
-      const content = await zip.generateAsync({ type: 'blob' });
-      
-      // Download the backup
-      const url = URL.createObjectURL(content);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `system-backup-${timestamp}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      updateProgress(100, 'Backup completed successfully!');
-      
-      // Update backup history
-      const now = new Date().toISOString();
-      localStorage.setItem('lastBackupTime', now);
-      if (isAuto) {
-        localStorage.setItem('lastAutoBackup', now);
+      // Use the backup service
+      const result = await backupService.createFullBackup({
+        compress: true,
+        includeSystemData: true
+      });
+
+      if (result.success) {
+        updateProgress(100, 'Backup hoàn tất thành công!');
+        
+        // Update backup history
+        const now = new Date().toISOString();
+        localStorage.setItem('lastBackupTime', now);
+        if (isAuto) {
+          localStorage.setItem('lastAutoBackup', now);
+        }
+        
+        setBackupStatus(prev => ({
+          ...prev,
+          lastBackup: now,
+          isRunning: false
+        }));
+        
+        // Update backup items status
+        const sizeInMB = result.size ? (result.size / 1024 / 1024).toFixed(2) : '0';
+        setBackupItems(prev => prev.map(item => ({
+          ...item,
+          status: 'success' as const,
+          lastBackup: new Date(now).toLocaleDateString('vi-VN'),
+          size: `${sizeInMB} MB`
+        })));
+        
+        toast.success(isAuto ? 'Auto backup hoàn tất!' : 'Manual backup hoàn tất!');
+        console.log('✅ Backup completed successfully:', result);
+      } else {
+        throw new Error(result.error || 'Backup thất bại');
       }
       
-      setBackupStatus(prev => ({
-        ...prev,
-        lastBackup: now,
-        isRunning: false
+    } catch (error) {
+      console.error('❌ Backup failed:', error);
+      setBackupStatus(prev => ({ 
+        ...prev, 
+        isRunning: false,
+        progress: 0,
+        currentStep: ''
       }));
       
-      // Update backup items status
+      // Update backup items to show error
       setBackupItems(prev => prev.map(item => ({
         ...item,
-        status: 'success' as const,
-        lastBackup: now
+        status: 'error' as const
       })));
       
-      toast.success(isAuto ? 'Auto backup completed!' : 'Manual backup completed!');
-      
-    } catch (error) {
-      console.error('Backup failed:', error);
-      setBackupStatus(prev => ({ ...prev, isRunning: false }));
-      toast.error('Backup failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      toast.error('Backup thất bại: ' + (error instanceof Error ? error.message : 'Lỗi không xác định'));
     }
   };
 
   const performRestore = async (file: File): Promise<void> => {
-    if (restoreStatus.isRunning) return;
+    if (restoreStatus.isRunning) {
+      console.log('⚠️ Restore already running, skipping...');
+      toast.warning('Restore đang chạy, vui lòng đợi...');
+      return;
+    }
 
+    console.log('🚀 Starting restore process...', { fileName: file.name, fileSize: file.size });
     setRestoreStatus(prev => ({ ...prev, isRunning: true, progress: 0 }));
 
     try {
@@ -352,6 +250,7 @@ export const useBackupOperations = () => {
         }));
 
         toast.success(`Restore thành công! Đã khôi phục ${result.restoredTables.length} bảng dữ liệu.`);
+        console.log('✅ Restore completed successfully:', result);
         
         // Refresh the page after successful restore
         setTimeout(() => {
@@ -361,21 +260,38 @@ export const useBackupOperations = () => {
         throw new Error(`Restore thất bại: ${result.errors.join(', ')}`);
       }
     } catch (error) {
-      setRestoreStatus(prev => ({ ...prev, isRunning: false }));
+      console.error('❌ Restore failed:', error);
+      setRestoreStatus(prev => ({ 
+        ...prev, 
+        isRunning: false,
+        progress: 0,
+        currentStep: ''
+      }));
       throw error;
     }
   };
 
   const toggleAutoBackup = async (enabled: boolean) => {
+    console.log('🔄 Toggling auto backup:', enabled);
     setBackupStatus(prev => ({ ...prev, autoBackupEnabled: enabled }));
     localStorage.setItem('autoBackupEnabled', enabled.toString());
     
     if (enabled) {
-      toast.success('Auto backup enabled - daily backups at 2 AM');
+      toast.success('Auto backup đã bật - backup hàng ngày lúc 2:00 AM');
     } else {
-      toast.info('Auto backup disabled');
+      toast.info('Auto backup đã tắt');
     }
   };
+
+  // Debug logging
+  console.log('🔍 useBackupOperations state:', {
+    backupRunning: backupStatus.isRunning,
+    restoreRunning: restoreStatus.isRunning,
+    backupItemsCount: backupItems.length,
+    autoBackupEnabled: backupStatus.autoBackupEnabled,
+    lastBackup: backupStatus.lastBackup,
+    lastRestore: restoreStatus.lastRestore
+  });
 
   return {
     backupStatus,
