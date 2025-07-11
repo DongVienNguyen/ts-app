@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import { systemDbOperation } from '@/utils/supabaseAuth';
-import { SystemError, SystemMetric, SystemStatus, checkServiceHealth, monitorResources } from '@/utils/errorTracking';
+import { supabase } from '@/integrations/supabase/client';
+import { useSecureAuth } from '@/contexts/AuthContext';
+
+interface SystemError {
+  id: string;
+  error_type: string;
+  error_message: string;
+  error_stack?: string;
+  function_name?: string;
+  user_id?: string;
+  severity: string;
+  status: string;
+  created_at: string;
+  resolved_at?: string;
+  resolved_by?: string;
+}
 
 interface ErrorStats {
   totalErrors: number;
@@ -11,14 +25,14 @@ interface ErrorStats {
   errorTrend: { date: string; count: number }[];
 }
 
-interface ServiceHealth {
-  database: SystemStatus;
-  email: SystemStatus;
-  pushNotification: SystemStatus;
-  api: SystemStatus;
+interface SystemStatus {
+  service_name: string;
+  status: string;
+  uptime_percentage?: number;
 }
 
 export function useErrorMonitoringData() {
+  const { user } = useSecureAuth();
   const [errorStats, setErrorStats] = useState<ErrorStats>({
     totalErrors: 0,
     criticalErrors: 0,
@@ -29,51 +43,73 @@ export function useErrorMonitoringData() {
   });
 
   const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
-  const [systemMetrics, setSystemMetrics] = useState<SystemMetric[]>([]);
-  const [serviceHealth, setServiceHealth] = useState<ServiceHealth>({
+  const [systemMetrics, setSystemMetrics] = useState<any[]>([]);
+  const [serviceHealth, setServiceHealth] = useState({
     database: { service_name: 'database', status: 'online', uptime_percentage: 100 },
     email: { service_name: 'email', status: 'online', uptime_percentage: 100 },
     pushNotification: { service_name: 'push_notification', status: 'online', uptime_percentage: 100 },
     api: { service_name: 'api', status: 'online', uptime_percentage: 100 }
   });
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
+  // Only load data if user is admin
+  const canAccess = user?.role === 'admin';
+
   const loadErrorData = useCallback(async () => {
+    if (!canAccess) {
+      console.log('🚫 Access denied: User is not admin');
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
+      console.log('📊 Loading error monitoring data...');
 
-      // Get error statistics using system database operation
-      const errors = await systemDbOperation(async (client) => {
-        const { data, error } = await client
-          .from('system_errors')
-          .select('*')
-          .order('created_at', { ascending: false });
+      // Load recent errors only (last 7 days, max 100 records)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        if (error) throw error;
-        return data;
-      }, []);
+      const { data: errors, error } = await supabase
+        .from('system_errors')
+        .select('*')
+        .gte('created_at', sevenDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-      if (!errors) {
-        console.warn('⚠️ Could not load error data');
-        setIsLoading(false);
+      if (error) {
+        console.warn('⚠️ Error loading system errors:', error);
+        // Don't throw, just use empty array
+        setRecentErrors([]);
+        setErrorStats({
+          totalErrors: 0,
+          criticalErrors: 0,
+          resolvedErrors: 0,
+          errorRate: 0,
+          topErrorTypes: [],
+          errorTrend: []
+        });
         return;
       }
 
+      const errorList = errors || [];
+      setRecentErrors(errorList);
+
+      // Calculate stats from loaded data
       const now = new Date();
       const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-      const recentErrors24h = errors.filter(e => new Date(e.created_at) > last24Hours);
-      const criticalErrors = errors.filter(e => e.severity === 'critical');
-      const resolvedErrors = errors.filter(e => e.status === 'resolved');
-
-      // Calculate error rate (errors per hour in last 24h)
-      const errorRate = recentErrors24h.length / 24;
+      const recentErrors24h = errorList.filter(e => new Date(e.created_at) > last24Hours);
+      
+      const totalErrors = errorList.length;
+      const criticalErrors = errorList.filter(e => e.severity === 'critical').length;
+      const resolvedErrors = errorList.filter(e => e.status === 'resolved').length;
+      const errorRate = recentErrors24h.length / 24; // errors per hour
 
       // Top error types
       const errorTypeCounts: { [key: string]: number } = {};
-      errors.forEach(error => {
+      errorList.forEach(error => {
         errorTypeCounts[error.error_type] = (errorTypeCounts[error.error_type] || 0) + 1;
       });
 
@@ -87,98 +123,113 @@ export function useErrorMonitoringData() {
       for (let i = 6; i >= 0; i--) {
         const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
         const dateStr = date.toISOString().split('T')[0];
-        const dayStart = new Date(date.setHours(0, 0, 0, 0));
-        const dayEnd = new Date(date.setHours(23, 59, 59, 999));
-        
-        const dayErrors = errors.filter(e => {
-          const errorDate = new Date(e.created_at);
-          return errorDate >= dayStart && errorDate <= dayEnd;
-        });
-
-        errorTrend.push({
-          date: dateStr,
-          count: dayErrors.length
-        });
+        const dayErrors = errorList.filter(e => e.created_at.startsWith(dateStr));
+        errorTrend.push({ date: dateStr, count: dayErrors.length });
       }
 
       setErrorStats({
-        totalErrors: errors.length,
-        criticalErrors: criticalErrors.length,
-        resolvedErrors: resolvedErrors.length,
+        totalErrors,
+        criticalErrors,
+        resolvedErrors,
         errorRate,
         topErrorTypes,
         errorTrend
       });
 
-      setRecentErrors(errors.slice(0, 20));
       setLastUpdated(new Date());
+      console.log('✅ Error monitoring data loaded:', {
+        totalErrors,
+        criticalErrors,
+        resolvedErrors,
+        errorRate: errorRate.toFixed(1)
+      });
 
     } catch (error) {
-      console.error('Error loading error data:', error);
+      console.error('❌ Error loading error data:', error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [canAccess]);
 
   const loadSystemMetrics = useCallback(async () => {
+    if (!canAccess) return;
+
     try {
-      const metrics = await systemDbOperation(async (client) => {
-        const { data, error } = await client
-          .from('system_metrics')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(100);
+      // Load recent metrics only (last 24 hours, max 50 records)
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setDate(twentyFourHoursAgo.getDate() - 1);
 
-        if (error) throw error;
-        return data;
-      }, []);
+      const { data: metrics, error } = await supabase
+        .from('system_metrics')
+        .select('*')
+        .gte('created_at', twentyFourHoursAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-      if (metrics) {
+      if (!error && metrics) {
         setSystemMetrics(metrics);
       }
-
-      // Monitor current resources
-      monitorResources().catch(() => {
-        // Silently fail if resource monitoring fails
-      });
     } catch (error) {
-      console.error('Error loading system metrics:', error);
+      console.warn('⚠️ Error loading system metrics:', error);
     }
-  }, []);
+  }, [canAccess]);
 
   const checkAllServices = useCallback(async () => {
-    try {
-      const [database, email, pushNotification, api] = await Promise.all([
-        checkServiceHealth('database'),
-        checkServiceHealth('email'),
-        checkServiceHealth('push_notification'),
-        checkServiceHealth('api')
-      ]);
+    if (!canAccess) return;
 
-      setServiceHealth({
-        database,
-        email,
-        pushNotification,
-        api
-      });
+    try {
+      // Simple service health check
+      const { data: statusData, error } = await supabase
+        .from('system_status')
+        .select('*')
+        .order('last_check', { ascending: false })
+        .limit(10);
+
+      if (!error && statusData) {
+        // Update service health based on latest status
+        const updatedHealth = { ...serviceHealth };
+        statusData.forEach(status => {
+          if (updatedHealth[status.service_name as keyof typeof updatedHealth]) {
+            updatedHealth[status.service_name as keyof typeof updatedHealth] = {
+              service_name: status.service_name,
+              status: status.status,
+              uptime_percentage: status.uptime_percentage || 100
+            };
+          }
+        });
+        setServiceHealth(updatedHealth);
+      }
     } catch (error) {
-      console.error('Error checking service health:', error);
+      console.warn('⚠️ Error checking service health:', error);
     }
-  }, []);
+  }, [canAccess, serviceHealth]);
 
   const refreshAll = useCallback(() => {
-    loadErrorData();
-    loadSystemMetrics();
-    checkAllServices();
-  }, [loadErrorData, loadSystemMetrics, checkAllServices]);
+    if (canAccess) {
+      loadErrorData();
+      loadSystemMetrics();
+      checkAllServices();
+    }
+  }, [canAccess, loadErrorData, loadSystemMetrics, checkAllServices]);
 
+  // Load data only when user has access
   useEffect(() => {
-    refreshAll();
-    
-    // Changed from 30 seconds to 60 minutes (3,600,000 ms) to improve system performance
-    const interval = setInterval(refreshAll, 3600000); // 60 minutes
-    return () => clearInterval(interval);
-  }, [refreshAll]);
+    if (canAccess) {
+      refreshAll();
+    } else {
+      // Clear data if user doesn't have access
+      setRecentErrors([]);
+      setErrorStats({
+        totalErrors: 0,
+        criticalErrors: 0,
+        resolvedErrors: 0,
+        errorRate: 0,
+        topErrorTypes: [],
+        errorTrend: []
+      });
+      setSystemMetrics([]);
+    }
+  }, [canAccess]); // Only depend on canAccess
 
   // Helper functions for styling
   const getStatusColor = (status: string) => {
@@ -218,6 +269,7 @@ export function useErrorMonitoringData() {
     serviceHealth,
     isLoading,
     lastUpdated,
+    canAccess,
     refreshAll,
     getStatusColor,
     getStatusIcon,

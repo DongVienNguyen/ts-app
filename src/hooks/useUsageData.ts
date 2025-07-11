@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getAverageSessionDuration } from '@/utils/usageTracking';
+import { useSecureAuth } from '@/contexts/AuthContext';
 
 interface UsageOverview {
   totalSessions: number;
@@ -28,6 +28,7 @@ interface TimeRangeData {
 }
 
 export function useUsageData() {
+  const { user } = useSecureAuth();
   const [usageOverview, setUsageOverview] = useState<UsageOverview>({
     totalSessions: 0,
     uniqueUsers: 0,
@@ -51,17 +52,24 @@ export function useUsageData() {
   });
 
   const [selectedTimeRange, setSelectedTimeRange] = useState<'day' | 'week' | 'month' | 'quarter' | 'year'>('month');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
+  // Only load data if user is admin
+  const canAccess = user?.role === 'admin';
+
   const loadUsageData = useCallback(async () => {
+    if (!canAccess) {
+      console.log('🚫 Access denied: User is not admin');
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
+      console.log('📊 Loading usage monitoring data...');
 
-      // Get usage statistics
-      const averageSessionDuration = await getAverageSessionDuration(selectedTimeRange);
-
-      // Get session data
+      // Calculate date range
       const now = new Date();
       let startDate: Date;
 
@@ -83,28 +91,50 @@ export function useUsageData() {
           break;
       }
 
+      // Load session data with limit to prevent performance issues
       const { data: sessions, error } = await supabase
         .from('user_sessions')
         .select('*')
         .gte('session_start', startDate.toISOString())
-        .order('session_start', { ascending: true });
+        .order('session_start', { ascending: false })
+        .limit(1000); // Limit to prevent performance issues
 
-      if (error) throw error;
+      if (error) {
+        console.warn('⚠️ Error loading user sessions:', error);
+        // Don't throw, just use empty array
+        setUsageOverview({
+          totalSessions: 0,
+          uniqueUsers: 0,
+          averageSessionDuration: 0,
+          totalPageViews: 0,
+          bounceRate: 0,
+          activeUsers: 0
+        });
+        return;
+      }
+
+      const sessionList = sessions || [];
 
       // Calculate overview stats
-      const totalSessions = sessions?.length || 0;
-      const uniqueUsers = new Set(sessions?.map(s => s.username) || []).size;
-      const totalPageViews = sessions?.reduce((sum, s) => sum + (s.pages_visited || 0), 0) || 0;
+      const totalSessions = sessionList.length;
+      const uniqueUsers = new Set(sessionList.map(s => s.username)).size;
+      const totalPageViews = sessionList.reduce((sum, s) => sum + (s.pages_visited || 0), 0);
+      
+      // Calculate average session duration
+      const completedSessions = sessionList.filter(s => s.duration_minutes);
+      const averageSessionDuration = completedSessions.length > 0
+        ? completedSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0) / completedSessions.length
+        : 0;
       
       // Calculate bounce rate (sessions with only 1 page view)
-      const bounceSessions = sessions?.filter(s => s.pages_visited <= 1).length || 0;
+      const bounceSessions = sessionList.filter(s => s.pages_visited <= 1).length;
       const bounceRate = totalSessions > 0 ? (bounceSessions / totalSessions) * 100 : 0;
 
       // Active users (last 24 hours)
       const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const activeUsers = new Set(
-        sessions?.filter(s => new Date(s.session_start) > last24Hours)
-          .map(s => s.username) || []
+        sessionList.filter(s => new Date(s.session_start) > last24Hours)
+          .map(s => s.username)
       ).size;
 
       setUsageOverview({
@@ -118,8 +148,8 @@ export function useUsageData() {
 
       // Device statistics
       const deviceCounts = { desktop: 0, mobile: 0, tablet: 0 };
-      sessions?.forEach(session => {
-        if (session.device_type) {
+      sessionList.forEach(session => {
+        if (session.device_type && deviceCounts.hasOwnProperty(session.device_type)) {
           deviceCounts[session.device_type as keyof DeviceStats]++;
         }
       });
@@ -127,86 +157,75 @@ export function useUsageData() {
 
       // Browser statistics
       const browserCounts: BrowserStats = {};
-      sessions?.forEach(session => {
+      sessionList.forEach(session => {
         if (session.browser_name) {
           browserCounts[session.browser_name] = (browserCounts[session.browser_name] || 0) + 1;
         }
       });
       setBrowserStats(browserCounts);
 
-      // Time range data
-      const hourlyData: { [key: string]: { users: Set<string>; sessions: number } } = {};
+      // Time range data (simplified to prevent performance issues)
       const dailyData: { [key: string]: { users: Set<string>; sessions: number } } = {};
-      const monthlyData: { [key: string]: { users: Set<string>; sessions: number } } = {};
 
-      sessions?.forEach(session => {
+      sessionList.forEach(session => {
         const date = new Date(session.session_start);
-        
-        // Hourly data
-        const hourKey = `${String(date.getHours()).padStart(2, '0')}:00`;
-        if (!hourlyData[hourKey]) {
-          hourlyData[hourKey] = { users: new Set(), sessions: 0 };
-        }
-        hourlyData[hourKey].users.add(session.username);
-        hourlyData[hourKey].sessions++;
-
-        // Daily data
         const dayKey = date.toISOString().split('T')[0];
+        
         if (!dailyData[dayKey]) {
           dailyData[dayKey] = { users: new Set(), sessions: 0 };
         }
         dailyData[dayKey].users.add(session.username);
         dailyData[dayKey].sessions++;
-
-        // Monthly data
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        if (!monthlyData[monthKey]) {
-          monthlyData[monthKey] = { users: new Set(), sessions: 0 };
-        }
-        monthlyData[monthKey].users.add(session.username);
-        monthlyData[monthKey].sessions++;
       });
 
       setTimeRangeData({
-        hourly: Object.entries(hourlyData).map(([hour, data]) => ({
-          hour,
-          users: data.users.size,
-          sessions: data.sessions
-        })).sort((a, b) => a.hour.localeCompare(b.hour)),
-        
+        hourly: [], // Skip hourly for performance
         daily: Object.entries(dailyData).map(([date, data]) => ({
           date,
           users: data.users.size,
           sessions: data.sessions
         })).sort((a, b) => a.date.localeCompare(b.date)),
-        
-        monthly: Object.entries(monthlyData).map(([month, data]) => ({
-          month,
-          users: data.users.size,
-          sessions: data.sessions
-        })).sort((a, b) => a.month.localeCompare(b.month))
+        monthly: [] // Skip monthly for performance
       });
 
       setLastUpdated(new Date());
+      console.log('✅ Usage monitoring data loaded:', {
+        totalSessions,
+        uniqueUsers,
+        averageSessionDuration: Math.round(averageSessionDuration),
+        activeUsers
+      });
 
     } catch (error) {
-      console.error('Error loading usage data:', error);
+      console.error('❌ Error loading usage data:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedTimeRange]);
+  }, [canAccess, selectedTimeRange]);
 
+  // Load data only when user has access
   useEffect(() => {
-    loadUsageData();
-    
-    // Auto refresh every 5 minutes
-    const interval = setInterval(loadUsageData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [loadUsageData]);
+    if (canAccess) {
+      loadUsageData();
+    } else {
+      // Clear data if user doesn't have access
+      setUsageOverview({
+        totalSessions: 0,
+        uniqueUsers: 0,
+        averageSessionDuration: 0,
+        totalPageViews: 0,
+        bounceRate: 0,
+        activeUsers: 0
+      });
+      setDeviceStats({ desktop: 0, mobile: 0, tablet: 0 });
+      setBrowserStats({});
+      setTimeRangeData({ hourly: [], daily: [], monthly: [] });
+    }
+  }, [canAccess, selectedTimeRange]); // Depend on both canAccess and selectedTimeRange
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const mins = Math.round(minutes % 60);
     if (hours > 0) {
       return `${hours}h ${mins}m`;
     }
@@ -221,6 +240,7 @@ export function useUsageData() {
     selectedTimeRange,
     isLoading,
     lastUpdated,
+    canAccess,
     setSelectedTimeRange,
     loadUsageData,
     formatDuration

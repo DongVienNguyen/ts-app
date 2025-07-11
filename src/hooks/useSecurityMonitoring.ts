@@ -1,232 +1,187 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getSecurityLogs, SecurityEvent, logSecurityEvent } from '@/utils/secureAuthUtils';
-import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
+import { useSecureAuth } from '@/contexts/AuthContext';
+
+interface SecurityEvent {
+  id: string;
+  event_type: string;
+  username?: string;
+  event_data?: any;
+  user_agent?: string;
+  ip_address?: string;
+  created_at: string;
+}
 
 interface SecurityStats {
-  totalUsers: number;
-  activeUsers: number;
-  lockedUsers: number;
-  recentFailedLogins: number;
-  securityEvents: SecurityEvent[];
-  onlineUsers: number;
-  suspiciousActivities: number;
-  lastUpdated: Date;
-}
-
-interface RealTimeMetrics {
+  totalEvents: number;
   loginAttempts: number;
   failedLogins: number;
-  successfulLogins: number;
-  accountLocks: number;
-  passwordResets: number;
-  suspiciousActivities: number;
+  suspiciousActivity: number;
+  blockedIPs: number;
+  eventsByType: { [key: string]: number };
+  eventsByDay: { date: string; count: number }[];
+  recentEvents: SecurityEvent[];
 }
 
-interface AlertConfig {
-  enabled: boolean;
-  threshold: number;
-  type: 'sound' | 'notification' | 'both';
-}
-
-export function useSecurityMonitoring() {
+export const useSecurityMonitoring = () => {
+  const { user } = useSecureAuth();
   const [stats, setStats] = useState<SecurityStats>({
-    totalUsers: 0,
-    activeUsers: 0,
-    lockedUsers: 0,
-    recentFailedLogins: 0,
-    securityEvents: [],
-    onlineUsers: 0,
-    suspiciousActivities: 0,
-    lastUpdated: new Date()
-  });
-
-  const [realTimeMetrics, setRealTimeMetrics] = useState<RealTimeMetrics>({
+    totalEvents: 0,
     loginAttempts: 0,
     failedLogins: 0,
-    successfulLogins: 0,
-    accountLocks: 0,
-    passwordResets: 0,
-    suspiciousActivities: 0
+    suspiciousActivity: 0,
+    blockedIPs: 0,
+    eventsByType: {},
+    eventsByDay: [],
+    recentEvents: []
   });
-
-  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [alertConfig, setAlertConfig] = useState<AlertConfig>({
-    enabled: true,
-    threshold: 5,
-    type: 'both'
-  });
-
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Initialize audio for alerts
-  useEffect(() => {
-    const createBeepSound = () => {
-      try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 800;
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
-      } catch (error) {
-        console.warn('Audio context not available:', error);
-      }
-    };
+  // Only load data if user is admin
+  const canAccess = user?.role === 'admin';
 
-    audioRef.current = {
-      play: () => Promise.resolve(createBeepSound())
-    } as HTMLAudioElement;
-  }, []);
+  const loadSecurityData = useCallback(async () => {
+    if (!canAccess) {
+      console.log('🚫 Access denied: User is not admin');
+      return;
+    }
 
-  const loadSecurityStats = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
     try {
-      setIsLoading(true);
-      setError(null);
+      console.log('🔒 Loading security monitoring data...');
 
-      const { data: users, error: usersError } = await supabase
-        .from('staff')
-        .select('account_status, failed_login_attempts, last_failed_login');
+      // Load recent security events only (last 7 days, max 200 records)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      if (usersError) throw usersError;
+      const { data: eventData, error: eventError } = await supabase
+        .from('security_events')
+        .select('*')
+        .gte('created_at', sevenDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(200);
 
-      const totalUsers = users?.length || 0;
-      const activeUsers = users?.filter(u => u.account_status === 'active').length || 0;
-      const lockedUsers = users?.filter(u => u.account_status === 'locked').length || 0;
+      if (eventError) {
+        console.warn('⚠️ Error loading security events:', eventError);
+        // Don't throw, just use empty array
+        setStats({
+          totalEvents: 0,
+          loginAttempts: 0,
+          failedLogins: 0,
+          suspiciousActivity: 0,
+          blockedIPs: 0,
+          eventsByType: {},
+          eventsByDay: [],
+          recentEvents: []
+        });
+        return;
+      }
 
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const recentFailedLogins = users?.filter(u => 
-        u.last_failed_login && new Date(u.last_failed_login) > twentyFourHoursAgo
-      ).length || 0;
+      const events = eventData || [];
 
-      const securityEvents = getSecurityLogs().slice(0, 20);
-      const onlineUsers = Math.floor(activeUsers * 0.3);
-      const suspiciousActivities = securityEvents.filter(e => 
-        e.type === 'SUSPICIOUS_ACTIVITY' || e.type === 'RATE_LIMIT_EXCEEDED'
+      // Calculate stats from loaded data
+      const totalEvents = events.length;
+      const loginAttempts = events.filter(e => e.event_type === 'login_attempt').length;
+      const failedLogins = events.filter(e => e.event_type === 'login_failed').length;
+      const suspiciousActivity = events.filter(e => 
+        e.event_type.includes('suspicious') || 
+        e.event_type.includes('blocked') ||
+        e.event_type.includes('failed')
       ).length;
 
-      setStats({
-        totalUsers,
-        activeUsers,
-        lockedUsers,
-        recentFailedLogins,
-        securityEvents,
-        onlineUsers,
-        suspiciousActivities,
-        lastUpdated: new Date()
+      // Count unique blocked IPs
+      const blockedIPs = new Set(
+        events
+          .filter(e => e.event_type.includes('blocked') && e.ip_address)
+          .map(e => e.ip_address)
+      ).size;
+
+      // Group by event type
+      const eventsByType: { [key: string]: number } = {};
+      events.forEach(event => {
+        eventsByType[event.event_type] = (eventsByType[event.event_type] || 0) + 1;
       });
 
-      if (alertConfig.enabled && recentFailedLogins >= alertConfig.threshold) {
-        triggerAlert(`Cảnh báo: ${recentFailedLogins} lần đăng nhập thất bại trong 24h qua!`);
-      }
+      // Group by day (last 7 days)
+      const eventsByDay: { date: string; count: number }[] = [];
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        return date.toISOString().split('T')[0];
+      }).reverse();
 
-    } catch (error) {
-      console.error('Error loading security stats:', error);
-      setError(error instanceof Error ? error.message : 'Unknown error');
+      last7Days.forEach(date => {
+        const count = events.filter(event => 
+          event.created_at.startsWith(date)
+        ).length;
+        eventsByDay.push({ date, count });
+      });
+
+      // Recent events (last 20)
+      const recentEvents = events.slice(0, 20);
+
+      setStats({
+        totalEvents,
+        loginAttempts,
+        failedLogins,
+        suspiciousActivity,
+        blockedIPs,
+        eventsByType,
+        eventsByDay,
+        recentEvents
+      });
+
+      console.log('✅ Security monitoring data loaded:', {
+        totalEvents,
+        loginAttempts,
+        failedLogins,
+        suspiciousActivity,
+        blockedIPs
+      });
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('❌ Failed to load security monitoring data:', err);
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  }, [alertConfig]);
+  }, [canAccess]);
 
-  const updateRealTimeMetrics = useCallback(() => {
-    const recentEvents = getSecurityLogs().filter(event => {
-      const eventTime = new Date(event.timestamp).getTime();
-      const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-      return eventTime > fiveMinutesAgo;
-    });
-
-    setRealTimeMetrics({
-      loginAttempts: recentEvents.filter(e => e.type.includes('LOGIN')).length,
-      failedLogins: recentEvents.filter(e => e.type === 'LOGIN_FAILED').length,
-      successfulLogins: recentEvents.filter(e => e.type === 'LOGIN_SUCCESS').length,
-      accountLocks: recentEvents.filter(e => e.type === 'ACCOUNT_LOCKED').length,
-      passwordResets: recentEvents.filter(e => e.type.includes('PASSWORD_RESET')).length,
-      suspiciousActivities: recentEvents.filter(e => 
-        e.type === 'SUSPICIOUS_ACTIVITY' || e.type === 'RATE_LIMIT_EXCEEDED'
-      ).length
-    });
-  }, []);
-
-  const triggerAlert = useCallback((message: string) => {
-    if (alertConfig.type === 'sound' || alertConfig.type === 'both') {
-      audioRef.current?.play().catch(console.error);
-    }
-    
-    if (alertConfig.type === 'notification' || alertConfig.type === 'both') {
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Cảnh báo bảo mật', {
-          body: message,
-          icon: '/favicon.ico'
-        });
-      }
-    }
-
-    logSecurityEvent('SECURITY_ALERT_TRIGGERED', { message, threshold: alertConfig.threshold });
-    logSecurityEventRealTime('SECURITY_ALERT_TRIGGERED', { message, threshold: alertConfig.threshold });
-  }, [alertConfig]);
-
-  const resetMetrics = useCallback(() => {
-    setRealTimeMetrics({
-      loginAttempts: 0,
-      failedLogins: 0,
-      successfulLogins: 0,
-      accountLocks: 0,
-      passwordResets: 0,
-      suspiciousActivities: 0
-    });
-    logSecurityEvent('METRICS_RESET', { resetBy: 'admin' });
-    logSecurityEventRealTime('METRICS_RESET', { resetBy: 'admin' });
-  }, []);
-
-  // Real-time data fetching
+  // Load data only once when component mounts and user has access
   useEffect(() => {
-    if (isRealTimeEnabled && !isPaused) {
-      loadSecurityStats();
-      
-      intervalRef.current = setInterval(() => {
-        loadSecurityStats();
-        updateRealTimeMetrics();
-      }, 5000);
-
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-      };
+    if (canAccess) {
+      loadSecurityData();
+    } else {
+      // Clear data if user doesn't have access
+      setStats({
+        totalEvents: 0,
+        loginAttempts: 0,
+        failedLogins: 0,
+        suspiciousActivity: 0,
+        blockedIPs: 0,
+        eventsByType: {},
+        eventsByDay: [],
+        recentEvents: []
+      });
     }
-  }, [isRealTimeEnabled, isPaused, loadSecurityStats, updateRealTimeMetrics]);
+  }, [canAccess]); // Only depend on canAccess
 
-  // Connection status
-  useEffect(() => {
-    setIsConnected(isRealTimeEnabled && !isPaused);
-  }, [isRealTimeEnabled, isPaused]);
+  // Refresh function for manual refresh
+  const refreshData = useCallback(() => {
+    if (canAccess) {
+      loadSecurityData();
+    }
+  }, [canAccess, loadSecurityData]);
 
   return {
     stats,
-    realTimeMetrics,
-    isRealTimeEnabled,
-    isConnected,
-    isPaused,
-    alertConfig,
     isLoading,
     error,
-    setIsRealTimeEnabled,
-    setIsPaused: () => setIsPaused(!isPaused),
-    setAlertConfig,
-    resetMetrics
+    canAccess,
+    refreshData
   };
-}
+};
