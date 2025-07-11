@@ -213,7 +213,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSupabaseAuth(result.token, result.user.username);
         healthCheckService.onUserLogin();
         
-        toast.success('Đăng nhập thành công!');
+        // Remove duplicate toast - only show in Login component
+        // toast.success('Đăng nhập thành công!');
         return { success: true };
       } else {
         console.log('❌ [AUTH] Login failed:', result.error);

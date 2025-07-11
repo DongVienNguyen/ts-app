@@ -68,15 +68,19 @@ const Login = () => {
     try {
       const result = await login(credentials.username.toLowerCase().trim(), credentials.password);
       
-      if (result.error) {
+      if (result.success) {
+        // Login successful - navigation will happen in the useEffect above
+        // Show success toast only once here with unique ID to prevent duplicates
+        toast.success("Đăng nhập thành công!", {
+          id: 'login-success',
+          duration: 3000
+        });
+      } else if (result.error) {
         setError(result.error);
         if (typeof result.error === 'string' && result.error.includes('khóa')) {
           setIsAccountLocked(true);
           setShowForm(false);
         }
-      } else {
-        // Login successful - navigation will happen in the useEffect above
-        toast.success("Đăng nhập thành công!");
       }
     } catch (error) {
       console.error('💥 Login submit error:', error);

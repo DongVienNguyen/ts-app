@@ -1,32 +1,20 @@
 "use client"
 
-import React, { useContext } from "react"
 import { Toaster as Sonner } from "sonner"
-import { ThemeContext } from "@/contexts/ThemeContext"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  // Safe theme access without throwing errors
-  const getTheme = (): 'light' | 'dark' => {
-    try {
-      const context = useContext(ThemeContext);
-      if (context && context.resolvedTheme) {
-        return context.resolvedTheme;
-      }
-      return 'light';
-    } catch (error) {
-      console.warn('ThemeProvider not available, using light theme:', error);
-      return 'light';
-    }
-  };
-
-  const theme = getTheme();
-
   return (
     <Sonner
-      theme={theme}
+      theme="light"
       className="toaster group"
+      closeButton={true}
+      richColors={true}
+      position="top-right"
+      duration={4000}
+      visibleToasts={3}
+      expand={true}
       toastOptions={{
         classNames: {
           toast:
@@ -36,6 +24,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
             "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
           cancelButton:
             "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+          closeButton:
+            "group-[.toast]:bg-background group-[.toast]:text-foreground group-[.toast]:border-border hover:group-[.toast]:bg-muted",
         },
       }}
       {...props}

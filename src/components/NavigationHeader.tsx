@@ -222,6 +222,17 @@ export const NavigationHeader: React.FC = () => {
   // Check if any system menu item is currently active
   const isSystemMenuActive = visibleSystemItems.some(item => location.pathname === item.href);
 
+  // Debug logging
+  console.log('🔍 Navigation Debug:', {
+    userRole: user?.role,
+    userDepartment: user?.department,
+    isAdmin: isAdmin(user),
+    visibleSystemItemsCount: visibleSystemItems.length,
+    systemItems: visibleSystemItems.map(item => ({ name: item.name, href: item.href })),
+    isSystemMenuActive,
+    currentPath: location.pathname
+  });
+
   return (
     <header className="bg-white shadow-sm border-b sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

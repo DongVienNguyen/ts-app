@@ -140,7 +140,13 @@ function AppContent() {
         {/* Global Components */}
         <NotificationPermissionPrompt />
         <PWAInstallPrompt />
-        <Toaster position="top-right" />
+        <Toaster 
+          position="top-right" 
+          closeButton={true}
+          richColors={true}
+          duration={4000}
+          visibleToasts={3}
+        />
       </Router>
     </>
   );
