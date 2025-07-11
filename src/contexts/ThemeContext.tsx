@@ -13,21 +13,15 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 interface ThemeProviderProps {
   children: ReactNode;
-  defaultTheme?: Theme;
-  storageKey?: string;
 }
 
-export function ThemeProvider({ 
-  children, 
-  defaultTheme = 'light',
-  storageKey = 'vite-ui-theme'
-}: ThemeProviderProps) {
+export function ThemeProvider({ children }: ThemeProviderProps) {
   // Always light theme - no state needed, no effects needed
   const theme: Theme = 'light';
   const resolvedTheme: 'light' = 'light';
 
   // No-op setTheme function - always stays light
-  const setTheme = (newTheme: Theme) => {
+  const setTheme = () => {
     console.log('Theme is locked to light mode');
     // Do nothing - always stay light
   };

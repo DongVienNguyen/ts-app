@@ -99,8 +99,6 @@ export class HealthCheckService {
       }
 
     } catch (error) {
-      const responseTime = Math.round(performance.now() - startTime);
-      
       console.warn('⚠️ Database health check failed:', error);
       
       // Don't try to update system status if we can't connect to database

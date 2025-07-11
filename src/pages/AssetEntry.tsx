@@ -1,10 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import AssetEntryForm from '@/components/AssetEntryForm';
 import { useTimeRestriction } from '@/hooks/useTimeRestriction';
 import { useAssetEntry } from '@/hooks/useAssetEntry';
 import { useAssetEntryForm } from '@/hooks/useAssetEntryForm';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Package, Clock } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AssetEntry = () => {

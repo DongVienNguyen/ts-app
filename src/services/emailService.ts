@@ -17,7 +17,7 @@ export class EmailService {
     
     try {
       // Test with a simple email to check if the service is available
-      const { data, error } = await supabase.functions.invoke('send-notification-email', {
+      const { error } = await supabase.functions.invoke('send-notification-email', {
         body: { 
           to: 'test@example.com',
           subject: 'Health Check',

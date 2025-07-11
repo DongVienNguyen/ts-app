@@ -69,7 +69,9 @@ export function ErrorDetailsModal({ error, isOpen, onClose, onErrorUpdated }: Er
     setStatus(value as ErrorStatus);
   };
 
-  const getSeverityColor = (severity: string) => {
+  const getSeverityColor = (severity: string | undefined) => {
+    if (!severity) return 'text-gray-600 bg-gray-100';
+    
     switch (severity) {
       case 'critical': return 'text-red-600 bg-red-100';
       case 'high': return 'text-orange-600 bg-orange-100';
@@ -86,7 +88,7 @@ export function ErrorDetailsModal({ error, isOpen, onClose, onErrorUpdated }: Er
           <DialogTitle className="flex items-center space-x-2">
             <span>Chi tiết Lỗi</span>
             <Badge className={getSeverityColor(error.severity)}>
-              {error.severity.toUpperCase()}
+              {error.severity?.toUpperCase() || 'UNKNOWN'}
             </Badge>
             <Badge variant="outline">{error.error_type}</Badge>
           </DialogTitle>
@@ -101,7 +103,7 @@ export function ErrorDetailsModal({ error, isOpen, onClose, onErrorUpdated }: Er
                 <div><strong>ID:</strong> {error.id}</div>
                 <div><strong>Thời gian:</strong> {new Date(error.created_at!).toLocaleString('vi-VN')}</div>
                 <div><strong>Loại lỗi:</strong> {error.error_type}</div>
-                <div><strong>Mức độ:</strong> {error.severity}</div>
+                <div><strong>Mức độ:</strong> {error.severity || 'Unknown'}</div>
                 <div><strong>Trạng thái:</strong> {error.status}</div>
                 {error.function_name && (
                   <div><strong>Chức năng:</strong> {error.function_name}</div>

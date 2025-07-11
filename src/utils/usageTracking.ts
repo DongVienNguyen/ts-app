@@ -9,7 +9,7 @@ interface UserSession {
   duration_minutes?: number;
   pages_visited: number;
   actions_performed: number;
-  ip_address?: string;
+  ip_address?: string | null;
   user_agent?: string;
   device_type?: string;
   browser_name?: string;

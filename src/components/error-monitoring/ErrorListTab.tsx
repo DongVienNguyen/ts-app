@@ -10,7 +10,7 @@ import { ErrorDetailsModal } from './ErrorDetailsModal';
 interface ErrorListTabProps {
   recentErrors: SystemError[];
   isLoading: boolean;
-  getSeverityColor: (severity: string) => string;
+  getSeverityColor: (severity: string | undefined) => string;
   onRefresh: () => void;
 }
 
@@ -105,7 +105,7 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
                         <Badge className={getSeverityColor(error.severity)}>
-                          {error.severity.toUpperCase()}
+                          {error.severity?.toUpperCase() || 'UNKNOWN'}
                         </Badge>
                         <Badge variant="outline">{error.error_type}</Badge>
                         <span className="text-sm text-gray-500">

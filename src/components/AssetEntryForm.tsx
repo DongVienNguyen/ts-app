@@ -1,11 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { 
-  Clock, 
-  AlertTriangle, 
   Sparkles,
   Camera,
   Upload,

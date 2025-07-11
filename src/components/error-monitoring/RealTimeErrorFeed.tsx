@@ -47,14 +47,13 @@ export function RealTimeErrorFeed({ onNewError }: RealTimeErrorFeedProps) {
           setErrorCount(prev => prev + 1);
           
           // Play sound notification
-          if (soundEnabled) {
+          if (soundEnabled && newError.severity) {
             playNotificationSound(newError.severity);
           }
           
           // Show toast notification
-          const severityColor = newError.severity === 'critical' ? 'destructive' : 'default';
           toast(
-            `Lỗi ${newError.severity}: ${newError.error_message}`,
+            `Lỗi ${newError.severity || 'unknown'}: ${newError.error_message}`,
             {
               description: `Loại: ${newError.error_type}`,
               duration: 5000,
@@ -101,7 +100,9 @@ export function RealTimeErrorFeed({ onNewError }: RealTimeErrorFeedProps) {
     }
   };
 
-  const getSeverityColor = (severity: string) => {
+  const getSeverityColor = (severity: string | undefined) => {
+    if (!severity) return 'text-gray-600 bg-gray-100';
+    
     switch (severity) {
       case 'critical': return 'text-red-600 bg-red-100';
       case 'high': return 'text-orange-600 bg-orange-100';
@@ -190,7 +191,7 @@ export function RealTimeErrorFeed({ onNewError }: RealTimeErrorFeedProps) {
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
                       <Badge className={getSeverityColor(error.severity)}>
-                        {error.severity.toUpperCase()}
+                        {error.severity?.toUpperCase() || 'UNKNOWN'}
                       </Badge>
                       <Badge variant="outline">{error.error_type}</Badge>
                       <span className="text-xs text-gray-500">
