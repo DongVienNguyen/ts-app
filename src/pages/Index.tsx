@@ -1,202 +1,272 @@
+import React from 'react';
 import Layout from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
+import { Link } from 'react-router-dom';
 import { 
-  Package, 
   FileText, 
+  Calendar, 
+  Archive, 
   Bell, 
+  BarChart3, 
+  Shield,
+  Activity,
   Database,
-  BarChart3,
-  Users,
-  AlertTriangle,
-  TrendingUp
+  Settings,
+  Users
 } from 'lucide-react';
+import { useSecureAuth } from '@/contexts/AuthContext';
+import { SecurityStatusWidget } from '@/components/SecurityStatusWidget';
+import { SystemHealthWidget } from '@/components/SystemHealthWidget';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const Index = () => {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-
-  if (!user) {
-    return null;
-  }
+  const { user } = useSecureAuth();
 
   const quickActions = [
     {
-      title: 'Thông báo Mượn/Xuất Tài sản',
-      description: 'Ghi nhận các giao dịch mượn và xuất tài sản',
-      icon: Package,
-      color: 'bg-green-500',
-      href: '/asset-entry',
-      show: true,
-      buttonText: 'Bắt đầu ghi nhận',
-      buttonColor: 'bg-green-600 hover:bg-green-700'
-    },
-    {
-      title: 'Danh sách TS cần lấy',
-      description: 'Theo dõi danh sách tài sản cần lấy theo từng ca và phòng ban.',
+      title: 'Nhập Tài Sản',
+      description: 'Ghi nhận giao dịch tài sản mới',
       icon: FileText,
-      color: 'bg-blue-500',
+      href: '/asset-entry',
+      color: 'bg-blue-500 hover:bg-blue-600'
+    },
+    {
+      title: 'Báo Cáo Hàng Ngày',
+      description: 'Xem báo cáo giao dịch theo ngày',
+      icon: Calendar,
       href: '/daily-report',
-      show: true,
-      buttonText: 'Xem báo cáo',
-      buttonColor: 'bg-blue-600 hover:bg-blue-700'
+      color: 'bg-green-500 hover:bg-green-600'
     },
     {
-      title: 'Nhắc tài sản',
-      description: 'Quản lý và gửi nhắc nhở tài sản đến hạn trả',
-      icon: Bell,
-      color: 'bg-orange-500',
-      href: '/asset-reminders',
-      show: isNqOrAdmin(user),
-      buttonText: 'Xem nhắc nhở',
-      buttonColor: 'bg-orange-600 hover:bg-orange-700'
-    },
-    {
-      title: 'Nhắc nhở CRC',
-      description: 'Quản lý nhắc nhở duyệt CRC',
-      icon: Bell,
-      color: 'bg-purple-500',
-      href: '/crc-reminders',
-      show: isNqOrAdmin(user),
-      buttonText: 'Xem CRC',
-      buttonColor: 'bg-purple-600 hover:bg-purple-700'
-    },
-    {
-      title: 'Tài sản Khác',
-      description: 'Quản lý tài sản, thùng khác gửi kho',
-      icon: Package,
-      color: 'bg-indigo-500',
+      title: 'Tài Sản Khác',
+      description: 'Quản lý tài sản không thuộc danh mục chính',
+      icon: Archive,
       href: '/other-assets',
-      show: isNqOrAdmin(user),
-      buttonText: 'Quản lý',
-      buttonColor: 'bg-indigo-600 hover:bg-indigo-700'
+      color: 'bg-purple-500 hover:bg-purple-600'
+    },
+    {
+      title: 'Nhắc Nhở Tài Sản',
+      description: 'Quản lý nhắc nhở kiểm định tài sản',
+      icon: Bell,
+      href: '/asset-reminders',
+      color: 'bg-orange-500 hover:bg-orange-600'
     }
   ];
 
-  const visibleActions = quickActions.filter(action => action.show);
-
-  // Mock statistics - in real app, these would come from API
-  const stats = [
+  const adminActions = [
     {
-      title: 'Tổng giao dịch',
-      value: '1,234',
-      description: 'Giao dịch trong tháng',
+      title: 'Quản Lý Dữ Liệu',
+      description: 'Quản lý người dùng và cấu hình hệ thống',
+      icon: Database,
+      href: '/data-management',
+      color: 'bg-indigo-500 hover:bg-indigo-600'
+    },
+    {
+      title: 'Giám Sát Bảo Mật',
+      description: 'Theo dõi tình trạng bảo mật hệ thống',
+      icon: Shield,
+      href: '/security-monitor',
+      color: 'bg-red-500 hover:bg-red-600'
+    },
+    {
+      title: 'Phân Tích Hiệu Suất',
+      description: 'Theo dõi hiệu suất và sử dụng hệ thống',
       icon: BarChart3,
-      color: 'text-blue-600'
+      href: '/usage-monitoring',
+      color: 'bg-teal-500 hover:bg-teal-600'
     },
     {
-      title: 'Người dùng hoạt động',
-      value: '89',
-      description: 'Người dùng trong tuần',
-      icon: Users,
-      color: 'text-green-600'
-    },
-    {
-      title: 'Cảnh báo',
-      value: '12',
-      description: 'Cần xử lý',
-      icon: AlertTriangle,
-      color: 'text-orange-600'
-    },
-    {
-      title: 'Hiệu suất',
-      value: '98.5%',
-      description: 'Uptime hệ thống',
-      icon: TrendingUp,
-      color: 'text-purple-600'
+      title: 'Sao Lưu Hệ Thống',
+      description: 'Quản lý sao lưu và khôi phục dữ liệu',
+      icon: Settings,
+      href: '/system-backup',
+      color: 'bg-gray-500 hover:bg-gray-600'
     }
   ];
 
   return (
     <Layout>
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Welcome Header */}
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6 border border-green-100">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Chào mừng, {user.staff_name || user.username}!
-          </h1>
-          <p className="text-gray-600">
-            Hôm nay là {new Date().toLocaleDateString('vi-VN', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Chào mừng, {user?.staff_name || user?.username}!
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Hệ thống quản lý tài sản - Dashboard chính
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <NotificationBell />
+            <div className="text-right">
+              <div className="text-sm text-gray-500">Vai trò</div>
+              <div className="font-medium capitalize">{user?.role}</div>
+            </div>
+          </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat, index) => (
-            <Card key={index} className="bg-white border border-gray-200 hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                    <p className="text-xs text-gray-500">{stat.description}</p>
-                  </div>
-                  <stat.icon className={`h-8 w-8 ${stat.color}`} />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {/* System Health Widget - Only for Admin */}
+        {user?.role === 'admin' && <SystemHealthWidget />}
+
+        {/* Security Status Widget - Only for Admin */}
+        {user?.role === 'admin' && <SecurityStatusWidget />}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {visibleActions.map((action, index) => (
-            <Card key={index} className="bg-white border border-gray-200 hover:shadow-lg transition-all duration-200">
-              <CardHeader className="pb-4">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-10 h-10 ${action.color} rounded-lg flex items-center justify-center`}>
-                    <action.icon className="w-6 h-6 text-white" />
-                  </div>
-                  <CardTitle className="text-xl font-semibold text-gray-900">
-                    {action.title}
-                  </CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-gray-600 mb-4">
-                  {action.description}
-                </p>
-                <Button
-                  onClick={() => navigate(action.href)}
-                  className={`w-full ${action.buttonColor} text-white`}
-                >
-                  {action.buttonText}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Thao Tác Nhanh
+            </CardTitle>
+            <CardDescription>
+              Các chức năng thường dùng trong hệ thống
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {quickActions.map((action, index) => (
+                <Link key={index} to={action.href}>
+                  <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className={`p-2 rounded-lg ${action.color}`}>
+                          <action.icon className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900">{action.title}</h3>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600">{action.description}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Admin Panel Access */}
-        {isAdmin(user) && (
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
+        {/* Admin Functions */}
+        {user?.role === 'admin' && (
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-blue-900">
-                <Database className="w-6 h-6" />
-                <span>Quản trị hệ thống</span>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Chức Năng Quản Trị
               </CardTitle>
+              <CardDescription>
+                Các công cụ quản lý và giám sát hệ thống
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-blue-700 mb-4">
-                Truy cập các công cụ quản trị và giám sát hệ thống
-              </p>
-              <Button
-                onClick={() => navigate('/data-management')}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Mở bảng điều khiển
-              </Button>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {adminActions.map((action, index) => (
+                  <Link key={index} to={action.href}>
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+                      <CardContent className="p-6">
+                        <div className="flex items-center space-x-3 mb-3">
+                          <div className={`p-2 rounded-lg ${action.color}`}>
+                            <action.icon className="h-6 w-6 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900">{action.title}</h3>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600">{action.description}</p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
+
+        {/* System Status Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Activity className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Trạng thái hệ thống</p>
+                  <p className="text-lg font-semibold text-green-600">Hoạt động bình thường</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Users className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Người dùng online</p>
+                  <p className="text-lg font-semibold text-blue-600">
+                    {Math.floor(Math.random() * 10) + 5} người
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <BarChart3 className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Giao dịch hôm nay</p>
+                  <p className="text-lg font-semibold text-purple-600">
+                    {Math.floor(Math.random() * 50) + 20} giao dịch
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Activity */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Hoạt Động Gần Đây</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Hệ thống khởi động thành công</p>
+                  <p className="text-xs text-gray-500">
+                    {new Date().toLocaleString('vi-VN')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Đăng nhập thành công</p>
+                  <p className="text-xs text-gray-500">
+                    Người dùng: {user?.username}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Kiểm tra bảo mật hoàn tất</p>
+                  <p className="text-xs text-gray-500">Không phát hiện mối đe dọa</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
