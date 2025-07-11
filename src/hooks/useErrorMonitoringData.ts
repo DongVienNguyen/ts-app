@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSecureAuth } from '@/contexts/AuthContext';
 
@@ -54,7 +54,7 @@ export function useErrorMonitoringData() {
   const [totalErrorCount, setTotalErrorCount] = useState(0);
 
   // Cache để tránh load lại
-  const [dataCache, setDataCache] = useState<Map<string, { data: any, timestamp: number }>>(new Map());
+  const dataCache = useRef<Map<string, { data: any, timestamp: number }>>(new Map());
 
   // Only load data if user is admin
   const canAccess = user?.role === 'admin';
@@ -64,7 +64,7 @@ export function useErrorMonitoringData() {
     if (!canAccess) return;
 
     const cacheKey = 'error-stats';
-    const cached = dataCache.get(cacheKey);
+    const cached = dataCache.current.get(cacheKey);
     
     if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
       setErrorStats(cached.data);
@@ -120,23 +120,21 @@ export function useErrorMonitoringData() {
       setTotalErrorCount(totalErrors);
 
       // Cache data
-      const newCache = new Map(dataCache);
-      newCache.set(cacheKey, { data: stats, timestamp: Date.now() });
-      setDataCache(newCache);
+      dataCache.current.set(cacheKey, { data: stats, timestamp: Date.now() });
 
       console.log('✅ Error stats loaded:', stats);
 
     } catch (error) {
       console.error('❌ Error loading error stats:', error);
     }
-  }, [canAccess, dataCache]);
+  }, [canAccess]); // Removed dataCache from dependencies
 
   // Load recent errors với phân trang
   const loadRecentErrors = useCallback(async (page: number = 1) => {
     if (!canAccess) return;
 
     const cacheKey = `recent-errors-${page}`;
-    const cached = dataCache.get(cacheKey);
+    const cached = dataCache.current.get(cacheKey);
     
     if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
       setRecentErrors(cached.data);
@@ -171,9 +169,7 @@ export function useErrorMonitoringData() {
       setRecentErrors(errorList);
 
       // Cache data
-      const newCache = new Map(dataCache);
-      newCache.set(cacheKey, { data: errorList, timestamp: Date.now() });
-      setDataCache(newCache);
+      dataCache.current.set(cacheKey, { data: errorList, timestamp: Date.now() });
 
       console.log(`✅ Recent errors loaded: ${errorList.length} records`);
 
@@ -183,14 +179,14 @@ export function useErrorMonitoringData() {
     } finally {
       setIsLoading(false);
     }
-  }, [canAccess, dataCache]);
+  }, [canAccess]); // Removed dataCache from dependencies
 
   // Load error analytics - chỉ khi user click vào tab Analytics
   const loadErrorAnalytics = useCallback(async () => {
     if (!canAccess) return;
 
     const cacheKey = 'error-analytics';
-    const cached = dataCache.get(cacheKey);
+    const cached = dataCache.current.get(cacheKey);
     
     if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
       setErrorStats(prev => ({ ...prev, ...cached.data }));
@@ -241,22 +237,20 @@ export function useErrorMonitoringData() {
         setErrorStats(prev => ({ ...prev, ...analytics }));
 
         // Cache data
-        const newCache = new Map(dataCache);
-        newCache.set(cacheKey, { data: analytics, timestamp: Date.now() });
-        setDataCache(newCache);
+        dataCache.current.set(cacheKey, { data: analytics, timestamp: Date.now() });
       }
 
     } catch (error) {
       console.error('❌ Error loading analytics:', error);
     }
-  }, [canAccess, dataCache]);
+  }, [canAccess]); // Removed dataCache from dependencies
 
   // Load system metrics - chỉ khi cần
   const loadSystemMetrics = useCallback(async () => {
     if (!canAccess) return;
 
     const cacheKey = 'system-metrics';
-    const cached = dataCache.get(cacheKey);
+    const cached = dataCache.current.get(cacheKey);
     
     if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
       setSystemMetrics(cached.data);
@@ -278,14 +272,12 @@ export function useErrorMonitoringData() {
         setSystemMetrics(metrics);
 
         // Cache data
-        const newCache = new Map(dataCache);
-        newCache.set(cacheKey, { data: metrics, timestamp: Date.now() });
-        setDataCache(newCache);
+        dataCache.current.set(cacheKey, { data: metrics, timestamp: Date.now() });
       }
     } catch (error) {
       console.warn('⚠️ Error loading system metrics:', error);
     }
-  }, [canAccess, dataCache]);
+  }, [canAccess]); // Removed dataCache from dependencies
 
   // Check service health - simplified
   const checkServiceHealth = useCallback(async () => {
@@ -341,7 +333,7 @@ export function useErrorMonitoringData() {
   const refreshAll = useCallback(() => {
     if (canAccess) {
       // Clear cache
-      setDataCache(new Map());
+      dataCache.current.clear();
       
       // Reload data
       loadErrorStats();
