@@ -10,6 +10,7 @@ import { AccountLockedMessage } from '@/components/AccountLockedMessage';
 import { useDebounce } from '@/hooks/useDebounce';
 import { checkAccountStatus } from '@/services/secureAuthService';
 import { toast } from 'sonner';
+import CreateTestAdminButton from '@/components/CreateTestAdminButton';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -152,6 +153,9 @@ const Login = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Test Admin Creation Button */}
+      <CreateTestAdminButton />
     </div>
   );
 };
