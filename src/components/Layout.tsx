@@ -142,7 +142,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         <DropdownMenuItem key={item.name} asChild>
                           <Link
                             to={item.href}
-                            onClick={onLinkClick}
+                            onClick={() => {
+                              onLinkClick?.();
+                              setIsSystemDropdownOpen(false); // Close the dropdown when a link is clicked
+                            }}
                             className={`group flex gap-x-3 rounded-md py-2 pr-2 pl-4 text-sm leading-6 font-semibold ${
                               isActive
                                 ? 'bg-green-100 text-green-700'
