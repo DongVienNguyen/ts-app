@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Database, Calendar, Package } from 'lucide-react';
+import { FileText, Database, Package } from 'lucide-react';
 import { restoreService } from '@/services/restoreService';
 
 interface RestorePreviewCardProps {

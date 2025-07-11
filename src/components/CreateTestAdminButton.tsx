@@ -11,7 +11,7 @@ const CreateTestAdminButton: React.FC = () => {
     setIsCreating(true);
     try {
       // Create test admin user
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('staff')
         .insert([
           {

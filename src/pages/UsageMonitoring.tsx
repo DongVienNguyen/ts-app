@@ -1,4 +1,3 @@
-import React from 'react';
 import Layout from '@/components/Layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, RefreshCw, Users, Activity, Clock, Eye } from 'lucide-react';

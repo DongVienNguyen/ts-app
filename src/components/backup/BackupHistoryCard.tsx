@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { History, Download, Clock, CheckCircle, XCircle, Calendar } from 'lucide-react';
+import { History, Clock, CheckCircle, XCircle, Calendar } from 'lucide-react';
 
 interface BackupRecord {
   id: string;

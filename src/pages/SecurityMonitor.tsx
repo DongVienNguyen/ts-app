@@ -1,4 +1,3 @@
-import React from 'react';
 import Layout from '@/components/Layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, RefreshCw, Shield, Users, Lock, Activity } from 'lucide-react';
@@ -13,7 +12,6 @@ const SecurityMonitor = () => {
     stats,
     isLoading,
     error,
-    canAccess,
     refreshData
   } = useSecurityMonitoring();
 
