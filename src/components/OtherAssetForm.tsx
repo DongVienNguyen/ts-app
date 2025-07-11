@@ -10,12 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogDescription, // Ensure this is imported
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { OtherAsset } from '@/types/asset';
-import DateInput from './DateInput'; // Changed from { DateInput }
-import { format, parseISO } from 'date-fns'; // Add this line
+import { TablesInsert } from '@/integrations/supabase/types'; // Import TablesInsert
+import DateInput from './DateInput';
+import { format, parseISO } from 'date-fns';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Tên tài sản không được để trống'),
@@ -31,7 +32,7 @@ const formSchema = z.object({
 type OtherAssetFormValues = z.infer<typeof formSchema>;
 
 interface OtherAssetFormProps {
-  asset?: OtherAsset | null;
+  asset?: OtherAsset | TablesInsert<'other_assets'> | null; // Cập nhật kiểu dữ liệu tại đây
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: OtherAssetFormValues, id?: string) => void;
@@ -89,8 +90,8 @@ export const OtherAssetForm: React.FC<OtherAssetFormProps> = ({ asset, isOpen, o
                 render={({ field }) => (
                   <DateInput
                     label="Ngày gửi"
-                    value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} // Convert Date to YYYY-MM-DD string
-                    onChange={(dateString) => field.onChange(dateString ? parseISO(dateString) : null)} // Convert YYYY-MM-DD string to Date
+                    value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                    onChange={(dateString) => field.onChange(dateString ? parseISO(dateString) : null)}
                   />
                 )}
               />
@@ -127,8 +128,8 @@ export const OtherAssetForm: React.FC<OtherAssetFormProps> = ({ asset, isOpen, o
                 render={({ field }) => (
                   <DateInput
                     label="Ngày lấy"
-                    value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} // Convert Date to YYYY-MM-DD string
-                    onChange={(dateString) => field.onChange(dateString ? parseISO(dateString) : null)} // Convert YYYY-MM-DD string to Date
+                    value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                    onChange={(dateString) => field.onChange(dateString ? parseISO(dateString) : null)}
                   />
                 )}
               />

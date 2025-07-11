@@ -1,72 +1,63 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useOtherAssetOperations } from '@/hooks/useOtherAssetOperations'; // Import the operations hook
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useOtherAssetOperations } from './useOtherAssetOperations';
+import { OtherAsset } from '@/types/asset';
+import { TablesInsert } from '@/integrations/supabase/types'; // Import TablesInsert
 
 export const useOtherAssets = (user: any) => {
-  const [assets, setAssets] = useState<any[]>([]);
+  const [assets, setAssets] = useState<OtherAsset[]>([]);
+  const [filteredAssets, setFilteredAssets] = useState<OtherAsset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingAsset, setEditingAsset] = useState<any>(null);
+  const [editingAsset, setEditingAsset] = useState<OtherAsset | null>(null);
   const [changeReason, setChangeReason] = useState('');
-  const [message, setMessage] = useState({ type: '', text: '' });
-  const [newAsset, setNewAsset] = useState({
-    name: '',
-    deposit_date: '',
-    depositor: '',
-    deposit_receiver: '',
-    withdrawal_date: '',
-    withdrawal_deliverer: '',
-    withdrawal_receiver: '',
-    notes: ''
-  });
+  // Thay đổi kiểu dữ liệu của message để chấp nhận null
+  const [message, setMessage] = useState<(null | { type: 'success' | 'error'; text: string })>(null);
+  // Thay đổi kiểu dữ liệu của newAsset thành TablesInsert<'other_assets'>
+  const [newAsset, setNewAsset] = useState<TablesInsert<'other_assets'> | null>(null);
 
-  const { loadAssets: loadOtherAssets, saveAsset, deleteAsset: deleteOtherAsset } = useOtherAssetOperations(user); // Use functions from the operations hook
+  const { loadAssets, saveAsset, deleteAsset: deleteAssetOperation } = useOtherAssetOperations(user);
+
+  const fetchAssets = useCallback(async () => {
+    setIsLoading(true);
+    const fetchedAssets = await loadAssets(); // Use the loadAssets from operations hook
+    setAssets(fetchedAssets);
+    setIsLoading(false);
+  }, [user, loadAssets]); // Depend on user and loadOtherAssets
 
   useEffect(() => {
-    const fetchAssets = async () => {
-      setIsLoading(true);
-      const fetchedAssets = await loadOtherAssets(); // Use the loadAssets from operations hook
-      setAssets(fetchedAssets);
-      setIsLoading(false);
-    };
     fetchAssets();
-  }, [user, loadOtherAssets]); // Depend on user and loadOtherAssets
-
-  const filteredAssets = useMemo(() => {
-    return assets.filter(asset =>
-      Object.values(asset).some(value =>
-        String(value).toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
-  }, [assets, searchTerm]);
+  }, [fetchAssets]);
 
   const clearForm = () => {
     setNewAsset({
       name: '',
-      deposit_date: '',
-      depositor: '',
-      deposit_receiver: '',
-      withdrawal_date: '',
-      withdrawal_deliverer: '',
-      withdrawal_receiver: '',
-      notes: ''
+      deposit_date: null, // Sử dụng null cho các trường ngày có thể rỗng
+      depositor: null,
+      deposit_receiver: null,
+      withdrawal_date: null,
+      withdrawal_deliverer: null,
+      withdrawal_receiver: null,
+      notes: null,
+      // id, created_at, updated_at là tùy chọn trong TablesInsert, không cần khai báo
     });
     setEditingAsset(null);
     setChangeReason('');
   };
 
   const handleSave = async () => {
-    setMessage({ type: '', text: '' });
-    if (!newAsset.name.trim()) { // Check for name validity here as well
+    setMessage(null); // Xóa thông báo bằng cách đặt thành null
+    if (!newAsset?.name?.trim()) { // Kiểm tra newAsset và name trước khi trim
       setMessage({ type: 'error', text: 'Tên tài sản là bắt buộc' });
       return;
     }
 
     setIsLoading(true);
-    const success = await saveAsset(newAsset, editingAsset, changeReason); // Use saveAsset from operations hook
+    // newAsset đã là TablesInsert<'other_assets'>, editingAsset là OtherAsset | null
+    const success = await saveAsset(newAsset, editingAsset, changeReason); 
     if (success) {
       setMessage({ type: 'success', text: editingAsset ? 'Cập nhật tài sản thành công' : 'Thêm tài sản mới thành công' });
       clearForm();
-      const fetchedAssets = await loadOtherAssets(); // Reload assets after save
+      const fetchedAssets = await loadAssets(); // Reload assets after save
       setAssets(fetchedAssets);
     } else {
       // Error message is handled by useOtherAssetOperations
@@ -74,27 +65,30 @@ export const useOtherAssets = (user: any) => {
     setIsLoading(false);
   };
 
-  const editAsset = (asset: any) => {
+  const editAsset = (asset: OtherAsset) => { // Đảm bảo asset có kiểu OtherAsset
     setEditingAsset({ ...asset });
     setNewAsset({
+      id: asset.id, // Bao gồm id khi chỉnh sửa
       name: asset.name || '',
-      deposit_date: asset.deposit_date || '',
-      depositor: asset.depositor || '',
-      deposit_receiver: asset.deposit_receiver || '',
-      withdrawal_date: asset.withdrawal_date || '',
-      withdrawal_deliverer: asset.withdrawal_deliverer || '',
-      withdrawal_receiver: asset.withdrawal_receiver || '',
-      notes: asset.notes || ''
+      deposit_date: asset.deposit_date || null,
+      depositor: asset.depositor || null,
+      deposit_receiver: asset.deposit_receiver || null,
+      withdrawal_date: asset.withdrawal_date || null,
+      withdrawal_deliverer: asset.withdrawal_deliverer || null,
+      withdrawal_receiver: asset.withdrawal_receiver || null,
+      notes: asset.notes || null,
+      created_at: asset.created_at || null,
+      updated_at: asset.updated_at || null,
     });
   };
 
-  const deleteAsset = async (asset: any) => { // Changed to accept full asset object
-    setMessage({ type: '', text: '' });
+  const deleteAsset = async (asset: OtherAsset) => { // Đảm bảo asset có kiểu OtherAsset
+    setMessage(null); // Xóa thông báo bằng cách đặt thành null
     setIsLoading(true);
-    const success = await deleteOtherAsset(asset); // Use deleteAsset from operations hook
+    const success = await deleteAssetOperation(asset); // Use deleteAsset from operations hook
     if (success) {
       setMessage({ type: 'success', text: 'Xóa tài sản thành công' });
-      const fetchedAssets = await loadOtherAssets(); // Reload assets after delete
+      const fetchedAssets = await loadAssets(); // Reload assets after delete
       setAssets(fetchedAssets);
     } else {
       // Error message is handled by useOtherAssetOperations
