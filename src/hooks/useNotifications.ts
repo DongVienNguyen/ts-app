@@ -4,6 +4,7 @@ import { useSecureAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { getCachedNotifications, invalidateNotifications } from '@/utils/databaseCache';
 
 type Notification = Tables<'notifications'>;
 
@@ -19,27 +20,26 @@ export function useNotifications() {
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
 
-  // Fetch notifications
-  const { data: notifications = [], isLoading, refetch } = useQuery<Notification[]>({
+  // Fetch notifications with caching
+  const { data: notifications = [], isLoading, refetch } = useQuery({
     queryKey: ['notifications', user?.username],
-    queryFn: async () => {
+    queryFn: async (): Promise<Notification[]> => {
       if (!user) return [];
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('recipient_username', user.username)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching notifications:', error);
-        return [];
-      }
+      
+      console.log('📨 Fetching notifications with cache for user:', user.username);
+      
+      // Use cached query for better performance
+      const data = await getCachedNotifications(user.username);
+      
+      console.log(`✅ Retrieved ${data?.length || 0} notifications from cache`);
       return data || [];
     },
     enabled: !!user,
+    staleTime: 30 * 1000, // Consider data stale after 30 seconds
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes (renamed from cacheTime)
   });
 
-  // Mark as read mutation
+  // Mark as read mutation with cache invalidation
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
       const { error } = await supabase
@@ -50,6 +50,11 @@ export function useNotifications() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidate cache for this user
+      if (user?.username) {
+        invalidateNotifications(user.username);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.username] });
       toast.success('Đã đánh dấu đã đọc');
     },
@@ -59,7 +64,7 @@ export function useNotifications() {
     }
   });
 
-  // Mark all as read mutation
+  // Mark all as read mutation with cache invalidation
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
       if (!user) return;
@@ -72,6 +77,11 @@ export function useNotifications() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidate cache for this user
+      if (user?.username) {
+        invalidateNotifications(user.username);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.username] });
       toast.success('Đã đánh dấu tất cả đã đọc');
     },
@@ -81,7 +91,7 @@ export function useNotifications() {
     }
   });
 
-  // Delete notification mutation
+  // Delete notification mutation with cache invalidation
   const deleteNotificationMutation = useMutation({
     mutationFn: async (notificationId: string) => {
       const { error } = await supabase
@@ -92,6 +102,11 @@ export function useNotifications() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidate cache for this user
+      if (user?.username) {
+        invalidateNotifications(user.username);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.username] });
       toast.success('Đã xóa thông báo');
     },
@@ -101,7 +116,7 @@ export function useNotifications() {
     }
   });
 
-  // Delete all notifications mutation
+  // Delete all notifications mutation with cache invalidation
   const deleteAllNotificationsMutation = useMutation({
     mutationFn: async () => {
       if (!user) return;
@@ -113,6 +128,11 @@ export function useNotifications() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidate cache for this user
+      if (user?.username) {
+        invalidateNotifications(user.username);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.username] });
       toast.success('Đã xóa tất cả thông báo');
     },
@@ -122,7 +142,7 @@ export function useNotifications() {
     }
   });
 
-  // Reply mutation
+  // Reply mutation with cache invalidation
   const replyMutation = useMutation({
     mutationFn: async ({ notificationId, replyText, replyType }: { 
       notificationId: string; 
@@ -166,6 +186,9 @@ export function useNotifications() {
       }
     },
     onSuccess: () => {
+      // Invalidate notifications cache for all affected users
+      invalidateNotifications(); // Clear all notifications cache
+      
       setIsReplyDialogOpen(false);
       setSelectedNotification(null);
       toast.success('Đã gửi phản hồi');
@@ -176,7 +199,7 @@ export function useNotifications() {
     }
   });
 
-  // Quick action mutation
+  // Quick action mutation with cache invalidation
   const quickActionMutation = useMutation({
     mutationFn: async ({ notificationId, action }: { notificationId: string; action: string }) => {
       if (!selectedNotification) return;
@@ -206,6 +229,9 @@ export function useNotifications() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidate notifications cache
+      invalidateNotifications();
+      
       setIsReplyDialogOpen(false);
       setSelectedNotification(null);
       toast.success('Đã gửi phản hồi nhanh');
@@ -216,7 +242,7 @@ export function useNotifications() {
     }
   });
 
-  // Real-time subscription
+  // Real-time subscription with cache invalidation
   useEffect(() => {
     if (!user?.username) return;
 
@@ -234,6 +260,10 @@ export function useNotifications() {
         },
         (payload) => {
           console.log('📨 Notification page change received:', payload);
+          
+          // Invalidate cache when real-time changes occur
+          invalidateNotifications(user.username);
+          
           queryClient.invalidateQueries({ queryKey: ['notifications', user.username] });
         }
       )
@@ -313,11 +343,13 @@ export function useNotifications() {
     quickActionMutation.mutate({ notificationId, action });
   };
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  // Ensure notifications is always an array and calculate unread count
+  const notificationsArray = Array.isArray(notifications) ? notifications : [];
+  const unreadCount = notificationsArray.filter(n => !n.is_read).length;
 
   return {
     // Data
-    notifications,
+    notifications: notificationsArray,
     unreadCount,
     selectedNotification,
     isReplyDialogOpen,

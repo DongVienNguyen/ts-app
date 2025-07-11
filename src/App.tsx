@@ -8,6 +8,7 @@ import { NotificationPermissionPrompt } from '@/components/NotificationPermissio
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useEffect, Suspense, lazy } from 'react';
+import { memoryManager } from '@/utils/memoryManager';
 
 // Lazy load all pages for better performance
 const Index = lazy(() => import('@/pages/Index'));
@@ -53,6 +54,25 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
+  // Initialize memory management
+  useEffect(() => {
+    console.log('🧠 Initializing memory management...');
+    
+    // Set cleanup threshold to 85%
+    memoryManager.setCleanupThreshold(85);
+    
+    // Log initial memory stats
+    const stats = memoryManager.getMemoryStats();
+    if (stats) {
+      console.log('🧠 Initial memory usage:', `${stats.usagePercentage.toFixed(1)}%`);
+    }
+
+    // Cleanup on app unmount
+    return () => {
+      memoryManager.stopMonitoring();
+    };
+  }, []);
+
   // Listen for service worker navigation messages
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {

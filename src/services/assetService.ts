@@ -1,52 +1,57 @@
 import { supabase } from '@/integrations/supabase/client';
 import { captureError, measurePerformance } from '@/utils/errorTracking';
+import { 
+  getCachedAssetTransactions, 
+  invalidateAssetTransactions,
+  databaseCache 
+} from '@/utils/databaseCache';
 
 export interface AssetTransactionFilters {
   startDate?: string;
   endDate?: string;
   parts_day?: 'Sáng' | 'Chiều' | 'all';
   isQlnPgdNextDay?: boolean;
+  staff_code?: string;
+  transaction_type?: string;
 }
 
-// Get asset transactions with filters
+// Get asset transactions with caching
 export const getAssetTransactions = measurePerformance('getAssetTransactions', async (filters?: AssetTransactionFilters) => {
   try {
-    let query = supabase
-      .from('asset_transactions')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (filters?.startDate) {
-      query = query.gte('transaction_date', filters.startDate);
-    }
-    if (filters?.endDate) {
-      query = query.lte('transaction_date', filters.endDate);
-    }
-    if (filters?.parts_day && filters.parts_day !== 'all') {
-      query = query.eq('parts_day', filters.parts_day);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
+    console.log('📊 Getting asset transactions with filters:', filters);
+    
+    // Use cached query for better performance
+    const data = await getCachedAssetTransactions(filters || {});
+    
+    console.log(`✅ Retrieved ${data?.length || 0} asset transactions from cache`);
     return data;
   } catch (error) {
     captureError(error as Error, {
       functionName: 'getAssetTransactions',
-      severity: 'medium'
+      severity: 'medium',
+      additionalData: { filters }
     });
     throw error;
   }
 });
 
-// Save asset transactions
+// Save asset transactions and invalidate cache
 export const saveAssetTransactions = measurePerformance('saveAssetTransactions', async (transactions: any[]) => {
   try {
+    console.log('💾 Saving asset transactions:', transactions.length);
+    
     const { data, error } = await supabase
       .from('asset_transactions')
       .insert(transactions)
       .select();
 
     if (error) throw error;
+    
+    // Invalidate cache after successful save
+    invalidateAssetTransactions();
+    console.log('🗑️ Asset transactions cache invalidated');
+    
+    console.log(`✅ Saved ${data?.length || 0} asset transactions`);
     return data;
   } catch (error) {
     captureError(error as Error, {
@@ -58,18 +63,23 @@ export const saveAssetTransactions = measurePerformance('saveAssetTransactions',
   }
 });
 
-// Wrap all asset service functions with error tracking and performance monitoring
+// Enhanced asset service with caching
 export const assetService = {
-  // Get all assets with error tracking
+  // Get all assets with caching
   getAllAssets: measurePerformance('getAllAssets', async () => {
     try {
-      const { data, error } = await supabase
-        .from('asset_transactions')
-        .select('*')
-        .order('created_at', { ascending: false });
+      return await databaseCache.cachedQuery(
+        'asset_transactions',
+        async () => {
+          const { data, error } = await supabase
+            .from('asset_transactions')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data;
+          if (error) throw error;
+          return data;
+        }
+      );
     } catch (error) {
       captureError(error as Error, {
         functionName: 'getAllAssets',
@@ -79,7 +89,7 @@ export const assetService = {
     }
   }),
 
-  // Create asset transaction with error tracking
+  // Create asset transaction with cache invalidation
   createAssetTransaction: measurePerformance('createAssetTransaction', async (transaction: any) => {
     try {
       const { data, error } = await supabase
@@ -89,6 +99,10 @@ export const assetService = {
         .single();
 
       if (error) throw error;
+      
+      // Invalidate cache
+      invalidateAssetTransactions();
+      
       return data;
     } catch (error) {
       captureError(error as Error, {
@@ -100,7 +114,7 @@ export const assetService = {
     }
   }),
 
-  // Update asset transaction with error tracking
+  // Update asset transaction with cache invalidation
   updateAssetTransaction: measurePerformance('updateAssetTransaction', async (id: string, updates: any) => {
     try {
       const { data, error } = await supabase
@@ -111,6 +125,10 @@ export const assetService = {
         .single();
 
       if (error) throw error;
+      
+      // Invalidate cache
+      invalidateAssetTransactions();
+      
       return data;
     } catch (error) {
       captureError(error as Error, {
@@ -122,7 +140,7 @@ export const assetService = {
     }
   }),
 
-  // Delete asset transaction with error tracking
+  // Delete asset transaction with cache invalidation
   deleteAssetTransaction: measurePerformance('deleteAssetTransaction', async (id: string) => {
     try {
       const { error } = await supabase
@@ -131,6 +149,10 @@ export const assetService = {
         .eq('id', id);
 
       if (error) throw error;
+      
+      // Invalidate cache
+      invalidateAssetTransactions();
+      
       return true;
     } catch (error) {
       captureError(error as Error, {
@@ -142,16 +164,21 @@ export const assetService = {
     }
   }),
 
-  // Get asset reminders with error tracking
+  // Get asset reminders with caching
   getAssetReminders: measurePerformance('getAssetReminders', async () => {
     try {
-      const { data, error } = await supabase
-        .from('asset_reminders')
-        .select('*')
-        .order('created_at', { ascending: false });
+      return await databaseCache.cachedQuery(
+        'asset_reminders',
+        async () => {
+          const { data, error } = await supabase
+            .from('asset_reminders')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data;
+          if (error) throw error;
+          return data;
+        }
+      );
     } catch (error) {
       captureError(error as Error, {
         functionName: 'getAssetReminders',
@@ -161,7 +188,7 @@ export const assetService = {
     }
   }),
 
-  // Create asset reminder with error tracking
+  // Create asset reminder with cache invalidation
   createAssetReminder: measurePerformance('createAssetReminder', async (reminder: any) => {
     try {
       const { data, error } = await supabase
@@ -171,12 +198,46 @@ export const assetService = {
         .single();
 
       if (error) throw error;
+      
+      // Invalidate cache
+      databaseCache.invalidateTable('asset_reminders');
+      
       return data;
     } catch (error) {
       captureError(error as Error, {
         functionName: 'createAssetReminder',
         severity: 'high',
         additionalData: { reminder }
+      });
+      throw error;
+    }
+  }),
+
+  // Get cached statistics
+  getAssetStatistics: measurePerformance('getAssetStatistics', async () => {
+    try {
+      return await databaseCache.cachedQuery(
+        'asset_statistics',
+        async () => {
+          // Get various statistics
+          const [transactionsResult, remindersResult] = await Promise.all([
+            supabase.from('asset_transactions').select('*', { count: 'exact', head: true }),
+            supabase.from('asset_reminders').select('*', { count: 'exact', head: true })
+          ]);
+
+          return {
+            totalTransactions: transactionsResult.count || 0,
+            totalReminders: remindersResult.count || 0,
+            lastUpdated: new Date().toISOString()
+          };
+        },
+        {},
+        { ttl: 10 * 60 * 1000 } // Cache for 10 minutes
+      );
+    } catch (error) {
+      captureError(error as Error, {
+        functionName: 'getAssetStatistics',
+        severity: 'low'
       });
       throw error;
     }
