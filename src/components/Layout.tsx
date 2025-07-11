@@ -29,7 +29,9 @@ import {
   Home,
   Shield,
   Activity,
-  Key
+  Key,
+  Settings,
+  HardDrive
 } from 'lucide-react';
 import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -44,6 +46,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -63,7 +66,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return null;
   }
 
-  const navigationItems = [
+  // Use permission functions consistently
+  const userIsAdmin = isAdmin(user);
+  const userIsNqOrAdmin = isNqOrAdmin(user);
+
+  // MAIN NAVIGATION ITEMS - NO SYSTEM ITEMS
+  const mainNavigationItems = [
     {
       name: 'Trang chủ',
       href: '/',
@@ -86,49 +94,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       name: 'Báo cáo TS',
       href: '/borrow-report',
       icon: BarChart3,
-      show: isNqOrAdmin(user)
+      show: userIsNqOrAdmin
     },
     {
       name: 'Nhắc nhở TS',
       href: '/asset-reminders',
       icon: Bell,
-      show: isNqOrAdmin(user)
+      show: userIsNqOrAdmin
     },
     {
       name: 'Nhắc nhở CRC',
       href: '/crc-reminders',
       icon: Bell,
-      show: isNqOrAdmin(user)
+      show: userIsNqOrAdmin
     },
     {
       name: 'Tài sản khác',
       href: '/other-assets',
       icon: Package,
-      show: isNqOrAdmin(user)
-    },
-    {
-      name: 'Quản lý DL',
-      href: '/data-management',
-      icon: Database,
-      show: isAdmin(user)
-    },
-    {
-      name: 'Bảo mật',
-      href: '/security-monitor',
-      icon: Shield,
-      show: isAdmin(user)
-    },
-    {
-      name: 'Lỗi hệ thống',
-      href: '/error-monitoring',
-      icon: Activity,
-      show: isAdmin(user)
-    },
-    {
-      name: 'Sử dụng',
-      href: '/usage-monitoring',
-      icon: BarChart3,
-      show: isAdmin(user)
+      show: userIsNqOrAdmin
     },
     {
       name: 'Thông báo',
@@ -138,16 +122,70 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   ];
 
-  const visibleItems = navigationItems.filter(item => item.show);
+  // SYSTEM ITEMS - SEPARATE ARRAY FOR ADMIN ONLY
+  const systemItems = [
+    {
+      name: 'Quản lý DL',
+      href: '/data-management',
+      icon: Database,
+      show: userIsAdmin
+    },
+    {
+      name: 'Bảo mật',
+      href: '/security-monitor',
+      icon: Shield,
+      show: userIsAdmin
+    },
+    {
+      name: 'Lỗi hệ thống',
+      href: '/error-monitoring',
+      icon: Activity,
+      show: userIsAdmin
+    },
+    {
+      name: 'Sử dụng',
+      href: '/usage-monitoring',
+      icon: BarChart3,
+      show: userIsAdmin
+    },
+    {
+      name: 'Backup & Restore',
+      href: '/system-backup',
+      icon: HardDrive,
+      show: userIsAdmin
+    }
+  ];
+
+  // Filter visible items
+  const visibleMainItems = mainNavigationItems.filter(item => item.show);
+  const visibleSystemItems = systemItems.filter(item => item.show);
+
+  // Check if any system menu item is currently active
+  const isSystemMenuActive = visibleSystemItems.some(item => location.pathname === item.href);
 
   const handleLogout = () => {
     setIsUserMenuOpen(false);
     logout();
   };
 
+  // DEBUG LOGGING
+  console.log('🔍 LAYOUT DEBUG:', {
+    user: user?.username,
+    role: user?.role,
+    department: user?.department,
+    userIsAdmin,
+    userIsNqOrAdmin,
+    visibleMainItems: visibleMainItems.length,
+    mainItemNames: visibleMainItems.map(item => item.name),
+    visibleSystemItems: visibleSystemItems.length,
+    systemItemNames: visibleSystemItems.map(item => item.name),
+    isSystemMenuActive,
+    currentPath: location.pathname
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation Bar - Always light theme */}
+      {/* Top Navigation Bar */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white ${
         isScrolled 
           ? 'shadow-lg border-b border-gray-200' 
@@ -178,11 +216,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </SheetTitle>
                   </SheetHeader>
                   
-                  {/* Navigation Links */}
+                  {/* Navigation Links - FIXED TO GROUP SYSTEM ITEMS */}
                   <nav className="flex-1 px-2 py-4 overflow-y-auto bg-white">
                     <div className="space-y-1">
-                      {visibleItems.map((item) => {
+                      {/* MAIN NAVIGATION ITEMS ONLY */}
+                      {visibleMainItems.map((item) => {
                         const isActive = location.pathname === item.href;
+                        console.log(`📱 Mobile Main: ${item.name}`);
                         return (
                           <Link
                             key={item.href}
@@ -199,6 +239,37 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                           </Link>
                         );
                       })}
+
+                      {/* SYSTEM MENU SECTION - GROUPED */}
+                      {visibleSystemItems.length > 0 && (
+                        <>
+                          {/* System Header */}
+                          <div className="px-3 py-2 text-sm font-medium text-gray-500 border-t border-gray-200 mt-4 pt-4">
+                            <Settings className="inline-block w-4 h-4 mr-2" />
+                            🔧 Hệ thống ({visibleSystemItems.length})
+                          </div>
+                          {/* System Items - Indented */}
+                          {visibleSystemItems.map((item) => {
+                            const isActive = location.pathname === item.href;
+                            console.log(`📱 Mobile System: ${item.name}`);
+                            return (
+                              <Link
+                                key={item.href}
+                                to={item.href}
+                                className={`group flex items-center px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+                                  isActive
+                                    ? 'bg-green-100 text-green-700 border-r-2 border-green-600'
+                                    : 'text-gray-600 hover:bg-green-50 hover:text-green-700'
+                                }`}
+                                onClick={() => setIsSidebarOpen(false)}
+                              >
+                                <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                                <span className="truncate">{item.name}</span>
+                              </Link>
+                            );
+                          })}
+                        </>
+                      )}
                     </div>
                   </nav>
 
@@ -242,7 +313,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Center: Desktop Navigation */}
             <div className="hidden lg:flex items-center space-x-1">
-              {visibleItems.map((item) => {
+              {/* MAIN NAVIGATION ITEMS */}
+              {visibleMainItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
                   <Link
@@ -259,9 +331,46 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Link>
                 );
               })}
+
+              {/* SYSTEM MENU DROPDOWN */}
+              {visibleSystemItems.length > 0 && (
+                <DropdownMenu open={isSystemMenuOpen} onOpenChange={setIsSystemMenuOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={`px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                        isSystemMenuActive
+                          ? 'bg-green-100 text-green-700'
+                          : 'text-gray-600 hover:text-green-700 hover:bg-green-50'
+                      }`}
+                    >
+                      <Settings className="inline-block w-4 h-4 mr-2" />
+                      Hệ thống
+                      <ChevronDown className="inline-block w-4 h-4 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {visibleSystemItems.map((item, index) => (
+                      <React.Fragment key={item.href}>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            to={item.href}
+                            className="flex items-center w-full cursor-pointer"
+                            onClick={() => setIsSystemMenuOpen(false)}
+                          >
+                            <item.icon className="mr-2 h-4 w-4" />
+                            {item.name}
+                          </Link>
+                        </DropdownMenuItem>
+                        {index < visibleSystemItems.length - 1 && <DropdownMenuSeparator />}
+                      </React.Fragment>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
 
-            {/* Right: Notifications & User - No theme toggle */}
+            {/* Right: Notifications & User */}
             <div className="flex items-center space-x-3">
               <NotificationBell />
               
@@ -314,7 +423,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </nav>
 
-      {/* Main Content - Always light theme */}
+      {/* Main Content */}
       <main className="pt-16 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {children}
