@@ -1,11 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ErrorMonitoringHeader } from '@/components/error-monitoring/ErrorMonitoringHeader';
-import { ErrorOverviewCards } from '@/components/error-monitoring/ErrorOverviewCards';
-import { ErrorListTab } from '@/components/error-monitoring/ErrorListTab';
-import { ErrorAnalyticsTab } from '@/components/error-monitoring/ErrorAnalyticsTab';
-import { ServiceStatusTab } from '@/components/error-monitoring/ServiceStatusTab';
-import { ResourcesTab } from '@/components/error-monitoring/ResourcesTab';
-import { RealTimeErrorFeed } from '@/components/error-monitoring/RealTimeErrorFeed';
+import { ErrorMonitoringHeader } from './error-monitoring/ErrorMonitoringHeader';
+import { ErrorOverviewCards } from './error-monitoring/ErrorOverviewCards';
+import { ErrorListTab } from './error-monitoring/ErrorListTab';
+import { ErrorAnalyticsTab } from './error-monitoring/ErrorAnalyticsTab';
+import { ServiceStatusTab } from './error-monitoring/ServiceStatusTab';
+import { ResourcesTab } from './error-monitoring/ResourcesTab';
+import { RealTimeErrorFeed } from './error-monitoring/RealTimeErrorFeed';
 import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
 
 export function ErrorMonitoringDashboard() {
@@ -18,26 +18,29 @@ export function ErrorMonitoringDashboard() {
     lastUpdated,
     refreshAll,
     getStatusColor,
-    getSeverityColor
+    getSeverityColor: originalGetSeverityColor
   } = useErrorMonitoringData();
 
-  const handleNewError = () => {
-    // Refresh data when new error is detected
-    refreshAll();
+  // Wrap getSeverityColor to handle undefined severity
+  const getSeverityColor = (severity: string | undefined): string => {
+    if (!severity) return 'text-gray-600 bg-gray-100';
+    return originalGetSeverityColor(severity);
   };
 
   return (
     <div className="space-y-6">
-      <ErrorMonitoringHeader
+      <ErrorMonitoringHeader 
         lastUpdated={lastUpdated}
         onRefresh={refreshAll}
       />
 
-      <ErrorOverviewCards errorStats={errorStats} />
+      <ErrorOverviewCards 
+        errorStats={errorStats}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Tabs defaultValue="errors" className="w-full">
+          <Tabs defaultValue="errors" className="space-y-4">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="errors">Danh sách Lỗi</TabsTrigger>
               <TabsTrigger value="analytics">Phân tích</TabsTrigger>
@@ -45,7 +48,7 @@ export function ErrorMonitoringDashboard() {
               <TabsTrigger value="resources">Tài nguyên</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="errors" className="space-y-4">
+            <TabsContent value="errors">
               <ErrorListTab
                 recentErrors={recentErrors}
                 isLoading={isLoading}
@@ -54,25 +57,29 @@ export function ErrorMonitoringDashboard() {
               />
             </TabsContent>
 
-            <TabsContent value="analytics" className="space-y-4">
-              <ErrorAnalyticsTab errorStats={errorStats} />
+            <TabsContent value="analytics">
+              <ErrorAnalyticsTab
+                errorStats={errorStats}
+              />
             </TabsContent>
 
-            <TabsContent value="services" className="space-y-4">
+            <TabsContent value="services">
               <ServiceStatusTab
                 serviceHealth={serviceHealth}
                 getStatusColor={getStatusColor}
               />
             </TabsContent>
 
-            <TabsContent value="resources" className="space-y-4">
-              <ResourcesTab systemMetrics={systemMetrics} />
+            <TabsContent value="resources">
+              <ResourcesTab
+                systemMetrics={systemMetrics}
+              />
             </TabsContent>
           </Tabs>
         </div>
 
-        <div className="lg:col-span-1">
-          <RealTimeErrorFeed onNewError={handleNewError} />
+        <div className="space-y-6">
+          <RealTimeErrorFeed onNewError={refreshAll} />
         </div>
       </div>
     </div>
