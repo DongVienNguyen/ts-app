@@ -17,11 +17,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { 
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { 
   Menu, 
   Package, 
   FileText, 
@@ -31,7 +26,7 @@ import {
   LogOut,
   User,
   ChevronDown,
-  ChevronUp,
+  ChevronRight,
   Home,
   Shield,
   Activity,
@@ -171,21 +166,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Check if any system menu item is currently active
   const isSystemMenuActive = visibleSystemItems.some(item => location.pathname === item.href);
 
-  // Auto-open mobile system menu if current page is a system page
-  useEffect(() => {
-    if (isSystemMenuActive && isSidebarOpen) {
-      setIsMobileSystemMenuOpen(true);
-    }
-  }, [isSystemMenuActive, isSidebarOpen]);
-
   const handleLogout = () => {
     setIsUserMenuOpen(false);
     logout();
   };
 
-  const handleMobileSystemMenuToggle = () => {
-    setIsMobileSystemMenuOpen(!isMobileSystemMenuOpen);
-    console.log('🔧 Mobile system menu toggled:', !isMobileSystemMenuOpen);
+  const handleMobileSystemMenuToggle = (open: boolean) => {
+    setIsMobileSystemMenuOpen(open);
+    console.log('🔧 Mobile system menu toggled:', open);
   };
 
   // DEBUG LOGGING
@@ -237,7 +225,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </SheetTitle>
                   </SheetHeader>
                   
-                  {/* Navigation Links - WITH COLLAPSIBLE SYSTEM MENU */}
+                  {/* Navigation Links - WITH DROPDOWN SYSTEM MENU */}
                   <nav className="flex-1 px-2 py-4 overflow-y-auto bg-white">
                     <div className="space-y-1">
                       {/* MAIN NAVIGATION ITEMS ONLY */}
@@ -261,62 +249,74 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         );
                       })}
 
-                      {/* COLLAPSIBLE SYSTEM MENU SECTION */}
+                      {/* DROPDOWN SYSTEM MENU SECTION - OPENS TO RIGHT AND UP */}
                       {visibleSystemItems.length > 0 && (
                         <div className="border-t border-gray-200 mt-4 pt-4">
-                          <Collapsible open={isMobileSystemMenuOpen} onOpenChange={setIsMobileSystemMenuOpen}>
+                          <DropdownMenu open={isMobileSystemMenuOpen} onOpenChange={handleMobileSystemMenuToggle}>
                             {/* System Menu Trigger */}
-                            <CollapsibleTrigger asChild>
+                            <DropdownMenuTrigger asChild>
                               <Button
                                 variant="ghost"
                                 className={`w-full flex items-center justify-between px-3 py-3 text-sm font-medium rounded-lg transition-colors ${
-                                  isSystemMenuActive
+                                  isSystemMenuActive || isMobileSystemMenuOpen
                                     ? 'bg-green-100 text-green-700'
                                     : 'text-gray-600 hover:bg-green-50 hover:text-green-700'
                                 }`}
-                                onClick={handleMobileSystemMenuToggle}
                               >
                                 <div className="flex items-center">
                                   <Settings className="mr-3 h-5 w-5 flex-shrink-0" />
                                   <span className="truncate">🔧 Hệ thống ({visibleSystemItems.length})</span>
                                 </div>
-                                {isMobileSystemMenuOpen ? (
-                                  <ChevronUp className="h-4 w-4 flex-shrink-0" />
-                                ) : (
-                                  <ChevronDown className="h-4 w-4 flex-shrink-0" />
-                                )}
+                                <ChevronRight className="h-4 w-4 flex-shrink-0" />
                               </Button>
-                            </CollapsibleTrigger>
+                            </DropdownMenuTrigger>
 
-                            {/* System Menu Content - EXPANDS UPWARD */}
-                            <CollapsibleContent className="space-y-1">
-                              <div className="bg-gray-50 rounded-lg p-1 mt-2">
-                                {/* Reverse order to show items expanding upward visually */}
-                                {[...visibleSystemItems].reverse().map((item) => {
-                                  const isActive = location.pathname === item.href;
-                                  console.log(`📱 Mobile System: ${item.name}`);
-                                  return (
-                                    <Link
-                                      key={item.href}
-                                      to={item.href}
-                                      className={`group flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                                        isActive
-                                          ? 'bg-green-100 text-green-700 border-l-2 border-green-600'
-                                          : 'text-gray-600 hover:bg-white hover:text-green-700'
-                                      }`}
-                                      onClick={() => {
-                                        setIsSidebarOpen(false);
-                                        setIsMobileSystemMenuOpen(false);
-                                      }}
-                                    >
-                                      <item.icon className="mr-3 h-4 w-4 flex-shrink-0" />
-                                      <span className="truncate">{item.name}</span>
-                                    </Link>
-                                  );
-                                }).reverse()} {/* Reverse again to maintain original order */}
+                            {/* System Menu Content - POSITIONED TO RIGHT AND UP */}
+                            <DropdownMenuContent 
+                              side="right" 
+                              align="end"
+                              alignOffset={-10}
+                              sideOffset={8}
+                              className="w-56 bg-white border border-gray-200 shadow-lg"
+                            >
+                              {/* System Menu Header */}
+                              <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                                <div className="flex items-center text-sm font-medium text-gray-700">
+                                  <Settings className="mr-2 h-4 w-4" />
+                                  Hệ thống ({visibleSystemItems.length})
+                                </div>
                               </div>
-                            </CollapsibleContent>
-                          </Collapsible>
+                              
+                              {/* System Menu Items */}
+                              {visibleSystemItems.map((item, index) => {
+                                console.log(`📱 Mobile System: ${item.name}`);
+                                return (
+                                  <React.Fragment key={item.href}>
+                                    <DropdownMenuItem asChild>
+                                      <Link
+                                        to={item.href}
+                                        className={`flex items-center w-full cursor-pointer px-3 py-2 text-sm ${
+                                          location.pathname === item.href
+                                            ? 'bg-green-100 text-green-700 font-medium'
+                                            : 'text-gray-600 hover:bg-green-50 hover:text-green-700'
+                                        }`}
+                                        onClick={() => {
+                                          setIsSidebarOpen(false);
+                                          setIsMobileSystemMenuOpen(false);
+                                        }}
+                                      >
+                                        <item.icon className="mr-3 h-4 w-4 flex-shrink-0" />
+                                        <span className="truncate">{item.name}</span>
+                                      </Link>
+                                    </DropdownMenuItem>
+                                    {index < visibleSystemItems.length - 1 && (
+                                      <DropdownMenuSeparator className="bg-gray-200" />
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       )}
                     </div>
