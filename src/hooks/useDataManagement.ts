@@ -6,10 +6,65 @@ import { entityConfig } from '@/config/entityConfig';
 import { toCSV, fromCSV } from '@/utils/csvUtils';
 import { useSecureAuth } from '@/contexts/AuthContext';
 
-const ITEMS_PER_PAGE = 20;
+// Types
+export interface DataManagementState {
+  selectedEntity: string;
+  data: any[];
+  totalCount: number;
+  isLoading: boolean;
+  searchTerm: string;
+  currentPage: number;
+  dialogOpen: boolean;
+  editingItem: any;
+  startDate: string;
+  endDate: string;
+  message: { type: string; text: string };
+  restoreFile: File | null;
+  activeTab: string;
+}
 
-export const useDataManagement = () => {
-  const [selectedEntity, setSelectedEntity] = useState<string>('asset_transactions');
+export interface CacheEntry {
+  data: any[];
+  count: number;
+  timestamp: number;
+}
+
+export interface DataManagementActions {
+  handleAdd: () => void;
+  handleEdit: (item: any) => void;
+  handleSave: (formData: any) => Promise<void>;
+  handleDelete: (item: any) => Promise<void>;
+  toggleStaffLock: (staff: any) => Promise<void>;
+  exportToCSV: () => void;
+  handleRestoreData: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handleImportClick: () => void;
+  bulkDeleteTransactions: () => Promise<void>;
+  refreshData: () => void;
+}
+
+export interface DataManagementReturn extends DataManagementState, DataManagementActions {
+  setSelectedEntity: (entity: string) => void;
+  setSearchTerm: (term: string) => void;
+  setCurrentPage: (page: number) => void;
+  setDialogOpen: (open: boolean) => void;
+  setStartDate: (date: string) => void;
+  setEndDate: (date: string) => void;
+  setMessage: (message: { type: string; text: string }) => void;
+  setActiveTab: (tab: string) => void;
+  restoreInputRef: React.RefObject<HTMLInputElement>;
+  filteredData: any[];
+  paginatedData: any[];
+  totalPages: number;
+  runAsAdmin: (callback: () => Promise<void>) => Promise<void>;
+  user: any;
+}
+
+const ITEMS_PER_PAGE = 20;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+export const useDataManagement = (): DataManagementReturn => {
+  // State
+  const [selectedEntity, setSelectedEntityState] = useState<string>('asset_transactions');
   const [data, setData] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,13 +79,41 @@ export const useDataManagement = () => {
   const [activeTab, setActiveTab] = useState('management');
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
-  // Cache để tránh load lại dữ liệu đã load
-  const dataCache = useRef<Map<string, { data: any[], count: number, timestamp: number }>>(new Map());
-  const CACHE_DURATION = 5 * 60 * 1000; // 5 phút
+  // Cache
+  const dataCache = useRef<Map<string, CacheEntry>>(new Map());
 
   const { user } = useSecureAuth();
   const navigate = useNavigate();
 
+  // Cache utilities
+  const getCachedData = useCallback((key: string): CacheEntry | null => {
+    const cached = dataCache.current.get(key);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      return cached;
+    }
+    return null;
+  }, []);
+
+  const setCachedData = useCallback((key: string, data: any[], count: number) => {
+    dataCache.current.set(key, {
+      data,
+      count,
+      timestamp: Date.now()
+    });
+  }, []);
+
+  const clearCache = useCallback(() => {
+    dataCache.current.clear();
+  }, []);
+
+  const clearEntityCache = useCallback((entity: string) => {
+    const keysToDelete = Array.from(dataCache.current.keys()).filter(key => 
+      key.startsWith(entity)
+    );
+    keysToDelete.forEach(key => dataCache.current.delete(key));
+  }, []);
+
+  // Admin utilities
   const runAsAdmin = useCallback(async (callback: () => Promise<void>) => {
     if (!user || user.role !== 'admin') {
       setMessage({ type: 'error', text: "Hành động yêu cầu quyền admin." });
@@ -43,16 +126,14 @@ export const useDataManagement = () => {
     }
   }, [user]);
 
-  // Load dữ liệu với phân trang và cache
+  // Data loading
   const loadData = useCallback(async (page: number = 1, search: string = '') => {
     if (!selectedEntity || !user || user.role !== 'admin') return;
     
-    // Tạo cache key
     const cacheKey = `${selectedEntity}-${page}-${search}`;
-    const cached = dataCache.current.get(cacheKey);
+    const cached = getCachedData(cacheKey);
     
-    // Kiểm tra cache
-    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+    if (cached) {
       setData(cached.data);
       setTotalCount(cached.count);
       return;
@@ -62,21 +143,15 @@ export const useDataManagement = () => {
     setMessage({ type: '', text: '' });
     
     try {
-      console.log(`📊 Loading ${selectedEntity} - Page ${page}, Search: "${search}"`);
-      
       const config = entityConfig[selectedEntity];
       if (!config) {
         throw new Error(`Entity config not found for: ${selectedEntity}`);
       }
 
       const hasCreatedAt = config.fields.some(f => f.key === 'created_at');
-      
-      // Tạo query với phân trang
       let query = supabase.from(config.entity as any).select('*', { count: 'exact' });
       
-      // Thêm tìm kiếm nếu có
       if (search.trim()) {
-        // Tìm kiếm trong các trường text
         const textFields = config.fields.filter(f => 
           !f.type || f.type === 'text' || f.type === 'textarea'
         ).map(f => f.key);
@@ -89,14 +164,12 @@ export const useDataManagement = () => {
         }
       }
       
-      // Thêm sắp xếp
       if (hasCreatedAt) {
         query = query.order('created_at', { ascending: false });
       } else {
         query = query.order('id', { ascending: false });
       }
 
-      // Thêm phân trang
       const from = (page - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
       query = query.range(from, to);
@@ -104,27 +177,17 @@ export const useDataManagement = () => {
       const { data: result, error, count } = await query;
 
       if (error) {
-        console.error('❌ Database query error:', error);
         throw new Error(`Database error: ${error.message}`);
       }
 
       const pageData = result || [];
       const totalRecords = count || 0;
 
-      // Lưu vào cache
-      dataCache.current.set(cacheKey, {
-        data: pageData,
-        count: totalRecords,
-        timestamp: Date.now()
-      });
-
+      setCachedData(cacheKey, pageData, totalRecords);
       setData(pageData);
       setTotalCount(totalRecords);
       
-      console.log(`✅ Data loaded: ${pageData.length}/${totalRecords} records`);
-      
     } catch (error: any) {
-      console.error('❌ Failed to load data:', error);
       setMessage({ 
         type: 'error', 
         text: `Không thể tải dữ liệu: ${error.message || 'Lỗi không xác định'}` 
@@ -134,67 +197,9 @@ export const useDataManagement = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedEntity, user]);
+  }, [selectedEntity, user, getCachedData, setCachedData]);
 
-  // Load data khi entity hoặc page thay đổi
-  useEffect(() => {
-    if (user === null) {
-      navigate('/login');
-      return;
-    }
-    
-    if (user && user.role === 'admin') {
-      // Clear cache khi đổi entity
-      if (selectedEntity) {
-        setCurrentPage(1);
-        loadData(1, searchTerm);
-      }
-    } else if (user) {
-      setData([]);
-      setTotalCount(0);
-      setMessage({ type: 'error', text: 'Chỉ admin mới có thể truy cập module này.' });
-    }
-  }, [user, selectedEntity, navigate]);
-
-  // Load data khi page hoặc search thay đổi
-  useEffect(() => {
-    if (user?.role === 'admin' && selectedEntity) {
-      loadData(currentPage, searchTerm);
-    }
-  }, [currentPage, searchTerm, loadData]);
-
-  // Handle search with debounce effect
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (currentPage === 1) {
-        loadData(1, searchTerm);
-      } else {
-        setCurrentPage(1); // Reset về trang 1 khi search
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
-
-  // Clear cache khi entity thay đổi
-  const handleEntityChange = useCallback((entity: string) => {
-    // Clear cache cho entity cũ
-    const oldKeys = Array.from(dataCache.current.keys()).filter(key => 
-      key.startsWith(selectedEntity)
-    );
-    oldKeys.forEach(key => dataCache.current.delete(key));
-    
-    setSelectedEntity(entity);
-    setCurrentPage(1);
-    setSearchTerm('');
-    setData([]);
-    setTotalCount(0);
-  }, [selectedEntity]);
-
-  const filteredData = data; // Data đã được filter ở server
-  const paginatedData = data; // Data đã được paginate ở server
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
-
+  // CRUD operations
   const handleAdd = useCallback(() => {
     setEditingItem(null);
     setDialogOpen(true);
@@ -213,7 +218,6 @@ export const useDataManagement = () => {
       try {
         const config = entityConfig[selectedEntity];
         
-        // Validate required fields
         for (const field of config.fields.filter(f => f.required)) {
           if (!formData[field.key]) {
             setMessage({ type: 'error', text: `Vui lòng điền ${field.label}` });
@@ -223,21 +227,18 @@ export const useDataManagement = () => {
         
         const submitData: { [key: string]: any } = { ...formData };
 
-        // Handle boolean fields
         config.fields.filter(f => f.type === 'boolean').forEach(field => {
           if (submitData[field.key] !== undefined && submitData[field.key] !== null) {
             submitData[field.key] = submitData[field.key] === 'true';
           }
         });
 
-        // Clean empty values
         Object.keys(submitData).forEach(key => {
           if (key !== 'password' && (submitData[key] === '' || submitData[key] === null)) {
             delete submitData[key];
           }
         });
 
-        // Handle staff password
         if (selectedEntity === 'staff') {
           if (editingItem) {
             if (submitData.password === '') {
@@ -269,19 +270,16 @@ export const useDataManagement = () => {
         }
         
         setDialogOpen(false);
-        
-        // Clear cache và reload data
-        dataCache.current.clear();
+        clearCache();
         loadData(currentPage, searchTerm);
       } catch (error: any) {
-        console.error('❌ Save operation failed:', error);
         setMessage({ 
           type: 'error', 
           text: `Không thể lưu dữ liệu: ${error.message || 'Lỗi không xác định'}` 
         });
       }
     });
-  }, [selectedEntity, editingItem, runAsAdmin, currentPage, searchTerm, loadData]);
+  }, [selectedEntity, editingItem, runAsAdmin, currentPage, searchTerm, loadData, clearCache]);
 
   const handleDelete = useCallback(async (item: any) => {
     if (!selectedEntity) return;
@@ -302,18 +300,16 @@ export const useDataManagement = () => {
         if (error) throw error;
         setMessage({ type: 'success', text: "Xóa thành công" });
         
-        // Clear cache và reload data
-        dataCache.current.clear();
+        clearCache();
         loadData(currentPage, searchTerm);
       } catch (error: any) {
-        console.error('❌ Delete operation failed:', error);
         setMessage({ 
           type: 'error', 
           text: `Không thể xóa dữ liệu: ${error.message || 'Lỗi không xác định'}` 
         });
       }
     });
-  }, [selectedEntity, runAsAdmin, currentPage, searchTerm, loadData]);
+  }, [selectedEntity, runAsAdmin, currentPage, searchTerm, loadData, clearCache]);
 
   const toggleStaffLock = useCallback(async (staff: any) => {
     setMessage({ type: '', text: '' });
@@ -336,28 +332,27 @@ export const useDataManagement = () => {
           text: `Đã ${newStatus === 'locked' ? 'khóa' : 'mở khóa'} tài khoản` 
         });
         
-        // Clear cache và reload data
-        dataCache.current.clear();
+        clearCache();
         loadData(currentPage, searchTerm);
       } catch (error: any) {
-        console.error('❌ Toggle staff lock failed:', error);
         setMessage({ 
           type: 'error', 
           text: `Không thể thay đổi trạng thái tài khoản: ${error.message || 'Lỗi không xác định'}` 
         });
       }
     });
-  }, [runAsAdmin, currentPage, searchTerm, loadData]);
+  }, [runAsAdmin, currentPage, searchTerm, loadData, clearCache]);
 
+  // Export/Import
   const exportToCSV = useCallback(() => {
-    if (filteredData.length === 0) {
+    if (data.length === 0) {
       setMessage({ type: 'error', text: "Không có dữ liệu để xuất." });
       return;
     }
     
     try {
       const config = entityConfig[selectedEntity];
-      const csvContent = toCSV(filteredData, config.fields);
+      const csvContent = toCSV(data, config.fields);
       
       const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
@@ -370,10 +365,9 @@ export const useDataManagement = () => {
       
       setMessage({ type: 'success', text: "Xuất dữ liệu thành công." });
     } catch (error: any) {
-      console.error('❌ Export failed:', error);
       setMessage({ type: 'error', text: "Không thể xuất dữ liệu." });
     }
-  }, [filteredData, selectedEntity, currentPage]);
+  }, [data, selectedEntity, currentPage]);
 
   const handleRestoreData = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -410,7 +404,6 @@ export const useDataManagement = () => {
             const content = await file.async("text");
             const dataToRestore = fromCSV(content, config.fields);
             
-            // Delete existing data
             const { error: deleteError } = await supabase
               .from(config.entity as any)
               .delete()
@@ -418,7 +411,6 @@ export const useDataManagement = () => {
             
             if (deleteError) throw deleteError;
 
-            // Insert new data
             if (dataToRestore.length > 0) {
               const { error: insertError } = await supabase
                 .from(config.entity as any)
@@ -430,12 +422,9 @@ export const useDataManagement = () => {
         }
         
         setMessage({ type: 'success', text: "Import dữ liệu thành công." });
-        
-        // Clear cache và reload data
-        dataCache.current.clear();
+        clearCache();
         loadData(currentPage, searchTerm);
       } catch (error: any) {
-        console.error('❌ Import failed:', error);
         setMessage({ 
           type: 'error', 
           text: `Không thể import dữ liệu: ${error.message || 'Lỗi không xác định'}` 
@@ -445,7 +434,7 @@ export const useDataManagement = () => {
         if (restoreInputRef.current) restoreInputRef.current.value = '';
       }
     });
-  }, [restoreFile, runAsAdmin, currentPage, searchTerm, loadData]);
+  }, [restoreFile, runAsAdmin, currentPage, searchTerm, loadData, clearCache]);
   
   const handleImportClick = useCallback(() => {
     if (restoreFile) {
@@ -455,6 +444,7 @@ export const useDataManagement = () => {
     }
   }, [restoreFile, restoreAllData]);
 
+  // Bulk operations
   const bulkDeleteTransactions = useCallback(async () => {
     setMessage({ type: '', text: '' });
     
@@ -481,45 +471,97 @@ export const useDataManagement = () => {
           text: `Đã xóa thành công các giao dịch từ ${startDate} đến ${endDate}.` 
         });
         
-        // Clear cache và reload data
-        dataCache.current.clear();
+        clearCache();
         loadData(currentPage, searchTerm);
       } catch (error: any) {
-        console.error('❌ Bulk delete failed:', error);
         setMessage({ 
           type: 'error', 
           text: `Không thể xóa giao dịch hàng loạt: ${error.message || 'Lỗi không xác định'}` 
         });
       }
     });
-  }, [startDate, endDate, runAsAdmin, currentPage, searchTerm, loadData]);
+  }, [startDate, endDate, runAsAdmin, currentPage, searchTerm, loadData, clearCache]);
 
-  // Fix loadData function signature for button click
+  // Entity change handler
+  const setSelectedEntity = useCallback((entity: string) => {
+    clearEntityCache(selectedEntity);
+    setSelectedEntityState(entity);
+    setCurrentPage(1);
+    setSearchTerm('');
+    setData([]);
+    setTotalCount(0);
+  }, [selectedEntity, clearEntityCache]);
+
+  // Computed values
+  const filteredData = data;
+  const paginatedData = data;
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
   const refreshData = useCallback(() => {
     loadData(currentPage, searchTerm);
   }, [loadData, currentPage, searchTerm]);
 
+  // Effects
+  useEffect(() => {
+    if (user === null) {
+      navigate('/login');
+      return;
+    }
+    
+    if (user && user.role === 'admin') {
+      if (selectedEntity) {
+        setCurrentPage(1);
+        loadData(1, searchTerm);
+      }
+    } else if (user) {
+      setData([]);
+      setTotalCount(0);
+      setMessage({ type: 'error', text: 'Chỉ admin mới có thể truy cập module này.' });
+    }
+  }, [user, selectedEntity, navigate, loadData, searchTerm]);
+
+  useEffect(() => {
+    if (user?.role === 'admin' && selectedEntity) {
+      loadData(currentPage, searchTerm);
+    }
+  }, [currentPage, user, selectedEntity, loadData, searchTerm]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (currentPage === 1) {
+        loadData(1, searchTerm);
+      } else {
+        setCurrentPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, currentPage, loadData]);
+
   return {
     // State
     selectedEntity,
-    setSelectedEntity: handleEntityChange,
     data,
     totalCount,
     isLoading,
     searchTerm,
-    setSearchTerm,
     currentPage,
-    setCurrentPage,
     dialogOpen,
-    setDialogOpen,
     editingItem,
     startDate,
-    setStartDate,
     endDate,
-    setEndDate,
     message,
-    setMessage,
+    restoreFile,
     activeTab,
+    
+    // Setters
+    setSelectedEntity,
+    setSearchTerm,
+    setCurrentPage,
+    setDialogOpen,
+    setStartDate,
+    setEndDate,
+    setMessage,
     setActiveTab,
     restoreInputRef,
     
@@ -528,10 +570,8 @@ export const useDataManagement = () => {
     paginatedData,
     totalPages,
     
-    // Functions
+    // Actions
     runAsAdmin,
-    loadData,
-    refreshData,
     handleAdd,
     handleEdit,
     handleSave,
@@ -541,6 +581,7 @@ export const useDataManagement = () => {
     handleRestoreData,
     handleImportClick,
     bulkDeleteTransactions,
+    refreshData,
     
     // User
     user
