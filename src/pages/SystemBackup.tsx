@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 import BackupHeader from '@/components/backup/BackupHeader';
 import BackupStatusCard from '@/components/backup/BackupStatusCard';
 import BackupActionsCard from '@/components/backup/BackupActionsCard';
@@ -24,6 +26,7 @@ const SystemBackup: React.FC = () => {
     restoreStatus,
     backupItems,
     backupHistory,
+    canAccess,
     performBackup,
     performRestore,
     toggleAutoBackup,
@@ -32,6 +35,36 @@ const SystemBackup: React.FC = () => {
   } = useBackupOperations();
 
   const [selectedRestoreFile, setSelectedRestoreFile] = useState<File | null>(null);
+
+  // Show access denied for non-admin users
+  if (canAccess === false) {
+    return (
+      <Layout>
+        <div className="p-6">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Chỉ admin mới có thể truy cập trang System Backup.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show loading state while checking access
+  if (canAccess === undefined) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Đang kiểm tra quyền truy cập...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   const handlePerformBackup = (backupType: string = 'full') => {
     console.log('🔄 SystemBackup: Starting backup process...', { backupType });
@@ -61,6 +94,7 @@ const SystemBackup: React.FC = () => {
   };
 
   console.log('🔍 SystemBackup DEBUG:', {
+    canAccess,
     backupStatus,
     restoreStatus,
     backupItemsCount: backupItems?.length || 0,
@@ -72,6 +106,26 @@ const SystemBackup: React.FC = () => {
     <Layout>
       <div className="space-y-6">
         <BackupHeader />
+        
+        {/* Show backup errors */}
+        {backupStatus.error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Backup Error: {backupStatus.error}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Show restore errors */}
+        {restoreStatus.error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Restore Error: {restoreStatus.error}
+            </AlertDescription>
+          </Alert>
+        )}
         
         <BackupProgressCard
           isRunning={backupStatus.isRunning}

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import JSZip from 'jszip';
 import { restoreService, RestoreResult } from '@/services/restoreService';
 import { backupService } from '@/services/backupService';
+import { useSecureAuth } from '@/contexts/AuthContext';
 
 interface BackupStatus {
   isRunning: boolean;
@@ -48,6 +49,7 @@ interface BackupRecord {
 }
 
 export const useBackupOperations = () => {
+  const { user } = useSecureAuth();
   const [backupStatus, setBackupStatus] = useState<BackupStatus>({
     isRunning: false,
     progress: 0,
@@ -105,14 +107,30 @@ export const useBackupOperations = () => {
 
   const [backupHistory, setBackupHistory] = useState<BackupRecord[]>([]);
 
+  // Only allow access for admin users
+  const canAccess = user?.role === 'admin';
+
   useEffect(() => {
-    console.log('🔄 Initializing backup operations...');
-    loadBackupHistory();
-    checkAutoBackupStatus();
-    loadBackupStats();
-  }, []);
+    if (canAccess) {
+      console.log('🔄 Initializing backup operations...');
+      loadBackupHistory();
+      checkAutoBackupStatus();
+      loadBackupStats();
+    } else {
+      // Clear data if user doesn't have access
+      setBackupHistory([]);
+      setBackupStatus(prev => ({
+        ...prev,
+        lastBackup: null,
+        autoBackupEnabled: false,
+        error: canAccess === false ? 'Access denied: Admin role required' : null
+      }));
+    }
+  }, [canAccess]);
 
   const loadBackupHistory = useCallback(async () => {
+    if (!canAccess) return;
+
     try {
       console.log('📊 Loading backup history...');
       const lastBackup = localStorage.getItem('lastBackupTime');
@@ -152,9 +170,11 @@ export const useBackupOperations = () => {
       console.error('❌ Error loading backup history:', error);
       setBackupStatus(prev => ({ ...prev, error: 'Failed to load backup history' }));
     }
-  }, []);
+  }, [canAccess]);
 
   const loadBackupStats = useCallback(async () => {
+    if (!canAccess) return;
+
     try {
       console.log('📊 Loading backup statistics...');
       const stats = await backupService.getBackupStats();
@@ -176,9 +196,11 @@ export const useBackupOperations = () => {
     } catch (error) {
       console.error('❌ Error loading backup stats:', error);
     }
-  }, []);
+  }, [canAccess]);
 
   const checkAutoBackupStatus = useCallback(() => {
+    if (!canAccess) return;
+
     const lastAutoBackup = localStorage.getItem('lastAutoBackup');
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -195,7 +217,7 @@ export const useBackupOperations = () => {
         setTimeout(() => performBackup(true), Math.min(timeUntilBackup, 5000));
       }
     }
-  }, [backupStatus.autoBackupEnabled]);
+  }, [canAccess, backupStatus.autoBackupEnabled]);
 
   const updateProgress = useCallback((progress: number, step: string, estimatedTime?: number) => {
     console.log(`📈 Backup progress: ${progress}% - ${step}`);
@@ -220,6 +242,11 @@ export const useBackupOperations = () => {
   }, []);
 
   const performBackup = useCallback(async (isAuto: boolean = false, backupType: string = 'full') => {
+    if (!canAccess) {
+      toast.error('Access denied: Admin role required');
+      return;
+    }
+
     if (backupStatus.isRunning) {
       console.log('⚠️ Backup already running, skipping...');
       toast.warning('Backup đang chạy, vui lòng đợi...');
@@ -363,9 +390,14 @@ export const useBackupOperations = () => {
       
       toast.error(`${backupType} backup thất bại: ${errorMessage} (${(duration / 1000).toFixed(1)}s)`);
     }
-  }, [backupStatus.isRunning, updateProgress]);
+  }, [canAccess, backupStatus.isRunning, updateProgress]);
 
   const performRestore = useCallback(async (file: File): Promise<void> => {
+    if (!canAccess) {
+      toast.error('Access denied: Admin role required');
+      return;
+    }
+
     if (restoreStatus.isRunning) {
       console.log('⚠️ Restore already running, skipping...');
       toast.warning('Restore đang chạy, vui lòng đợi...');
@@ -435,9 +467,14 @@ export const useBackupOperations = () => {
       toast.error(`Restore thất bại: ${errorMessage} (${(duration / 1000).toFixed(1)}s)`);
       throw error;
     }
-  }, [restoreStatus.isRunning, updateRestoreProgress]);
+  }, [canAccess, restoreStatus.isRunning, updateRestoreProgress]);
 
   const toggleAutoBackup = useCallback(async (enabled: boolean) => {
+    if (!canAccess) {
+      toast.error('Access denied: Admin role required');
+      return;
+    }
+
     console.log('🔄 Toggling auto backup:', enabled);
     setBackupStatus(prev => ({ ...prev, autoBackupEnabled: enabled }));
     localStorage.setItem('autoBackupEnabled', enabled.toString());
@@ -449,10 +486,11 @@ export const useBackupOperations = () => {
     } else {
       toast.info('Auto backup đã tắt');
     }
-  }, []);
+  }, [canAccess]);
 
   // Debug logging with more details
   console.log('🔍 useBackupOperations state:', {
+    canAccess,
     backupRunning: backupStatus.isRunning,
     backupProgress: backupStatus.progress,
     backupType: backupStatus.currentBackupType,
@@ -474,6 +512,7 @@ export const useBackupOperations = () => {
     restoreStatus,
     backupItems,
     backupHistory,
+    canAccess,
     performBackup,
     performRestore,
     toggleAutoBackup,

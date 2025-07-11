@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import JSZip from 'jszip';
+import { startTiming, endTiming } from '@/utils/performanceMonitor';
 
 export interface BackupOptions {
   includeTables?: string[];
@@ -17,6 +18,7 @@ export interface BackupResult {
   error?: string;
   timestamp: string;
   backupType?: string;
+  duration?: number;
 }
 
 export class BackupService {
@@ -42,7 +44,10 @@ export class BackupService {
 
   // Convert JSON data to CSV format
   private convertToCSV(data: any[], tableName: string): string {
+    startTiming(`csv-conversion-${tableName}`);
+    
     if (!data || data.length === 0) {
+      endTiming(`csv-conversion-${tableName}`);
       return `# ${tableName} - No data\n`;
     }
 
@@ -66,11 +71,15 @@ export class BackupService {
       }).join(',');
     });
 
-    return `# Table: ${tableName}\n# Records: ${data.length}\n# Exported: ${new Date().toISOString()}\n${csvHeaders}\n${csvRows.join('\n')}\n`;
+    const result = `# Table: ${tableName}\n# Records: ${data.length}\n# Exported: ${new Date().toISOString()}\n${csvHeaders}\n${csvRows.join('\n')}\n`;
+    endTiming(`csv-conversion-${tableName}`);
+    return result;
   }
 
   // Backup single table
   private async backupTable(tableName: string, format: 'json' | 'csv' = 'json'): Promise<{ data: any[], content: string }> {
+    startTiming(`backup-table-${tableName}`);
+    
     try {
       console.log(`📊 Backing up table: ${tableName} (${format})`);
       const { data, error } = await supabase
@@ -97,15 +106,19 @@ export class BackupService {
       }
       
       console.log(`✅ Table ${tableName} backed up: ${tableData.length} records (${format})`);
+      endTiming(`backup-table-${tableName}`);
       return { data: tableData, content };
     } catch (error) {
       console.warn(`❌ Failed to backup table ${tableName}:`, error);
+      endTiming(`backup-table-${tableName}`);
       return { data: [], content: format === 'csv' ? `# ${tableName} - Error: ${error}\n` : '{}' };
     }
   }
 
   // Create database backup with CSV format
   async createDatabaseBackup(options: BackupOptions = {}): Promise<any> {
+    startTiming('database-backup');
+    
     console.log('🗄️ Creating database backup...');
     const tables = options.includeTables || await this.getAllTables();
     const excludeTables = options.excludeTables || [];
@@ -136,13 +149,16 @@ export class BackupService {
     backupData.metadata.totalRecords = totalRecords;
     console.log(`✅ Database backup completed: ${totalRecords} total records from ${backupData.metadata.totalTables} tables (${format})`);
     
+    endTiming('database-backup');
     return backupData;
   }
 
   // Create configuration backup
   async createConfigBackup(): Promise<any> {
+    startTiming('config-backup');
+    
     console.log('⚙️ Creating configuration backup...');
-    return {
+    const result = {
       timestamp: new Date().toISOString(),
       supabase: {
         url: 'https://itoapoyrxxmtbbuolfhk.supabase.co',
@@ -165,12 +181,17 @@ export class BackupService {
       },
       version: '1.0.0'
     };
+    
+    endTiming('config-backup');
+    return result;
   }
 
   // Create functions backup
   async createFunctionsBackup(): Promise<any> {
+    startTiming('functions-backup');
+    
     console.log('🔧 Creating functions backup...');
-    return {
+    const result = {
       functions: [
         'send-notification-email',
         'login-user', 
@@ -185,10 +206,15 @@ export class BackupService {
       count: 8,
       description: 'Supabase Edge Functions metadata and configuration'
     };
+    
+    endTiming('functions-backup');
+    return result;
   }
 
   // Create security backup
   async createSecurityBackup(): Promise<any> {
+    startTiming('security-backup');
+    
     console.log('🔒 Creating security backup...');
     const securityTables = ['security_events', 'user_sessions', 'system_errors'];
     const securityData: any = {
@@ -215,12 +241,14 @@ export class BackupService {
       }
     }
 
+    endTiming('security-backup');
     return securityData;
   }
 
   // Create selective backup based on type
   async createSelectiveBackup(backupType: string, options: BackupOptions = {}): Promise<BackupResult> {
     const startTime = Date.now();
+    startTiming(`selective-backup-${backupType}`);
     console.log(`🚀 Starting ${backupType} backup...`);
     
     try {
@@ -285,6 +313,7 @@ export class BackupService {
       URL.revokeObjectURL(url);
 
       const duration = Date.now() - startTime;
+      endTiming(`selective-backup-${backupType}`);
       console.log(`✅ ${backupType} backup completed successfully in ${duration}ms`);
       console.log(`📁 File: ${filename} (${(content.size / 1024 / 1024).toFixed(2)} MB)`);
 
@@ -293,18 +322,21 @@ export class BackupService {
         filename,
         size: content.size,
         timestamp: new Date().toISOString(),
-        backupType
+        backupType,
+        duration
       };
 
     } catch (error) {
       const duration = Date.now() - startTime;
+      endTiming(`selective-backup-${backupType}`);
       console.error(`❌ ${backupType} backup failed after ${duration}ms:`, error);
       
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
-        backupType
+        backupType,
+        duration
       };
     }
   }
@@ -312,6 +344,7 @@ export class BackupService {
   // Create complete system backup
   async createFullBackup(options: BackupOptions = {}): Promise<BackupResult> {
     const startTime = Date.now();
+    startTiming('full-backup');
     console.log('🚀 Starting full system backup...');
     
     try {
@@ -379,6 +412,7 @@ export class BackupService {
       URL.revokeObjectURL(url);
 
       const duration = Date.now() - startTime;
+      endTiming('full-backup');
       console.log(`✅ Full backup completed successfully in ${duration}ms`);
       console.log(`📁 File: ${filename} (${(content.size / 1024 / 1024).toFixed(2)} MB)`);
 
@@ -387,18 +421,21 @@ export class BackupService {
         filename,
         size: content.size,
         timestamp: new Date().toISOString(),
-        backupType: 'full'
+        backupType: 'full',
+        duration
       };
 
     } catch (error) {
       const duration = Date.now() - startTime;
+      endTiming('full-backup');
       console.error(`❌ Full backup failed after ${duration}ms:`, error);
       
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
-        backupType: 'full'
+        backupType: 'full',
+        duration
       };
     }
   }
