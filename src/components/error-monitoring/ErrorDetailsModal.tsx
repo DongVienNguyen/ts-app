@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -92,6 +92,9 @@ export function ErrorDetailsModal({ error, isOpen, onClose, onErrorUpdated }: Er
             </Badge>
             <Badge variant="outline">{error.error_type}</Badge>
           </DialogTitle>
+          <DialogDescription>
+            Thông tin chi tiết về lỗi hệ thống đã chọn.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
