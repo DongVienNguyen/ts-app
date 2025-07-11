@@ -24,6 +24,7 @@ import ErrorMonitoring from '@/pages/ErrorMonitoring';
 import UsageMonitoring from '@/pages/UsageMonitoring';
 import Notifications from '@/pages/Notifications';
 import ResetPassword from '@/pages/ResetPassword';
+import SystemBackup from '@/pages/SystemBackup';
 import NotFound from '@/pages/NotFound';
 
 const queryClient = new QueryClient({
@@ -126,6 +127,11 @@ function AppContent() {
           <Route path="/notifications" element={
             <ProtectedRoute>
               <Notifications />
+            </ProtectedRoute>
+          } />
+          <Route path="/system-backup" element={
+            <ProtectedRoute>
+              <SystemBackup />
             </ProtectedRoute>
           } />
           <Route path="*" element={<NotFound />} />
