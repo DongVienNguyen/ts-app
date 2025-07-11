@@ -1,315 +1,346 @@
-const CACHE_VERSION = 'v' + Date.now();
-const STATIC_CACHE = `ts-static-${CACHE_VERSION}`;
-const DYNAMIC_CACHE = `ts-dynamic-${CACHE_VERSION}`;
-const API_CACHE = `ts-api-${CACHE_VERSION}`;
+const CACHE_NAME = 'asset-management-v2';
+const STATIC_CACHE = 'static-v2';
+const DYNAMIC_CACHE = 'dynamic-v2';
+const API_CACHE = 'api-v2';
 
-// Tài nguyên tĩnh cần cache ngay lập tức
+// Cache strategies
+const CACHE_STRATEGIES = {
+  CACHE_FIRST: 'cache-first',
+  NETWORK_FIRST: 'network-first',
+  STALE_WHILE_REVALIDATE: 'stale-while-revalidate',
+  NETWORK_ONLY: 'network-only',
+  CACHE_ONLY: 'cache-only'
+};
+
+// Resources to cache immediately
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png',
-  '/favicon.png'
+  '/offline.html'
 ];
 
-// Tài nguyên quan trọng cần cache với ưu tiên cao
-const CRITICAL_ASSETS = [
-  '/src/main.tsx',
-  '/src/App.tsx',
-  '/src/components/Layout.tsx'
+// API endpoints to cache
+const API_CACHE_PATTERNS = [
+  /\/api\/.*$/,
+  /supabase\.co\/.*$/
 ];
 
-// API endpoints cần cache
-const API_ENDPOINTS = [
-  '/rest/v1/notifications',
-  '/rest/v1/staff',
-  '/rest/v1/asset_reminders'
-];
+// Cache durations (in seconds)
+const CACHE_DURATIONS = {
+  STATIC: 365 * 24 * 60 * 60, // 1 year
+  DYNAMIC: 7 * 24 * 60 * 60,  // 1 week
+  API: 5 * 60,                // 5 minutes
+  IMAGES: 30 * 24 * 60 * 60   // 30 days
+};
 
-// Cài đặt Service Worker với tối ưu hóa
+// Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('🔧 Installing Service Worker silently...');
+  console.log('🔧 Service Worker installing...');
   
   event.waitUntil(
     Promise.all([
-      // Cache tài nguyên tĩnh
-      caches.open(STATIC_CACHE).then(cache => {
+      // Cache static assets
+      caches.open(STATIC_CACHE).then((cache) => {
+        console.log('📦 Caching static assets');
         return cache.addAll(STATIC_ASSETS);
       }),
-      // Preload tài nguyên quan trọng
-      caches.open(DYNAMIC_CACHE).then(cache => {
-        return Promise.allSettled(
-          CRITICAL_ASSETS.map(url => 
-            fetch(url).then(response => {
-              if (response.ok) {
-                return cache.put(url, response);
-              }
-            }).catch(() => {
-              // Bỏ qua lỗi preload
-            })
-          )
-        );
-      })
-    ]).then(() => {
-      // Tự động skip waiting - không cần thông báo
-      return self.skipWaiting();
-    })
+      
+      // Skip waiting to activate immediately
+      self.skipWaiting()
+    ])
   );
 });
 
-// Kích hoạt Service Worker với dọn dẹp cache cũ - SILENT
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('🚀 Activating Service Worker silently...');
+  console.log('✅ Service Worker activated');
   
   event.waitUntil(
     Promise.all([
-      // Dọn dẹp cache cũ
-      caches.keys().then(cacheNames => {
+      // Clean up old caches
+      caches.keys().then((cacheNames) => {
         return Promise.all(
-          cacheNames.map(cacheName => {
-            if (!cacheName.includes(CACHE_VERSION)) {
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME && 
+                cacheName !== STATIC_CACHE && 
+                cacheName !== DYNAMIC_CACHE && 
+                cacheName !== API_CACHE) {
+              console.log('🗑️ Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       }),
-      // Kiểm soát tất cả client
+      
+      // Take control of all clients
       self.clients.claim()
-    ]).then(() => {
-      // KHÔNG gửi thông báo về cập nhật - silent update
-      console.log('✅ Service Worker activated silently');
-    })
+    ])
   );
 });
 
-// Xử lý fetch với chiến lược cache thông minh
+// Fetch event - implement caching strategies
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
   
-  // Bỏ qua non-GET requests
-  if (request.method !== 'GET') return;
-  
-  // Bỏ qua external requests
-  if (!url.origin.includes(self.location.origin) && !url.origin.includes('supabase')) return;
-  
-  // Chiến lược cho HTML documents
-  if (request.destination === 'document') {
-    event.respondWith(handleDocumentRequest(request));
+  // Skip non-GET requests
+  if (request.method !== 'GET') {
     return;
   }
   
-  // Chiến lược cho API requests
-  if (isApiRequest(url)) {
-    event.respondWith(handleApiRequest(request));
+  // Skip chrome-extension requests
+  if (url.protocol === 'chrome-extension:') {
     return;
   }
   
-  // Chiến lược cho static assets
-  if (isStaticAsset(url)) {
-    event.respondWith(handleStaticAssetRequest(request));
-    return;
+  // Determine caching strategy based on request type
+  let strategy = CACHE_STRATEGIES.NETWORK_FIRST;
+  let cacheName = DYNAMIC_CACHE;
+  let maxAge = CACHE_DURATIONS.DYNAMIC;
+  
+  // Static assets (JS, CSS, fonts)
+  if (url.pathname.match(/\.(js|css|woff2?|ttf|eot)$/)) {
+    strategy = CACHE_STRATEGIES.CACHE_FIRST;
+    cacheName = STATIC_CACHE;
+    maxAge = CACHE_DURATIONS.STATIC;
   }
   
-  // Chiến lược mặc định
-  event.respondWith(handleDefaultRequest(request));
-});
-
-// Xử lý HTML documents - Network First với fallback
-async function handleDocumentRequest(request) {
-  try {
-    // Thử network trước
-    const networkResponse = await fetch(request);
-    if (networkResponse && networkResponse.status === 200) {
-      // Cache response mới
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
-      return networkResponse;
-    }
-  } catch (error) {
-    // Silent fallback - không log
+  // Images
+  else if (url.pathname.match(/\.(png|jpg|jpeg|gif|svg|webp|ico)$/)) {
+    strategy = CACHE_STRATEGIES.CACHE_FIRST;
+    cacheName = STATIC_CACHE;
+    maxAge = CACHE_DURATIONS.IMAGES;
   }
   
-  // Fallback to cache
-  const cachedResponse = await caches.match(request);
-  return cachedResponse || caches.match('/');
-}
-
-// Xử lý API requests - Stale While Revalidate
-async function handleApiRequest(request) {
-  const cache = await caches.open(API_CACHE);
-  const cachedResponse = await cache.match(request);
-  
-  // Fetch mới trong background
-  const fetchPromise = fetch(request).then(response => {
-    if (response && response.status === 200) {
-      cache.put(request, response.clone());
-    }
-    return response;
-  }).catch(() => null);
-  
-  // Trả về cache ngay lập tức nếu có
-  if (cachedResponse) {
-    // Update cache trong background
-    fetchPromise;
-    return cachedResponse;
+  // API calls
+  else if (API_CACHE_PATTERNS.some(pattern => pattern.test(url.href))) {
+    strategy = CACHE_STRATEGIES.STALE_WHILE_REVALIDATE;
+    cacheName = API_CACHE;
+    maxAge = CACHE_DURATIONS.API;
   }
   
-  // Chờ network response nếu không có cache
-  return fetchPromise || new Response('{"error": "Offline"}', {
-    status: 503,
-    headers: { 'Content-Type': 'application/json' }
-  });
-}
-
-// Xử lý static assets - Cache First
-async function handleStaticAssetRequest(request) {
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
+  // HTML pages
+  else if (request.headers.get('accept')?.includes('text/html')) {
+    strategy = CACHE_STRATEGIES.NETWORK_FIRST;
+    cacheName = DYNAMIC_CACHE;
+    maxAge = CACHE_DURATIONS.DYNAMIC;
   }
   
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse && networkResponse.status === 200) {
-      const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    return new Response('Asset not found', { status: 404 });
-  }
-}
-
-// Xử lý requests khác
-async function handleDefaultRequest(request) {
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse && networkResponse.status === 200) {
-      const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
-    }
-    return networkResponse;
-  } catch (error) {
-    const cachedResponse = await caches.match(request);
-    return cachedResponse || new Response('Offline', { status: 503 });
-  }
-}
-
-// Helper functions
-function isApiRequest(url) {
-  return url.pathname.startsWith('/rest/') || 
-         url.pathname.startsWith('/auth/') ||
-         url.pathname.startsWith('/functions/') ||
-         API_ENDPOINTS.some(endpoint => url.pathname.includes(endpoint));
-}
-
-function isStaticAsset(url) {
-  return /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|webp)$/i.test(url.pathname) ||
-         url.pathname.includes('/assets/') ||
-         url.pathname.includes('manifest.json');
-}
-
-// Xử lý push notifications - CHỈ hiện khi có thông báo thật
-self.addEventListener('push', (event) => {
-  if (!event.data) return;
-  
-  try {
-    const data = event.data.json();
-    
-    // CHỈ hiện thông báo khi có nội dung thật sự
-    if (!data.title || data.title.includes('Push Notifications Enabled') || 
-        data.title.includes('Notifications Enabled') ||
-        data.body?.includes('Push notifications unavailable')) {
-      return; // Không hiện thông báo setup
-    }
-    
-    const options = {
-      body: data.body || 'Thông báo từ TS Manager',
-      icon: '/icon-192x192.png',
-      badge: '/icon-192x192.png',
-      tag: data.tag || 'ts-notification',
-      requireInteraction: false,
-      vibrate: [200, 100, 200],
-      actions: [
-        {
-          action: 'view',
-          title: 'Xem chi tiết',
-          icon: '/icon-192x192.png'
-        },
-        {
-          action: 'dismiss',
-          title: 'Đóng',
-          icon: '/icon-192x192.png'
-        }
-      ],
-      data: {
-        url: '/notifications',
-        timestamp: Date.now(),
-        notificationId: data.notificationId,
-        ...data.data
-      }
-    };
-    
-    event.waitUntil(
-      self.registration.showNotification(data.title, options)
-    );
-  } catch (error) {
-    console.error('❌ Lỗi push notification:', error);
-  }
-});
-
-// Xử lý click notification
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  
-  const notificationData = event.notification.data || {};
-  const targetUrl = notificationData.url || '/notifications';
-  const notificationId = notificationData.notificationId;
-  
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then(clients => {
-        const existingClient = clients.find(client => 
-          client.url.includes(self.location.origin)
-        );
-        
-        if (existingClient) {
-          return existingClient.focus().then(() => {
-            existingClient.postMessage({
-              type: 'NAVIGATE_TO_NOTIFICATION',
-              url: targetUrl,
-              notificationId: notificationId,
-              action: event.action || 'view'
-            });
-          });
-        } else {
-          const fullUrl = `${self.location.origin}${targetUrl}${notificationId ? `?id=${notificationId}` : ''}`;
-          return self.clients.openWindow(fullUrl);
-        }
-      })
+  event.respondWith(
+    handleRequest(request, strategy, cacheName, maxAge)
   );
 });
 
-// Xử lý messages từ main thread
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
+// Handle different caching strategies
+async function handleRequest(request, strategy, cacheName, maxAge) {
+  const cache = await caches.open(cacheName);
+  
+  switch (strategy) {
+    case CACHE_STRATEGIES.CACHE_FIRST:
+      return cacheFirst(request, cache, maxAge);
+      
+    case CACHE_STRATEGIES.NETWORK_FIRST:
+      return networkFirst(request, cache, maxAge);
+      
+    case CACHE_STRATEGIES.STALE_WHILE_REVALIDATE:
+      return staleWhileRevalidate(request, cache, maxAge);
+      
+    case CACHE_STRATEGIES.NETWORK_ONLY:
+      return fetch(request);
+      
+    case CACHE_STRATEGIES.CACHE_ONLY:
+      return cache.match(request);
+      
+    default:
+      return networkFirst(request, cache, maxAge);
+  }
+}
+
+// Cache first strategy
+async function cacheFirst(request, cache, maxAge) {
+  try {
+    const cachedResponse = await cache.match(request);
+    
+    if (cachedResponse && !isExpired(cachedResponse, maxAge)) {
+      console.log('📦 Cache hit:', request.url);
+      return cachedResponse;
+    }
+    
+    console.log('🌐 Fetching from network:', request.url);
+    const networkResponse = await fetch(request);
+    
+    if (networkResponse.ok) {
+      const responseToCache = networkResponse.clone();
+      await cache.put(request, responseToCache);
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    console.error('❌ Cache first failed:', error);
+    const cachedResponse = await cache.match(request);
+    return cachedResponse || new Response('Network error', { status: 408 });
+  }
+}
+
+// Network first strategy
+async function networkFirst(request, cache, maxAge) {
+  try {
+    console.log('🌐 Network first:', request.url);
+    const networkResponse = await fetch(request);
+    
+    if (networkResponse.ok) {
+      const responseToCache = networkResponse.clone();
+      await cache.put(request, responseToCache);
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    console.log('📦 Network failed, trying cache:', request.url);
+    const cachedResponse = await cache.match(request);
+    
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    
+    // Return offline page for HTML requests
+    if (request.headers.get('accept')?.includes('text/html')) {
+      return cache.match('/offline.html') || new Response('Offline', { status: 503 });
+    }
+    
+    return new Response('Network error', { status: 408 });
+  }
+}
+
+// Stale while revalidate strategy
+async function staleWhileRevalidate(request, cache, maxAge) {
+  const cachedResponse = await cache.match(request);
+  
+  // Always fetch in background
+  const fetchPromise = fetch(request).then(async (networkResponse) => {
+    if (networkResponse.ok) {
+      const responseToCache = networkResponse.clone();
+      await cache.put(request, responseToCache);
+    }
+    return networkResponse;
+  }).catch((error) => {
+    console.error('❌ Background fetch failed:', error);
+  });
+  
+  // Return cached version immediately if available
+  if (cachedResponse) {
+    console.log('📦 Stale cache hit:', request.url);
+    return cachedResponse;
   }
   
-  if (event.data && event.data.type === 'GET_VERSION') {
-    event.ports[0].postMessage({ version: CACHE_VERSION });
+  // Wait for network if no cache
+  console.log('🌐 No cache, waiting for network:', request.url);
+  return fetchPromise;
+}
+
+// Check if cached response is expired
+function isExpired(response, maxAge) {
+  const dateHeader = response.headers.get('date');
+  if (!dateHeader) return false;
+  
+  const responseTime = new Date(dateHeader).getTime();
+  const now = Date.now();
+  const age = (now - responseTime) / 1000;
+  
+  return age > maxAge;
+}
+
+// Background sync for offline actions
+self.addEventListener('sync', (event) => {
+  console.log('🔄 Background sync:', event.tag);
+  
+  if (event.tag === 'background-sync') {
+    event.waitUntil(doBackgroundSync());
   }
 });
 
-// Background sync
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'background-sync') {
+async function doBackgroundSync() {
+  // Handle offline actions when back online
+  console.log('🔄 Performing background sync...');
+  
+  // This would sync any offline data
+  // Implementation depends on your specific needs
+}
+
+// Push notifications
+self.addEventListener('push', (event) => {
+  console.log('📱 Push notification received');
+  
+  const options = {
+    body: event.data ? event.data.text() : 'New notification',
+    icon: '/icon-192x192.png',
+    badge: '/icon-72x72.png',
+    vibrate: [100, 50, 100],
+    data: {
+      dateOfArrival: Date.now(),
+      primaryKey: 1
+    },
+    actions: [
+      {
+        action: 'explore',
+        title: 'Xem chi tiết',
+        icon: '/icon-192x192.png'
+      },
+      {
+        action: 'close',
+        title: 'Đóng',
+        icon: '/icon-192x192.png'
+      }
+    ]
+  };
+  
+  event.waitUntil(
+    self.registration.showNotification('Asset Management', options)
+  );
+});
+
+// Notification click handling
+self.addEventListener('notificationclick', (event) => {
+  console.log('📱 Notification clicked:', event.action);
+  
+  event.notification.close();
+  
+  if (event.action === 'explore') {
     event.waitUntil(
-      Promise.resolve()
+      clients.openWindow('/notifications')
     );
   }
 });
 
-// KHÔNG có kiểm tra cập nhật định kỳ - chỉ khi load app
-console.log('✅ Service Worker loaded with silent updates');
+// Cache management utilities
+self.addEventListener('message', async (event) => {
+  if (event.data && event.data.type === 'CACHE_STATS') {
+    const stats = await getCacheStats();
+    event.ports[0].postMessage(stats);
+  }
+  
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    await clearAllCaches();
+    event.ports[0].postMessage({ success: true });
+  }
+});
+
+async function getCacheStats() {
+  const cacheNames = await caches.keys();
+  const stats = {};
+  
+  for (const cacheName of cacheNames) {
+    const cache = await caches.open(cacheName);
+    const keys = await cache.keys();
+    stats[cacheName] = keys.length;
+  }
+  
+  return stats;
+}
+
+async function clearAllCaches() {
+  const cacheNames = await caches.keys();
+  await Promise.all(
+    cacheNames.map(cacheName => caches.delete(cacheName))
+  );
+  console.log('🗑️ All caches cleared');
+}

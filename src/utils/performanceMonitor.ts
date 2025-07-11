@@ -1,197 +1,367 @@
+import React from 'react';
+
 interface PerformanceMetric {
   name: string;
-  duration: number;
+  value: number;
   timestamp: number;
+  type: 'timing' | 'counter' | 'gauge';
+  tags?: Record<string, string>;
+}
+
+interface PageLoadMetrics {
+  loadTime: number;
+  domContentLoaded: number;
+  firstContentfulPaint: number;
+  largestContentfulPaint: number;
+  cumulativeLayoutShift: number;
+  firstInputDelay: number;
 }
 
 class PerformanceMonitor {
-  private static instance: PerformanceMonitor;
   private metrics: PerformanceMetric[] = [];
-  private readonly maxMetrics = 50; // Giảm từ 100 xuống 50
-  private isEnabled = false;
-  private lastCleanup = 0;
-  private timings: Map<string, number> = new Map();
+  private observers: PerformanceObserver[] = [];
+  private isEnabled: boolean = true;
 
-  static getInstance(): PerformanceMonitor {
-    if (!PerformanceMonitor.instance) {
-      PerformanceMonitor.instance = new PerformanceMonitor();
-    }
-    return PerformanceMonitor.instance;
+  constructor() {
+    this.initializeObservers();
+    this.trackPageLoad();
   }
 
-  // Chỉ enable khi thật sự cần thiết
-  enable() {
-    this.isEnabled = true;
-  }
-
-  disable() {
-    this.isEnabled = false;
-  }
-
-  // Start timing function
-  startTiming(name: string) {
-    if (!this.isEnabled) return;
-    this.timings.set(name, performance.now());
-  }
-
-  // End timing function
-  endTiming(name: string) {
-    if (!this.isEnabled) return;
-    
-    const startTime = this.timings.get(name);
-    if (startTime !== undefined) {
-      const duration = performance.now() - startTime;
-      this.addMetric(name, duration);
-      this.timings.delete(name);
-    }
-  }
-
-  // Chỉ track khi enabled
-  startMeasure(name: string): () => void {
-    if (!this.isEnabled) {
-      return () => {}; // No-op function
-    }
+  // Track custom timing
+  time(name: string, tags?: Record<string, string>): () => void {
+    if (!this.isEnabled) return () => {};
 
     const startTime = performance.now();
     
     return () => {
-      if (!this.isEnabled) return;
-      
       const duration = performance.now() - startTime;
-      this.addMetric(name, duration);
+      this.recordMetric({
+        name,
+        value: duration,
+        timestamp: Date.now(),
+        type: 'timing',
+        tags
+      });
+      
+      console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`, tags);
     };
   }
 
-  private addMetric(name: string, duration: number) {
+  // Track counters
+  increment(name: string, value: number = 1, tags?: Record<string, string>): void {
     if (!this.isEnabled) return;
 
-    this.metrics.push({
+    this.recordMetric({
       name,
-      duration,
-      timestamp: Date.now()
+      value,
+      timestamp: Date.now(),
+      type: 'counter',
+      tags
     });
-
-    // Giữ chỉ maxMetrics metrics gần nhất
-    if (this.metrics.length > this.maxMetrics) {
-      this.metrics = this.metrics.slice(-this.maxMetrics);
-    }
-
-    // Cleanup cũ mỗi 5 phút
-    const now = Date.now();
-    if (now - this.lastCleanup > 300000) {
-      this.cleanup();
-      this.lastCleanup = now;
-    }
   }
 
-  private cleanup() {
-    const fiveMinutesAgo = Date.now() - 300000;
-    this.metrics = this.metrics.filter(metric => metric.timestamp > fiveMinutesAgo);
+  // Track gauges
+  gauge(name: string, value: number, tags?: Record<string, string>): void {
+    if (!this.isEnabled) return;
+
+    this.recordMetric({
+      name,
+      value,
+      timestamp: Date.now(),
+      type: 'gauge',
+      tags
+    });
   }
 
-  getStats() {
-    if (!this.isEnabled || this.metrics.length === 0) {
-      return {
-        totalMetrics: 0,
-        averageDuration: 0,
-        slowestMetric: null,
-        fastestMetric: null
-      };
-    }
-
-    const durations = this.metrics.map(m => m.duration);
-    const totalDuration = durations.reduce((sum, d) => sum + d, 0);
-    const averageDuration = totalDuration / durations.length;
-
-    const slowestMetric = this.metrics.reduce((slowest, current) => 
-      current.duration > slowest.duration ? current : slowest
-    );
-
-    const fastestMetric = this.metrics.reduce((fastest, current) => 
-      current.duration < fastest.duration ? current : fastest
-    );
+  // Get page load metrics
+  getPageLoadMetrics(): PageLoadMetrics | null {
+    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+    
+    if (!navigation) return null;
 
     return {
-      totalMetrics: this.metrics.length,
-      averageDuration,
-      slowestMetric,
-      fastestMetric
+      loadTime: navigation.loadEventEnd - navigation.loadEventStart,
+      domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
+      firstContentfulPaint: this.getMetricValue('first-contentful-paint'),
+      largestContentfulPaint: this.getMetricValue('largest-contentful-paint'),
+      cumulativeLayoutShift: this.getMetricValue('cumulative-layout-shift'),
+      firstInputDelay: this.getMetricValue('first-input-delay')
     };
   }
 
-  // Clear all metrics
-  clear() {
+  // Get resource loading metrics
+  getResourceMetrics() {
+    const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+    
+    const metrics = {
+      totalResources: resources.length,
+      totalSize: 0,
+      totalLoadTime: 0,
+      slowestResource: { name: '', duration: 0 },
+      resourceTypes: {} as Record<string, number>
+    };
+
+    resources.forEach(resource => {
+      const duration = resource.responseEnd - resource.requestStart;
+      metrics.totalLoadTime += duration;
+      
+      if (resource.transferSize) {
+        metrics.totalSize += resource.transferSize;
+      }
+
+      if (duration > metrics.slowestResource.duration) {
+        metrics.slowestResource = {
+          name: resource.name,
+          duration
+        };
+      }
+
+      // Count by type
+      const type = this.getResourceType(resource.name);
+      metrics.resourceTypes[type] = (metrics.resourceTypes[type] || 0) + 1;
+    });
+
+    return metrics;
+  }
+
+  // Get memory usage
+  getMemoryMetrics() {
+    if ('memory' in performance) {
+      const memory = (performance as any).memory;
+      return {
+        usedJSHeapSize: memory.usedJSHeapSize,
+        totalJSHeapSize: memory.totalJSHeapSize,
+        jsHeapSizeLimit: memory.jsHeapSizeLimit,
+        usagePercentage: (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100
+      };
+    }
+    return null;
+  }
+
+  // Get all metrics
+  getAllMetrics() {
+    return {
+      pageLoad: this.getPageLoadMetrics(),
+      resources: this.getResourceMetrics(),
+      memory: this.getMemoryMetrics(),
+      custom: this.metrics.slice(-50), // Last 50 custom metrics
+      timestamp: Date.now()
+    };
+  }
+
+  // Get performance stats for compatibility
+  getStats() {
+    const allMetrics = this.getAllMetrics();
+    return {
+      totalMetrics: this.metrics.length,
+      averageDuration: this.metrics
+        .filter(m => m.type === 'timing')
+        .reduce((sum, m, _, arr) => sum + m.value / arr.length, 0),
+      slowestMetric: this.metrics
+        .filter(m => m.type === 'timing')
+        .reduce((slowest, current) => 
+          current.value > (slowest?.value || 0) ? current : slowest, null),
+      fastestMetric: this.metrics
+        .filter(m => m.type === 'timing')
+        .reduce((fastest, current) => 
+          current.value < (fastest?.value || Infinity) ? current : fastest, null)
+    };
+  }
+
+  // Export metrics for analysis
+  exportMetrics() {
+    const allMetrics = this.getAllMetrics();
+    const blob = new Blob([JSON.stringify(allMetrics, null, 2)], {
+      type: 'application/json'
+    });
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `performance-metrics-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Clear metrics
+  clearMetrics(): void {
     this.metrics = [];
-    this.timings.clear();
+    console.log('🧹 Performance metrics cleared');
+  }
+
+  // Enable/disable monitoring
+  setEnabled(enabled: boolean): void {
+    this.isEnabled = enabled;
+    console.log(`📊 Performance monitoring ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  private recordMetric(metric: PerformanceMetric): void {
+    this.metrics.push(metric);
+    
+    // Keep only last 1000 metrics to prevent memory issues
+    if (this.metrics.length > 1000) {
+      this.metrics = this.metrics.slice(-1000);
+    }
+  }
+
+  private initializeObservers(): void {
+    // Observe paint metrics
+    if ('PerformanceObserver' in window) {
+      try {
+        const paintObserver = new PerformanceObserver((list) => {
+          list.getEntries().forEach((entry) => {
+            this.recordMetric({
+              name: entry.name,
+              value: entry.startTime,
+              timestamp: Date.now(),
+              type: 'timing'
+            });
+          });
+        });
+        paintObserver.observe({ entryTypes: ['paint'] });
+        this.observers.push(paintObserver);
+
+        // Observe layout shifts
+        const layoutObserver = new PerformanceObserver((list) => {
+          list.getEntries().forEach((entry: any) => {
+            if (entry.hadRecentInput) return;
+            
+            this.recordMetric({
+              name: 'cumulative-layout-shift',
+              value: entry.value,
+              timestamp: Date.now(),
+              type: 'gauge'
+            });
+          });
+        });
+        layoutObserver.observe({ entryTypes: ['layout-shift'] });
+        this.observers.push(layoutObserver);
+
+        // Observe largest contentful paint
+        const lcpObserver = new PerformanceObserver((list) => {
+          const entries = list.getEntries();
+          const lastEntry = entries[entries.length - 1];
+          
+          this.recordMetric({
+            name: 'largest-contentful-paint',
+            value: lastEntry.startTime,
+            timestamp: Date.now(),
+            type: 'timing'
+          });
+        });
+        lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
+        this.observers.push(lcpObserver);
+
+      } catch (error) {
+        console.warn('⚠️ Some performance observers not supported:', error);
+      }
+    }
+  }
+
+  private trackPageLoad(): void {
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const metrics = this.getPageLoadMetrics();
+        if (metrics) {
+          console.log('📊 Page Load Metrics:', metrics);
+          
+          // Track slow page loads
+          if (metrics.loadTime > 3000) {
+            this.increment('slow-page-load', 1, {
+              loadTime: metrics.loadTime.toString()
+            });
+          }
+        }
+      }, 0);
+    });
+  }
+
+  private getMetricValue(name: string): number {
+    const metric = this.metrics.find(m => m.name === name);
+    return metric ? metric.value : 0;
+  }
+
+  private getResourceType(url: string): string {
+    if (url.includes('.js')) return 'javascript';
+    if (url.includes('.css')) return 'stylesheet';
+    if (url.match(/\.(png|jpg|jpeg|gif|svg|webp)$/)) return 'image';
+    if (url.includes('.woff') || url.includes('.ttf')) return 'font';
+    return 'other';
+  }
+
+  // Cleanup
+  destroy(): void {
+    this.observers.forEach(observer => observer.disconnect());
+    this.observers = [];
+    this.clearMetrics();
   }
 }
 
-const performanceMonitor = PerformanceMonitor.getInstance();
+// Create global performance monitor
+export const performanceMonitor = new PerformanceMonitor();
 
-// Chỉ enable khi ở trang cần thiết
-const shouldEnableMonitoring = () => {
-  const path = window.location.pathname;
-  return path === '/' || 
-         path.includes('/dashboard') || 
-         path.includes('/security-monitor') ||
-         path.includes('/usage-monitoring');
+// Utility functions
+export const trackComponentRender = (componentName: string) => {
+  return performanceMonitor.time(`component-render:${componentName}`, {
+    component: componentName
+  });
 };
 
-// Auto enable/disable based on page
-if (shouldEnableMonitoring()) {
-  performanceMonitor.enable();
-} else {
-  performanceMonitor.disable();
-}
+export const trackApiCall = (endpoint: string) => {
+  return performanceMonitor.time(`api-call:${endpoint}`, {
+    endpoint
+  });
+};
 
-// Export functions
-export const startPerformanceMeasure = (name: string) => {
-  return performanceMonitor.startMeasure(name);
+export const trackUserAction = (action: string, details?: Record<string, string>) => {
+  performanceMonitor.increment(`user-action:${action}`, 1, details);
+};
+
+// Legacy exports for compatibility
+export const startTiming = (name: string) => {
+  return performanceMonitor.time(name);
+};
+
+export const endTiming = (name: string) => {
+  // This is handled by the returned function from startTiming
+  console.log(`⏱️ ${name} completed`);
 };
 
 export const getPerformanceStats = () => {
   return performanceMonitor.getStats();
 };
 
-export const clearPerformanceMetrics = () => {
-  performanceMonitor.clear();
+// React hook for component performance tracking
+export const usePerformanceTracking = (componentName: string) => {
+  const endTracking = trackComponentRender(componentName);
+  
+  React.useEffect(() => {
+    return endTracking;
+  }, [endTracking]);
 };
 
-export const enablePerformanceMonitoring = () => {
-  performanceMonitor.enable();
-};
+// Auto-track page navigation
+if (typeof window !== 'undefined') {
+  let currentPath = window.location.pathname;
+  
+  const trackNavigation = () => {
+    const newPath = window.location.pathname;
+    if (newPath !== currentPath) {
+      performanceMonitor.increment('page-navigation', 1, {
+        from: currentPath,
+        to: newPath
+      });
+      currentPath = newPath;
+    }
+  };
 
-export const disablePerformanceMonitoring = () => {
-  performanceMonitor.disable();
-};
-
-// Export timing functions
-export const startTiming = (name: string) => {
-  performanceMonitor.startTiming(name);
-};
-
-export const endTiming = (name: string) => {
-  performanceMonitor.endTiming(name);
-};
-
-// Lightweight decorator for critical functions only
-export function measurePerformance(name?: string) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-    const originalMethod = descriptor.value;
-    const metricName = name || `${target.constructor.name}.${propertyKey}`;
-
-    descriptor.value = async function (...args: any[]) {
-      const endMeasure = startPerformanceMeasure(metricName);
-      try {
-        const result = await originalMethod.apply(this, args);
-        endMeasure();
-        return result;
-      } catch (error) {
-        endMeasure();
-        throw error;
-      }
-    };
-
-    return descriptor;
+  // Track navigation
+  window.addEventListener('popstate', trackNavigation);
+  
+  // Track programmatic navigation
+  const originalPushState = history.pushState;
+  history.pushState = function(...args) {
+    originalPushState.apply(history, args);
+    trackNavigation();
   };
 }

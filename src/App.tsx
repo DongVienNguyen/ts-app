@@ -7,31 +7,47 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { NotificationPermissionPrompt } from '@/components/NotificationPermissionPrompt';
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { useEffect } from 'react';
+import { useEffect, Suspense, lazy } from 'react';
 
-// Pages
-import Index from '@/pages/Index';
-import Login from '@/pages/Login';
-import AssetEntry from '@/pages/AssetEntry';
-import DailyReport from '@/pages/DailyReport';
-import BorrowReport from '@/pages/BorrowReport';
-import AssetReminders from '@/pages/AssetReminders';
-import CRCReminders from '@/pages/CRCReminders';
-import OtherAssets from '@/pages/OtherAssets';
-import DataManagement from '@/pages/DataManagement';
-import SecurityMonitor from '@/pages/SecurityMonitor';
-import ErrorMonitoring from '@/pages/ErrorMonitoring';
-import UsageMonitoring from '@/pages/UsageMonitoring';
-import Notifications from '@/pages/Notifications';
-import ResetPassword from '@/pages/ResetPassword';
-import SystemBackup from '@/pages/SystemBackup';
-import NotFound from '@/pages/NotFound';
+// Lazy load all pages for better performance
+const Index = lazy(() => import('@/pages/Index'));
+const Login = lazy(() => import('@/pages/Login'));
+const AssetEntry = lazy(() => import('@/pages/AssetEntry'));
+const DailyReport = lazy(() => import('@/pages/DailyReport'));
+const BorrowReport = lazy(() => import('@/pages/BorrowReport'));
+const AssetReminders = lazy(() => import('@/pages/AssetReminders'));
+const CRCReminders = lazy(() => import('@/pages/CRCReminders'));
+const OtherAssets = lazy(() => import('@/pages/OtherAssets'));
+
+// Heavy admin pages - lazy load with higher priority
+const DataManagement = lazy(() => import('@/pages/DataManagement'));
+const SecurityMonitor = lazy(() => import('@/pages/SecurityMonitor'));
+const ErrorMonitoring = lazy(() => import('@/pages/ErrorMonitoring'));
+const UsageMonitoring = lazy(() => import('@/pages/UsageMonitoring'));
+const SystemBackup = lazy(() => import('@/pages/SystemBackup'));
+
+const Notifications = lazy(() => import('@/pages/Notifications'));
+const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
+const NotFound = lazy(() => import('@/pages/NotFound'));
+
+// Loading component
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="flex flex-col items-center space-y-4">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <p className="text-gray-600 animate-pulse">Đang tải trang...</p>
+    </div>
+  </div>
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
       retry: 1,
+      // Enable background refetch for better UX
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
     },
   },
 });
@@ -66,76 +82,91 @@ function AppContent() {
   return (
     <>
       <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Index />
-            </ProtectedRoute>
-          } />
-          <Route path="/asset-entry" element={
-            <ProtectedRoute>
-              <AssetEntry />
-            </ProtectedRoute>
-          } />
-          <Route path="/daily-report" element={
-            <ProtectedRoute>
-              <DailyReport />
-            </ProtectedRoute>
-          } />
-          <Route path="/borrow-report" element={
-            <ProtectedRoute>
-              <BorrowReport />
-            </ProtectedRoute>
-          } />
-          <Route path="/asset-reminders" element={
-            <ProtectedRoute>
-              <AssetReminders />
-            </ProtectedRoute>
-          } />
-          <Route path="/crc-reminders" element={
-            <ProtectedRoute>
-              <CRCReminders />
-            </ProtectedRoute>
-          } />
-          <Route path="/other-assets" element={
-            <ProtectedRoute>
-              <OtherAssets />
-            </ProtectedRoute>
-          } />
-          <Route path="/data-management" element={
-            <ProtectedRoute>
-              <DataManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/security-monitor" element={
-            <ProtectedRoute>
-              <SecurityMonitor />
-            </ProtectedRoute>
-          } />
-          <Route path="/error-monitoring" element={
-            <ProtectedRoute>
-              <ErrorMonitoring />
-            </ProtectedRoute>
-          } />
-          <Route path="/usage-monitoring" element={
-            <ProtectedRoute>
-              <UsageMonitoring />
-            </ProtectedRoute>
-          } />
-          <Route path="/notifications" element={
-            <ProtectedRoute>
-              <Notifications />
-            </ProtectedRoute>
-          } />
-          <Route path="/system-backup" element={
-            <ProtectedRoute>
-              <SystemBackup />
-            </ProtectedRoute>
-          } />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Index />
+              </ProtectedRoute>
+            } />
+            <Route path="/asset-entry" element={
+              <ProtectedRoute>
+                <AssetEntry />
+              </ProtectedRoute>
+            } />
+            <Route path="/daily-report" element={
+              <ProtectedRoute>
+                <DailyReport />
+              </ProtectedRoute>
+            } />
+            <Route path="/borrow-report" element={
+              <ProtectedRoute>
+                <BorrowReport />
+              </ProtectedRoute>
+            } />
+            <Route path="/asset-reminders" element={
+              <ProtectedRoute>
+                <AssetReminders />
+              </ProtectedRoute>
+            } />
+            <Route path="/crc-reminders" element={
+              <ProtectedRoute>
+                <CRCReminders />
+              </ProtectedRoute>
+            } />
+            <Route path="/other-assets" element={
+              <ProtectedRoute>
+                <OtherAssets />
+              </ProtectedRoute>
+            } />
+            
+            {/* Heavy admin pages with suspense */}
+            <Route path="/data-management" element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <DataManagement />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+            <Route path="/security-monitor" element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <SecurityMonitor />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+            <Route path="/error-monitoring" element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <ErrorMonitoring />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+            <Route path="/usage-monitoring" element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <UsageMonitoring />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+            <Route path="/system-backup" element={
+              <ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <SystemBackup />
+                </Suspense>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/notifications" element={
+              <ProtectedRoute>
+                <Notifications />
+              </ProtectedRoute>
+            } />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
         
         {/* Global Components */}
         <NotificationPermissionPrompt />
