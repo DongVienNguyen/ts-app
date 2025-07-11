@@ -116,7 +116,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </li>
             {systemItems.length > 0 && (
               <li>
-                <DropdownMenu open={isSystemDropdownOpen} onOpenChange={setIsSystemDropdownOpen}>
+                <DropdownMenu open={isSystemDropdownOpen} onOpenChange={setIsSystemDropdownOpen} modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
