@@ -94,15 +94,6 @@ const SystemBackup: React.FC = () => {
     alert('Backup cancellation is not yet implemented. Please wait for completion.');
   };
 
-  console.log('🔍 SystemBackup DEBUG:', {
-    canAccess,
-    backupStatus,
-    restoreStatus,
-    backupItemsCount: backupItems?.length || 0,
-    backupHistoryCount: backupHistory?.length || 0,
-    selectedRestoreFile: selectedRestoreFile?.name || null
-  });
-
   return (
     <Layout>
       <div className="space-y-6">

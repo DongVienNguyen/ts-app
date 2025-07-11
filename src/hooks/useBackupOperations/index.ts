@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { backupService } from '@/services/backupService';
@@ -30,7 +30,7 @@ export const useBackupOperations = (): BackupOperationsReturn => {
   } = useBackupState();
 
   // Data management
-  const dataManager = createBackupDataManager();
+  const dataManager = useMemo(() => createBackupDataManager(), []);
 
   // Progress management
   const progressManager = createProgressManager(
@@ -51,6 +51,102 @@ export const useBackupOperations = (): BackupOperationsReturn => {
       });
     }
   );
+
+  // Backup operations
+  const operations = useMemo(() => createBackupOperations(
+    canAccess,
+    backupStatus.isRunning,
+    restoreStatus.isRunning,
+    progressManager.updateBackupProgressWithLog,
+    progressManager.updateRestoreProgressWithLog,
+    dataManager.saveBackupRecord,
+    // onBackupStart
+    () => {
+      updateBackupStatus({
+        isRunning: true,
+        progress: 0,
+        error: null,
+        estimatedTimeRemaining: 30000
+      });
+      updateBackupItems(prev => prev.map(item => ({
+        ...item,
+        status: 'running' as const
+      })));
+    },
+    // onBackupComplete
+    (record: BackupRecord, history: BackupRecord[]) => {
+      updateBackupStatus({
+        lastBackup: record.timestamp,
+        isRunning: false,
+        estimatedTimeRemaining: null,
+        currentBackupType: undefined
+      });
+      
+      setBackupHistory(history);
+      
+      const sizeInMB = record.size ? (record.size / 1024 / 1024).toFixed(2) : '0';
+      updateBackupItems(prev => prev.map(item => ({
+        ...item,
+        status: 'success' as const,
+        lastBackup: new Date(record.timestamp).toLocaleDateString('vi-VN'),
+        size: item.id === 'database' ? `${sizeInMB} MB` : item.size
+      })));
+      
+      clearCache();
+    },
+    // onBackupError - prefix unused parameter with underscore
+    (error: string, _record: BackupRecord, history: BackupRecord[]) => {
+      updateBackupStatus({
+        isRunning: false,
+        progress: 0,
+        currentStep: '',
+        error,
+        estimatedTimeRemaining: null,
+        currentBackupType: undefined
+      });
+      
+      updateBackupItems(prev => prev.map(item => ({
+        ...item,
+        status: 'error' as const
+      })));
+      
+      setBackupHistory(history);
+    },
+    // onRestoreStart
+    () => {
+      updateRestoreStatus({
+        isRunning: true,
+        progress: 0,
+        error: null,
+        estimatedTimeRemaining: 60000
+      });
+    },
+    // onRestoreComplete - prefix unused parameter with underscore
+    (_result) => {
+      const now = new Date().toISOString();
+      localStorage.setItem('lastRestoreTime', now);
+      
+      updateRestoreStatus({
+        lastRestore: now,
+        isRunning: false,
+        progress: 100,
+        currentStep: 'Restore hoàn tất thành công!',
+        estimatedTimeRemaining: null
+      });
+
+      clearCache();
+    },
+    // onRestoreError
+    (error: string) => {
+      updateRestoreStatus({
+        isRunning: false,
+        progress: 0,
+        currentStep: '',
+        error,
+        estimatedTimeRemaining: null
+      });
+    }
+  ), [canAccess, backupStatus.isRunning, restoreStatus.isRunning, progressManager, dataManager, updateBackupStatus, updateBackupItems, setBackupHistory, clearCache, updateRestoreStatus]);
 
   // Load backup history - chỉ load khi cần
   const loadBackupHistory = useCallback(async () => {
@@ -158,103 +254,7 @@ export const useBackupOperations = (): BackupOperationsReturn => {
     if (dataManager.checkAutoBackupStatus(backupStatus.autoBackupEnabled)) {
       dataManager.scheduleAutoBackup((isAuto) => operations.performBackup(isAuto));
     }
-  }, [canAccess, backupStatus.autoBackupEnabled, dataManager]);
-
-  // Backup operations
-  const operations = createBackupOperations(
-    canAccess,
-    backupStatus.isRunning,
-    restoreStatus.isRunning,
-    progressManager.updateBackupProgressWithLog,
-    progressManager.updateRestoreProgressWithLog,
-    dataManager.saveBackupRecord,
-    // onBackupStart
-    () => {
-      updateBackupStatus({
-        isRunning: true,
-        progress: 0,
-        error: null,
-        estimatedTimeRemaining: 30000
-      });
-      updateBackupItems(prev => prev.map(item => ({
-        ...item,
-        status: 'running' as const
-      })));
-    },
-    // onBackupComplete
-    (record: BackupRecord, history: BackupRecord[]) => {
-      updateBackupStatus({
-        lastBackup: record.timestamp,
-        isRunning: false,
-        estimatedTimeRemaining: null,
-        currentBackupType: undefined
-      });
-      
-      setBackupHistory(history);
-      
-      const sizeInMB = record.size ? (record.size / 1024 / 1024).toFixed(2) : '0';
-      updateBackupItems(prev => prev.map(item => ({
-        ...item,
-        status: 'success' as const,
-        lastBackup: new Date(record.timestamp).toLocaleDateString('vi-VN'),
-        size: item.id === 'database' ? `${sizeInMB} MB` : item.size
-      })));
-      
-      clearCache();
-    },
-    // onBackupError - prefix unused parameter with underscore
-    (error: string, _record: BackupRecord, history: BackupRecord[]) => {
-      updateBackupStatus({
-        isRunning: false,
-        progress: 0,
-        currentStep: '',
-        error,
-        estimatedTimeRemaining: null,
-        currentBackupType: undefined
-      });
-      
-      updateBackupItems(prev => prev.map(item => ({
-        ...item,
-        status: 'error' as const
-      })));
-      
-      setBackupHistory(history);
-    },
-    // onRestoreStart
-    () => {
-      updateRestoreStatus({
-        isRunning: true,
-        progress: 0,
-        error: null,
-        estimatedTimeRemaining: 60000
-      });
-    },
-    // onRestoreComplete - prefix unused parameter with underscore
-    (_result) => {
-      const now = new Date().toISOString();
-      localStorage.setItem('lastRestoreTime', now);
-      
-      updateRestoreStatus({
-        lastRestore: now,
-        isRunning: false,
-        progress: 100,
-        currentStep: 'Restore hoàn tất thành công!',
-        estimatedTimeRemaining: null
-      });
-
-      clearCache();
-    },
-    // onRestoreError
-    (error: string) => {
-      updateRestoreStatus({
-        isRunning: false,
-        progress: 0,
-        currentStep: '',
-        error,
-        estimatedTimeRemaining: null
-      });
-    }
-  );
+  }, [canAccess, backupStatus.autoBackupEnabled, dataManager, operations]);
 
   // Toggle auto backup
   const toggleAutoBackup = useCallback(async (enabled: boolean) => {
@@ -280,7 +280,6 @@ export const useBackupOperations = (): BackupOperationsReturn => {
   // Initialize - chỉ load cơ bản
   useEffect(() => {
     if (canAccess) {
-      console.log('🔄 Initializing backup operations...');
       loadBackupHistory();
       checkAutoBackupStatus();
     } else {
