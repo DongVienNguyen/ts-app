@@ -10,17 +10,71 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Bell, Check, CheckCheck, Trash2, Reply, Send, RefreshCw } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, Reply, Send, RefreshCw, Users, MessageCircle, CheckCircle2, Info } from 'lucide-react';
 import { formatRelativeTime } from '@/utils/dateUtils';
 import { toast } from 'sonner';
 
 type Notification = Tables<'notifications'>;
+
+// Type for notification related_data
+interface NotificationRelatedData {
+  sender?: string;
+  recipients?: string[];
+  [key: string]: any;
+}
 
 export default function Notifications() {
   const { user } = useSecureAuth();
   const queryClient = useQueryClient();
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [replyType, setReplyType] = useState<'sender' | 'all'>('sender');
+
+  // Check for notification ID in URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const notificationId = urlParams.get('id');
+    
+    if (notificationId) {
+      // Find and highlight specific notification
+      setTimeout(() => {
+        const element = document.getElementById(`notification-${notificationId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
+          setTimeout(() => {
+            element.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
+          }, 3000);
+        }
+      }, 500);
+    }
+  }, []);
+
+  // Listen for navigation messages from service worker
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'NAVIGATE_TO_NOTIFICATION') {
+        const notificationId = event.data.notificationId;
+        if (notificationId) {
+          setTimeout(() => {
+            const element = document.getElementById(`notification-${notificationId}`);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              element.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
+              setTimeout(() => {
+                element.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
+              }, 3000);
+            }
+          }, 500);
+        }
+      }
+    };
+
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', handleMessage);
+    };
+  }, []);
 
   // Fetch notifications
   const { data: notifications = [], isLoading, refetch } = useQuery<Notification[]>({
@@ -127,22 +181,46 @@ export default function Notifications() {
 
   // Reply mutation
   const replyMutation = useMutation({
-    mutationFn: async ({ notificationId, replyText }: { notificationId: string; replyText: string }) => {
-      // Create a new notification as reply (simplified approach)
-      const { error } = await supabase
-        .from('notifications')
-        .insert({
-          recipient_username: 'admin', // Send to admin or original sender
-          title: `Phản hồi: ${selectedNotification?.title}`,
+    mutationFn: async ({ notificationId, replyText, replyType }: { 
+      notificationId: string; 
+      replyText: string; 
+      replyType: 'sender' | 'all' 
+    }) => {
+      if (!selectedNotification) return;
+
+      // Get original sender and recipients with proper type casting
+      const relatedData = selectedNotification.related_data as NotificationRelatedData | null;
+      const originalSender = relatedData?.sender || 'admin';
+      const originalRecipients = relatedData?.recipients || [originalSender];
+      
+      // Determine recipients based on reply type
+      const recipients = replyType === 'all' 
+        ? [originalSender, ...originalRecipients.filter((r: string) => r !== user?.username)]
+        : [originalSender];
+
+      // Send reply to each recipient
+      const promises = recipients.map((recipient: string) => 
+        supabase.from('notifications').insert({
+          recipient_username: recipient,
+          title: `Phản hồi: ${selectedNotification.title}`,
           message: replyText,
           notification_type: 'reply',
           related_data: { 
             original_notification_id: notificationId,
-            replied_by: user?.username 
+            replied_by: user?.username,
+            reply_type: replyType,
+            original_sender: originalSender,
+            original_recipients: originalRecipients
           }
-        });
+        })
+      );
+
+      const results = await Promise.all(promises);
+      const errors = results.filter(result => result.error);
       
-      if (error) throw error;
+      if (errors.length > 0) {
+        throw new Error(`Failed to send ${errors.length} replies`);
+      }
     },
     onSuccess: () => {
       setReplyText('');
@@ -150,6 +228,44 @@ export default function Notifications() {
     },
     onError: (error) => {
       console.error('Error sending reply:', error);
+      toast.error('Không thể gửi phản hồi');
+    }
+  });
+
+  // Quick action mutation
+  const quickActionMutation = useMutation({
+    mutationFn: async ({ notificationId, action }: { notificationId: string; action: string }) => {
+      if (!selectedNotification) return;
+
+      const relatedData = selectedNotification.related_data as NotificationRelatedData | null;
+      const originalSender = relatedData?.sender || 'admin';
+      const actionMessages = {
+        'processed': '✅ Đã xử lý xong.',
+        'acknowledged': '👍 Đã biết.'
+      };
+
+      const { error } = await supabase
+        .from('notifications')
+        .insert({
+          recipient_username: originalSender,
+          title: `Phản hồi: ${selectedNotification.title}`,
+          message: actionMessages[action as keyof typeof actionMessages] || action,
+          notification_type: 'quick_reply',
+          related_data: { 
+            original_notification_id: notificationId,
+            replied_by: user?.username,
+            action_type: action,
+            original_sender: originalSender
+          }
+        });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Đã gửi phản hồi nhanh');
+    },
+    onError: (error) => {
+      console.error('Error sending quick action:', error);
       toast.error('Không thể gửi phản hồi');
     }
   });
@@ -205,6 +321,8 @@ export default function Notifications() {
         return 'bg-purple-100 text-purple-800';
       case 'reply':
         return 'bg-orange-100 text-orange-800';
+      case 'quick_reply':
+        return 'bg-teal-100 text-teal-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -220,6 +338,8 @@ export default function Notifications() {
         return 'Kết quả giao dịch';
       case 'reply':
         return 'Phản hồi';
+      case 'quick_reply':
+        return 'Phản hồi nhanh';
       default:
         return 'Thông báo';
     }
@@ -325,6 +445,7 @@ export default function Notifications() {
             {notifications.map((notification) => (
               <Card 
                 key={notification.id} 
+                id={`notification-${notification.id}`}
                 className={`transition-all hover:shadow-md bg-white border-gray-200 ${
                   !notification.is_read ? 'border-l-4 border-l-blue-500 bg-blue-50/30' : ''
                 }`}
@@ -370,17 +491,17 @@ export default function Notifications() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setSelectedNotification(notification)}
-                            title="Phản hồi"
+                            title="Trả lời"
                             className="hover:bg-gray-100"
                           >
                             <Reply className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-md bg-white">
+                        <DialogContent className="max-w-2xl bg-white">
                           <DialogHeader>
-                            <DialogTitle className="text-gray-900">Phản hồi thông báo</DialogTitle>
+                            <DialogTitle className="text-gray-900">Trả lời thông báo</DialogTitle>
                             <DialogDescription className="text-gray-600">
-                              Gửi phản hồi cho thông báo này. Phản hồi sẽ được gửi đến quản trị viên.
+                              Gửi phản hồi cho thông báo này. Chọn gửi cho người gửi hoặc tất cả người nhận.
                             </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4">
@@ -388,8 +509,62 @@ export default function Notifications() {
                               <p className="font-medium text-sm text-gray-900">{notification.title}</p>
                               <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
                             </div>
+                            
+                            {/* Reply Type Selection */}
+                            <div className="flex space-x-2">
+                              <Button
+                                variant={replyType === 'sender' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setReplyType('sender')}
+                                className="flex-1"
+                              >
+                                <MessageCircle className="h-4 w-4 mr-2" />
+                                Trả lời người gửi
+                              </Button>
+                              <Button
+                                variant={replyType === 'all' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setReplyType('all')}
+                                className="flex-1"
+                              >
+                                <Users className="h-4 w-4 mr-2" />
+                                Trả lời tất cả
+                              </Button>
+                            </div>
+                            
+                            {/* Quick Action Buttons */}
+                            <div className="flex space-x-2 p-3 bg-blue-50 rounded-lg">
+                              <p className="text-sm text-blue-800 font-medium mb-2 w-full">Phản hồi nhanh:</p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => quickActionMutation.mutate({ 
+                                  notificationId: notification.id, 
+                                  action: 'processed' 
+                                })}
+                                disabled={quickActionMutation.isPending}
+                                className="flex-1 bg-white hover:bg-green-50 border-green-200 text-green-700"
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                Đã xử lý xong
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => quickActionMutation.mutate({ 
+                                  notificationId: notification.id, 
+                                  action: 'acknowledged' 
+                                })}
+                                disabled={quickActionMutation.isPending}
+                                className="flex-1 bg-white hover:bg-blue-50 border-blue-200 text-blue-700"
+                              >
+                                <Info className="h-4 w-4 mr-2" />
+                                Đã biết
+                              </Button>
+                            </div>
+                            
                             <Textarea
-                              placeholder="Nhập phản hồi của bạn..."
+                              placeholder="Nhập phản hồi chi tiết của bạn..."
                               value={replyText}
                               onChange={(e) => setReplyText(e.target.value)}
                               rows={4}
@@ -409,7 +584,8 @@ export default function Notifications() {
                               <Button
                                 onClick={() => replyMutation.mutate({ 
                                   notificationId: notification.id, 
-                                  replyText 
+                                  replyText,
+                                  replyType
                                 })}
                                 disabled={!replyText.trim() || replyMutation.isPending}
                               >

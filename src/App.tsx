@@ -1,17 +1,22 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import Layout from '@/components/Layout';
-import Login from '@/pages/Login';
+import { NotificationPermissionPrompt } from '@/components/NotificationPermissionPrompt';
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { useEffect } from 'react';
+
+// Pages
 import Index from '@/pages/Index';
+import Login from '@/pages/Login';
 import AssetEntry from '@/pages/AssetEntry';
 import DailyReport from '@/pages/DailyReport';
+import BorrowReport from '@/pages/BorrowReport';
 import AssetReminders from '@/pages/AssetReminders';
 import CRCReminders from '@/pages/CRCReminders';
-import BorrowReport from '@/pages/BorrowReport';
 import OtherAssets from '@/pages/OtherAssets';
 import DataManagement from '@/pages/DataManagement';
 import SecurityMonitor from '@/pages/SecurityMonitor';
@@ -24,207 +29,128 @@ import NotFound from '@/pages/NotFound';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
     },
   },
 });
 
-// Loading component
-const LoadingScreen = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-lg text-foreground">Đang tải...</p>
-        <p className="text-sm mt-2 text-muted-foreground">Vui lòng chờ trong giây lát</p>
-      </div>
-    </div>
-  );
-};
-
-// Component to handle default route based on user role
-function DefaultRoute() {
-  const { user, loading } = useAuth();
-  
-  console.log('🎯 DefaultRoute - user:', user?.username, 'loading:', loading);
-  
-  if (loading) {
-    return <LoadingScreen />;
-  }
-  
-  if (!user) {
-    console.log('🔒 No user, redirecting to login');
-    return <Navigate to="/login" replace />;
-  }
-  
-  // Regular users go to asset-entry, admins/NQ go to dashboard
-  if (user.role === 'user') {
-    console.log('👤 User role, redirecting to asset-entry');
-    return <Navigate to="/asset-entry" replace />;
-  } else {
-    console.log('👑 Admin/NQ role, showing dashboard');
-    return (
-      <Layout>
-        <Index />
-      </Layout>
-    );
-  }
-}
-
 function AppContent() {
-  const { user, loading } = useAuth();
+  // Listen for service worker navigation messages
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'NAVIGATE_TO_NOTIFICATION') {
+        const targetUrl = event.data.url || '/notifications';
+        const notificationId = event.data.notificationId;
+        
+        // Navigate to the target URL
+        if (notificationId) {
+          window.location.href = `${targetUrl}?id=${notificationId}`;
+        } else {
+          window.location.href = targetUrl;
+        }
+      }
+    };
 
-  console.log('🚀 AppContent rendering - user:', user?.username, 'loading:', loading);
-
-  // Show loading screen while checking authentication
-  if (loading) {
-    console.log('⏳ App loading...');
-    return <LoadingScreen />;
-  }
-
-  console.log('🎯 App rendering routes...');
+    // Listen for messages from service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleMessage);
+      
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', handleMessage);
+      };
+    }
+  }, []);
 
   return (
-    <Router future={{ 
-      v7_startTransition: true,
-      v7_relativeSplatPath: true 
-    }}>
-      <Routes>
-        {/* Public routes without Layout */}
-        <Route 
-          path="/login" 
-          element={user ? <Navigate to="/" replace /> : <Login />} 
-        />
-        
-        {/* Default route - redirects based on user role */}
-        <Route path="/" element={
-          <ProtectedRoute>
-            <DefaultRoute />
-          </ProtectedRoute>
-        } />
-        
-        {/* Protected routes with Layout */}
-        <Route path="/asset-entry" element={
-          <ProtectedRoute>
-            <Layout>
+    <>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Index />
+            </ProtectedRoute>
+          } />
+          <Route path="/asset-entry" element={
+            <ProtectedRoute>
               <AssetEntry />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/daily-report" element={
-          <ProtectedRoute>
-            <Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/daily-report" element={
+            <ProtectedRoute>
               <DailyReport />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/borrow-report" element={
-          <ProtectedRoute>
-            <Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/borrow-report" element={
+            <ProtectedRoute>
               <BorrowReport />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/asset-reminders" element={
-          <ProtectedRoute>
-            <Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/asset-reminders" element={
+            <ProtectedRoute>
               <AssetReminders />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/crc-reminders" element={
-          <ProtectedRoute>
-            <Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/crc-reminders" element={
+            <ProtectedRoute>
               <CRCReminders />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/other-assets" element={
-          <ProtectedRoute>
-            <Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/other-assets" element={
+            <ProtectedRoute>
               <OtherAssets />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/data-management" element={
-          <ProtectedRoute>
-            <Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/data-management" element={
+            <ProtectedRoute>
               <DataManagement />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/security-monitor" element={
-          <ProtectedRoute>
-            <Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/security-monitor" element={
+            <ProtectedRoute>
               <SecurityMonitor />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/error-monitoring" element={
-          <ProtectedRoute>
-            <Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/error-monitoring" element={
+            <ProtectedRoute>
               <ErrorMonitoring />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/usage-monitoring" element={
-          <ProtectedRoute>
-            <Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/usage-monitoring" element={
+            <ProtectedRoute>
               <UsageMonitoring />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        <Route path="/notifications" element={
-          <ProtectedRoute>
-            <Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/notifications" element={
+            <ProtectedRoute>
               <Notifications />
-            </Layout>
-          </ProtectedRoute>
-        } />
+            </ProtectedRoute>
+          } />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
         
-        <Route path="/reset-password" element={
-          <ProtectedRoute>
-            <Layout>
-              <ResetPassword />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        
-        {/* 404 route */}
-        <Route path="*" element={user ? (
-          <Layout>
-            <NotFound />
-          </Layout>
-        ) : <Navigate to="/login" replace />} />
-      </Routes>
-    </Router>
+        {/* Global Components */}
+        <NotificationPermissionPrompt />
+        <PWAInstallPrompt />
+        <Toaster position="top-right" />
+      </Router>
+    </>
   );
 }
 
 function App() {
-  console.log('🚀 App component initializing...');
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <AppContent />
-          <Toaster position="top-right" />
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

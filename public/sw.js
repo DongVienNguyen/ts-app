@@ -252,6 +252,7 @@ self.addEventListener('push', (event) => {
       data: {
         url: '/notifications',
         timestamp: Date.now(),
+        notificationId: data.notificationId,
         ...data.data
       }
     };
@@ -264,36 +265,39 @@ self.addEventListener('push', (event) => {
   }
 });
 
-// Xử lý click notification
+// Xử lý click notification - Cải thiện để chuyển đến trang thông báo
 self.addEventListener('notificationclick', (event) => {
   console.log('🔔 Click notification');
   
   event.notification.close();
   
-  const urlToOpen = event.notification.data?.url || '/notifications';
+  const notificationData = event.notification.data || {};
+  const targetUrl = notificationData.url || '/notifications';
+  const notificationId = notificationData.notificationId;
   
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(clients => {
-        // Tìm tab đã mở
-        for (const client of clients) {
-          if (client.url.includes(urlToOpen) && 'focus' in client) {
-            return client.focus();
-          }
-        }
+        // Tìm tab đã mở TS Manager
+        const existingClient = clients.find(client => 
+          client.url.includes(self.location.origin)
+        );
         
-        // Focus tab hiện tại và navigate
-        for (const client of clients) {
-          if ('focus' in client) {
-            client.focus();
-            client.navigate(urlToOpen);
-            return;
-          }
-        }
-        
-        // Mở tab mới
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(urlToOpen);
+        if (existingClient) {
+          // Focus tab hiện tại và navigate đến trang thông báo
+          return existingClient.focus().then(() => {
+            // Gửi message để navigate đến trang thông báo cụ thể
+            existingClient.postMessage({
+              type: 'NAVIGATE_TO_NOTIFICATION',
+              url: targetUrl,
+              notificationId: notificationId,
+              action: event.action || 'view'
+            });
+          });
+        } else {
+          // Mở tab mới và chuyển đến trang thông báo
+          const fullUrl = `${self.location.origin}${targetUrl}${notificationId ? `?id=${notificationId}` : ''}`;
+          return self.clients.openWindow(fullUrl);
         }
       })
   );

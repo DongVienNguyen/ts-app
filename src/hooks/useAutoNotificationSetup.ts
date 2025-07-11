@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { requestNotificationPermission, subscribeUserToPush } from '@/utils/pushNotificationUtils';
 
 export function useAutoNotificationSetup() {
   const { user } = useSecureAuth();
+  const [showManualPrompt, setShowManualPrompt] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -32,10 +33,15 @@ export function useAutoNotificationSetup() {
           return;
         }
 
-        // Auto-request permission after user has been active for 30 seconds
-        const timer = setTimeout(async () => {
+        // Try auto-request permission after user interaction
+        let autoRequestAttempted = false;
+        
+        const attemptAutoRequest = async () => {
+          if (autoRequestAttempted) return;
+          autoRequestAttempted = true;
+          
           try {
-            console.log('🔔 Auto-requesting notification permission...');
+            console.log('🔔 Attempting auto-request notification permission...');
             const permission = await requestNotificationPermission();
             
             if (permission === 'granted') {
@@ -53,18 +59,53 @@ export function useAutoNotificationSetup() {
                   requireInteraction: false
                 });
               }
+            } else {
+              // Auto request failed, show manual prompt
+              console.log('🔔 Auto request failed, showing manual prompt');
+              setShowManualPrompt(true);
             }
           } catch (error) {
-            console.error('❌ Auto notification setup failed:', error);
+            console.log('🔔 Auto request failed, showing manual prompt');
+            setShowManualPrompt(true);
           }
-        }, 30000); // 30 seconds delay
+        };
 
-        return () => clearTimeout(timer);
+        // Try auto-request on first user interaction
+        const handleFirstInteraction = () => {
+          attemptAutoRequest();
+          // Remove listeners after first attempt
+          document.removeEventListener('click', handleFirstInteraction);
+          document.removeEventListener('touchstart', handleFirstInteraction);
+          document.removeEventListener('keydown', handleFirstInteraction);
+        };
+
+        // Wait for user interaction before auto-requesting
+        document.addEventListener('click', handleFirstInteraction, { once: true });
+        document.addEventListener('touchstart', handleFirstInteraction, { once: true });
+        document.addEventListener('keydown', handleFirstInteraction, { once: true });
+
+        // Fallback: show manual prompt after 30 seconds if no interaction
+        const fallbackTimer = setTimeout(() => {
+          if (!autoRequestAttempted) {
+            console.log('🔔 No user interaction, showing manual prompt');
+            setShowManualPrompt(true);
+          }
+        }, 30000);
+
+        return () => {
+          clearTimeout(fallbackTimer);
+          document.removeEventListener('click', handleFirstInteraction);
+          document.removeEventListener('touchstart', handleFirstInteraction);
+          document.removeEventListener('keydown', handleFirstInteraction);
+        };
       } catch (error) {
         console.error('❌ Notification setup error:', error);
+        setShowManualPrompt(true);
       }
     };
 
     setupNotifications();
   }, [user]);
+
+  return { showManualPrompt, setShowManualPrompt };
 }
