@@ -175,8 +175,8 @@ export function useErrorMonitoringData() {
   useEffect(() => {
     refreshAll();
     
-    // Auto refresh every 30 seconds
-    const interval = setInterval(refreshAll, 30000);
+    // Changed from 30 seconds to 60 minutes (3,600,000 ms) to improve system performance
+    const interval = setInterval(refreshAll, 3600000); // 60 minutes
     return () => clearInterval(interval);
   }, [refreshAll]);
 

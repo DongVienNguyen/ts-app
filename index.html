@@ -191,7 +191,7 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Service Worker Registration with Aggressive Updates -->
+    <!-- Service Worker Registration with Smart Updates -->
     <script>
       // Enhanced error handling
       window.addEventListener('error', function(e) {
@@ -218,33 +218,129 @@
         }, 1000);
       });
       
-      // Register service worker with aggressive auto-updates
+      // Smart refresh system - only refresh when necessary and user-friendly
+      let lastUserActivity = Date.now();
+      let isUserActive = true;
+      let refreshTimer = null;
+      
+      // Track user activity
+      const updateUserActivity = () => {
+        lastUserActivity = Date.now();
+        isUserActive = true;
+      };
+      
+      // Listen for user interactions
+      ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'].forEach(event => {
+        document.addEventListener(event, updateUserActivity, { passive: true });
+      });
+      
+      // Check if user is inactive (no activity for 15 minutes)
+      const checkUserActivity = () => {
+        const inactiveTime = Date.now() - lastUserActivity;
+        isUserActive = inactiveTime < 900000; // 15 minutes
+        return isUserActive;
+      };
+      
+      // Smart refresh function
+      const smartRefresh = () => {
+        // Only refresh if:
+        // 1. User is inactive for more than 15 minutes, OR
+        // 2. Page has been open for more than 3 hours
+        const pageOpenTime = Date.now() - window.performance.timing.navigationStart;
+        const shouldRefresh = !checkUserActivity() || pageOpenTime > 10800000; // 3 hours
+        
+        if (shouldRefresh) {
+          console.log('🔄 Smart refresh triggered - user inactive or page too old');
+          
+          // Show a subtle notification before refresh
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #14532d;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+          `;
+          notification.textContent = '🔄 Đang cập nhật phiên bản mới...';
+          document.body.appendChild(notification);
+          
+          // Refresh after showing notification
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
+      };
+      
+      // Register service worker with optimized update checking
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
               console.log('SW registered: ', registration);
               
-              // Check for updates every 10 seconds
+              // Check for updates every 30 minutes instead of 10 seconds
               setInterval(() => {
                 registration.update();
-              }, 10000);
+              }, 1800000); // 30 minutes
               
-              // Handle updates completely silently
+              // Handle updates more gracefully
               registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 if (newWorker) {
                   newWorker.addEventListener('statechange', () => {
                     if (newWorker.state === 'installed') {
                       if (navigator.serviceWorker.controller) {
-                        // New version available - activate immediately
-                        console.log('🔄 New version detected, updating automatically...');
-                        newWorker.postMessage({ type: 'SKIP_WAITING' });
+                        // New version available - but don't force immediate update
+                        console.log('🔄 New version available');
                         
-                        // Force reload after short delay
-                        setTimeout(() => {
-                          window.location.reload();
-                        }, 1000);
+                        // Only auto-update if user is inactive
+                        if (!checkUserActivity()) {
+                          console.log('🔄 Auto-updating due to user inactivity');
+                          newWorker.postMessage({ type: 'SKIP_WAITING' });
+                          setTimeout(() => {
+                            window.location.reload();
+                          }, 1000);
+                        } else {
+                          // Show update notification for active users
+                          const updateBanner = document.createElement('div');
+                          updateBanner.style.cssText = `
+                            position: fixed;
+                            bottom: 20px;
+                            left: 20px;
+                            right: 20px;
+                            background: #14532d;
+                            color: white;
+                            padding: 16px;
+                            border-radius: 12px;
+                            z-index: 10000;
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                          `;
+                          updateBanner.innerHTML = `
+                            <div>
+                              <div style="font-weight: 600; margin-bottom: 4px;">🆕 Phiên bản mới có sẵn</div>
+                              <div style="font-size: 12px; opacity: 0.9;">Nhấn cập nhật để sử dụng tính năng mới</div>
+                            </div>
+                            <button onclick="this.parentElement.remove(); location.reload();" style="background: white; color: #14532d; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-left: 12px;">Cập nhật</button>
+                            <button onclick="this.parentElement.remove();" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer; margin-left: 8px;">&times;</button>
+                          `;
+                          document.body.appendChild(updateBanner);
+                          
+                          // Auto-remove banner after 30 seconds
+                          setTimeout(() => {
+                            if (updateBanner.parentElement) {
+                              updateBanner.remove();
+                            }
+                          }, 30000);
+                        }
                       } else {
                         // First install
                         console.log('✅ TS Manager is ready for offline use');
@@ -256,8 +352,8 @@
               
               // Listen for controlling service worker change
               navigator.serviceWorker.addEventListener('controllerchange', () => {
-                console.log('🔄 Service Worker controller changed, reloading...');
-                window.location.reload();
+                console.log('🔄 Service Worker controller changed');
+                // Don't auto-reload, let user decide
               });
             })
             .catch((registrationError) => {
@@ -345,11 +441,10 @@
         });
       }
       
-      // Force refresh every 5 minutes to ensure latest version
+      // Smart periodic refresh - only when user is inactive and page is old
       setInterval(() => {
-        console.log('🔄 Periodic refresh to ensure latest version...');
-        window.location.reload();
-      }, 300000); // 5 minutes
+        smartRefresh();
+      }, 1800000); // Check every 30 minutes instead of 5 minutes
     </script>
   </body>
 </html>
