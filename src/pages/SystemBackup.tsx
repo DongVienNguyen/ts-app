@@ -96,7 +96,7 @@ const SystemBackup: React.FC = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="isolation-isolate space-y-6">
         <BackupHeader />
         
         {/* Show backup errors */}
