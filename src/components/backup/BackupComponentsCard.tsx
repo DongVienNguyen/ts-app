@@ -9,7 +9,8 @@ interface BackupItem {
   description: string;
   size: string;
   lastBackup: string;
-  status: 'success' | 'error' | 'pending';
+  status: 'success' | 'error' | 'pending' | 'running';
+  recordCount?: number;
 }
 
 interface BackupComponentsCardProps {
@@ -42,6 +43,8 @@ const BackupComponentsCard: React.FC<BackupComponentsCardProps> = ({
         return <Badge variant="destructive">Error</Badge>;
       case 'pending':
         return <Badge variant="secondary">Pending</Badge>;
+      case 'running':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 animate-pulse">Running</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
     }
@@ -72,6 +75,9 @@ const BackupComponentsCard: React.FC<BackupComponentsCardProps> = ({
                 <div>
                   <div className="font-medium text-gray-900">{item.name}</div>
                   <div className="text-sm text-gray-500">{item.description}</div>
+                  {item.recordCount && (
+                    <div className="text-xs text-gray-400">{item.recordCount} records</div>
+                  )}
                 </div>
               </div>
               

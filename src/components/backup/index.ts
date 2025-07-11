@@ -3,5 +3,7 @@ export { default as BackupStatusCard } from './BackupStatusCard';
 export { default as BackupActionsCard } from './BackupActionsCard';
 export { default as BackupComponentsCard } from './BackupComponentsCard';
 export { default as BackupInfoAlert } from './BackupInfoAlert';
+export { default as BackupHistoryCard } from './BackupHistoryCard';
+export { default as SystemHealthCard } from './SystemHealthCard';
 export { default as RestoreActionsCard } from './RestoreActionsCard';
 export { default as RestorePreviewCard } from './RestorePreviewCard';
