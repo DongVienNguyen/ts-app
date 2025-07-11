@@ -8,11 +8,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { 
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { 
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -29,7 +24,6 @@ import {
   LogOut,
   User,
   ChevronDown,
-  ChevronRight,
   Home,
   Shield,
   Activity,
@@ -58,7 +52,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   }
 
   const SidebarContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
-    const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
+    const [isSystemDropdownOpen, setIsSystemDropdownOpen] = useState(false);
     const userIsAdmin = isAdmin(user);
     const userIsNqOrAdmin = isNqOrAdmin(user);
 
@@ -80,14 +74,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       { name: 'Sử dụng', href: '/usage-monitoring', icon: BarChart3, show: userIsAdmin },
       { name: 'Backup & Restore', href: '/system-backup', icon: HardDrive, show: userIsAdmin }
     ].filter(item => item.show);
-
-    const isSystemMenuActive = systemItems.some(item => location.pathname.startsWith(item.href));
-
-    useEffect(() => {
-      if (isSystemMenuActive) {
-        setIsSystemMenuOpen(true);
-      }
-    }, [isSystemMenuActive]);
 
     return (
       <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4">
@@ -126,45 +112,47 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </li>
             {systemItems.length > 0 && (
               <li>
-                <Collapsible open={isSystemMenuOpen} onOpenChange={setIsSystemMenuOpen}>
-                  <CollapsibleTrigger className="w-full">
-                    <div
-                      className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold w-full ${
-                        isSystemMenuActive
+                <DropdownMenu onOpenChange={setIsSystemDropdownOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold w-full justify-start ${
+                        systemItems.some(item => location.pathname.startsWith(item.href))
                           ? 'bg-green-100 text-green-700'
                           : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
                       }`}
                     >
                       <Settings className="h-6 w-6 shrink-0" />
                       Hệ thống
-                      <ChevronRight
+                      <ChevronDown
                         className={`ml-auto h-5 w-5 shrink-0 transform transition-transform duration-200 ${
-                          isSystemMenuOpen ? 'rotate-90' : ''
+                          isSystemDropdownOpen ? 'rotate-180' : ''
                         }`}
                       />
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-1 space-y-1">
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="right" align="end" className="w-56">
                     {systemItems.map((item) => {
                       const isActive = location.pathname.startsWith(item.href);
                       return (
-                        <Link
-                          key={item.name}
-                          to={item.href}
-                          onClick={onLinkClick}
-                          className={`group flex gap-x-3 rounded-md py-2 pr-2 pl-11 text-sm leading-6 font-semibold ${
-                            isActive
-                              ? 'bg-green-100 text-green-700'
-                              : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
-                          }`}
-                        >
-                          <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
-                          {item.name}
-                        </Link>
+                        <DropdownMenuItem key={item.name} asChild>
+                          <Link
+                            to={item.href}
+                            onClick={onLinkClick}
+                            className={`group flex gap-x-3 rounded-md py-2 pr-2 pl-4 text-sm leading-6 font-semibold ${
+                              isActive
+                                ? 'bg-green-100 text-green-700'
+                                : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
+                            }`}
+                          >
+                            <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
+                            {item.name}
+                          </Link>
+                        </DropdownMenuItem>
                       );
                     })}
-                  </CollapsibleContent>
-                </Collapsible>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </li>
             )}
             <li className="mt-auto">
