@@ -20,8 +20,8 @@ const OtherAssets = () => {
     isLoading,
     searchTerm,
     setSearchTerm,
-    editingAsset,
-    setEditingAsset,
+    editingAsset, // Re-added this line
+    // setEditingAsset, // This is not directly used in this component's JSX
     // changeReason, // Removed as it's not directly read in this component's JSX
     // setChangeReason, // Removed as it's not directly used in this component's JSX
     newAsset,

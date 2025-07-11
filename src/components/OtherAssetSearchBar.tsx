@@ -1,23 +1,9 @@
-
 import React from 'react';
 import { Search, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-
-interface OtherAsset {
-  id: string;
-  name: string;
-  deposit_date: string;
-  depositor: string;
-  deposit_receiver: string;
-  withdrawal_date?: string;
-  withdrawal_deliverer?: string;
-  withdrawal_receiver?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
+import { OtherAsset } from '@/types/asset'; // Import OtherAsset from types
 
 interface OtherAssetSearchBarProps {
   searchTerm: string;
@@ -36,10 +22,10 @@ const OtherAssetSearchBar: React.FC<OtherAssetSearchBarProps> = ({
       headers.join(','),
       ...filteredAssets.map(asset => [
         asset.name,
-        asset.deposit_date,
+        asset.deposit_date || '', // Handle null for date
         asset.depositor || '',
         asset.deposit_receiver || '',
-        asset.withdrawal_date || '',
+        asset.withdrawal_date || '', // Handle null for date
         asset.withdrawal_deliverer || '',
         asset.withdrawal_receiver || '',
         asset.notes || ''
