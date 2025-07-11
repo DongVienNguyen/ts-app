@@ -8,6 +8,55 @@ import { TabContent } from '@/components/data-management/TabContent';
 import { EditDialog } from '@/components/data-management/EditDialog';
 import { entityConfig } from '@/config/entityConfig';
 import { useDataManagement } from '@/hooks/useDataManagement';
+import { z } from 'zod'; // Import Zod
+
+// Define the expected field type for EditDialog
+type EditDialogField = {
+  name: string;
+  label: string;
+  type: 'text' | 'number' | 'date' | 'email' | 'password';
+  defaultValue?: any;
+  schema: z.ZodTypeAny;
+};
+
+// Helper function to map entityConfig fields to EditDialog fields
+const mapEntityConfigToEditDialogFields = (config: typeof entityConfig[keyof typeof entityConfig]): EditDialogField[] => {
+  return config.fields.map(field => {
+    let editDialogType: EditDialogField['type'];
+    let schema: z.ZodTypeAny;
+
+    // Map entityConfig types to EditDialog types and create Zod schemas
+    switch (field.type) {
+      case 'text':
+      case 'select': // Map select to text for now
+      case 'textarea': // Map textarea to text for now
+      case 'boolean': // Map boolean to text for now
+        editDialogType = 'text';
+        schema = field.required ? z.string().min(1, `${field.label} không được để trống`) : z.string().nullable();
+        break;
+      case 'number':
+        editDialogType = 'number';
+        schema = field.required ? z.number({ invalid_type_error: `${field.label} phải là số` }).min(1, `${field.label} không được để trống`) : z.number().nullable();
+        break;
+      case 'date':
+        editDialogType = 'date';
+        schema = field.required ? z.date({ invalid_type_error: `${field.label} phải là ngày hợp lệ` }) : z.date().nullable();
+        break;
+      default:
+        editDialogType = 'text';
+        schema = z.string().nullable();
+        break;
+    }
+
+    return {
+      name: field.key,
+      label: field.label,
+      type: editDialogType,
+      defaultValue: field.defaultValue,
+      schema: schema,
+    };
+  });
+};
 
 const DataManagement = () => {
   const {
@@ -83,6 +132,9 @@ const DataManagement = () => {
       </Layout>
     );
   }
+
+  const currentEntityConfig = entityConfig[selectedEntity];
+  const editDialogFields = mapEntityConfigToEditDialogFields(currentEntityConfig);
 
   return (
     <Layout>
@@ -161,9 +213,12 @@ const DataManagement = () => {
         <EditDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
-          config={entityConfig[selectedEntity]}
-          editingItem={editingItem}
+          title={`Chỉnh sửa ${currentEntityConfig.name}`}
+          description={`Chỉnh sửa thông tin cho ${currentEntityConfig.name}.`}
+          fields={editDialogFields} // Pass the mapped fields
+          initialData={editingItem}
           onSave={handleSave}
+          isLoading={isLoading}
         />
       </div>
     </Layout>

@@ -1,126 +1,129 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import DateInput from '@/components/DateInput';
-import { EntityConfig } from '@/config/entityConfig';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import DateInput from '@/components/DateInput'; // Changed to default import
+import { format, parseISO } from 'date-fns';
+
+// Define a generic schema for editing, allowing dynamic fields
+const editSchema = z.object({
+  id: z.string().optional(), // ID is optional for new entries
+  field: z.string().min(1, 'Trường không được để trống'),
+  value: z.any(), // Value can be anything, will be validated dynamically
+});
 
 interface EditDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  config: EntityConfig;
-  editingItem: any | null;
+  open: boolean; // Changed from isOpen
+  onOpenChange: (open: boolean) => void; // Changed from onClose
   onSave: (data: any) => void;
+  title: string;
+  description?: string; // Optional description for the dialog
+  fields: {
+    name: string;
+    label: string;
+    type: 'text' | 'number' | 'date' | 'email' | 'password';
+    defaultValue?: any;
+    schema: z.ZodTypeAny; // Zod schema for individual field validation
+  }[];
+  initialData?: Record<string, any>;
+  isLoading: boolean;
 }
 
-export const EditDialog: React.FC<EditDialogProps> = ({ open, onOpenChange, config, editingItem, onSave }) => {
-  const [formData, setFormData] = useState<any>({});
-  const isEditing = !!editingItem;
+export const EditDialog: React.FC<EditDialogProps> = ({
+  open, // Changed from isOpen
+  onOpenChange, // Changed from onClose
+  onSave,
+  title,
+  description,
+  fields,
+  initialData,
+  isLoading,
+}) => {
+  // Dynamically create a Zod schema based on the 'fields' prop
+  const dynamicSchema = z.object(
+    fields.reduce((acc, field) => {
+      acc[field.name] = field.schema;
+      return acc;
+    }, {} as Record<string, z.ZodTypeAny>)
+  );
 
-  useEffect(() => {
-    if (open) {
-      if (editingItem) {
-        const formattedItem: any = { ...editingItem };
-        config.fields.forEach(field => {
-          if (field.type === 'boolean' && formattedItem[field.key] !== undefined) {
-            formattedItem[field.key] = formattedItem[field.key] ? 'true' : 'false';
-          }
-        });
-        if (config.entity === 'staff') {
-          formattedItem.password = '';
-        }
-        setFormData(formattedItem);
-      } else {
-        const initialFormData: any = {};
-        config.fields.forEach(field => {
-          if (field.type === 'boolean') {
-            initialFormData[field.key] = 'false';
-          } else {
-            initialFormData[field.key] = '';
-          }
-        });
-        if (config.entity === 'staff') {
-          initialFormData.password = '123456';
-        }
-        setFormData(initialFormData);
-      }
+  const form = useForm({
+    resolver: zodResolver(dynamicSchema),
+    defaultValues: initialData || {},
+  });
+
+  React.useEffect(() => {
+    if (initialData) {
+      // Reset form with initial data when it changes
+      form.reset(initialData);
+    } else {
+      // Reset form to empty if no initial data (e.g., for new entry)
+      form.reset(fields.reduce((acc, field) => ({ ...acc, [field.name]: field.defaultValue || '' }), {}));
     }
-  }, [open, editingItem, config]);
+  }, [initialData, form, fields]);
 
-  const handleSaveClick = () => {
-    onSave(formData);
+  const onSubmit = (data: any) => {
+    onSave(data);
   };
 
-  if (!config) return null;
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}> {/* Use new prop names */}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? `Chỉnh sửa ${config.name}` : `Thêm mới ${config.name}`}</DialogTitle>
-          <DialogDescription>
-            {isEditing ? `Chỉnh sửa thông tin ${config.name} tại đây.` : `Thêm mới một ${config.name} vào hệ thống.`}
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          {description && <DialogDescription>{description}</DialogDescription>} {/* Render DialogDescription */}
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          {config.fields.map((field) => (
-            <div key={field.key} className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor={field.key} className="text-right">
-                {field.label} {field.required && <span className="text-red-500">*</span>}
-              </Label>
-              {field.type === 'select' || field.type === 'boolean' ? (
-                <Select
-                  value={formData[field.key]?.toString() || ''}
-                  onValueChange={(value) => setFormData({ ...formData, [field.key]: value })}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder={`Chọn ${field.label}`} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {field.options?.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option === 'true' ? 'Có' : option === 'false' ? 'Không' : option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : field.type === 'date' ? (
-                <DateInput
-                  value={formData[field.key] || ''}
-                  onChange={(date) => setFormData({ ...formData, [field.key]: date })}
-                  className="col-span-3"
-                />
-              ) : field.type === 'textarea' ? (
-                <textarea
-                  id={field.key}
-                  value={formData[field.key] || ''}
-                  onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                  className="col-span-3 border rounded-md p-2"
-                />
-              ) : (
-                <Input
-                  id={field.key}
-                  type={config.entity === 'staff' && field.key === 'password' ? 'password' : field.type}
-                  value={formData[field.key] || ''}
-                  onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                  className="col-span-3"
-                  placeholder={config.entity === 'staff' && field.key === 'password' && editingItem ? 'Để trống nếu không muốn thay đổi' : ''}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-end">
-          <Button onClick={handleSaveClick}>Lưu</Button>
-        </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
+            {fields.map((field) => (
+              <FormField
+                key={field.name}
+                control={form.control}
+                name={field.name}
+                render={({ field: formField }) => (
+                  <FormItem>
+                    <FormLabel>{field.label}</FormLabel>
+                    <FormControl>
+                      {field.type === 'date' ? (
+                        <DateInput
+                          value={formField.value ? format(formField.value, 'yyyy-MM-dd') : ''}
+                          onChange={(dateString) => formField.onChange(dateString ? parseISO(dateString) : null)}
+                          label={field.label} // Pass label to DateInput
+                        />
+                      ) : (
+                        <Input
+                          type={field.type}
+                          {...formField}
+                          value={formField.value || ''} // Ensure controlled component
+                        />
+                      )}
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ))}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}> {/* Use onOpenChange */}
+                Hủy
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
