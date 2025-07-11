@@ -23,7 +23,10 @@ import {
   BarChart3,
   Home,
   Key,
-  Smartphone
+  Smartphone,
+  Settings,
+  ChevronDown,
+  HardDrive
 } from 'lucide-react';
 import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -36,6 +39,7 @@ export const NavigationHeader: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
   const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
   const isMountedRef = useRef(false);
 
@@ -126,6 +130,7 @@ export const NavigationHeader: React.FC = () => {
     }
   };
 
+  // Main navigation items (không bao gồm system items)
   const navigationItems = [
     {
       name: 'Trang chủ',
@@ -170,6 +175,16 @@ export const NavigationHeader: React.FC = () => {
       show: isNqOrAdmin(user)
     },
     {
+      name: 'Thông báo',
+      href: '/notifications',
+      icon: Bell,
+      show: true
+    }
+  ];
+
+  // System menu items (chỉ dành cho admin)
+  const systemMenuItems = [
+    {
       name: 'Quản lý DL',
       href: '/data-management',
       icon: Database,
@@ -194,14 +209,18 @@ export const NavigationHeader: React.FC = () => {
       show: isAdmin(user)
     },
     {
-      name: 'Thông báo',
-      href: '/notifications',
-      icon: Bell,
-      show: true
+      name: 'Backup & Restore',
+      href: '/system-backup',
+      icon: HardDrive,
+      show: isAdmin(user)
     }
   ];
 
   const visibleItems = navigationItems.filter(item => item.show);
+  const visibleSystemItems = systemMenuItems.filter(item => item.show);
+
+  // Check if any system menu item is currently active
+  const isSystemMenuActive = visibleSystemItems.some(item => location.pathname === item.href);
 
   return (
     <header className="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -219,6 +238,7 @@ export const NavigationHeader: React.FC = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-1">
+            {/* Main navigation items */}
             {visibleItems.map((item) => {
               const isActive = location.pathname === item.href;
               return (
@@ -236,6 +256,40 @@ export const NavigationHeader: React.FC = () => {
                 </Link>
               );
             })}
+
+            {/* System Menu Dropdown */}
+            {visibleSystemItems.length > 0 && (
+              <DropdownMenu open={isSystemMenuOpen} onOpenChange={setIsSystemMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={`px-3 py-2 text-sm font-medium transition-colors ${
+                      isSystemMenuActive
+                        ? 'bg-green-100 text-green-700'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Settings className="inline-block w-4 h-4 mr-1" />
+                    Hệ thống
+                    <ChevronDown className="inline-block w-4 h-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {visibleSystemItems.map((item) => (
+                    <DropdownMenuItem key={item.href} asChild>
+                      <Link
+                        to={item.href}
+                        className="flex items-center w-full"
+                        onClick={() => setIsSystemMenuOpen(false)}
+                      >
+                        <item.icon className="mr-2 h-4 w-4" />
+                        {item.name}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </nav>
 
           {/* Right side */}
@@ -305,6 +359,7 @@ export const NavigationHeader: React.FC = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200">
             <div className="px-2 pt-2 pb-3 space-y-1">
+              {/* Main navigation items */}
               {visibleItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
@@ -323,6 +378,34 @@ export const NavigationHeader: React.FC = () => {
                   </Link>
                 );
               })}
+
+              {/* Mobile System Menu */}
+              {visibleSystemItems.length > 0 && (
+                <>
+                  <div className="px-3 py-2 text-sm font-medium text-gray-500 border-t border-gray-200 mt-2 pt-4">
+                    <Settings className="inline-block w-4 h-4 mr-2" />
+                    Hệ thống
+                  </div>
+                  {visibleSystemItems.map((item) => {
+                    const isActive = location.pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        className={`block px-6 py-2 rounded-md text-base font-medium transition-colors ${
+                          isActive
+                            ? 'bg-green-100 text-green-700'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                        }`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <item.icon className="inline-block w-4 h-4 mr-2" />
+                        {item.name}
+                      </Link>
+                    );
+                  })}
+                </>
+              )}
             </div>
           </div>
         )}

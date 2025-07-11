@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import JSZip from 'jszip';
+import { restoreService, RestoreResult } from '@/services/restoreService';
 
 interface BackupStatus {
   isRunning: boolean;
@@ -20,6 +21,13 @@ interface BackupItem {
   status: 'success' | 'error' | 'pending';
 }
 
+interface RestoreStatus {
+  isRunning: boolean;
+  progress: number;
+  currentStep: string;
+  lastRestore: string | null;
+}
+
 export const useBackupOperations = () => {
   const [backupStatus, setBackupStatus] = useState<BackupStatus>({
     isRunning: false,
@@ -27,6 +35,13 @@ export const useBackupOperations = () => {
     currentStep: '',
     lastBackup: null,
     autoBackupEnabled: false
+  });
+
+  const [restoreStatus, setRestoreStatus] = useState<RestoreStatus>({
+    isRunning: false,
+    progress: 0,
+    currentStep: '',
+    lastRestore: null
   });
 
   const [backupItems, setBackupItems] = useState<BackupItem[]>([
@@ -72,12 +87,18 @@ export const useBackupOperations = () => {
   const loadBackupHistory = async () => {
     try {
       const lastBackup = localStorage.getItem('lastBackupTime');
+      const lastRestore = localStorage.getItem('lastRestoreTime');
       const autoEnabled = localStorage.getItem('autoBackupEnabled') === 'true';
       
       setBackupStatus(prev => ({
         ...prev,
         lastBackup,
         autoBackupEnabled: autoEnabled
+      }));
+
+      setRestoreStatus(prev => ({
+        ...prev,
+        lastRestore
       }));
     } catch (error) {
       console.error('Error loading backup history:', error);
@@ -98,6 +119,14 @@ export const useBackupOperations = () => {
 
   const updateProgress = (progress: number, step: string) => {
     setBackupStatus(prev => ({
+      ...prev,
+      progress,
+      currentStep: step
+    }));
+  };
+
+  const updateRestoreProgress = (progress: number, step: string) => {
+    setRestoreStatus(prev => ({
       ...prev,
       progress,
       currentStep: step
@@ -297,6 +326,46 @@ export const useBackupOperations = () => {
     }
   };
 
+  const performRestore = async (file: File): Promise<void> => {
+    if (restoreStatus.isRunning) return;
+
+    setRestoreStatus(prev => ({ ...prev, isRunning: true, progress: 0 }));
+
+    try {
+      const result: RestoreResult = await restoreService.restoreFromFile(
+        file,
+        {
+          createBackupBeforeRestore: true,
+          validateData: true
+        },
+        updateRestoreProgress
+      );
+
+      if (result.success) {
+        const now = new Date().toISOString();
+        localStorage.setItem('lastRestoreTime', now);
+        
+        setRestoreStatus(prev => ({
+          ...prev,
+          lastRestore: now,
+          isRunning: false
+        }));
+
+        toast.success(`Restore thành công! Đã khôi phục ${result.restoredTables.length} bảng dữ liệu.`);
+        
+        // Refresh the page after successful restore
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        throw new Error(`Restore thất bại: ${result.errors.join(', ')}`);
+      }
+    } catch (error) {
+      setRestoreStatus(prev => ({ ...prev, isRunning: false }));
+      throw error;
+    }
+  };
+
   const toggleAutoBackup = async (enabled: boolean) => {
     setBackupStatus(prev => ({ ...prev, autoBackupEnabled: enabled }));
     localStorage.setItem('autoBackupEnabled', enabled.toString());
@@ -310,8 +379,10 @@ export const useBackupOperations = () => {
 
   return {
     backupStatus,
+    restoreStatus,
     backupItems,
     performBackup,
+    performRestore,
     toggleAutoBackup,
     loadBackupHistory
   };
