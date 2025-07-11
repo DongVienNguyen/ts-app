@@ -130,117 +130,46 @@ export const NavigationHeader: React.FC = () => {
     }
   };
 
-  // Check admin status
-  const userIsAdmin = user?.role === 'admin';
-  const userIsNqOrAdmin = user?.department === 'NQ' || user?.role === 'admin';
+  // Use permission functions consistently
+  const userIsAdmin = isAdmin(user);
+  const userIsNqOrAdmin = isNqOrAdmin(user);
 
-  // CORE NAVIGATION ITEMS - NEVER INCLUDE SYSTEM ITEMS HERE
-  const coreNavigationItems = [
-    {
-      name: 'Trang chủ',
-      href: '/',
-      icon: Home,
-      show: true
-    },
-    {
-      name: 'Thông báo M/X',
-      href: '/asset-entry',
-      icon: Package,
-      show: true
-    },
-    {
-      name: 'DS TS cần lấy',
-      href: '/daily-report',
-      icon: FileText,
-      show: true
-    },
-    {
-      name: 'Báo cáo TS',
-      href: '/borrow-report',
-      icon: BarChart3,
-      show: userIsNqOrAdmin
-    },
-    {
-      name: 'Nhắc nhở TS',
-      href: '/asset-reminders',
-      icon: Bell,
-      show: userIsNqOrAdmin
-    },
-    {
-      name: 'Nhắc nhở CRC',
-      href: '/crc-reminders',
-      icon: Bell,
-      show: userIsNqOrAdmin
-    },
-    {
-      name: 'Tài sản khác',
-      href: '/other-assets',
-      icon: Package,
-      show: userIsNqOrAdmin
-    },
-    {
-      name: 'Thông báo',
-      href: '/notifications',
-      icon: Bell,
-      show: true
-    }
-  ];
+  // HARDCODED MAIN NAVIGATION - NO SYSTEM ITEMS
+  const mainNavItems = [
+    { name: 'Trang chủ', href: '/', icon: Home, show: true },
+    { name: 'Thông báo M/X', href: '/asset-entry', icon: Package, show: true },
+    { name: 'DS TS cần lấy', href: '/daily-report', icon: FileText, show: true },
+    { name: 'Báo cáo TS', href: '/borrow-report', icon: BarChart3, show: userIsNqOrAdmin },
+    { name: 'Nhắc nhở TS', href: '/asset-reminders', icon: Bell, show: userIsNqOrAdmin },
+    { name: 'Nhắc nhở CRC', href: '/crc-reminders', icon: Bell, show: userIsNqOrAdmin },
+    { name: 'Tài sản khác', href: '/other-assets', icon: Package, show: userIsNqOrAdmin },
+    { name: 'Thông báo', href: '/notifications', icon: Bell, show: true }
+  ].filter(item => item.show);
 
-  // SYSTEM ITEMS - COMPLETELY SEPARATE, ONLY FOR ADMIN
-  const systemItems = [
-    {
-      name: 'Quản lý DL',
-      href: '/data-management',
-      icon: Database,
-      show: userIsAdmin
-    },
-    {
-      name: 'Bảo mật',
-      href: '/security-monitor',
-      icon: Shield,
-      show: userIsAdmin
-    },
-    {
-      name: 'Lỗi hệ thống',
-      href: '/error-monitoring',
-      icon: Activity,
-      show: userIsAdmin
-    },
-    {
-      name: 'Sử dụng',
-      href: '/usage-monitoring',
-      icon: BarChart3,
-      show: userIsAdmin
-    },
-    {
-      name: 'Backup & Restore',
-      href: '/system-backup',
-      icon: HardDrive,
-      show: userIsAdmin
-    }
-  ];
-
-  // Filter visible items
-  const visibleCoreItems = coreNavigationItems.filter(item => item.show);
-  const visibleSystemItems = systemItems.filter(item => item.show);
+  // HARDCODED SYSTEM ITEMS - ONLY FOR ADMIN
+  const systemNavItems = [
+    { name: 'Quản lý DL', href: '/data-management', icon: Database, show: userIsAdmin },
+    { name: 'Bảo mật', href: '/security-monitor', icon: Shield, show: userIsAdmin },
+    { name: 'Lỗi hệ thống', href: '/error-monitoring', icon: Activity, show: userIsAdmin },
+    { name: 'Sử dụng', href: '/usage-monitoring', icon: BarChart3, show: userIsAdmin },
+    { name: 'Backup & Restore', href: '/system-backup', icon: HardDrive, show: userIsAdmin }
+  ].filter(item => item.show);
 
   // Check if any system menu item is currently active
-  const isSystemMenuActive = visibleSystemItems.some(item => location.pathname === item.href);
+  const isSystemMenuActive = systemNavItems.some(item => location.pathname === item.href);
 
-  // Enhanced debug logging
-  console.log('🔍 Navigation Debug:', {
-    username: user?.username,
-    userRole: user?.role,
-    userDepartment: user?.department,
+  // SIMPLE DEBUG LOGGING
+  console.log('🚀 NAVIGATION RENDER:', {
+    user: user?.username,
+    role: user?.role,
+    department: user?.department,
     userIsAdmin,
     userIsNqOrAdmin,
-    visibleCoreItems: visibleCoreItems.length,
-    coreItemNames: visibleCoreItems.map(item => item.name),
-    visibleSystemItems: visibleSystemItems.length,
-    systemItemNames: visibleSystemItems.map(item => item.name),
-    isSystemMenuActive,
+    mainNavItems: mainNavItems.length,
+    systemNavItems: systemNavItems.length,
+    systemItemNames: systemNavItems.map(item => item.name),
     currentPath: location.pathname,
-    shouldShowSystemMenu: visibleSystemItems.length > 0
+    isSystemMenuActive
   });
 
   return (
@@ -259,8 +188,8 @@ export const NavigationHeader: React.FC = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-1">
-            {/* CORE NAVIGATION ITEMS */}
-            {visibleCoreItems.map((item) => {
+            {/* MAIN NAVIGATION ITEMS */}
+            {mainNavItems.map((item) => {
               const isActive = location.pathname === item.href;
               return (
                 <Link
@@ -278,8 +207,8 @@ export const NavigationHeader: React.FC = () => {
               );
             })}
 
-            {/* SYSTEM MENU DROPDOWN */}
-            {visibleSystemItems.length > 0 && (
+            {/* SYSTEM MENU DROPDOWN - FORCE SHOW FOR ADMIN */}
+            {systemNavItems.length > 0 && (
               <DropdownMenu open={isSystemMenuOpen} onOpenChange={setIsSystemMenuOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -296,7 +225,7 @@ export const NavigationHeader: React.FC = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  {visibleSystemItems.map((item, index) => (
+                  {systemNavItems.map((item, index) => (
                     <React.Fragment key={item.href}>
                       <DropdownMenuItem asChild>
                         <Link
@@ -308,7 +237,7 @@ export const NavigationHeader: React.FC = () => {
                           {item.name}
                         </Link>
                       </DropdownMenuItem>
-                      {index < visibleSystemItems.length - 1 && <DropdownMenuSeparator />}
+                      {index < systemNavItems.length - 1 && <DropdownMenuSeparator />}
                     </React.Fragment>
                   ))}
                 </DropdownMenuContent>
@@ -379,13 +308,14 @@ export const NavigationHeader: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation - FIXED TO GROUP SYSTEM ITEMS */}
+        {/* Mobile Navigation - ABSOLUTELY FIXED */}
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200">
             <div className="px-2 pt-2 pb-3 space-y-1">
-              {/* CORE NAVIGATION ITEMS ONLY */}
-              {visibleCoreItems.map((item) => {
+              {/* MAIN NAVIGATION ITEMS ONLY */}
+              {mainNavItems.map((item) => {
                 const isActive = location.pathname === item.href;
+                console.log(`📱 Mobile Main Item: ${item.name}`);
                 return (
                   <Link
                     key={item.href}
@@ -403,17 +333,18 @@ export const NavigationHeader: React.FC = () => {
                 );
               })}
 
-              {/* SYSTEM MENU SECTION - GROUPED UNDER "HỆ THỐNG" HEADER */}
-              {visibleSystemItems.length > 0 && (
+              {/* SYSTEM MENU SECTION - FORCE GROUPED */}
+              {systemNavItems.length > 0 && (
                 <>
-                  {/* System Menu Header */}
+                  {/* System Header */}
                   <div className="px-3 py-2 text-sm font-medium text-gray-500 border-t border-gray-200 mt-2 pt-4">
                     <Settings className="inline-block w-4 h-4 mr-2" />
-                    Hệ thống
+                    🔧 Hệ thống ({systemNavItems.length})
                   </div>
-                  {/* System Menu Items - Indented */}
-                  {visibleSystemItems.map((item) => {
+                  {/* System Items */}
+                  {systemNavItems.map((item) => {
                     const isActive = location.pathname === item.href;
+                    console.log(`📱 Mobile System Item: ${item.name}`);
                     return (
                       <Link
                         key={item.href}
