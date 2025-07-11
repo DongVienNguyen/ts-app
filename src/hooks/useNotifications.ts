@@ -335,12 +335,27 @@ export function useNotifications() {
     setIsReplyDialogOpen(true);
   };
 
-  const handleSendReply = (notificationId: string, replyText: string, replyType: 'sender' | 'all') => {
-    replyMutation.mutate({ notificationId, replyText, replyType });
+  const handleSendReply = (data: { subject: string; message: string; }) => {
+    if (!selectedNotification) {
+      toast.error('Không có thông báo được chọn để trả lời.');
+      return;
+    }
+    replyMutation.mutate({
+      notificationId: selectedNotification.id,
+      replyText: data.message,
+      replyType: 'sender' // Assuming default reply is to sender
+    });
   };
 
-  const handleQuickAction = (notificationId: string, action: string) => {
-    quickActionMutation.mutate({ notificationId, action });
+  const handleQuickAction = (action: string) => {
+    if (!selectedNotification) {
+      toast.error('Không có thông báo được chọn để thực hiện hành động nhanh.');
+      return;
+    }
+    quickActionMutation.mutate({
+      notificationId: selectedNotification.id,
+      action: action
+    });
   };
 
   // Ensure notifications is always an array and calculate unread count

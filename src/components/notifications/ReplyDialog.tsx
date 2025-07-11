@@ -1,112 +1,116 @@
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose,
   DialogDescription,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Notification } from "@/hooks/useNotifications" // Now correctly imported
-import { useState } from "react"
+} from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Notification } from '@/types/asset'; // Now correctly imported
+
+const replySchema = z.object({
+  subject: z.string().min(1, 'Tiêu đề không được để trống'),
+  message: z.string().min(1, 'Nội dung không được để trống'),
+});
+
+type ReplyFormValues = z.infer<typeof replySchema>;
 
 interface ReplyDialogProps {
-  notification: Notification | null
-  isOpen: boolean
-  onClose: () => void
-  onSendReply: (notificationId: string, replyText: string, replyType: 'sender' | 'all') => void // Renamed from onReply
-  onQuickAction: (notificationId: string, action: string) => void // Added
-  isReplying: boolean // Added
-  isQuickActioning: boolean // Added
+  isOpen: boolean;
+  onClose: () => void;
+  onSendReply: (data: ReplyFormValues) => void; // Changed from onSend
+  onQuickAction: (action: string) => void; // Added
+  notification: Notification;
+  isReplying: boolean; // Added
+  isQuickActioning: boolean; // Added
 }
 
-export const ReplyDialog = ({ 
-  notification, 
+export const ReplyDialog: React.FC<ReplyDialogProps> = ({ 
   isOpen, 
   onClose, 
-  onSendReply, // Renamed
+  onSendReply, // Changed
   onQuickAction, // Added
+  notification, 
   isReplying, // Added
   isQuickActioning // Added
-}: ReplyDialogProps) => {
-  const [replyText, setReplyText] = useState("")
+}) => {
+  const form = useForm<ReplyFormValues>({
+    resolver: zodResolver(replySchema),
+    defaultValues: {
+      subject: `Re: ${notification.title}`,
+      message: '',
+    },
+  });
 
-  if (!notification) return null
+  const onSubmit = (data: ReplyFormValues) => {
+    onSendReply(data); // Changed
+  };
 
-  const handleSendReplyClick = () => { // Renamed function
-    if (replyText.trim() && notification) {
-      onSendReply(notification.id, replyText, 'sender') // Default to 'sender'
-      setReplyText("")
-      onClose()
+  React.useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        subject: `Re: ${notification.title}`,
+        message: '',
+      });
     }
-  }
-
-  const handleQuickActionClick = (action: string) => {
-    if (notification) {
-      onQuickAction(notification.id, action);
-      onClose();
-    }
-  }
+  }, [isOpen, notification.title, form]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Phản hồi thông báo</DialogTitle>
+          <DialogTitle>Trả lời thông báo</DialogTitle>
           <DialogDescription>
-            Soạn và gửi phản hồi cho thông báo: "{notification.title}".
+            Gửi phản hồi cho thông báo từ "{notification.recipient_username}".
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
-          <p className="text-sm text-muted-foreground mb-2">Nội dung gốc:</p>
-          <div className="p-2 bg-secondary rounded text-sm mb-4">
-            {notification.message}
-          </div>
-          <Textarea
-            value={replyText}
-            onChange={(e) => setReplyText(e.target.value)}
-            placeholder="Nhập phản hồi của bạn..."
-            rows={4}
-            disabled={isReplying || isQuickActioning}
-          />
-        </div>
-        <DialogFooter className="flex flex-col sm:flex-row sm:justify-between gap-2">
-          <div className="flex gap-2">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => handleQuickActionClick('processed')} 
-              disabled={isReplying || isQuickActioning}
-            >
-              {isQuickActioning ? 'Đang xử lý...' : '✅ Đã xử lý xong'}
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => handleQuickActionClick('acknowledged')} 
-              disabled={isReplying || isQuickActioning}
-            >
-              {isQuickActioning ? 'Đang gửi...' : '👍 Đã biết'}
-            </Button>
-          </div>
-          <div className="flex gap-2">
-            <DialogClose asChild>
-              <Button type="button" variant="secondary" disabled={isReplying || isQuickActioning}>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
+            <FormField
+              control={form.control}
+              name="subject"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tiêu đề</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="message"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nội dung</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} rows={5} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isReplying || isQuickActioning}>
                 Hủy
               </Button>
-            </DialogClose>
-            <Button 
-              type="button" 
-              onClick={handleSendReplyClick} 
-              disabled={!replyText.trim() || isReplying || isQuickActioning}
-            >
-              {isReplying ? 'Đang gửi...' : 'Gửi phản hồi'}
-            </Button>
-          </div>
-        </DialogFooter>
+              <Button type="submit" disabled={isReplying || isQuickActioning}>
+                {isReplying ? 'Đang gửi...' : 'Gửi'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
-  )
-}
+  );
+};

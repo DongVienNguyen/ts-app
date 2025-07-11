@@ -53,3 +53,15 @@ export interface GroupedTransaction {
     note?: string | null;
   }[];
 }
+
+// New Notification type based on Supabase schema
+export interface Notification {
+  id: string;
+  created_at: string | null;
+  is_read: boolean | null;
+  message: string;
+  notification_type: string;
+  recipient_username: string;
+  related_data: any | null; // Use 'any' or a more specific type if known
+  title: string;
+}
