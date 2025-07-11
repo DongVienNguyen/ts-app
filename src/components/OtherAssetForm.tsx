@@ -1,182 +1,184 @@
-import React from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import DateInput from '@/components/DateInput';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { OtherAsset } from '@/types/asset';
+import DateInput from './DateInput'; // Changed from { DateInput }
 
-interface OtherAsset {
-  id: string;
-  name: string;
-  deposit_date: string;
-  depositor: string;
-  deposit_receiver: string;
-  withdrawal_date?: string;
-  withdrawal_deliverer?: string;
-  withdrawal_receiver?: string;
-  notes?: string;
-  created_at: string;
-  updated_at: string;
-}
+const formSchema = z.object({
+  name: z.string().min(1, 'Tên tài sản không được để trống'),
+  deposit_date: z.date().optional().nullable(),
+  depositor: z.string().optional().nullable(),
+  deposit_receiver: z.string().optional().nullable(),
+  withdrawal_date: z.date().optional().nullable(),
+  withdrawal_deliverer: z.string().optional().nullable(),
+  withdrawal_receiver: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
+type OtherAssetFormValues = z.infer<typeof formSchema>;
 
 interface OtherAssetFormProps {
-  newAsset: {
-    name: string;
-    deposit_date: string;
-    depositor: string;
-    deposit_receiver: string;
-    withdrawal_date: string;
-    withdrawal_deliverer: string;
-    withdrawal_receiver: string;
-    notes: string;
-  };
-  setNewAsset: React.Dispatch<React.SetStateAction<{
-    name: string;
-    deposit_date: string;
-    depositor: string;
-    deposit_receiver: string;
-    withdrawal_date: string;
-    withdrawal_deliverer: string;
-    withdrawal_receiver: string;
-    notes: string;
-  }>>;
-  editingAsset: OtherAsset | null;
-  changeReason: string;
-  setChangeReason: (reason: string) => void;
+  asset?: OtherAsset | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: OtherAssetFormValues, id?: string) => void;
   isLoading: boolean;
-  onSave: () => void;
-  onClear: () => void;
-  onCancelEdit: () => void;
 }
 
-const OtherAssetForm: React.FC<OtherAssetFormProps> = ({
-  newAsset,
-  setNewAsset,
-  editingAsset,
-  changeReason,
-  setChangeReason,
-  isLoading,
-  onSave,
-  onClear,
-  onCancelEdit
-}) => {
+export const OtherAssetForm: React.FC<OtherAssetFormProps> = ({ asset, isOpen, onClose, onSave, isLoading }) => {
+  const form = useForm<OtherAssetFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: asset?.name || '',
+      deposit_date: asset?.deposit_date ? new Date(asset.deposit_date) : null,
+      depositor: asset?.depositor || '',
+      deposit_receiver: asset?.deposit_receiver || '',
+      withdrawal_date: asset?.withdrawal_date ? new Date(asset.withdrawal_date) : null,
+      withdrawal_deliverer: asset?.withdrawal_deliverer || '',
+      withdrawal_receiver: asset?.withdrawal_receiver || '',
+      notes: asset?.notes || '',
+    },
+  });
+
+  const onSubmit = (data: OtherAssetFormValues) => {
+    onSave(data, asset?.id);
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{editingAsset ? 'Chỉnh sửa tài sản' : 'Thêm mới tài sản gửi kho'}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <Label htmlFor="name">Tên tài sản / thùng *</Label>
-            <Input
-              id="name"
-              value={newAsset.name}
-              onChange={(e) => setNewAsset(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Nhập tên tài sản..."
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>{asset ? 'Chỉnh sửa' : 'Thêm'} Tài sản khác</DialogTitle>
+          <DialogDescription>
+            Điền thông tin chi tiết cho tài sản. Nhấn lưu khi hoàn tất.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tên tài sản</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ví dụ: Hộ chiếu" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-
-          <div>
-            <Label htmlFor="deposit_date">Ngày gửi kho *</Label>
-            <DateInput
-              value={newAsset.deposit_date}
-              onChange={(value) => setNewAsset(prev => ({ ...prev, deposit_date: value }))}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="depositor">Người gửi kho</Label>
-            <Input
-              id="depositor"
-              value={newAsset.depositor}
-              onChange={(e) => setNewAsset(prev => ({ ...prev, depositor: e.target.value }))}
-              placeholder="Nhập tên người gửi..."
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="deposit_receiver">Người nhận (khi gửi)</Label>
-            <Input
-              id="deposit_receiver"
-              value={newAsset.deposit_receiver}
-              onChange={(e) => setNewAsset(prev => ({ ...prev, deposit_receiver: e.target.value }))}
-              placeholder="Nhập tên người nhận..."
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="withdrawal_date">Ngày xuất kho (nếu có)</Label>
-            <DateInput
-              value={newAsset.withdrawal_date}
-              onChange={(value) => setNewAsset(prev => ({ ...prev, withdrawal_date: value }))}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="withdrawal_deliverer">Người giao (khi xuất)</Label>
-            <Input
-              id="withdrawal_deliverer"
-              value={newAsset.withdrawal_deliverer}
-              onChange={(e) => setNewAsset(prev => ({ ...prev, withdrawal_deliverer: e.target.value }))}
-              placeholder="Nhập tên người giao..."
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="withdrawal_receiver">Người nhận (khi xuất)</Label>
-            <Input
-              id="withdrawal_receiver"
-              value={newAsset.withdrawal_receiver}
-              onChange={(e) => setNewAsset(prev => ({ ...prev, withdrawal_receiver: e.target.value }))}
-              placeholder="Nhập tên người nhận..."
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <Label htmlFor="notes">Ghi chú (thời gian sẽ được thêm tự động)</Label>
-            <Input
-              id="notes"
-              value={newAsset.notes}
-              onChange={(e) => setNewAsset(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="Nhập ghi chú..."
-            />
-          </div>
-
-          {editingAsset && (
-            <div className="md:col-span-2">
-              <Label htmlFor="change_reason">Lý do thay đổi *</Label>
-              <Textarea
-                id="change_reason"
-                value={changeReason}
-                onChange={(e) => setChangeReason(e.target.value)}
-                placeholder="Nhập lý do thay đổi..."
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Controller
+                control={form.control}
+                name="deposit_date"
+                render={({ field }) => (
+                  <DateInput
+                    label="Ngày gửi"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                  />
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="depositor"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Người gửi</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ''} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="deposit_receiver"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Người nhận giữ</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ''} />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
             </div>
-          )}
-        </div>
 
-        <div className="flex space-x-4 mt-6">
-          <Button variant="outline" onClick={onClear} disabled={isLoading}>
-            Clear
-          </Button>
-          {editingAsset && (
-            <Button variant="outline" onClick={onCancelEdit} disabled={isLoading}>
-              Hủy
-            </Button>
-          )}
-          <Button 
-            onClick={onSave} 
-            className="bg-indigo-600 hover:bg-indigo-700"
-            disabled={isLoading || !newAsset.name.trim() || !newAsset.deposit_date}
-          >
-            {isLoading ? 'Đang lưu...' : (editingAsset ? 'Cập nhật' : 'Thêm mới')}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Controller
+                control={form.control}
+                name="withdrawal_date"
+                render={({ field }) => (
+                  <DateInput
+                    label="Ngày lấy"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                  />
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="withdrawal_deliverer"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Người giao trả</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ''} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="withdrawal_receiver"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Người nhận lại</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ''} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ghi chú</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Thêm ghi chú nếu cần" {...field} value={field.value || ''} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Hủy</Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Đang lưu...' : 'Lưu'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 };
-
-export default OtherAssetForm;

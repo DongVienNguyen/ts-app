@@ -11,6 +11,20 @@ export interface Transaction {
   created_at?: string | null;
 }
 
+export interface OtherAsset {
+  id: string;
+  name: string;
+  deposit_date: string | null;
+  depositor: string | null;
+  deposit_receiver: string | null;
+  withdrawal_date: string | null;
+  withdrawal_deliverer: string | null;
+  withdrawal_receiver: string | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 export interface AssetTransactionPayload {
   staff_code: string;
   transaction_date: string;

@@ -7,7 +7,7 @@ import { useSecureAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { AssetHistoryManager } from '@/components/AssetHistoryManager';
 import { useOtherAssets } from '@/hooks/useOtherAssets';
-import OtherAssetForm from '@/components/OtherAssetForm';
+import { OtherAssetForm } from '@/components/OtherAssetForm';
 import OtherAssetSearchBar from '@/components/OtherAssetSearchBar';
 import OtherAssetTable from '@/components/OtherAssetTable';
 
@@ -93,15 +93,11 @@ const OtherAssets = () => {
 
           <TabsContent value="assets" className="space-y-6">
             <OtherAssetForm
-              newAsset={newAsset}
-              setNewAsset={setNewAsset}
-              editingAsset={editingAsset}
-              changeReason={changeReason}
-              setChangeReason={setChangeReason}
-              isLoading={isLoading}
-              onSave={handleSave}
-              onClear={clearForm}
-              onCancelEdit={handleCancelEdit}
+              asset={editingAsset || newAsset} // Pass the asset being edited or added
+              isOpen={!!editingAsset || !!newAsset} // Open if either is set
+              onClose={clearForm} // Close handler
+              onSave={handleSave} // Save handler
+              isLoading={isLoading} // Loading state
             />
             <OtherAssetSearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} filteredAssets={filteredAssets} />
             <OtherAssetTable filteredAssets={filteredAssets} user={user} onEdit={editAsset} onDelete={deleteAsset} />

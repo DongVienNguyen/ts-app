@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Label } from '@/components/ui/label'; // Import Label component
 
 interface DateInputProps {
   value: string; // Expected format: YYYY-MM-DD
@@ -12,9 +13,10 @@ interface DateInputProps {
   placeholder?: string;
   className?: string;
   disabledBefore?: Date; // New prop to disable past dates
+  label?: string; // Added label prop
 }
 
-const DateInput: React.FC<DateInputProps> = ({ value, onChange, placeholder, className, disabledBefore }) => {
+const DateInput: React.FC<DateInputProps> = ({ value, onChange, placeholder, className, disabledBefore, label }) => {
   const [open, setOpen] = useState(false);
   // Convert YYYY-MM-DD string to Date object for react-day-picker
   // parseISO creates a Date object in local time.
@@ -33,30 +35,33 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange, placeholder, cla
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant={"outline"}
-          className={cn(
-            "w-full justify-start text-left font-normal",
-            !value && "text-muted-foreground",
-            className
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? format(parseISO(value), "dd/MM/yyyy") : (placeholder || "dd/MM/yyyy")}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={handleDateSelect}
-          disabled={disabledBefore ? { before: disabledBefore } : undefined}
-          initialFocus
-        />
-      </PopoverContent>
-    </Popover>
+    <div className="space-y-2">
+      {label && <Label>{label}</Label>} {/* Render the label if provided */}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant={"outline"}
+            className={cn(
+              "w-full justify-start text-left font-normal",
+              !value && "text-muted-foreground",
+              className
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? format(parseISO(value), "dd/MM/yyyy") : (placeholder || "dd/MM/yyyy")}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={handleDateSelect}
+            disabled={disabledBefore ? { before: disabledBefore } : undefined}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 };
 

@@ -6,7 +6,7 @@ import { Tables } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { getCachedNotifications, invalidateNotifications } from '@/utils/databaseCache';
 
-type Notification = Tables<'notifications'>;
+export type Notification = Tables<'notifications'>; // Exported Notification type
 
 interface NotificationRelatedData {
   sender?: string;
