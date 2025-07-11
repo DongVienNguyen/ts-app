@@ -15,6 +15,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { OtherAsset } from '@/types/asset';
 import DateInput from './DateInput'; // Changed from { DateInput }
+import { format, parseISO } from 'date-fns'; // Add this line
 
 const formSchema = z.object({
   name: z.string().min(1, 'Tên tài sản không được để trống'),
@@ -88,8 +89,8 @@ export const OtherAssetForm: React.FC<OtherAssetFormProps> = ({ asset, isOpen, o
                 render={({ field }) => (
                   <DateInput
                     label="Ngày gửi"
-                    selected={field.value}
-                    onSelect={field.onChange}
+                    value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} // Convert Date to YYYY-MM-DD string
+                    onChange={(dateString) => field.onChange(dateString ? parseISO(dateString) : null)} // Convert YYYY-MM-DD string to Date
                   />
                 )}
               />
@@ -126,8 +127,8 @@ export const OtherAssetForm: React.FC<OtherAssetFormProps> = ({ asset, isOpen, o
                 render={({ field }) => (
                   <DateInput
                     label="Ngày lấy"
-                    selected={field.value}
-                    onSelect={field.onChange}
+                    value={field.value ? format(field.value, 'yyyy-MM-dd') : ''} // Convert Date to YYYY-MM-DD string
+                    onChange={(dateString) => field.onChange(dateString ? parseISO(dateString) : null)} // Convert YYYY-MM-DD string to Date
                   />
                 )}
               />

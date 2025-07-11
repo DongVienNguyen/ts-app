@@ -5,38 +5,40 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Label } from '@/components/ui/label'; // Import Label component
+import { Label } from '@/components/ui/label';
 
 interface DateInputProps {
   value: string; // Expected format: YYYY-MM-DD
   onChange: (value: string) => void; // Returns format: YYYY-MM-DD
   placeholder?: string;
   className?: string;
-  disabledBefore?: Date; // New prop to disable past dates
-  label?: string; // Added label prop
+  disabledBefore?: Date; // Prop to disable past dates
+  label?: string; // Label prop
 }
 
 const DateInput: React.FC<DateInputProps> = ({ value, onChange, placeholder, className, disabledBefore, label }) => {
   const [open, setOpen] = useState(false);
+  
   // Convert YYYY-MM-DD string to Date object for react-day-picker
-  // parseISO creates a Date object in local time.
   const selectedDate = value ? (isValid(parseISO(value)) ? parseISO(value) : undefined) : undefined;
 
   const handleDateSelect = (date: Date | undefined) => {
-    // If a date is selected, format it and pass to onChange
+    // If a date is selected, format it to YYYY-MM-DD string and pass to onChange
     if (date) {
       onChange(format(date, 'yyyy-MM-dd'));
     } else {
-      // If date is undefined (meaning the user clicked the already selected date to deselect it),
-      // set the value to an empty string to clear it.
+      // If date is undefined (e.g., user clears selection), set the value to an empty string
       onChange(''); 
     }
-    setOpen(false); // Always close popover on select/deselect attempt
+    setOpen(false); // Close popover after selection
   };
+
+  // Display value in dd/MM/yyyy format
+  const displayValue = value && isValid(parseISO(value)) ? format(parseISO(value), "dd/MM/yyyy") : (placeholder || "dd/MM/yyyy");
 
   return (
     <div className="space-y-2">
-      {label && <Label>{label}</Label>} {/* Render the label if provided */}
+      {label && <Label>{label}</Label>}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -48,7 +50,7 @@ const DateInput: React.FC<DateInputProps> = ({ value, onChange, placeholder, cla
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {value ? format(parseISO(value), "dd/MM/yyyy") : (placeholder || "dd/MM/yyyy")}
+            {displayValue}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0">
