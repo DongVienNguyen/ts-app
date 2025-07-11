@@ -135,7 +135,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent side="right" align="end" className="w-56">
+                  <DropdownMenuContent side="bottom" align="start" className="w-full mt-1">
                     {systemItems.map((item) => {
                       const isActive = location.pathname.startsWith(item.href);
                       return (
@@ -144,9 +144,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                             to={item.href}
                             onClick={() => {
                               onLinkClick?.();
-                              setIsSystemDropdownOpen(false); // Close the dropdown when a link is clicked
+                              setIsSystemDropdownOpen(false);
                             }}
-                            className={`group flex gap-x-3 rounded-md py-2 pr-2 pl-4 text-sm leading-6 font-semibold ${
+                            className={`group flex gap-x-3 rounded-md py-2 pr-2 pl-4 text-sm leading-6 font-semibold w-full ${
                               isActive
                                 ? 'bg-green-100 text-green-700'
                                 : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
