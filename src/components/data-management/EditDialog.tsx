@@ -13,7 +13,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import DateInput from '@/components/DateInput'; // Changed to default import
+import DateInput from '@/components/DateInput';
 import { format, parseISO } from 'date-fns';
 
 // Define a generic schema for editing, allowing dynamic fields
@@ -24,8 +24,8 @@ const editSchema = z.object({
 });
 
 interface EditDialogProps {
-  open: boolean; // Changed from isOpen
-  onOpenChange: (open: boolean) => void; // Changed from onClose
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSave: (data: any) => void;
   title: string;
   description?: string; // Optional description for the dialog
@@ -41,8 +41,8 @@ interface EditDialogProps {
 }
 
 export const EditDialog: React.FC<EditDialogProps> = ({
-  open, // Changed from isOpen
-  onOpenChange, // Changed from onClose
+  open,
+  onOpenChange,
   onSave,
   title,
   description,
@@ -78,11 +78,14 @@ export const EditDialog: React.FC<EditDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}> {/* Use new prop names */}
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>} {/* Render DialogDescription */}
+          {/* Always render DialogDescription, provide a default if description is not given */}
+          <DialogDescription>
+            {description || "Vui lòng điền thông tin chi tiết."}
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
@@ -99,13 +102,13 @@ export const EditDialog: React.FC<EditDialogProps> = ({
                         <DateInput
                           value={formField.value ? format(formField.value, 'yyyy-MM-dd') : ''}
                           onChange={(dateString) => formField.onChange(dateString ? parseISO(dateString) : null)}
-                          label={field.label} // Pass label to DateInput
+                          label={field.label}
                         />
                       ) : (
                         <Input
                           type={field.type}
                           {...formField}
-                          value={formField.value || ''} // Ensure controlled component
+                          value={formField.value || ''}
                         />
                       )}
                     </FormControl>
@@ -115,7 +118,7 @@ export const EditDialog: React.FC<EditDialogProps> = ({
               />
             ))}
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}> {/* Use onOpenChange */}
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
                 Hủy
               </Button>
               <Button type="submit" disabled={isLoading}>
