@@ -18,11 +18,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { 
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { 
   Menu, 
   Package, 
   FileText, 
@@ -121,8 +116,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </li>
             {systemItems.length > 0 && (
               <li>
-                <Popover open={isSystemDropdownOpen} onOpenChange={setIsSystemDropdownOpen}>
-                  <PopoverTrigger asChild>
+                <DropdownMenu open={isSystemDropdownOpen} onOpenChange={setIsSystemDropdownOpen} modal={false}>
+                  <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold w-full justify-start ${
@@ -139,31 +134,32 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         }`}
                       />
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent side="right" align="start" className="w-56 p-1">
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="right" align="start" className="w-56">
                     {systemItems.map((item) => {
                       const isActive = location.pathname.startsWith(item.href);
                       return (
-                        <Link
-                          key={item.name}
-                          to={item.href}
-                          onClick={() => {
-                            onLinkClick?.();
-                            setIsSystemDropdownOpen(false);
-                          }}
-                          className={`group flex gap-x-3 rounded-md py-2 pr-2 pl-4 text-sm leading-6 font-semibold w-full ${
-                            isActive
-                              ? 'bg-green-100 text-green-700'
-                              : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
-                          }`}
-                        >
-                          <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
-                          {item.name}
-                        </Link>
+                        <DropdownMenuItem key={item.name} asChild>
+                          <Link
+                            to={item.href}
+                            onClick={() => {
+                              onLinkClick?.();
+                              setIsSystemDropdownOpen(false);
+                            }}
+                            className={`group flex gap-x-3 rounded-md py-2 pr-2 pl-4 text-sm leading-6 font-semibold w-full ${
+                              isActive
+                                ? 'bg-green-100 text-green-700'
+                                : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
+                            }`}
+                          >
+                            <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
+                            {item.name}
+                          </Link>
+                        </DropdownMenuItem>
                       );
                     })}
-                  </PopoverContent>
-                </Popover>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </li>
             )}
             <li className="mt-auto">
