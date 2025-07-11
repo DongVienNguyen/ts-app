@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { toast } from 'sonner';
 import { Bell, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { SystemHealth } from './types';
@@ -23,8 +23,6 @@ export const SystemHealthNotifications: React.FC<SystemHealthNotificationsProps>
   previousHealth,
   enabled
 }) => {
-  const [alerts, setAlerts] = useState<HealthAlert[]>([]);
-
   useEffect(() => {
     if (!enabled || !previousHealth) return;
 
@@ -129,11 +127,6 @@ export const SystemHealthNotifications: React.FC<SystemHealthNotificationsProps>
         }
       });
     });
-
-    // Update alerts state
-    if (newAlerts.length > 0) {
-      setAlerts(prev => [...prev.slice(-9), ...newAlerts].slice(-10));
-    }
 
   }, [health, previousHealth, enabled]);
 

@@ -8,7 +8,6 @@ import {
   Activity, 
   Bell, 
   Settings, 
-  BarChart3, 
   Shield, 
   AlertTriangle,
   CheckCircle,

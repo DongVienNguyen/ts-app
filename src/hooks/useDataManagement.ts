@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import JSZip from 'jszip';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +6,7 @@ import { entityConfig } from '@/config/entityConfig';
 import { toCSV, fromCSV } from '@/utils/csvUtils';
 import { useSecureAuth } from '@/contexts/AuthContext';
 
-const ITEMS_PER_PAGE = 20; // Giảm từ 50 xuống 20
+const ITEMS_PER_PAGE = 20;
 
 export const useDataManagement = () => {
   const [selectedEntity, setSelectedEntity] = useState<string>('asset_transactions');
@@ -76,7 +76,7 @@ export const useDataManagement = () => {
       
       // Thêm tìm kiếm nếu có
       if (search.trim()) {
-        // Tìm kiếm trong các trường text - fix type check by checking field.type exists and is searchable
+        // Tìm kiếm trong các trường text
         const textFields = config.fields.filter(f => 
           !f.type || f.type === 'text' || f.type === 'textarea'
         ).map(f => f.key);
@@ -109,19 +109,19 @@ export const useDataManagement = () => {
       }
 
       const pageData = result || [];
-      const totalCount = count || 0;
+      const totalRecords = count || 0;
 
       // Lưu vào cache
       dataCache.current.set(cacheKey, {
         data: pageData,
-        count: totalCount,
+        count: totalRecords,
         timestamp: Date.now()
       });
 
       setData(pageData);
-      setTotalCount(totalCount);
+      setTotalCount(totalRecords);
       
-      console.log(`✅ Data loaded: ${pageData.length}/${totalCount} records`);
+      console.log(`✅ Data loaded: ${pageData.length}/${totalRecords} records`);
       
     } catch (error: any) {
       console.error('❌ Failed to load data:', error);
@@ -163,8 +163,8 @@ export const useDataManagement = () => {
     }
   }, [currentPage, searchTerm, loadData]);
 
-  // Debounce search
-  const debouncedSearch = useMemo(() => {
+  // Handle search with debounce effect
+  useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (currentPage === 1) {
         loadData(1, searchTerm);
@@ -531,7 +531,7 @@ export const useDataManagement = () => {
     // Functions
     runAsAdmin,
     loadData,
-    refreshData, // Add this for button clicks
+    refreshData,
     handleAdd,
     handleEdit,
     handleSave,

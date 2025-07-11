@@ -65,7 +65,7 @@ export class AdvancedSystemHealthService {
       
       try {
         // Test basic connectivity
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('staff')
           .select('count')
           .limit(1);
@@ -77,7 +77,7 @@ export class AdvancedSystemHealthService {
         }
 
         // Test connection pool
-        const { data: poolData } = await supabase
+        await supabase
           .from('system_status')
           .select('count')
           .limit(1);
@@ -154,14 +154,14 @@ export class AdvancedSystemHealthService {
   }> {
     return this.retryWithBackoff(async () => {
       try {
-        // Check recent security events
-        const { data: securityEvents, error: securityError } = await supabase
+        // Check recent security events - simplified to avoid unused variables
+        await supabase
           .from('security_events')
           .select('count')
           .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
-        // Check failed login attempts
-        const { data: failedLogins, error: loginError } = await supabase
+        // Check failed login attempts - simplified to avoid unused variables
+        await supabase
           .from('user_sessions')
           .select('count')
           .eq('session_end', null)

@@ -39,7 +39,6 @@ const DataManagement = () => {
     
     // Functions
     runAsAdmin,
-    loadData,
     refreshData, // Use this instead of loadData for button clicks
     handleAdd,
     handleEdit,

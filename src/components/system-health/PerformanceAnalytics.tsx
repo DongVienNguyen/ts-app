@@ -27,8 +27,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
     metrics,
     insights,
     isLoading,
-    exportData,
-    refreshData
+    exportData
   } = usePerformanceAnalytics(health, timeRange);
 
   return (

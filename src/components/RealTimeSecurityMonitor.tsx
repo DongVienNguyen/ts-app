@@ -7,8 +7,7 @@ export function RealTimeSecurityMonitor() {
     stats,
     isLoading,
     error,
-    canAccess,
-    refreshData
+    canAccess
   } = useSecurityMonitoring();
 
   if (!canAccess) {

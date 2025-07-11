@@ -202,7 +202,7 @@ export const useBackupOperations = (): BackupOperationsReturn => {
       
       clearCache();
     },
-    // onBackupError
+    // onBackupError - fix parameter signature to match expected type
     (error: string, record: BackupRecord, history: BackupRecord[]) => {
       updateBackupStatus({
         isRunning: false,
@@ -230,7 +230,7 @@ export const useBackupOperations = (): BackupOperationsReturn => {
       });
     },
     // onRestoreComplete
-    (result) => {
+    () => {
       const now = new Date().toISOString();
       localStorage.setItem('lastRestoreTime', now);
       

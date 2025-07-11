@@ -115,7 +115,7 @@ export function useUsageData() {
       }
 
       // Load unique users count
-      const { data: uniqueUsersData, error: usersError } = await supabase
+      const { data: uniqueUsersData } = await supabase
         .from('user_sessions')
         .select('username')
         .gte('session_start', startDate.toISOString());

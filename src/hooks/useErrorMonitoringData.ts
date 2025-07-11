@@ -25,12 +25,6 @@ interface ErrorStats {
   errorTrend: { date: string; count: number }[];
 }
 
-interface SystemStatus {
-  service_name: string;
-  status: string;
-  uptime_percentage?: number;
-}
-
 const ERRORS_PER_PAGE = 20;
 const CACHE_DURATION = 2 * 60 * 1000; // 2 phút
 

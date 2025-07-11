@@ -276,37 +276,6 @@ export function showNotification(title: string, options?: NotificationOptions): 
   }
 }
 
-// Helper function for local notifications - CHỈ hiện khi có nội dung thật
-async function showLocalNotification(title: string, options?: NotificationOptions): Promise<void> {
-  // Kiểm tra nếu là thông báo setup - KHÔNG hiện
-  if (title.includes('Push Notifications Enabled') || 
-      title.includes('Notifications Enabled') ||
-      title.includes('Development Mode') ||
-      options?.body?.includes('Push notifications unavailable') ||
-      options?.body?.includes('Notifications enabled for development')) {
-    return; // Không hiện thông báo setup
-  }
-
-  if (Notification.permission === 'granted') {
-    new Notification(title, {
-      icon: '/icon-192x192.png',
-      badge: '/icon-192x192.png',
-      ...options
-    });
-  } else if ('serviceWorker' in navigator) {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      await registration.showNotification(title, {
-        icon: '/icon-192x192.png',
-        badge: '/icon-192x192.png',
-        ...options
-      });
-    } catch (error) {
-      console.error('Service Worker notification failed:', error);
-    }
-  }
-}
-
 export function checkPushNotificationSupport(): {
   supported: boolean;
   reasons: string[];
