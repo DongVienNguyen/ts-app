@@ -17,6 +17,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { 
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { 
   Menu, 
   Package, 
   FileText, 
@@ -26,6 +31,7 @@ import {
   LogOut,
   User,
   ChevronDown,
+  ChevronUp,
   Home,
   Shield,
   Activity,
@@ -47,6 +53,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
+  const [isMobileSystemMenuOpen, setIsMobileSystemMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -60,6 +67,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Close sidebar when route changes
   useEffect(() => {
     setIsSidebarOpen(false);
+    setIsMobileSystemMenuOpen(false); // Also close system menu when navigating
   }, [location.pathname]);
 
   if (!user) {
@@ -163,9 +171,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Check if any system menu item is currently active
   const isSystemMenuActive = visibleSystemItems.some(item => location.pathname === item.href);
 
+  // Auto-open mobile system menu if current page is a system page
+  useEffect(() => {
+    if (isSystemMenuActive && isSidebarOpen) {
+      setIsMobileSystemMenuOpen(true);
+    }
+  }, [isSystemMenuActive, isSidebarOpen]);
+
   const handleLogout = () => {
     setIsUserMenuOpen(false);
     logout();
+  };
+
+  const handleMobileSystemMenuToggle = () => {
+    setIsMobileSystemMenuOpen(!isMobileSystemMenuOpen);
+    console.log('🔧 Mobile system menu toggled:', !isMobileSystemMenuOpen);
   };
 
   // DEBUG LOGGING
@@ -180,6 +200,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     visibleSystemItems: visibleSystemItems.length,
     systemItemNames: visibleSystemItems.map(item => item.name),
     isSystemMenuActive,
+    isMobileSystemMenuOpen,
     currentPath: location.pathname
   });
 
@@ -216,7 +237,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </SheetTitle>
                   </SheetHeader>
                   
-                  {/* Navigation Links - FIXED TO GROUP SYSTEM ITEMS */}
+                  {/* Navigation Links - WITH COLLAPSIBLE SYSTEM MENU */}
                   <nav className="flex-1 px-2 py-4 overflow-y-auto bg-white">
                     <div className="space-y-1">
                       {/* MAIN NAVIGATION ITEMS ONLY */}
@@ -240,35 +261,63 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         );
                       })}
 
-                      {/* SYSTEM MENU SECTION - GROUPED */}
+                      {/* COLLAPSIBLE SYSTEM MENU SECTION */}
                       {visibleSystemItems.length > 0 && (
-                        <>
-                          {/* System Header */}
-                          <div className="px-3 py-2 text-sm font-medium text-gray-500 border-t border-gray-200 mt-4 pt-4">
-                            <Settings className="inline-block w-4 h-4 mr-2" />
-                            🔧 Hệ thống ({visibleSystemItems.length})
-                          </div>
-                          {/* System Items - Indented */}
-                          {visibleSystemItems.map((item) => {
-                            const isActive = location.pathname === item.href;
-                            console.log(`📱 Mobile System: ${item.name}`);
-                            return (
-                              <Link
-                                key={item.href}
-                                to={item.href}
-                                className={`group flex items-center px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
-                                  isActive
-                                    ? 'bg-green-100 text-green-700 border-r-2 border-green-600'
+                        <div className="border-t border-gray-200 mt-4 pt-4">
+                          <Collapsible open={isMobileSystemMenuOpen} onOpenChange={setIsMobileSystemMenuOpen}>
+                            {/* System Menu Trigger */}
+                            <CollapsibleTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className={`w-full flex items-center justify-between px-3 py-3 text-sm font-medium rounded-lg transition-colors ${
+                                  isSystemMenuActive
+                                    ? 'bg-green-100 text-green-700'
                                     : 'text-gray-600 hover:bg-green-50 hover:text-green-700'
                                 }`}
-                                onClick={() => setIsSidebarOpen(false)}
+                                onClick={handleMobileSystemMenuToggle}
                               >
-                                <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                                <span className="truncate">{item.name}</span>
-                              </Link>
-                            );
-                          })}
-                        </>
+                                <div className="flex items-center">
+                                  <Settings className="mr-3 h-5 w-5 flex-shrink-0" />
+                                  <span className="truncate">🔧 Hệ thống ({visibleSystemItems.length})</span>
+                                </div>
+                                {isMobileSystemMenuOpen ? (
+                                  <ChevronUp className="h-4 w-4 flex-shrink-0" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                                )}
+                              </Button>
+                            </CollapsibleTrigger>
+
+                            {/* System Menu Content - EXPANDS UPWARD */}
+                            <CollapsibleContent className="space-y-1">
+                              <div className="bg-gray-50 rounded-lg p-1 mt-2">
+                                {/* Reverse order to show items expanding upward visually */}
+                                {[...visibleSystemItems].reverse().map((item) => {
+                                  const isActive = location.pathname === item.href;
+                                  console.log(`📱 Mobile System: ${item.name}`);
+                                  return (
+                                    <Link
+                                      key={item.href}
+                                      to={item.href}
+                                      className={`group flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                                        isActive
+                                          ? 'bg-green-100 text-green-700 border-l-2 border-green-600'
+                                          : 'text-gray-600 hover:bg-white hover:text-green-700'
+                                      }`}
+                                      onClick={() => {
+                                        setIsSidebarOpen(false);
+                                        setIsMobileSystemMenuOpen(false);
+                                      }}
+                                    >
+                                      <item.icon className="mr-3 h-4 w-4 flex-shrink-0" />
+                                      <span className="truncate">{item.name}</span>
+                                    </Link>
+                                  );
+                                }).reverse()} {/* Reverse again to maintain original order */}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        </div>
                       )}
                     </div>
                   </nav>
