@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, X, Smartphone, Monitor } from 'lucide-react';
+import { Download, X, Smartphone } from 'lucide-react';
 import { Button } from './ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 

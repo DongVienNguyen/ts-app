@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Bell, X, Smartphone, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { useSecureAuth } from '@/contexts/AuthContext';
