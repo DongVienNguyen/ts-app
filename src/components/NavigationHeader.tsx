@@ -39,7 +39,6 @@ export const NavigationHeader: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
   const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
   const isMountedRef = useRef(false);
 
@@ -209,7 +208,7 @@ export const NavigationHeader: React.FC = () => {
 
             {/* SYSTEM MENU DROPDOWN - FORCE SHOW FOR ADMIN */}
             {systemNavItems.length > 0 && (
-              <DropdownMenu open={isSystemMenuOpen} onOpenChange={setIsSystemMenuOpen}>
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
@@ -231,7 +230,6 @@ export const NavigationHeader: React.FC = () => {
                         <Link
                           to={item.href}
                           className="flex items-center w-full cursor-pointer"
-                          onClick={() => setIsSystemMenuOpen(false)}
                         >
                           <item.icon className="mr-2 h-4 w-4" />
                           {item.name}
