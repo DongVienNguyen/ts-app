@@ -11,6 +11,7 @@ export interface EntityConfig {
     type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'boolean';
     options?: string[];
     required?: boolean;
+    defaultValue?: any; // Added defaultValue property
   }>;
 }
 
