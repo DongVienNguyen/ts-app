@@ -32,37 +32,24 @@ export async function subscribeUserToPush(username: string): Promise<boolean> {
     const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     
     if (isDevelopment) {
-      // Quiet development mode - no excessive logging
+      // SILENT development mode - không hiện thông báo
       return await handleDevelopmentMode(username);
     }
 
-    // Production environment - full push notification setup
+    // Production environment - SILENT push notification setup
     return await setupProductionPushNotifications(username);
     
   } catch (error: unknown) {
     console.error('Lỗi khi đăng ký nhận thông báo đẩy:', error);
     
-    // Try fallback to local notifications
-    try {
-      await showLocalNotification('Notifications Enabled (Limited)', {
-        body: 'Push notifications unavailable. Local notifications will work when app is open.',
-        icon: '/icon-192x192.png'
-      });
-      return true; // Return success for local notifications
-    } catch (fallbackError) {
-      console.error('Local notification fallback failed:', fallbackError);
-      return false;
-    }
+    // KHÔNG hiện fallback notification
+    return false;
   }
 }
 
 async function handleDevelopmentMode(username: string): Promise<boolean> {
   try {
-    // Show a single, clean development notification
-    await showLocalNotification('Development Mode', {
-      body: 'Notifications enabled for development. Deploy to HTTPS for full push support.',
-      icon: '/icon-192x192.png'
-    });
+    // KHÔNG hiện thông báo development - chỉ setup silent
     
     // Save a mock subscription to database for development
     const mockSubscription = {
@@ -83,14 +70,12 @@ async function handleDevelopmentMode(username: string): Promise<boolean> {
       });
 
     if (error) {
-      // Even if database save fails, local notifications still work
-      return true;
+      return false;
     }
 
     return true;
   } catch (devError) {
-    // Still return true for local notifications
-    return true;
+    return false;
   }
 }
 
@@ -197,18 +182,8 @@ async function setupProductionPushNotifications(username: string): Promise<boole
     throw error;
   }
 
-  // Test notification
-  try {
-    await registration.showNotification('Push Notifications Enabled!', {
-      body: 'You will now receive notifications about asset reminders and important updates.',
-      icon: '/icon-192x192.png',
-      badge: '/icon-192x192.png',
-      tag: 'test-notification',
-      requireInteraction: false
-    });
-  } catch (testError) {
-    console.warn('Không thể gửi test notification:', testError);
-  }
+  // KHÔNG hiện test notification - setup hoàn tất silent
+  console.log('✅ Push notifications setup completed silently');
 
   return true;
 }
@@ -277,7 +252,17 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   }
 }
 
+// CHỈ hiện notification khi có nội dung thật sự
 export function showNotification(title: string, options?: NotificationOptions): void {
+  // Kiểm tra nếu là thông báo setup - KHÔNG hiện
+  if (title.includes('Push Notifications Enabled') || 
+      title.includes('Notifications Enabled') ||
+      title.includes('Development Mode') ||
+      options?.body?.includes('Push notifications unavailable') ||
+      options?.body?.includes('Notifications enabled for development')) {
+    return; // Không hiện thông báo setup
+  }
+
   if (Notification.permission === 'granted') {
     try {
       new Notification(title, {
@@ -291,8 +276,17 @@ export function showNotification(title: string, options?: NotificationOptions): 
   }
 }
 
-// Helper function for local notifications
+// Helper function for local notifications - CHỈ hiện khi có nội dung thật
 async function showLocalNotification(title: string, options?: NotificationOptions): Promise<void> {
+  // Kiểm tra nếu là thông báo setup - KHÔNG hiện
+  if (title.includes('Push Notifications Enabled') || 
+      title.includes('Notifications Enabled') ||
+      title.includes('Development Mode') ||
+      options?.body?.includes('Push notifications unavailable') ||
+      options?.body?.includes('Notifications enabled for development')) {
+    return; // Không hiện thông báo setup
+  }
+
   if (Notification.permission === 'granted') {
     new Notification(title, {
       icon: '/icon-192x192.png',

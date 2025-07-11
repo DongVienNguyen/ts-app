@@ -28,18 +28,16 @@ const API_ENDPOINTS = [
 
 // Cài đặt Service Worker với tối ưu hóa
 self.addEventListener('install', (event) => {
-  console.log('🔧 Cài đặt Service Worker...');
+  console.log('🔧 Installing Service Worker silently...');
   
   event.waitUntil(
     Promise.all([
       // Cache tài nguyên tĩnh
       caches.open(STATIC_CACHE).then(cache => {
-        console.log('📦 Cache tài nguyên tĩnh');
         return cache.addAll(STATIC_ASSETS);
       }),
       // Preload tài nguyên quan trọng
       caches.open(DYNAMIC_CACHE).then(cache => {
-        console.log('⚡ Preload tài nguyên quan trọng');
         return Promise.allSettled(
           CRITICAL_ASSETS.map(url => 
             fetch(url).then(response => {
@@ -53,15 +51,15 @@ self.addEventListener('install', (event) => {
         );
       })
     ]).then(() => {
-      console.log('✅ Service Worker cài đặt thành công');
-      return self.skipWaiting(); // Kích hoạt ngay lập tức
+      // Tự động skip waiting - không cần thông báo
+      return self.skipWaiting();
     })
   );
 });
 
-// Kích hoạt Service Worker với dọn dẹp cache cũ
+// Kích hoạt Service Worker với dọn dẹp cache cũ - SILENT
 self.addEventListener('activate', (event) => {
-  console.log('🚀 Kích hoạt Service Worker...');
+  console.log('🚀 Activating Service Worker silently...');
   
   event.waitUntil(
     Promise.all([
@@ -70,7 +68,6 @@ self.addEventListener('activate', (event) => {
         return Promise.all(
           cacheNames.map(cacheName => {
             if (!cacheName.includes(CACHE_VERSION)) {
-              console.log('🗑️ Xóa cache cũ:', cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -79,17 +76,8 @@ self.addEventListener('activate', (event) => {
       // Kiểm soát tất cả client
       self.clients.claim()
     ]).then(() => {
-      console.log('✅ Service Worker đã kích hoạt');
-      
-      // Thông báo cho tất cả client về phiên bản mới
-      self.clients.matchAll().then(clients => {
-        clients.forEach(client => {
-          client.postMessage({
-            type: 'SW_UPDATED',
-            version: CACHE_VERSION
-          });
-        });
-      });
+      // KHÔNG gửi thông báo về cập nhật - silent update
+      console.log('✅ Service Worker activated silently');
     })
   );
 });
@@ -139,7 +127,7 @@ async function handleDocumentRequest(request) {
       return networkResponse;
     }
   } catch (error) {
-    console.log('🌐 Network không khả dụng, dùng cache');
+    // Silent fallback - không log
   }
   
   // Fallback to cache
@@ -222,21 +210,27 @@ function isStaticAsset(url) {
          url.pathname.includes('manifest.json');
 }
 
-// Xử lý push notifications
+// Xử lý push notifications - CHỈ hiện khi có thông báo thật
 self.addEventListener('push', (event) => {
-  console.log('🔔 Nhận push notification');
-  
   if (!event.data) return;
   
   try {
     const data = event.data.json();
+    
+    // CHỈ hiện thông báo khi có nội dung thật sự
+    if (!data.title || data.title.includes('Push Notifications Enabled') || 
+        data.title.includes('Notifications Enabled') ||
+        data.body?.includes('Push notifications unavailable')) {
+      return; // Không hiện thông báo setup
+    }
+    
     const options = {
       body: data.body || 'Thông báo từ TS Manager',
       icon: '/icon-192x192.png',
       badge: '/icon-192x192.png',
       tag: data.tag || 'ts-notification',
       requireInteraction: false,
-      vibrate: [200, 100, 200], // Rung cho mobile
+      vibrate: [200, 100, 200],
       actions: [
         {
           action: 'view',
@@ -258,17 +252,15 @@ self.addEventListener('push', (event) => {
     };
     
     event.waitUntil(
-      self.registration.showNotification(data.title || 'TS Manager', options)
+      self.registration.showNotification(data.title, options)
     );
   } catch (error) {
     console.error('❌ Lỗi push notification:', error);
   }
 });
 
-// Xử lý click notification - Cải thiện để chuyển đến trang thông báo
+// Xử lý click notification
 self.addEventListener('notificationclick', (event) => {
-  console.log('🔔 Click notification');
-  
   event.notification.close();
   
   const notificationData = event.notification.data || {};
@@ -278,15 +270,12 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(clients => {
-        // Tìm tab đã mở TS Manager
         const existingClient = clients.find(client => 
           client.url.includes(self.location.origin)
         );
         
         if (existingClient) {
-          // Focus tab hiện tại và navigate đến trang thông báo
           return existingClient.focus().then(() => {
-            // Gửi message để navigate đến trang thông báo cụ thể
             existingClient.postMessage({
               type: 'NAVIGATE_TO_NOTIFICATION',
               url: targetUrl,
@@ -295,7 +284,6 @@ self.addEventListener('notificationclick', (event) => {
             });
           });
         } else {
-          // Mở tab mới và chuyển đến trang thông báo
           const fullUrl = `${self.location.origin}${targetUrl}${notificationId ? `?id=${notificationId}` : ''}`;
           return self.clients.openWindow(fullUrl);
         }
@@ -306,7 +294,6 @@ self.addEventListener('notificationclick', (event) => {
 // Xử lý messages từ main thread
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('⏭️ Bỏ qua chờ đợi...');
     self.skipWaiting();
   }
   
@@ -317,44 +304,12 @@ self.addEventListener('message', (event) => {
 
 // Background sync
 self.addEventListener('sync', (event) => {
-  console.log('🔄 Background sync:', event.tag);
-  
   if (event.tag === 'background-sync') {
     event.waitUntil(
-      // Thực hiện các tác vụ background
       Promise.resolve()
     );
   }
 });
 
-// Kiểm tra cập nhật định kỳ (tối ưu hóa)
-let updateCheckInterval;
-
-function startUpdateCheck() {
-  // Kiểm tra mỗi 30 giây thay vì 10 giây để tiết kiệm tài nguyên
-  updateCheckInterval = setInterval(() => {
-    console.log('🔍 Kiểm tra cập nhật...');
-    self.registration.update();
-  }, 30000);
-}
-
-function stopUpdateCheck() {
-  if (updateCheckInterval) {
-    clearInterval(updateCheckInterval);
-    updateCheckInterval = null;
-  }
-}
-
-// Bắt đầu kiểm tra cập nhật khi SW active
-startUpdateCheck();
-
-// Dừng kiểm tra khi không cần thiết
-self.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    stopUpdateCheck();
-  } else {
-    startUpdateCheck();
-  }
-});
-
-console.log('✅ Service Worker tải thành công với tối ưu hóa');
+// KHÔNG có kiểm tra cập nhật định kỳ - chỉ khi load app
+console.log('✅ Service Worker loaded with silent updates');

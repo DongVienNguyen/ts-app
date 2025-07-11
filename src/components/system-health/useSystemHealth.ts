@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { SystemHealth } from './types';
 import { SystemHealthService } from './systemHealthService';
 
@@ -52,6 +52,8 @@ export const useSystemHealth = (autoRefresh: boolean = true) => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const hasInitialCheck = useRef(false);
 
   const checkSystemHealth = async () => {
     setIsLoading(true);
@@ -73,13 +75,36 @@ export const useSystemHealth = (autoRefresh: boolean = true) => {
   };
 
   useEffect(() => {
-    checkSystemHealth();
+    // Chỉ kiểm tra 1 lần khi component mount
+    if (!hasInitialCheck.current) {
+      hasInitialCheck.current = true;
+      checkSystemHealth();
+    }
     
     if (autoRefresh) {
-      const interval = setInterval(checkSystemHealth, 30000);
-      return () => clearInterval(interval);
+      // Giảm tần suất kiểm tra xuống 60 phút (3600000ms)
+      intervalRef.current = setInterval(checkSystemHealth, 3600000);
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     }
   }, [autoRefresh]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   return {
     health,
