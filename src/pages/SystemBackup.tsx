@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -27,7 +26,6 @@ import RestoreActionsCard from '@/components/backup/RestoreActionsCard';
 import RestorePreviewCard from '@/components/backup/RestorePreviewCard';
 import { useBackupOperations } from '@/hooks/useBackupOperations';
 import Layout from '@/components/Layout';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 
 const SystemBackup: React.FC = () => {
@@ -46,7 +44,6 @@ const SystemBackup: React.FC = () => {
 
   const [selectedRestoreFile, setSelectedRestoreFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState('backup');
-  const isMobile = useIsMobile();
 
   // Add cleanup for Supabase channels to help with bfcache
   useEffect(() => {
@@ -242,33 +239,21 @@ const SystemBackup: React.FC = () => {
         
         <BackupProgressCard isRunning={backupStatus.isRunning} progress={backupStatus.progress} currentStep={backupStatus.currentStep} estimatedTimeRemaining={backupStatus.estimatedTimeRemaining} onCancel={handleCancelBackup} />
         
-        {isMobile ? (
-          <Select value={activeTab} onValueChange={setActiveTab}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Chọn một mục..." />
-            </SelectTrigger>
-            <SelectContent>
-              {tabs.map(tab => (
-                <SelectItem key={tab.value} value={tab.value} disabled={tab.disabled}>
-                  <div className="flex items-center gap-2">
-                    <tab.icon className="h-4 w-4" />
-                    {tab.label}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-7">
-              {tabs.map(tab => (
-                <TabsTrigger key={tab.value} value={tab.value} disabled={tab.disabled}>
+        <Select value={activeTab} onValueChange={setActiveTab}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Chọn một mục..." />
+          </SelectTrigger>
+          <SelectContent>
+            {tabs.map(tab => (
+              <SelectItem key={tab.value} value={tab.value} disabled={tab.disabled}>
+                <div className="flex items-center gap-2">
+                  <tab.icon className="h-4 w-4" />
                   {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        )}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {renderContent()}
       </div>
