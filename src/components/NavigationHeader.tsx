@@ -130,17 +130,8 @@ export const NavigationHeader: React.FC = () => {
     }
   };
 
-  // Define system paths to exclude from main navigation
-  const systemPaths = [
-    '/data-management',
-    '/security-monitor', 
-    '/error-monitoring',
-    '/usage-monitoring',
-    '/system-backup'
-  ];
-
-  // MAIN NAVIGATION ITEMS - ABSOLUTELY NO SYSTEM ITEMS
-  const navigationItems = [
+  // MAIN NAVIGATION ITEMS - FIXED LIST, NO SYSTEM ITEMS
+  const mainNavigationItems = [
     {
       name: 'Trang chủ',
       href: '/',
@@ -189,9 +180,9 @@ export const NavigationHeader: React.FC = () => {
       icon: Bell,
       show: true
     }
-  ].filter(item => !systemPaths.includes(item.href)); // Extra safety filter
+  ];
 
-  // SYSTEM MENU ITEMS - ONLY FOR DROPDOWN
+  // SYSTEM MENU ITEMS - SEPARATE LIST, ONLY FOR DROPDOWN
   const systemMenuItems = [
     {
       name: 'Quản lý DL',
@@ -225,7 +216,8 @@ export const NavigationHeader: React.FC = () => {
     }
   ];
 
-  const visibleItems = navigationItems.filter(item => item.show);
+  // Filter visible items
+  const visibleMainItems = mainNavigationItems.filter(item => item.show);
   const visibleSystemItems = systemMenuItems.filter(item => item.show);
 
   // Check if any system menu item is currently active
@@ -236,8 +228,8 @@ export const NavigationHeader: React.FC = () => {
     userRole: user?.role,
     userDepartment: user?.department,
     isAdminResult: isAdmin(user),
-    visibleMainItems: visibleItems.length,
-    mainItemNames: visibleItems.map(item => item.name),
+    visibleMainItems: visibleMainItems.length,
+    mainItemNames: visibleMainItems.map(item => item.name),
     visibleSystemItems: visibleSystemItems.length,
     systemItemNames: visibleSystemItems.map(item => item.name),
     isSystemMenuActive,
@@ -262,7 +254,7 @@ export const NavigationHeader: React.FC = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-1">
             {/* MAIN NAVIGATION ITEMS ONLY */}
-            {visibleItems.map((item) => {
+            {visibleMainItems.map((item) => {
               const isActive = location.pathname === item.href;
               return (
                 <Link
@@ -280,7 +272,7 @@ export const NavigationHeader: React.FC = () => {
               );
             })}
 
-            {/* SYSTEM MENU DROPDOWN */}
+            {/* SYSTEM MENU DROPDOWN - FORCE SHOW FOR ADMIN */}
             {visibleSystemItems.length > 0 && (
               <DropdownMenu open={isSystemMenuOpen} onOpenChange={setIsSystemMenuOpen}>
                 <DropdownMenuTrigger asChild>
@@ -386,7 +378,7 @@ export const NavigationHeader: React.FC = () => {
           <div className="md:hidden border-t border-gray-200">
             <div className="px-2 pt-2 pb-3 space-y-1">
               {/* MAIN NAVIGATION ITEMS ONLY */}
-              {visibleItems.map((item) => {
+              {visibleMainItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
                   <Link
@@ -405,7 +397,7 @@ export const NavigationHeader: React.FC = () => {
                 );
               })}
 
-              {/* MOBILE SYSTEM MENU SECTION */}
+              {/* MOBILE SYSTEM MENU SECTION - GROUPED */}
               {visibleSystemItems.length > 0 && (
                 <>
                   <div className="px-3 py-2 text-sm font-medium text-gray-500 border-t border-gray-200 mt-2 pt-4">
