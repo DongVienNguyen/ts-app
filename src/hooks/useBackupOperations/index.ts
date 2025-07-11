@@ -202,8 +202,8 @@ export const useBackupOperations = (): BackupOperationsReturn => {
       
       clearCache();
     },
-    // onBackupError - correct signature with all 3 parameters
-    (error: string, record: BackupRecord, history: BackupRecord[]) => {
+    // onBackupError - prefix unused parameter with underscore
+    (error: string, _record: BackupRecord, history: BackupRecord[]) => {
       updateBackupStatus({
         isRunning: false,
         progress: 0,
@@ -229,8 +229,8 @@ export const useBackupOperations = (): BackupOperationsReturn => {
         estimatedTimeRemaining: 60000
       });
     },
-    // onRestoreComplete - fix to accept RestoreResult parameter
-    (result) => {
+    // onRestoreComplete - prefix unused parameter with underscore
+    (_result) => {
       const now = new Date().toISOString();
       localStorage.setItem('lastRestoreTime', now);
       
