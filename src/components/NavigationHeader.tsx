@@ -209,7 +209,7 @@ export const NavigationHeader: React.FC = () => {
 
             {/* SYSTEM MENU DROPDOWN - FORCE SHOW FOR ADMIN */}
             {systemNavItems.length > 0 && (
-              <DropdownMenu onOpenChange={setIsSystemMenuOpen}> {/* Added onOpenChange */}
+              <DropdownMenu open={isSystemMenuOpen} onOpenChange={setIsSystemMenuOpen}> {/* Đã thêm prop 'open' */}
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
