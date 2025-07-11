@@ -27,7 +27,7 @@ interface ReplyDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSendReply: (data: ReplyFormValues) => void; // Changed from onSend
-  onQuickAction: (action: string) => void; // Added
+  // onQuickAction: (action: string) => void; // Removed as it's not used
   notification: Notification;
   isReplying: boolean; // Added
   isQuickActioning: boolean; // Added
@@ -37,7 +37,7 @@ export const ReplyDialog: React.FC<ReplyDialogProps> = ({
   isOpen, 
   onClose, 
   onSendReply, // Changed
-  onQuickAction, // Added
+  // onQuickAction, // Removed
   notification, 
   isReplying, // Added
   isQuickActioning // Added

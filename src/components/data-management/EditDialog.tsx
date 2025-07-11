@@ -17,11 +17,11 @@ import DateInput from '@/components/DateInput';
 import { format, parseISO } from 'date-fns';
 
 // Define a generic schema for editing, allowing dynamic fields
-const editSchema = z.object({
-  id: z.string().optional(), // ID is optional for new entries
-  field: z.string().min(1, 'Trường không được để trống'),
-  value: z.any(), // Value can be anything, will be validated dynamically
-});
+// const editSchema = z.object({ // Removed as it's not used
+//   id: z.string().optional(),
+//   field: z.string().min(1, 'Trường không được để trống'),
+//   value: z.any(),
+// });
 
 interface EditDialogProps {
   open: boolean;

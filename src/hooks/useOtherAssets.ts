@@ -5,7 +5,7 @@ import { TablesInsert } from '@/integrations/supabase/types'; // Import TablesIn
 
 export const useOtherAssets = (user: any) => {
   const [assets, setAssets] = useState<OtherAsset[]>([]);
-  const [filteredAssets, setFilteredAssets] = useState<OtherAsset[]>([]);
+  // const [filteredAssets, setFilteredAssets] = useState<OtherAsset[]>([]); // Removed as it's now derived
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingAsset, setEditingAsset] = useState<OtherAsset | null>(null);
@@ -27,6 +27,22 @@ export const useOtherAssets = (user: any) => {
   useEffect(() => {
     fetchAssets();
   }, [fetchAssets]);
+
+  // Derive filteredAssets using useMemo
+  const filteredAssets = useMemo(() => {
+    if (!searchTerm) {
+      return assets;
+    }
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    return assets.filter(asset =>
+      asset.name?.toLowerCase().includes(lowerCaseSearchTerm) ||
+      asset.depositor?.toLowerCase().includes(lowerCaseSearchTerm) ||
+      asset.deposit_receiver?.toLowerCase().includes(lowerCaseSearchTerm) ||
+      asset.withdrawal_deliverer?.toLowerCase().includes(lowerCaseSearchTerm) ||
+      asset.withdrawal_receiver?.toLowerCase().includes(lowerCaseSearchTerm) ||
+      asset.notes?.toLowerCase().includes(lowerCaseSearchTerm)
+    );
+  }, [assets, searchTerm]);
 
   const clearForm = () => {
     setNewAsset({
@@ -98,7 +114,7 @@ export const useOtherAssets = (user: any) => {
 
   return {
     assets,
-    filteredAssets,
+    filteredAssets, // Now derived
     isLoading,
     searchTerm,
     setSearchTerm,

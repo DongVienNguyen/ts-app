@@ -17,10 +17,10 @@ interface ErrorDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   error: any; // Use a more specific type if available, e.g., SystemError
-  onErrorUpdated?: () => void; // Added onErrorUpdated prop
+  // onErrorUpdated?: () => void; // Removed as it's not used
 }
 
-export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, onClose, error, onErrorUpdated }) => {
+export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, onClose, error }) => {
   if (!error) return null;
 
   const copyToClipboard = (text: string) => {

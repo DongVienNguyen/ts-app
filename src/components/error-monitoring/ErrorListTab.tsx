@@ -163,7 +163,7 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
         error={selectedError}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onErrorUpdated={onRefresh}
+        // onErrorUpdated={onRefresh} // Removed this prop
       />
     </div>
   );

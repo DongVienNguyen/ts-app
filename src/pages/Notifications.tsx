@@ -80,7 +80,7 @@ export default function Notifications() {
             isOpen={isReplyDialogOpen}
             onClose={() => setIsReplyDialogOpen(false)}
             onSendReply={handleSendReply}
-            onQuickAction={handleQuickAction}
+            // onQuickAction={handleQuickAction} // Removed this prop
             isReplying={isReplying}
             isQuickActioning={isQuickActioning}
           />

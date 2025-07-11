@@ -22,10 +22,10 @@ const OtherAssets = () => {
     setSearchTerm,
     editingAsset,
     setEditingAsset,
-    changeReason,
-    setChangeReason,
+    // changeReason, // Removed as it's not directly read in this component's JSX
+    // setChangeReason, // Removed as it's not directly used in this component's JSX
     newAsset,
-    setNewAsset,
+    // setNewAsset, // Removed as it's not directly used in this component's JSX
     handleSave,
     editAsset,
     deleteAsset,
@@ -42,10 +42,10 @@ const OtherAssets = () => {
     }
   }, [user, navigate, setMessage]);
 
-  const handleCancelEdit = () => {
-    setEditingAsset(null);
-    setChangeReason('');
-  };
+  // const handleCancelEdit = () => { // Removed as it's not used
+  //   setEditingAsset(null);
+  //   setChangeReason('');
+  // };
 
   if (isLoading && filteredAssets.length === 0) {
     return (
