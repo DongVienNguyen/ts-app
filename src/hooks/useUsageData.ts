@@ -27,6 +27,9 @@ interface TimeRangeData {
   monthly: { month: string; users: number; sessions: number }[];
 }
 
+const SESSIONS_PER_PAGE = 50;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 phút
+
 export function useUsageData() {
   const { user } = useSecureAuth();
   const [usageOverview, setUsageOverview] = useState<UsageOverview>({
@@ -55,19 +58,28 @@ export function useUsageData() {
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
+  // Cache system
+  const [dataCache, setDataCache] = useState<Map<string, { data: any, timestamp: number }>>(new Map());
+
   // Only load data if user is admin
   const canAccess = user?.role === 'admin';
 
-  const loadUsageData = useCallback(async () => {
-    if (!canAccess) {
-      console.log('🚫 Access denied: User is not admin');
+  // Load overview stats - always needed
+  const loadUsageOverview = useCallback(async () => {
+    if (!canAccess) return;
+
+    const cacheKey = `usage-overview-${selectedTimeRange}`;
+    const cached = dataCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      setUsageOverview(cached.data);
       return;
     }
 
     setIsLoading(true);
 
     try {
-      console.log('📊 Loading usage monitoring data...');
+      console.log('📊 Loading usage overview...');
 
       // Calculate date range
       const now = new Date();
@@ -91,122 +103,296 @@ export function useUsageData() {
           break;
       }
 
-      // Load session data with limit to prevent performance issues
-      const { data: sessions, error } = await supabase
+      // Load basic session counts
+      const { count: totalSessions, error: sessionError } = await supabase
         .from('user_sessions')
-        .select('*')
-        .gte('session_start', startDate.toISOString())
-        .order('session_start', { ascending: false })
-        .limit(1000); // Limit to prevent performance issues
+        .select('*', { count: 'exact', head: true })
+        .gte('session_start', startDate.toISOString());
 
-      if (error) {
-        console.warn('⚠️ Error loading user sessions:', error);
-        // Don't throw, just use empty array
-        setUsageOverview({
-          totalSessions: 0,
-          uniqueUsers: 0,
-          averageSessionDuration: 0,
-          totalPageViews: 0,
-          bounceRate: 0,
-          activeUsers: 0
-        });
+      if (sessionError) {
+        console.warn('⚠️ Error loading session count:', sessionError);
         return;
       }
 
-      const sessionList = sessions || [];
+      // Load unique users count
+      const { data: uniqueUsersData, error: usersError } = await supabase
+        .from('user_sessions')
+        .select('username')
+        .gte('session_start', startDate.toISOString());
 
-      // Calculate overview stats
-      const totalSessions = sessionList.length;
-      const uniqueUsers = new Set(sessionList.map(s => s.username)).size;
-      const totalPageViews = sessionList.reduce((sum, s) => sum + (s.pages_visited || 0), 0);
-      
-      // Calculate average session duration
-      const completedSessions = sessionList.filter(s => s.duration_minutes);
-      const averageSessionDuration = completedSessions.length > 0
-        ? completedSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0) / completedSessions.length
-        : 0;
-      
-      // Calculate bounce rate (sessions with only 1 page view)
-      const bounceSessions = sessionList.filter(s => s.pages_visited <= 1).length;
-      const bounceRate = totalSessions > 0 ? (bounceSessions / totalSessions) * 100 : 0;
+      const uniqueUsers = uniqueUsersData ? new Set(uniqueUsersData.map(s => s.username)).size : 0;
+
+      // Load sample sessions for calculations (limit to prevent performance issues)
+      const { data: sampleSessions, error: sampleError } = await supabase
+        .from('user_sessions')
+        .select('duration_minutes, pages_visited')
+        .gte('session_start', startDate.toISOString())
+        .not('duration_minutes', 'is', null)
+        .limit(SESSIONS_PER_PAGE);
+
+      let averageSessionDuration = 0;
+      let totalPageViews = 0;
+      let bounceRate = 0;
+
+      if (!sampleError && sampleSessions) {
+        const completedSessions = sampleSessions.filter(s => s.duration_minutes);
+        averageSessionDuration = completedSessions.length > 0
+          ? completedSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0) / completedSessions.length
+          : 0;
+
+        totalPageViews = sampleSessions.reduce((sum, s) => sum + (s.pages_visited || 0), 0);
+        
+        const bounceSessions = sampleSessions.filter(s => s.pages_visited <= 1).length;
+        bounceRate = sampleSessions.length > 0 ? (bounceSessions / sampleSessions.length) * 100 : 0;
+      }
 
       // Active users (last 24 hours)
       const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const activeUsers = new Set(
-        sessionList.filter(s => new Date(s.session_start) > last24Hours)
-          .map(s => s.username)
-      ).size;
+      const { data: activeUsersData } = await supabase
+        .from('user_sessions')
+        .select('username')
+        .gte('session_start', last24Hours.toISOString());
 
-      setUsageOverview({
-        totalSessions,
+      const activeUsers = activeUsersData ? new Set(activeUsersData.map(s => s.username)).size : 0;
+
+      const overview = {
+        totalSessions: totalSessions || 0,
         uniqueUsers,
         averageSessionDuration,
         totalPageViews,
         bounceRate,
         activeUsers
-      });
+      };
 
-      // Device statistics
-      const deviceCounts = { desktop: 0, mobile: 0, tablet: 0 };
-      sessionList.forEach(session => {
-        if (session.device_type && deviceCounts.hasOwnProperty(session.device_type)) {
-          deviceCounts[session.device_type as keyof DeviceStats]++;
-        }
-      });
-      setDeviceStats(deviceCounts);
+      setUsageOverview(overview);
 
-      // Browser statistics
-      const browserCounts: BrowserStats = {};
-      sessionList.forEach(session => {
-        if (session.browser_name) {
-          browserCounts[session.browser_name] = (browserCounts[session.browser_name] || 0) + 1;
-        }
-      });
-      setBrowserStats(browserCounts);
+      // Cache data
+      const newCache = new Map(dataCache);
+      newCache.set(cacheKey, { data: overview, timestamp: Date.now() });
+      setDataCache(newCache);
 
-      // Time range data (simplified to prevent performance issues)
-      const dailyData: { [key: string]: { users: Set<string>; sessions: number } } = {};
-
-      sessionList.forEach(session => {
-        const date = new Date(session.session_start);
-        const dayKey = date.toISOString().split('T')[0];
-        
-        if (!dailyData[dayKey]) {
-          dailyData[dayKey] = { users: new Set(), sessions: 0 };
-        }
-        dailyData[dayKey].users.add(session.username);
-        dailyData[dayKey].sessions++;
-      });
-
-      setTimeRangeData({
-        hourly: [], // Skip hourly for performance
-        daily: Object.entries(dailyData).map(([date, data]) => ({
-          date,
-          users: data.users.size,
-          sessions: data.sessions
-        })).sort((a, b) => a.date.localeCompare(b.date)),
-        monthly: [] // Skip monthly for performance
-      });
-
-      setLastUpdated(new Date());
-      console.log('✅ Usage monitoring data loaded:', {
-        totalSessions,
-        uniqueUsers,
-        averageSessionDuration: Math.round(averageSessionDuration),
-        activeUsers
-      });
+      console.log('✅ Usage overview loaded:', overview);
 
     } catch (error) {
-      console.error('❌ Error loading usage data:', error);
+      console.error('❌ Error loading usage overview:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [canAccess, selectedTimeRange]);
+  }, [canAccess, selectedTimeRange, dataCache]);
 
-  // Load data only when user has access
+  // Load device stats - only when needed
+  const loadDeviceStats = useCallback(async () => {
+    if (!canAccess) return;
+
+    const cacheKey = `device-stats-${selectedTimeRange}`;
+    const cached = dataCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      setDeviceStats(cached.data);
+      return;
+    }
+
+    try {
+      console.log('📊 Loading device statistics...');
+
+      const now = new Date();
+      let startDate: Date;
+
+      switch (selectedTimeRange) {
+        case 'day':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case 'quarter':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        case 'year':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+      }
+
+      const { data: deviceData, error } = await supabase
+        .from('user_sessions')
+        .select('device_type')
+        .gte('session_start', startDate.toISOString())
+        .not('device_type', 'is', null)
+        .limit(200); // Limit để tránh load quá nhiều
+
+      if (!error && deviceData) {
+        const deviceCounts = { desktop: 0, mobile: 0, tablet: 0 };
+        deviceData.forEach(session => {
+          if (session.device_type && deviceCounts.hasOwnProperty(session.device_type)) {
+            deviceCounts[session.device_type as keyof DeviceStats]++;
+          }
+        });
+
+        setDeviceStats(deviceCounts);
+
+        // Cache data
+        const newCache = new Map(dataCache);
+        newCache.set(cacheKey, { data: deviceCounts, timestamp: Date.now() });
+        setDataCache(newCache);
+      }
+    } catch (error) {
+      console.error('❌ Error loading device stats:', error);
+    }
+  }, [canAccess, selectedTimeRange, dataCache]);
+
+  // Load browser stats - only when needed
+  const loadBrowserStats = useCallback(async () => {
+    if (!canAccess) return;
+
+    const cacheKey = `browser-stats-${selectedTimeRange}`;
+    const cached = dataCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      setBrowserStats(cached.data);
+      return;
+    }
+
+    try {
+      console.log('📊 Loading browser statistics...');
+
+      const now = new Date();
+      let startDate: Date;
+
+      switch (selectedTimeRange) {
+        case 'day':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case 'quarter':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        case 'year':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+      }
+
+      const { data: browserData, error } = await supabase
+        .from('user_sessions')
+        .select('browser_name')
+        .gte('session_start', startDate.toISOString())
+        .not('browser_name', 'is', null)
+        .limit(200); // Limit để tránh load quá nhiều
+
+      if (!error && browserData) {
+        const browserCounts: BrowserStats = {};
+        browserData.forEach(session => {
+          if (session.browser_name) {
+            browserCounts[session.browser_name] = (browserCounts[session.browser_name] || 0) + 1;
+          }
+        });
+
+        setBrowserStats(browserCounts);
+
+        // Cache data
+        const newCache = new Map(dataCache);
+        newCache.set(cacheKey, { data: browserCounts, timestamp: Date.now() });
+        setDataCache(newCache);
+      }
+    } catch (error) {
+      console.error('❌ Error loading browser stats:', error);
+    }
+  }, [canAccess, selectedTimeRange, dataCache]);
+
+  // Load trends data - only when needed
+  const loadTrendsData = useCallback(async () => {
+    if (!canAccess) return;
+
+    const cacheKey = `trends-data-${selectedTimeRange}`;
+    const cached = dataCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      setTimeRangeData(cached.data);
+      return;
+    }
+
+    try {
+      console.log('📊 Loading trends data...');
+
+      const now = new Date();
+      let startDate: Date;
+
+      switch (selectedTimeRange) {
+        case 'day':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case 'week':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case 'quarter':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        case 'year':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+      }
+
+      // Load limited session data for trends
+      const { data: sessionData, error } = await supabase
+        .from('user_sessions')
+        .select('session_start, username')
+        .gte('session_start', startDate.toISOString())
+        .order('session_start', { ascending: true })
+        .limit(500); // Limit để tránh load quá nhiều
+
+      if (!error && sessionData) {
+        // Group by day
+        const dailyData: { [key: string]: { users: Set<string>; sessions: number } } = {};
+
+        sessionData.forEach(session => {
+          const date = new Date(session.session_start);
+          const dayKey = date.toISOString().split('T')[0];
+          
+          if (!dailyData[dayKey]) {
+            dailyData[dayKey] = { users: new Set(), sessions: 0 };
+          }
+          dailyData[dayKey].users.add(session.username);
+          dailyData[dayKey].sessions++;
+        });
+
+        const daily = Object.entries(dailyData).map(([date, data]) => ({
+          date,
+          users: data.users.size,
+          sessions: data.sessions
+        })).sort((a, b) => a.date.localeCompare(b.date));
+
+        const trendsData = {
+          hourly: [], // Skip hourly for performance
+          daily,
+          monthly: [] // Skip monthly for performance
+        };
+
+        setTimeRangeData(trendsData);
+
+        // Cache data
+        const newCache = new Map(dataCache);
+        newCache.set(cacheKey, { data: trendsData, timestamp: Date.now() });
+        setDataCache(newCache);
+      }
+    } catch (error) {
+      console.error('❌ Error loading trends data:', error);
+    }
+  }, [canAccess, selectedTimeRange, dataCache]);
+
+  // Load data only when user has access and time range changes
   useEffect(() => {
     if (canAccess) {
-      loadUsageData();
+      loadUsageOverview();
     } else {
       // Clear data if user doesn't have access
       setUsageOverview({
@@ -221,7 +407,7 @@ export function useUsageData() {
       setBrowserStats({});
       setTimeRangeData({ hourly: [], daily: [], monthly: [] });
     }
-  }, [canAccess, selectedTimeRange]); // Depend on both canAccess and selectedTimeRange
+  }, [canAccess, selectedTimeRange, loadUsageOverview]);
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -231,6 +417,17 @@ export function useUsageData() {
     }
     return `${mins}m`;
   };
+
+  const refreshData = useCallback(() => {
+    if (canAccess) {
+      // Clear cache
+      setDataCache(new Map());
+      
+      // Reload overview
+      loadUsageOverview();
+      setLastUpdated(new Date());
+    }
+  }, [canAccess, loadUsageOverview]);
 
   return {
     usageOverview,
@@ -242,7 +439,11 @@ export function useUsageData() {
     lastUpdated,
     canAccess,
     setSelectedTimeRange,
-    loadUsageData,
+    loadUsageData: loadUsageOverview,
+    loadDeviceStats,
+    loadBrowserStats,
+    loadTrendsData,
+    refreshData,
     formatDuration
   };
 }

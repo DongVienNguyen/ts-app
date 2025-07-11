@@ -48,6 +48,8 @@ interface BackupRecord {
   error?: string;
 }
 
+const CACHE_DURATION = 10 * 60 * 1000; // 10 phút
+
 export const useBackupOperations = () => {
   const { user } = useSecureAuth();
   const [backupStatus, setBackupStatus] = useState<BackupStatus>({
@@ -107,29 +109,32 @@ export const useBackupOperations = () => {
 
   const [backupHistory, setBackupHistory] = useState<BackupRecord[]>([]);
 
+  // Cache system
+  const [dataCache, setDataCache] = useState<Map<string, { data: any, timestamp: number }>>(new Map());
+
   // Only allow access for admin users
   const canAccess = user?.role === 'admin';
 
-  useEffect(() => {
-    if (canAccess) {
-      console.log('🔄 Initializing backup operations...');
-      loadBackupHistory();
-      checkAutoBackupStatus();
-      loadBackupStats();
-    } else {
-      // Clear data if user doesn't have access
-      setBackupHistory([]);
-      setBackupStatus(prev => ({
-        ...prev,
-        lastBackup: null,
-        autoBackupEnabled: false,
-        error: canAccess === false ? 'Access denied: Admin role required' : null
-      }));
-    }
-  }, [canAccess]);
-
+  // Load backup history - chỉ load khi cần
   const loadBackupHistory = useCallback(async () => {
     if (!canAccess) return;
+
+    const cacheKey = 'backup-history';
+    const cached = dataCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      setBackupHistory(cached.data.history);
+      setBackupStatus(prev => ({
+        ...prev,
+        lastBackup: cached.data.lastBackup,
+        autoBackupEnabled: cached.data.autoEnabled
+      }));
+      setRestoreStatus(prev => ({
+        ...prev,
+        lastRestore: cached.data.lastRestore
+      }));
+      return;
+    }
 
     try {
       console.log('📊 Loading backup history...');
@@ -165,39 +170,92 @@ export const useBackupOperations = () => {
         })));
       }
 
+      // Cache data
+      const newCache = new Map(dataCache);
+      newCache.set(cacheKey, { 
+        data: { history, lastBackup, lastRestore, autoEnabled }, 
+        timestamp: Date.now() 
+      });
+      setDataCache(newCache);
+
       console.log('✅ Backup history loaded:', { lastBackup, lastRestore, autoEnabled, historyCount: history.length });
     } catch (error) {
       console.error('❌ Error loading backup history:', error);
       setBackupStatus(prev => ({ ...prev, error: 'Failed to load backup history' }));
     }
-  }, [canAccess]);
+  }, [canAccess, dataCache]);
 
+  // Load backup stats - chỉ khi cần thiết
   const loadBackupStats = useCallback(async () => {
     if (!canAccess) return;
 
+    const cacheKey = 'backup-stats';
+    const cached = dataCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      setBackupItems(prev => prev.map(item => {
+        if (item.id === 'database') {
+          return {
+            ...item,
+            size: cached.data.size,
+            recordCount: cached.data.recordCount
+          };
+        }
+        return item;
+      }));
+      return;
+    }
+
     try {
       console.log('📊 Loading backup statistics...');
-      const stats = await backupService.getBackupStats();
+      
+      // Load basic table counts - limit queries
+      const tableQueries = [
+        supabase.from('staff').select('*', { count: 'exact', head: true }),
+        supabase.from('asset_transactions').select('*', { count: 'exact', head: true }),
+        supabase.from('notifications').select('*', { count: 'exact', head: true })
+      ];
+
+      const results = await Promise.allSettled(tableQueries);
+      
+      let totalRecords = 0;
+      results.forEach(result => {
+        if (result.status === 'fulfilled' && result.value.count) {
+          totalRecords += result.value.count;
+        }
+      });
+
+      const estimatedSize = totalRecords * 1024; // Rough estimate
+      const sizeInMB = (estimatedSize / 1024 / 1024).toFixed(2);
+
+      const stats = {
+        size: `${sizeInMB} MB`,
+        recordCount: totalRecords
+      };
       
       setBackupItems(prev => prev.map(item => {
-        switch (item.id) {
-          case 'database':
-            return {
-              ...item,
-              size: `${(stats.estimatedSize / 1024 / 1024).toFixed(2)} MB`,
-              recordCount: stats.totalRecords
-            };
-          default:
-            return item;
+        if (item.id === 'database') {
+          return {
+            ...item,
+            size: stats.size,
+            recordCount: stats.recordCount
+          };
         }
+        return item;
       }));
+
+      // Cache stats
+      const newCache = new Map(dataCache);
+      newCache.set(cacheKey, { data: stats, timestamp: Date.now() });
+      setDataCache(newCache);
 
       console.log('✅ Backup stats loaded:', stats);
     } catch (error) {
       console.error('❌ Error loading backup stats:', error);
     }
-  }, [canAccess]);
+  }, [canAccess, dataCache]);
 
+  // Check auto backup status - simplified
   const checkAutoBackupStatus = useCallback(() => {
     if (!canAccess) return;
 
@@ -218,6 +276,24 @@ export const useBackupOperations = () => {
       }
     }
   }, [canAccess, backupStatus.autoBackupEnabled]);
+
+  // Initialize - chỉ load cơ bản
+  useEffect(() => {
+    if (canAccess) {
+      console.log('🔄 Initializing backup operations...');
+      loadBackupHistory();
+      checkAutoBackupStatus();
+    } else {
+      // Clear data if user doesn't have access
+      setBackupHistory([]);
+      setBackupStatus(prev => ({
+        ...prev,
+        lastBackup: null,
+        autoBackupEnabled: false,
+        error: canAccess === false ? 'Access denied: Admin role required' : null
+      }));
+    }
+  }, [canAccess, loadBackupHistory, checkAutoBackupStatus]);
 
   const updateProgress = useCallback((progress: number, step: string, estimatedTime?: number) => {
     console.log(`📈 Backup progress: ${progress}% - ${step}`);
@@ -343,6 +419,9 @@ export const useBackupOperations = () => {
           size: item.id === 'database' ? `${sizeInMB} MB` : item.size
         })));
         
+        // Clear cache
+        setDataCache(new Map());
+        
         toast.success(
           `${backupType} backup hoàn tất! (${(duration / 1000).toFixed(1)}s)`
         );
@@ -440,6 +519,9 @@ export const useBackupOperations = () => {
           estimatedTimeRemaining: null
         }));
 
+        // Clear cache
+        setDataCache(new Map());
+
         toast.success(`Restore thành công! Đã khôi phục ${result.restoredTables.length} bảng dữ liệu. (${(duration / 1000).toFixed(1)}s)`);
         console.log('✅ Restore completed successfully:', result);
         
@@ -479,6 +561,9 @@ export const useBackupOperations = () => {
     setBackupStatus(prev => ({ ...prev, autoBackupEnabled: enabled }));
     localStorage.setItem('autoBackupEnabled', enabled.toString());
     
+    // Clear cache
+    setDataCache(new Map());
+    
     if (enabled) {
       toast.success('Auto backup đã bật - backup hàng ngày lúc 2:00 AM');
       // Setup auto backup scheduler
@@ -501,6 +586,7 @@ export const useBackupOperations = () => {
     lastBackup: backupStatus.lastBackup,
     lastRestore: restoreStatus.lastRestore,
     historyCount: backupHistory.length,
+    cacheSize: dataCache.size,
     errors: {
       backup: backupStatus.error,
       restore: restoreStatus.error

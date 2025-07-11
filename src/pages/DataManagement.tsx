@@ -40,6 +40,7 @@ const DataManagement = () => {
     // Functions
     runAsAdmin,
     loadData,
+    refreshData, // Use this instead of loadData for button clicks
     handleAdd,
     handleEdit,
     handleSave,
@@ -101,7 +102,7 @@ const DataManagement = () => {
           
           {/* Refresh Button */}
           <Button
-            onClick={loadData}
+            onClick={refreshData}
             disabled={isLoading}
             variant="outline"
             size="sm"

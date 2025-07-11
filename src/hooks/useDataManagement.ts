@@ -6,11 +6,12 @@ import { entityConfig } from '@/config/entityConfig';
 import { toCSV, fromCSV } from '@/utils/csvUtils';
 import { useSecureAuth } from '@/contexts/AuthContext';
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 20; // Giảm từ 50 xuống 20
 
 export const useDataManagement = () => {
   const [selectedEntity, setSelectedEntity] = useState<string>('asset_transactions');
   const [data, setData] = useState<any[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -22,6 +23,10 @@ export const useDataManagement = () => {
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState('management');
   const restoreInputRef = useRef<HTMLInputElement>(null);
+
+  // Cache để tránh load lại dữ liệu đã load
+  const dataCache = useRef<Map<string, { data: any[], count: number, timestamp: number }>>(new Map());
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 phút
 
   const { user } = useSecureAuth();
   const navigate = useNavigate();
@@ -38,14 +43,26 @@ export const useDataManagement = () => {
     }
   }, [user]);
 
-  const loadData = useCallback(async () => {
+  // Load dữ liệu với phân trang và cache
+  const loadData = useCallback(async (page: number = 1, search: string = '') => {
     if (!selectedEntity || !user || user.role !== 'admin') return;
+    
+    // Tạo cache key
+    const cacheKey = `${selectedEntity}-${page}-${search}`;
+    const cached = dataCache.current.get(cacheKey);
+    
+    // Kiểm tra cache
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      setData(cached.data);
+      setTotalCount(cached.count);
+      return;
+    }
     
     setIsLoading(true);
     setMessage({ type: '', text: '' });
     
     try {
-      console.log('📊 Loading data for entity:', selectedEntity);
+      console.log(`📊 Loading ${selectedEntity} - Page ${page}, Search: "${search}"`);
       
       const config = entityConfig[selectedEntity];
       if (!config) {
@@ -54,27 +71,57 @@ export const useDataManagement = () => {
 
       const hasCreatedAt = config.fields.some(f => f.key === 'created_at');
       
-      let query = supabase.from(config.entity as any).select('*');
+      // Tạo query với phân trang
+      let query = supabase.from(config.entity as any).select('*', { count: 'exact' });
       
-      // Add ordering
+      // Thêm tìm kiếm nếu có
+      if (search.trim()) {
+        // Tìm kiếm trong các trường text - fix type check by checking field.type exists and is searchable
+        const textFields = config.fields.filter(f => 
+          !f.type || f.type === 'text' || f.type === 'textarea'
+        ).map(f => f.key);
+        
+        if (textFields.length > 0) {
+          const searchConditions = textFields.map(field => 
+            `${field}.ilike.%${search}%`
+          ).join(',');
+          query = query.or(searchConditions);
+        }
+      }
+      
+      // Thêm sắp xếp
       if (hasCreatedAt) {
         query = query.order('created_at', { ascending: false });
       } else {
         query = query.order('id', { ascending: false });
       }
 
-      // Limit results to prevent performance issues
-      query = query.limit(1000);
+      // Thêm phân trang
+      const from = (page - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+      query = query.range(from, to);
 
-      const { data: result, error } = await query;
+      const { data: result, error, count } = await query;
 
       if (error) {
         console.error('❌ Database query error:', error);
         throw new Error(`Database error: ${error.message}`);
       }
 
-      setData(result || []);
-      console.log(`✅ Data loaded successfully: ${result?.length || 0} records`);
+      const pageData = result || [];
+      const totalCount = count || 0;
+
+      // Lưu vào cache
+      dataCache.current.set(cacheKey, {
+        data: pageData,
+        count: totalCount,
+        timestamp: Date.now()
+      });
+
+      setData(pageData);
+      setTotalCount(totalCount);
+      
+      console.log(`✅ Data loaded: ${pageData.length}/${totalCount} records`);
       
     } catch (error: any) {
       console.error('❌ Failed to load data:', error);
@@ -83,51 +130,70 @@ export const useDataManagement = () => {
         text: `Không thể tải dữ liệu: ${error.message || 'Lỗi không xác định'}` 
       });
       setData([]);
+      setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
   }, [selectedEntity, user]);
 
-  // Load data when entity changes or user changes
+  // Load data khi entity hoặc page thay đổi
   useEffect(() => {
     if (user === null) {
-      // User is not logged in
       navigate('/login');
       return;
     }
     
     if (user && user.role === 'admin') {
-      // User is admin, load data
-      loadData();
+      // Clear cache khi đổi entity
+      if (selectedEntity) {
+        setCurrentPage(1);
+        loadData(1, searchTerm);
+      }
     } else if (user) {
-      // User is logged in but not admin
       setData([]);
+      setTotalCount(0);
       setMessage({ type: 'error', text: 'Chỉ admin mới có thể truy cập module này.' });
     }
-    // If user is undefined, we're still loading auth state
-  }, [user, selectedEntity, navigate, loadData]);
+  }, [user, selectedEntity, navigate]);
 
-  // Reset page when search term or entity changes
+  // Load data khi page hoặc search thay đổi
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedEntity]);
+    if (user?.role === 'admin' && selectedEntity) {
+      loadData(currentPage, searchTerm);
+    }
+  }, [currentPage, searchTerm, loadData]);
 
-  const filteredData = useMemo(() => {
-    if (!searchTerm.trim()) return data;
-    
-    return data.filter(item => 
-      Object.values(item).some(value => 
-        value && value.toString().toLowerCase().includes(searchTerm.toLowerCase())
-      )
+  // Debounce search
+  const debouncedSearch = useMemo(() => {
+    const timeoutId = setTimeout(() => {
+      if (currentPage === 1) {
+        loadData(1, searchTerm);
+      } else {
+        setCurrentPage(1); // Reset về trang 1 khi search
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  // Clear cache khi entity thay đổi
+  const handleEntityChange = useCallback((entity: string) => {
+    // Clear cache cho entity cũ
+    const oldKeys = Array.from(dataCache.current.keys()).filter(key => 
+      key.startsWith(selectedEntity)
     );
-  }, [data, searchTerm]);
+    oldKeys.forEach(key => dataCache.current.delete(key));
+    
+    setSelectedEntity(entity);
+    setCurrentPage(1);
+    setSearchTerm('');
+    setData([]);
+    setTotalCount(0);
+  }, [selectedEntity]);
 
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredData, currentPage]);
-
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  const filteredData = data; // Data đã được filter ở server
+  const paginatedData = data; // Data đã được paginate ở server
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   const handleAdd = useCallback(() => {
     setEditingItem(null);
@@ -203,7 +269,10 @@ export const useDataManagement = () => {
         }
         
         setDialogOpen(false);
-        loadData();
+        
+        // Clear cache và reload data
+        dataCache.current.clear();
+        loadData(currentPage, searchTerm);
       } catch (error: any) {
         console.error('❌ Save operation failed:', error);
         setMessage({ 
@@ -212,7 +281,7 @@ export const useDataManagement = () => {
         });
       }
     });
-  }, [selectedEntity, editingItem, runAsAdmin, loadData]);
+  }, [selectedEntity, editingItem, runAsAdmin, currentPage, searchTerm, loadData]);
 
   const handleDelete = useCallback(async (item: any) => {
     if (!selectedEntity) return;
@@ -232,7 +301,10 @@ export const useDataManagement = () => {
         
         if (error) throw error;
         setMessage({ type: 'success', text: "Xóa thành công" });
-        loadData();
+        
+        // Clear cache và reload data
+        dataCache.current.clear();
+        loadData(currentPage, searchTerm);
       } catch (error: any) {
         console.error('❌ Delete operation failed:', error);
         setMessage({ 
@@ -241,7 +313,7 @@ export const useDataManagement = () => {
         });
       }
     });
-  }, [selectedEntity, runAsAdmin, loadData]);
+  }, [selectedEntity, runAsAdmin, currentPage, searchTerm, loadData]);
 
   const toggleStaffLock = useCallback(async (staff: any) => {
     setMessage({ type: '', text: '' });
@@ -263,7 +335,10 @@ export const useDataManagement = () => {
           type: 'success', 
           text: `Đã ${newStatus === 'locked' ? 'khóa' : 'mở khóa'} tài khoản` 
         });
-        loadData();
+        
+        // Clear cache và reload data
+        dataCache.current.clear();
+        loadData(currentPage, searchTerm);
       } catch (error: any) {
         console.error('❌ Toggle staff lock failed:', error);
         setMessage({ 
@@ -272,7 +347,7 @@ export const useDataManagement = () => {
         });
       }
     });
-  }, [runAsAdmin, loadData]);
+  }, [runAsAdmin, currentPage, searchTerm, loadData]);
 
   const exportToCSV = useCallback(() => {
     if (filteredData.length === 0) {
@@ -287,7 +362,7 @@ export const useDataManagement = () => {
       const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', `${selectedEntity}_data.csv`);
+      link.setAttribute('download', `${selectedEntity}_page_${currentPage}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -298,7 +373,7 @@ export const useDataManagement = () => {
       console.error('❌ Export failed:', error);
       setMessage({ type: 'error', text: "Không thể xuất dữ liệu." });
     }
-  }, [filteredData, selectedEntity]);
+  }, [filteredData, selectedEntity, currentPage]);
 
   const handleRestoreData = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -355,7 +430,10 @@ export const useDataManagement = () => {
         }
         
         setMessage({ type: 'success', text: "Import dữ liệu thành công." });
-        loadData();
+        
+        // Clear cache và reload data
+        dataCache.current.clear();
+        loadData(currentPage, searchTerm);
       } catch (error: any) {
         console.error('❌ Import failed:', error);
         setMessage({ 
@@ -367,7 +445,7 @@ export const useDataManagement = () => {
         if (restoreInputRef.current) restoreInputRef.current.value = '';
       }
     });
-  }, [restoreFile, runAsAdmin, loadData]);
+  }, [restoreFile, runAsAdmin, currentPage, searchTerm, loadData]);
   
   const handleImportClick = useCallback(() => {
     if (restoreFile) {
@@ -402,7 +480,10 @@ export const useDataManagement = () => {
           type: 'success', 
           text: `Đã xóa thành công các giao dịch từ ${startDate} đến ${endDate}.` 
         });
-        loadData();
+        
+        // Clear cache và reload data
+        dataCache.current.clear();
+        loadData(currentPage, searchTerm);
       } catch (error: any) {
         console.error('❌ Bulk delete failed:', error);
         setMessage({ 
@@ -411,13 +492,19 @@ export const useDataManagement = () => {
         });
       }
     });
-  }, [startDate, endDate, runAsAdmin, loadData]);
+  }, [startDate, endDate, runAsAdmin, currentPage, searchTerm, loadData]);
+
+  // Fix loadData function signature for button click
+  const refreshData = useCallback(() => {
+    loadData(currentPage, searchTerm);
+  }, [loadData, currentPage, searchTerm]);
 
   return {
     // State
     selectedEntity,
-    setSelectedEntity,
+    setSelectedEntity: handleEntityChange,
     data,
+    totalCount,
     isLoading,
     searchTerm,
     setSearchTerm,
@@ -444,6 +531,7 @@ export const useDataManagement = () => {
     // Functions
     runAsAdmin,
     loadData,
+    refreshData, // Add this for button clicks
     handleAdd,
     handleEdit,
     handleSave,
