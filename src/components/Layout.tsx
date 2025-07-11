@@ -57,7 +57,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const SidebarContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
     const [isSystemDropdownOpen, setIsSystemDropdownOpen] = useState(false);
-    const [isReminderDropdownOpen, setIsReminderDropdownOpen] = useState(false);
     const userIsAdmin = isAdmin(user);
     const userIsNqOrAdmin = isNqOrAdmin(user);
 
@@ -66,13 +65,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       { name: 'Thông báo M/X', href: '/asset-entry', icon: Package, show: true },
       { name: 'DS TS cần lấy', href: '/daily-report', icon: FileText, show: true },
       { name: 'Báo cáo TS', href: '/borrow-report', icon: BarChart3, show: userIsNqOrAdmin },
-      { name: 'Tài sản khác', href: '/other-assets', icon: Package, show: userIsNqOrAdmin },
-      { name: 'Thông báo', href: '/notifications', icon: Bell, show: true }
-    ].filter(item => item.show);
-
-    const reminderItems = [
       { name: 'Nhắc nhở TS', href: '/asset-reminders', icon: Bell, show: userIsNqOrAdmin },
       { name: 'Nhắc nhở CRC', href: '/crc-reminders', icon: Bell, show: userIsNqOrAdmin },
+      { name: 'Tài sản khác', href: '/other-assets', icon: Package, show: userIsNqOrAdmin },
+      { name: 'Thông báo', href: '/notifications', icon: Bell, show: true }
     ].filter(item => item.show);
 
     const systemItems = [
@@ -80,9 +76,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       { name: 'Bảo mật', href: '/security-monitor', icon: Shield, show: userIsAdmin },
       { name: 'Lỗi hệ thống', href: '/error-monitoring', icon: Activity, show: userIsAdmin },
       { name: 'Sử dụng', href: '/usage-monitoring', icon: BarChart3, show: userIsAdmin },
+      { name: 'Backup & Restore', href: '/system-backup', icon: HardDrive, show: userIsAdmin }
     ].filter(item => item.show);
-
-    const backupItem = { name: 'Backup & Restore', href: '/system-backup', icon: HardDrive, show: userIsAdmin };
 
     return (
       <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4">
@@ -117,60 +112,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </li>
                   );
                 })}
-                {reminderItems.length > 0 && (
-                  <li>
-                    <DropdownMenu open={isReminderDropdownOpen} onOpenChange={setIsReminderDropdownOpen}>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold w-full justify-start ${
-                            reminderItems.some(item => location.pathname.startsWith(item.href))
-                              ? 'bg-green-100 text-green-700'
-                              : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
-                          }`}
-                        >
-                          <Bell className="h-6 w-6 shrink-0" />
-                          Nhắc nhở
-                          <ChevronDown
-                            className={`ml-auto h-5 w-5 shrink-0 transform transition-transform duration-200 ${
-                              isReminderDropdownOpen ? 'rotate-180' : ''
-                            }`}
-                          />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent side="right" align="start" className="w-56">
-                        {reminderItems.map((item) => {
-                          const isActive = location.pathname.startsWith(item.href);
-                          return (
-                            <DropdownMenuItem key={item.name} asChild>
-                              <Link
-                                to={item.href}
-                                onClick={() => {
-                                  onLinkClick?.();
-                                  setIsReminderDropdownOpen(false);
-                                }}
-                                className={`group flex gap-x-3 rounded-md py-2 pr-2 pl-4 text-sm leading-6 font-semibold w-full ${
-                                  isActive
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
-                                }`}
-                              >
-                                <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
-                                {item.name}
-                              </Link>
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </li>
-                )}
               </ul>
             </li>
-            
             {systemItems.length > 0 && (
               <li>
-                <DropdownMenu open={isSystemDropdownOpen} onOpenChange={setIsSystemDropdownOpen}>
+                <DropdownMenu open={isSystemDropdownOpen} onOpenChange={setIsSystemDropdownOpen} modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
@@ -216,24 +162,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </DropdownMenu>
               </li>
             )}
-
-            {backupItem.show && (
-              <li>
-                <Link
-                  to={backupItem.href}
-                  onClick={onLinkClick}
-                  className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold ${
-                    location.pathname.startsWith(backupItem.href)
-                      ? 'bg-green-100 text-green-700'
-                      : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
-                  }`}
-                >
-                  <backupItem.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
-                  {backupItem.name}
-                </Link>
-              </li>
-            )}
-
             <li className="mt-auto">
               <div className="flex items-center gap-x-4 px-2 py-3 text-sm font-semibold leading-6 text-gray-900">
                 <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
