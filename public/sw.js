@@ -92,6 +92,12 @@ self.addEventListener('fetch', (event) => {
   if (url.protocol === 'chrome-extension:') {
     return;
   }
+
+  // Bypass service worker for Supabase API calls to prevent caching conflicts
+  if (API_CACHE_PATTERNS.some(pattern => pattern.test(url.href))) {
+    console.log('🌐 Bypassing SW cache for Supabase API:', request.url);
+    return event.respondWith(fetch(request));
+  }
   
   // Determine caching strategy based on request type
   let strategy = CACHE_STRATEGIES.NETWORK_FIRST;
@@ -112,7 +118,7 @@ self.addEventListener('fetch', (event) => {
     maxAge = CACHE_DURATIONS.IMAGES;
   }
   
-  // API calls
+  // API calls (other than Supabase, which is bypassed above)
   else if (API_CACHE_PATTERNS.some(pattern => pattern.test(url.href))) {
     strategy = CACHE_STRATEGIES.STALE_WHILE_REVALIDATE;
     cacheName = API_CACHE;
