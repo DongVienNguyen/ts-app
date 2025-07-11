@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useSecureAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { 
   Sheet,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { 
@@ -20,7 +23,7 @@ import {
   FileText, 
   Bell, 
   Database,
-  BarChart3,
+  BarChart3, 
   LogOut,
   User,
   ChevronDown,
@@ -39,8 +42,9 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user, logout } = useAuth();
+  const { user, logout } = useSecureAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -187,6 +191,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div>
       <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         <SheetContent className="w-72 p-0" side="left">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Main Menu</SheetTitle>
+            <SheetDescription>
+              Main navigation menu for the Asset Management System.
+            </SheetDescription>
+          </SheetHeader>
           <SidebarContent onLinkClick={() => setIsSidebarOpen(false)} />
         </SheetContent>
       </Sheet>

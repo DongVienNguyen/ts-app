@@ -2,10 +2,9 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import DateInput from '@/components/DateInput';
 import ComboBox from '@/components/ComboBox';
-import { DialogDescription } from '@/components/ui/dialog'; // Import DialogDescription
 
 interface CRCReminderFormProps {
   editingReminder: any;
