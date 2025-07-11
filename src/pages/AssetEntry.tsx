@@ -1,3 +1,4 @@
+import Layout from '@/components/Layout';
 import { Card, CardContent } from '@/components/ui/card';
 import AssetEntryForm from '@/components/AssetEntryForm';
 import { useTimeRestriction } from '@/hooks/useTimeRestriction';
@@ -100,62 +101,64 @@ const AssetEntry = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 space-y-6">
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Thông báo Mượn/Xuất
-          </h1>
-          <p className="text-gray-600">
-            Khung giờ <span className="font-semibold text-red-600">7:45-8:05</span> và{' '}
-            <span className="font-semibold text-red-600">12:45-13:05</span> hãy nhắn Zalo vì đã chốt DS
-          </p>
-        </div>
-
-        {/* Time Restriction Alert */}
-        {isRestrictedTime && (
-          <Alert className="border-red-200 bg-red-50">
-            <Clock className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-700">
-              Hiện tại đang trong khung giờ cấm. Vui lòng sử dụng Zalo để thông báo.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Info Banner */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="text-sm text-green-800">
-            <span className="font-medium">Từ Phải</span> sang <span className="font-medium">Trái</span>: 2 ký tự từ thứ{' '}
-            <span className="font-semibold">9</span> và <span className="font-semibold">10</span> là{' '}
-            <span className="font-semibold">Năm TS</span>: 24, 4 ký tự cuối là{' '}
-            <span className="font-semibold">Mã TS</span>: 259 - vd: 0424102470200259 → 259.24
+    <Layout>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 space-y-6">
+          {/* Header */}
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Thông báo Mượn/Xuất
+            </h1>
+            <p className="text-gray-600">
+              Khung giờ <span className="font-semibold text-red-600">7:45-8:05</span> và{' '}
+              <span className="font-semibold text-red-600">12:45-13:05</span> hãy nhắn Zalo vì đã chốt DS
+            </p>
           </div>
-        </div>
 
-        {/* Main Form Card */}
-        <Card className="shadow-lg border-0">
-          <CardContent className="p-8">
-            <AssetEntryForm
-              isRestrictedTime={isRestrictedTime}
-              formData={formData}
-              setFormData={setFormData}
-              multipleAssets={multipleAssets}
-              handleRoomChange={handleRoomChange}
-              handleAssetChange={handleAssetChange}
-              addAssetField={addAssetField}
-              removeAssetField={removeAssetField}
-              isFormValid={isFormValid}
-              isSubmitting={isSubmitting}
-              onSubmit={handleSubmit}
-              disabledBeforeDate={disabledBeforeDate}
-              onAssetCodesDetected={handleAssetCodesDetected}
-              onRoomDetected={handleRoomDetected}
-            />
-          </CardContent>
-        </Card>
+          {/* Time Restriction Alert */}
+          {isRestrictedTime && (
+            <Alert className="border-red-200 bg-red-50">
+              <Clock className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-700">
+                Hiện tại đang trong khung giờ cấm. Vui lòng sử dụng Zalo để thông báo.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Info Banner */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="text-sm text-green-800">
+              <span className="font-medium">Từ Phải</span> sang <span className="font-medium">Trái</span>: 2 ký tự từ thứ{' '}
+              <span className="font-semibold">9</span> và <span className="font-semibold">10</span> là{' '}
+              <span className="font-semibold">Năm TS</span>: 24, 4 ký tự cuối là{' '}
+              <span className="font-semibold">Mã TS</span>: 259 - vd: 0424102470200259 → 259.24
+            </div>
+          </div>
+
+          {/* Main Form Card */}
+          <Card className="shadow-lg border-0">
+            <CardContent className="p-8">
+              <AssetEntryForm
+                isRestrictedTime={isRestrictedTime}
+                formData={formData}
+                setFormData={setFormData}
+                multipleAssets={multipleAssets}
+                handleRoomChange={handleRoomChange}
+                handleAssetChange={handleAssetChange}
+                addAssetField={addAssetField}
+                removeAssetField={removeAssetField}
+                isFormValid={isFormValid}
+                isSubmitting={isSubmitting}
+                onSubmit={handleSubmit}
+                disabledBeforeDate={disabledBeforeDate}
+                onAssetCodesDetected={handleAssetCodesDetected}
+                onRoomDetected={handleRoomDetected}
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

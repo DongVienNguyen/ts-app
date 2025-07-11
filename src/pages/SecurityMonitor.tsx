@@ -1,5 +1,10 @@
+import Layout from '@/components/Layout';
 import { EnhancedSecurityDashboard } from '@/components/EnhancedSecurityDashboard';
 
 export default function SecurityMonitor() {
-  return <EnhancedSecurityDashboard />;
+  return (
+    <Layout>
+      <EnhancedSecurityDashboard />
+    </Layout>
+  );
 }
