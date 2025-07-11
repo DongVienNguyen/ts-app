@@ -70,7 +70,7 @@ const OtherAssets = () => {
           </div>
         </div>
 
-        {message.text && (
+        {message && message.text && ( // Đã thêm kiểm tra 'message &&'
           <Alert variant={message.type === 'error' ? 'destructive' : 'default'} className={message.type === 'success' ? 'bg-green-100 border-green-400 text-green-800' : ''}>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{message.text}</AlertDescription>
