@@ -11,6 +11,11 @@ export { PerformanceInsights } from './PerformanceInsights';
 export { SystemHealthHeader } from './SystemHealthHeader';
 export { SystemHealthFooter } from './SystemHealthFooter';
 export { RealTimeMonitor } from './RealTimeMonitor';
+export { PerformanceAnalytics } from './PerformanceAnalytics';
+export { SystemHealthDashboard } from './SystemHealthDashboard';
+
+// Performance Analytics
+export * from './performance';
 
 // Services and hooks
 export { SystemHealthService } from './systemHealthService';
