@@ -5,10 +5,13 @@ import { Button } from '@/components/ui/button';
 import { 
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { 
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -45,439 +48,215 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
-  const [isMobileSystemMenuOpen, setIsMobileSystemMenuOpen] = useState(false);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Close sidebar when route changes
   useEffect(() => {
     setIsSidebarOpen(false);
-    setIsMobileSystemMenuOpen(false); // Also close system menu when navigating
   }, [location.pathname]);
 
   if (!user) {
     return null;
   }
 
-  // Use permission functions consistently
-  const userIsAdmin = isAdmin(user);
-  const userIsNqOrAdmin = isNqOrAdmin(user);
+  const SidebarContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
+    const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
+    const userIsAdmin = isAdmin(user);
+    const userIsNqOrAdmin = isNqOrAdmin(user);
 
-  // MAIN NAVIGATION ITEMS - NO SYSTEM ITEMS
-  const mainNavigationItems = [
-    {
-      name: 'Trang chủ',
-      href: '/',
-      icon: Home,
-      show: true
-    },
-    {
-      name: 'Thông báo M/X',
-      href: '/asset-entry',
-      icon: Package,
-      show: true
-    },
-    {
-      name: 'DS TS cần lấy',
-      href: '/daily-report',
-      icon: FileText,
-      show: true
-    },
-    {
-      name: 'Báo cáo TS',
-      href: '/borrow-report',
-      icon: BarChart3,
-      show: userIsNqOrAdmin
-    },
-    {
-      name: 'Nhắc nhở TS',
-      href: '/asset-reminders',
-      icon: Bell,
-      show: userIsNqOrAdmin
-    },
-    {
-      name: 'Nhắc nhở CRC',
-      href: '/crc-reminders',
-      icon: Bell,
-      show: userIsNqOrAdmin
-    },
-    {
-      name: 'Tài sản khác',
-      href: '/other-assets',
-      icon: Package,
-      show: userIsNqOrAdmin
-    },
-    {
-      name: 'Thông báo',
-      href: '/notifications',
-      icon: Bell,
-      show: true
-    }
-  ];
+    const mainNavigationItems = [
+      { name: 'Trang chủ', href: '/', icon: Home, show: true },
+      { name: 'Thông báo M/X', href: '/asset-entry', icon: Package, show: true },
+      { name: 'DS TS cần lấy', href: '/daily-report', icon: FileText, show: true },
+      { name: 'Báo cáo TS', href: '/borrow-report', icon: BarChart3, show: userIsNqOrAdmin },
+      { name: 'Nhắc nhở TS', href: '/asset-reminders', icon: Bell, show: userIsNqOrAdmin },
+      { name: 'Nhắc nhở CRC', href: '/crc-reminders', icon: Bell, show: userIsNqOrAdmin },
+      { name: 'Tài sản khác', href: '/other-assets', icon: Package, show: userIsNqOrAdmin },
+      { name: 'Thông báo', href: '/notifications', icon: Bell, show: true }
+    ].filter(item => item.show);
 
-  // SYSTEM ITEMS - SEPARATE ARRAY FOR ADMIN ONLY
-  const systemItems = [
-    {
-      name: 'Quản lý DL',
-      href: '/data-management',
-      icon: Database,
-      show: userIsAdmin
-    },
-    {
-      name: 'Bảo mật',
-      href: '/security-monitor',
-      icon: Shield,
-      show: userIsAdmin
-    },
-    {
-      name: 'Lỗi hệ thống',
-      href: '/error-monitoring',
-      icon: Activity,
-      show: userIsAdmin
-    },
-    {
-      name: 'Sử dụng',
-      href: '/usage-monitoring',
-      icon: BarChart3,
-      show: userIsAdmin
-    },
-    {
-      name: 'Backup & Restore',
-      href: '/system-backup',
-      icon: HardDrive,
-      show: userIsAdmin
-    }
-  ];
+    const systemItems = [
+      { name: 'Quản lý DL', href: '/data-management', icon: Database, show: userIsAdmin },
+      { name: 'Bảo mật', href: '/security-monitor', icon: Shield, show: userIsAdmin },
+      { name: 'Lỗi hệ thống', href: '/error-monitoring', icon: Activity, show: userIsAdmin },
+      { name: 'Sử dụng', href: '/usage-monitoring', icon: BarChart3, show: userIsAdmin },
+      { name: 'Backup & Restore', href: '/system-backup', icon: HardDrive, show: userIsAdmin }
+    ].filter(item => item.show);
 
-  // Filter visible items
-  const visibleMainItems = mainNavigationItems.filter(item => item.show);
-  const visibleSystemItems = systemItems.filter(item => item.show);
+    const isSystemMenuActive = systemItems.some(item => location.pathname.startsWith(item.href));
 
-  // Check if any system menu item is currently active
-  const isSystemMenuActive = visibleSystemItems.some(item => location.pathname === item.href);
+    useEffect(() => {
+      if (isSystemMenuActive) {
+        setIsSystemMenuOpen(true);
+      }
+    }, [isSystemMenuActive]);
 
-  const handleLogout = () => {
-    setIsUserMenuOpen(false);
-    logout();
-  };
-
-  const handleMobileSystemMenuToggle = (open: boolean) => {
-    setIsMobileSystemMenuOpen(open);
-    console.log('🔧 Mobile system menu toggled:', open);
-  };
-
-  // DEBUG LOGGING
-  console.log('🔍 LAYOUT DEBUG:', {
-    user: user?.username,
-    role: user?.role,
-    department: user?.department,
-    userIsAdmin,
-    userIsNqOrAdmin,
-    visibleMainItems: visibleMainItems.length,
-    mainItemNames: visibleMainItems.map(item => item.name),
-    visibleSystemItems: visibleSystemItems.length,
-    systemItemNames: visibleSystemItems.map(item => item.name),
-    isSystemMenuActive,
-    isMobileSystemMenuOpen,
-    currentPath: location.pathname
-  });
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation Bar */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white ${
-        isScrolled 
-          ? 'shadow-lg border-b border-gray-200' 
-          : 'shadow-sm border-b border-gray-100'
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Left: Logo & Menu */}
-            <div className="flex items-center space-x-4">
-              {/* Mobile Menu using Sheet */}
-              <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="lg:hidden text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                  >
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="left" className="w-80 p-0 bg-white">
-                  <SheetHeader className="px-4 py-4 border-b border-gray-200 bg-white">
-                    <SheetTitle className="flex items-center space-x-2 text-left">
-                      <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-                        <Package className="h-5 w-5 text-white" />
-                      </div>
-                      <span className="text-lg font-bold text-gray-900">Asset Manager</span>
-                    </SheetTitle>
-                  </SheetHeader>
-                  
-                  {/* Navigation Links - WITH DROPDOWN SYSTEM MENU */}
-                  <nav className="flex-1 px-2 py-4 overflow-y-auto bg-white">
-                    <div className="space-y-1">
-                      {/* MAIN NAVIGATION ITEMS ONLY */}
-                      {visibleMainItems.map((item) => {
-                        const isActive = location.pathname === item.href;
-                        console.log(`📱 Mobile Main: ${item.name}`);
-                        return (
-                          <Link
-                            key={item.href}
-                            to={item.href}
-                            className={`group flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors ${
-                              isActive
-                                ? 'bg-green-100 text-green-700 border-r-2 border-green-600'
-                                : 'text-gray-600 hover:bg-green-50 hover:text-green-700'
-                            }`}
-                            onClick={() => setIsSidebarOpen(false)}
-                          >
-                            <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                            <span className="truncate">{item.name}</span>
-                          </Link>
-                        );
-                      })}
-
-                      {/* DROPDOWN SYSTEM MENU SECTION - OPENS TO RIGHT AND UP */}
-                      {visibleSystemItems.length > 0 && (
-                        <div className="border-t border-gray-200 mt-4 pt-4">
-                          <DropdownMenu open={isMobileSystemMenuOpen} onOpenChange={handleMobileSystemMenuToggle}>
-                            {/* System Menu Trigger */}
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                className={`w-full flex items-center justify-between px-3 py-3 text-sm font-medium rounded-lg transition-colors ${
-                                  isSystemMenuActive || isMobileSystemMenuOpen
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'text-gray-600 hover:bg-green-50 hover:text-green-700'
-                                }`}
-                              >
-                                <div className="flex items-center">
-                                  <Settings className="mr-3 h-5 w-5 flex-shrink-0" />
-                                  <span className="truncate">🔧 Hệ thống ({visibleSystemItems.length})</span>
-                                </div>
-                                <ChevronRight className="h-4 w-4 flex-shrink-0" />
-                              </Button>
-                            </DropdownMenuTrigger>
-
-                            {/* System Menu Content - POSITIONED TO RIGHT AND UP */}
-                            <DropdownMenuContent 
-                              side="right" 
-                              align="end"
-                              alignOffset={-10}
-                              sideOffset={8}
-                              className="w-56 bg-white border border-gray-200 shadow-lg"
-                            >
-                              {/* System Menu Header */}
-                              <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
-                                <div className="flex items-center text-sm font-medium text-gray-700">
-                                  <Settings className="mr-2 h-4 w-4" />
-                                  Hệ thống ({visibleSystemItems.length})
-                                </div>
-                              </div>
-                              
-                              {/* System Menu Items */}
-                              {visibleSystemItems.map((item, index) => {
-                                console.log(`📱 Mobile System: ${item.name}`);
-                                return (
-                                  <React.Fragment key={item.href}>
-                                    <DropdownMenuItem asChild>
-                                      <Link
-                                        to={item.href}
-                                        className={`flex items-center w-full cursor-pointer px-3 py-2 text-sm ${
-                                          location.pathname === item.href
-                                            ? 'bg-green-100 text-green-700 font-medium'
-                                            : 'text-gray-600 hover:bg-green-50 hover:text-green-700'
-                                        }`}
-                                        onClick={() => {
-                                          setIsSidebarOpen(false);
-                                          setIsMobileSystemMenuOpen(false);
-                                        }}
-                                      >
-                                        <item.icon className="mr-3 h-4 w-4 flex-shrink-0" />
-                                        <span className="truncate">{item.name}</span>
-                                      </Link>
-                                    </DropdownMenuItem>
-                                    {index < visibleSystemItems.length - 1 && (
-                                      <DropdownMenuSeparator className="bg-gray-200" />
-                                    )}
-                                  </React.Fragment>
-                                );
-                              })}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      )}
-                    </div>
-                  </nav>
-
-                  {/* Footer */}
-                  <div className="border-t border-gray-200 p-4 bg-gray-50">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">
-                          {user.staff_name || user.username}
-                        </div>
-                        <div className="text-xs text-gray-500 truncate">
-                          {user.role} - {user.department}
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={handleLogout}
-                      variant="outline"
-                      size="sm"
-                      className="w-full text-red-600 border-red-200 hover:bg-red-50"
-                    >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Đăng xuất
-                    </Button>
-                  </div>
-                </SheetContent>
-              </Sheet>
-              
-              <Link to="/" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-                  <Package className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold text-gray-900">
-                  Asset Manager
-                </span>
-              </Link>
+    return (
+      <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4">
+        <div className="flex h-16 shrink-0 items-center">
+          <Link to="/" className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+              <Package className="h-5 w-5 text-white" />
             </div>
-
-            {/* Center: Desktop Navigation */}
-            <div className="hidden lg:flex items-center space-x-1">
-              {/* MAIN NAVIGATION ITEMS */}
-              {visibleMainItems.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'text-gray-600 hover:text-green-700 hover:bg-green-50'
-                    }`}
-                  >
-                    <item.icon className="inline-block w-4 h-4 mr-2" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-
-              {/* SYSTEM MENU DROPDOWN */}
-              {visibleSystemItems.length > 0 && (
-                <DropdownMenu open={isSystemMenuOpen} onOpenChange={setIsSystemMenuOpen}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className={`px-3 py-2 text-sm font-medium transition-all duration-200 ${
+            <span className="text-lg font-bold text-gray-900">Asset Manager</span>
+          </Link>
+        </div>
+        <nav className="flex flex-1 flex-col">
+          <ul role="list" className="flex flex-1 flex-col gap-y-7">
+            <li>
+              <ul role="list" className="-mx-2 space-y-1">
+                {mainNavigationItems.map((item) => {
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <li key={item.name}>
+                      <Link
+                        to={item.href}
+                        onClick={onLinkClick}
+                        className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold ${
+                          isActive
+                            ? 'bg-green-100 text-green-700'
+                            : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
+                        }`}
+                      >
+                        <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
+                        {item.name}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+            {systemItems.length > 0 && (
+              <li>
+                <Collapsible open={isSystemMenuOpen} onOpenChange={setIsSystemMenuOpen}>
+                  <CollapsibleTrigger className="w-full">
+                    <div
+                      className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold w-full ${
                         isSystemMenuActive
                           ? 'bg-green-100 text-green-700'
-                          : 'text-gray-600 hover:text-green-700 hover:bg-green-50'
+                          : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
                       }`}
                     >
-                      <Settings className="inline-block w-4 h-4 mr-2" />
+                      <Settings className="h-6 w-6 shrink-0" />
                       Hệ thống
-                      <ChevronDown className="inline-block w-4 h-4 ml-1" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    {visibleSystemItems.map((item, index) => (
-                      <React.Fragment key={item.href}>
-                        <DropdownMenuItem asChild>
-                          <Link
-                            to={item.href}
-                            className="flex items-center w-full cursor-pointer"
-                            onClick={() => setIsSystemMenuOpen(false)}
-                          >
-                            <item.icon className="mr-2 h-4 w-4" />
-                            {item.name}
-                          </Link>
-                        </DropdownMenuItem>
-                        {index < visibleSystemItems.length - 1 && <DropdownMenuSeparator />}
-                      </React.Fragment>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
+                      <ChevronRight
+                        className={`ml-auto h-5 w-5 shrink-0 transform transition-transform duration-200 ${
+                          isSystemMenuOpen ? 'rotate-90' : ''
+                        }`}
+                      />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-1 space-y-1">
+                    {systemItems.map((item) => {
+                      const isActive = location.pathname.startsWith(item.href);
+                      return (
+                        <Link
+                          key={item.name}
+                          to={item.href}
+                          onClick={onLinkClick}
+                          className={`group flex gap-x-3 rounded-md py-2 pr-2 pl-11 text-sm leading-6 font-semibold ${
+                            isActive
+                              ? 'bg-green-100 text-green-700'
+                              : 'text-gray-700 hover:text-green-700 hover:bg-green-50'
+                          }`}
+                        >
+                          <item.icon className="h-6 w-6 shrink-0" aria-hidden="true" />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </CollapsibleContent>
+                </Collapsible>
+              </li>
+            )}
+            <li className="mt-auto">
+              <div className="flex items-center gap-x-4 px-2 py-3 text-sm font-semibold leading-6 text-gray-900">
+                <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate font-medium">{user.staff_name || user.username}</p>
+                  <p className="truncate text-xs text-gray-500">{user.role} - {user.department}</p>
+                </div>
+              </div>
+              <Button
+                onClick={() => {
+                  if (onLinkClick) onLinkClick();
+                  logout();
+                }}
+                variant="outline"
+                className="w-full text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Đăng xuất
+              </Button>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    );
+  };
 
-            {/* Right: Notifications & User */}
-            <div className="flex items-center space-x-3">
-              <NotificationBell />
-              
-              {/* User Dropdown */}
-              <DropdownMenu open={isUserMenuOpen} onOpenChange={setIsUserMenuOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center space-x-2 hover:bg-gray-100 px-3 py-2 rounded-lg">
-                    <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="hidden sm:block text-left">
-                      <div className="text-sm font-medium text-gray-900">
-                        {user.staff_name || user.username}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {user.role} - {user.department}
-                      </div>
-                    </div>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-white border border-gray-200 shadow-lg">
-                  <div className="px-3 py-2 bg-gray-50">
-                    <div className="font-medium text-gray-900">
-                      {user.staff_name || user.username}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {user.role} - {user.department}
-                    </div>
+  return (
+    <div>
+      <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+        <SheetContent className="w-72 p-0" side="left">
+          <SidebarContent onLinkClick={() => setIsSidebarOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
+      <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+        <SidebarContent />
+      </div>
+
+      <div className="lg:pl-72">
+        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(true)}>
+            <Menu className="h-6 w-6" />
+          </Button>
+
+          <div className="h-6 w-px bg-gray-200 lg:hidden" aria-hidden="true" />
+
+          <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 justify-end items-center">
+            <NotificationBell />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-x-2 p-1.5">
+                  <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-white" />
                   </div>
-                  <DropdownMenuSeparator className="bg-gray-200" />
-                  <DropdownMenuItem asChild>
-                    <Link to="/reset-password" className="flex items-center cursor-pointer">
-                      <Key className="w-4 h-4 mr-2" />
-                      Đổi mật khẩu
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-gray-200" />
-                  <DropdownMenuItem 
-                    onClick={handleLogout} 
-                    className="text-red-600 hover:bg-red-50 cursor-pointer"
-                  >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Đăng xuất
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                  <span className="hidden lg:flex lg:items-center">
+                    <span className="ml-2 text-sm font-semibold leading-6 text-gray-900" aria-hidden="true">
+                      {user.staff_name || user.username}
+                    </span>
+                    <ChevronDown className="ml-2 h-5 w-5 text-gray-400" aria-hidden="true" />
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-3 py-2">
+                  <p className="font-medium text-gray-900 truncate">{user.staff_name || user.username}</p>
+                  <p className="text-sm text-gray-500 truncate">{user.role} - {user.department}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/reset-password" className="flex items-center cursor-pointer">
+                    <Key className="w-4 h-4 mr-2" />
+                    Đổi mật khẩu
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} className="text-red-600 hover:bg-red-50 cursor-pointer">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Đăng xuất
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
-      </nav>
 
-      {/* Main Content */}
-      <main className="pt-16 bg-gray-50 min-h-screen">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {children}
-        </div>
-      </main>
+        <main className="py-8">
+          <div className="px-4 sm:px-6 lg:px-8">{children}</div>
+        </main>
+      </div>
     </div>
   );
 };

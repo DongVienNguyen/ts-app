@@ -127,7 +127,7 @@ export function useErrorMonitoringData() {
     } catch (error) {
       console.error('❌ Error loading error stats:', error);
     }
-  }, [canAccess]); // Removed dataCache from dependencies
+  }, [canAccess]);
 
   // Load recent errors với phân trang
   const loadRecentErrors = useCallback(async (page: number = 1) => {
@@ -179,7 +179,7 @@ export function useErrorMonitoringData() {
     } finally {
       setIsLoading(false);
     }
-  }, [canAccess]); // Removed dataCache from dependencies
+  }, [canAccess]);
 
   // Load error analytics - chỉ khi user click vào tab Analytics
   const loadErrorAnalytics = useCallback(async () => {
@@ -243,7 +243,7 @@ export function useErrorMonitoringData() {
     } catch (error) {
       console.error('❌ Error loading analytics:', error);
     }
-  }, [canAccess]); // Removed dataCache from dependencies
+  }, [canAccess]);
 
   // Load system metrics - chỉ khi cần
   const loadSystemMetrics = useCallback(async () => {
@@ -277,7 +277,7 @@ export function useErrorMonitoringData() {
     } catch (error) {
       console.warn('⚠️ Error loading system metrics:', error);
     }
-  }, [canAccess]); // Removed dataCache from dependencies
+  }, [canAccess]);
 
   // Check service health - simplified
   const checkServiceHealth = useCallback(async () => {
@@ -285,23 +285,23 @@ export function useErrorMonitoringData() {
 
     try {
       // Simplified health check - không query database
-      const updatedHealth = { ...serviceHealth };
-      
-      // Simulate health status
-      Object.keys(updatedHealth).forEach(service => {
-        const random = Math.random();
-        updatedHealth[service as keyof typeof updatedHealth] = {
-          service_name: service,
-          status: random > 0.95 ? 'degraded' : 'online',
-          uptime_percentage: 99.9 - Math.random() * 0.5
-        };
+      setServiceHealth(prevHealth => {
+        const updatedHealth = { ...prevHealth };
+        // Simulate health status
+        Object.keys(updatedHealth).forEach(service => {
+          const random = Math.random();
+          updatedHealth[service as keyof typeof updatedHealth] = {
+            service_name: service,
+            status: random > 0.95 ? 'degraded' : 'online',
+            uptime_percentage: 99.9 - Math.random() * 0.5
+          };
+        });
+        return updatedHealth;
       });
-      
-      setServiceHealth(updatedHealth);
     } catch (error) {
       console.warn('⚠️ Error checking service health:', error);
     }
-  }, [canAccess, serviceHealth]);
+  }, [canAccess]);
 
   // Initial load - chỉ load stats cơ bản
   useEffect(() => {
