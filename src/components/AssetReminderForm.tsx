@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'; // Import DialogDescription
 import DateInput from '@/components/DateInput';
 import ComboBox from '@/components/ComboBox';
 
@@ -46,6 +45,9 @@ const AssetReminderForm: React.FC<AssetReminderFormProps> = ({
         <DialogTitle>
           {editingReminder ? 'Chỉnh sửa nhắc nhở tài sản' : 'Thêm nhắc nhở tài sản mới'}
         </DialogTitle>
+        <DialogDescription>
+          Điền thông tin chi tiết cho nhắc nhở tài sản. Nhấn lưu khi hoàn tất.
+        </DialogDescription>
       </DialogHeader>
       
       <form onSubmit={onSubmit} className="space-y-4">
