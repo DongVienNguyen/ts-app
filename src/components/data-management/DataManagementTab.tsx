@@ -122,8 +122,9 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
     {
       key: 'actions',
       label: 'Hành động',
+      width: 180, // Gán chiều rộng cố định cho cột hành động
       render: (_: any, item: any) => (
-        <div className="flex gap-2 justify-start"> {/* Thêm justify-start ở đây */}
+        <div className="flex gap-2 justify-start">
           <Button variant="outline" size="sm" onClick={() => onEdit(item)}>Sửa</Button>
           <Button variant="destructive" size="sm" onClick={() => onDelete(item)}>Xóa</Button>
           {selectedEntity === 'staff' && (

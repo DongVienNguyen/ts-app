@@ -65,7 +65,11 @@ const TableRowComponent = memo<ListChildComponentProps>(({ index, style, data })
         </div>
       )}
       {columns.map((column) => (
-        <div key={column.key} className="flex-grow p-4 truncate flex items-center justify-start" style={{ width: column.width, flexBasis: column.width }}>
+        <div
+          key={column.key}
+          className={`flex-grow p-4 flex items-center justify-start ${column.key !== 'actions' ? 'truncate' : ''}`}
+          style={{ width: column.width, flexBasis: column.width }}
+        >
           {column.render ? column.render(row[column.key], row) : row[column.key]}
         </div>
       ))}
@@ -132,9 +136,9 @@ const OptimizedTable: React.FC<OptimizedTableProps> = memo(({
           </div>
         )}
         {columns.map((column) => (
-          <div 
-            key={column.key} 
-            className={`flex-grow p-4 flex items-center justify-start ${onSort && column.key !== 'actions' ? 'cursor-pointer hover:bg-muted' : ''}`}
+          <div
+            key={column.key}
+            className={`flex-grow p-4 flex items-center justify-start ${column.key !== 'actions' ? 'truncate' : ''} ${onSort && column.key !== 'actions' ? 'cursor-pointer hover:bg-muted' : ''}`}
             style={{ width: column.width, flexBasis: column.width }}
             onClick={() => onSort && column.key !== 'actions' && onSort(column.key)}
           >
@@ -147,7 +151,7 @@ const OptimizedTable: React.FC<OptimizedTableProps> = memo(({
           </div>
         ))}
       </div>
-      
+
       <List
         height={height}
         width="100%"
