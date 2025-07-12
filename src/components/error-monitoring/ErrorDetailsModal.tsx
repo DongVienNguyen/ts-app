@@ -11,7 +11,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, CheckCircle, AlertTriangle, Save } from 'lucide-react';
+import { Copy, CheckCircle, AlertTriangle, Save, Trash2 } from 'lucide-react'; // Import Trash2 icon
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +19,16 @@ import { SystemError } from '@/utils/errorTracking';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'; // Import AlertDialog components
 
 interface ErrorDetailsModalProps {
   isOpen: boolean;
@@ -31,6 +41,7 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
   const { user } = useAuth();
   const [currentStatus, setCurrentStatus] = useState(error?.status || 'new');
   const [resolutionNotes, setResolutionNotes] = useState(error?.resolution_notes || '');
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false); // State for delete confirmation dialog
 
   React.useEffect(() => {
     if (error) {
@@ -82,114 +93,159 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
     }
   };
 
+  const handleDeleteError = async () => {
+    if (!user) {
+      toast.error('Bạn phải đăng nhập để thực hiện hành động này.');
+      return;
+    }
+    setShowConfirmDelete(false); // Close confirmation dialog
+
+    const { error: deleteError } = await supabase
+      .from('system_errors')
+      .delete()
+      .eq('id', error.id);
+
+    if (deleteError) {
+      toast.error('Xóa lỗi thất bại.');
+      console.error(deleteError);
+    } else {
+      toast.success('Lỗi đã được xóa thành công.');
+      if (onErrorUpdated) {
+        onErrorUpdated();
+      }
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[800px] h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Chi tiết lỗi: {error.error_type}</DialogTitle>
-          <DialogDescription>
-            Thông tin chi tiết về lỗi hệ thống và các dữ liệu liên quan.
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="flex-grow p-4 border rounded-md">
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Thông tin cơ bản</h3>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <p><strong>ID Lỗi:</strong> {error.id}</p>
-                <p><strong>Loại Lỗi:</strong> <Badge variant="destructive">{error.error_type}</Badge></p>
-                <p><strong>Thời gian:</strong> {format(new Date(error.created_at!), 'dd/MM/yyyy HH:mm:ss')}</p>
-                <p><strong>Mức độ:</strong> <Badge variant={error.severity === 'high' || error.severity === 'critical' ? 'destructive' : error.severity === 'medium' ? 'secondary' : 'outline'}>{error.severity}</Badge></p>
-                <p><strong>Người dùng:</strong> {error.user_id || 'N/A'}</p>
-                <p><strong>Chức năng:</strong> {error.function_name || 'N/A'}</p>
-                <p><strong>URL Yêu cầu:</strong> {error.request_url || 'N/A'}</p>
-                {error.resolved_at && <p><strong>Giải quyết lúc:</strong> {format(new Date(error.resolved_at), 'dd/MM/yyyy HH:mm:ss')}</p>}
-                {error.resolved_by && <p><strong>Giải quyết bởi:</strong> {error.resolved_by}</p>}
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[800px] h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Chi tiết lỗi: {error.error_type}</DialogTitle>
+            <DialogDescription>
+              Thông tin chi tiết về lỗi hệ thống và các dữ liệu liên quan.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-grow p-4 border rounded-md">
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-lg mb-2">Thông tin cơ bản</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <p><strong>ID Lỗi:</strong> {error.id}</p>
+                  <p><strong>Loại Lỗi:</strong> <Badge variant="destructive">{error.error_type}</Badge></p>
+                  <p><strong>Thời gian:</strong> {format(new Date(error.created_at!), 'dd/MM/yyyy HH:mm:ss')}</p>
+                  <p><strong>Mức độ:</strong> <Badge variant={error.severity === 'high' || error.severity === 'critical' ? 'destructive' : error.severity === 'medium' ? 'secondary' : 'outline'}>{error.severity}</Badge></p>
+                  <p><strong>Người dùng:</strong> {error.user_id || 'N/A'}</p>
+                  <p><strong>Chức năng:</strong> {error.function_name || 'N/A'}</p>
+                  <p><strong>URL Yêu cầu:</strong> {error.request_url || 'N/A'}</p>
+                  {error.resolved_at && <p><strong>Giải quyết lúc:</strong> {format(new Date(error.resolved_at), 'dd/MM/yyyy HH:mm:ss')}</p>}
+                  {error.resolved_by && <p><strong>Giải quyết bởi:</strong> {error.resolved_by}</p>}
+                </div>
               </div>
-            </div>
 
-            <div>
-              <h3 className="font-semibold text-lg mb-2 flex items-center">
-                Thông báo lỗi
-                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(error.error_message)} className="ml-2">
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </h3>
-              <pre className="bg-gray-100 p-3 rounded-md text-sm whitespace-pre-wrap break-all">
-                {error.error_message}
-              </pre>
-            </div>
-
-            {error.error_stack && (
               <div>
                 <h3 className="font-semibold text-lg mb-2 flex items-center">
-                  Stack Trace
-                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(error.error_stack)} className="ml-2">
+                  Thông báo lỗi
+                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(error.error_message)} className="ml-2">
                     <Copy className="h-4 w-4" />
                   </Button>
                 </h3>
                 <pre className="bg-gray-100 p-3 rounded-md text-sm whitespace-pre-wrap break-all">
-                  {error.error_stack}
+                  {error.error_message}
                 </pre>
               </div>
-            )}
 
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Thông tin môi trường</h3>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <p><strong>IP Address:</strong> {error.ip_address || 'N/A'}</p>
-                <p><strong>User Agent:</strong> {error.user_agent || 'N/A'}</p>
-              </div>
-            </div>
+              {error.error_stack && (
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 flex items-center">
+                    Stack Trace
+                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(error.error_stack)} className="ml-2">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </h3>
+                  <pre className="bg-gray-100 p-3 rounded-md text-sm whitespace-pre-wrap break-all">
+                    {error.error_stack}
+                  </pre>
+                </div>
+              )}
 
-            {error.error_data && (
               <div>
-                <h3 className="font-semibold text-lg mb-2 flex items-center">
-                  Dữ liệu lỗi bổ sung
-                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(JSON.stringify(error.error_data, null, 2))} className="ml-2">
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </h3>
-                <pre className="bg-gray-100 p-3 rounded-md text-sm whitespace-pre-wrap break-all">
-                  {JSON.stringify(error.error_data, null, 2)}
-                </pre>
+                <h3 className="font-semibold text-lg mb-2">Thông tin môi trường</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <p><strong>IP Address:</strong> {error.ip_address || 'N/A'}</p>
+                  <p><strong>User Agent:</strong> {error.user_agent || 'N/A'}</p>
+                </div>
               </div>
-            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="status">Trạng thái</Label>
-              <Select value={currentStatus} onValueChange={setCurrentStatus}>
-                <SelectTrigger id="status">
-                  <SelectValue placeholder="Chọn trạng thái" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">Mới</SelectItem>
-                  <SelectItem value="in_progress">Đang xử lý</SelectItem>
-                  <SelectItem value="resolved">Đã giải quyết</SelectItem>
-                  <SelectItem value="archived">Đã lưu trữ</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              {error.error_data && (
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 flex items-center">
+                    Dữ liệu lỗi bổ sung
+                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(JSON.stringify(error.error_data, null, 2))} className="ml-2">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </h3>
+                  <pre className="bg-gray-100 p-3 rounded-md text-sm whitespace-pre-wrap break-all">
+                    {JSON.stringify(error.error_data, null, 2)}
+                  </pre>
+                </div>
+              )}
 
-            <div className="space-y-2">
-              <Label htmlFor="resolution-notes">Ghi chú giải quyết</Label>
-              <Textarea
-                id="resolution-notes"
-                placeholder="Thêm ghi chú về cách lỗi này đã được giải quyết hoặc các bước đã thực hiện..."
-                value={resolutionNotes}
-                onChange={(e) => setResolutionNotes(e.target.value)}
-                rows={4}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="status">Trạng thái</Label>
+                <Select value={currentStatus} onValueChange={setCurrentStatus}>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Chọn trạng thái" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new">Mới</SelectItem>
+                    <SelectItem value="in_progress">Đang xử lý</SelectItem>
+                    <SelectItem value="resolved">Đã giải quyết</SelectItem>
+                    <SelectItem value="archived">Đã lưu trữ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="resolution-notes">Ghi chú giải quyết</Label>
+                <Textarea
+                  id="resolution-notes"
+                  placeholder="Thêm ghi chú về cách lỗi này đã được giải quyết hoặc các bước đã thực hiện..."
+                  value={resolutionNotes}
+                  onChange={(e) => setResolutionNotes(e.target.value)}
+                  rows={4}
+                />
+              </div>
             </div>
-          </div>
-        </ScrollArea>
-        <DialogFooter className="pt-4">
-          <Button onClick={handleUpdateError}>
-            <Save className="mr-2 h-4 w-4" />
-            Lưu thay đổi
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </ScrollArea>
+          <DialogFooter className="pt-4 flex justify-between">
+            <Button variant="destructive" onClick={() => setShowConfirmDelete(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Xóa lỗi
+            </Button>
+            <Button onClick={handleUpdateError}>
+              <Save className="mr-2 h-4 w-4" />
+              Lưu thay đổi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showConfirmDelete} onOpenChange={setShowConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bạn có chắc chắn muốn xóa lỗi này?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này không thể hoàn tác. Lỗi này sẽ bị xóa vĩnh viễn khỏi hệ thống.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteError}>Xóa</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
