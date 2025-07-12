@@ -253,7 +253,12 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh }: ErrorListTa
                   onPageChange={goToPage}
                 />
               </div>
-            ) : ( <div className="text-center py-8 text-gray-500"><Filter className="w-12 h-12 mx-auto mb-2 opacity-50" /><p>Không tìm thấy lỗi nào phù hợp</p></div> )
+            ) : ( 
+              <div className="text-center py-8 text-gray-500">
+                <Filter className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>Không tìm thấy lỗi nào phù hợp với bộ lọc.</p>
+              </div> 
+            )
           ) : ( // Grouped View
             groupedErrors.length > 0 ? (
               <div className="space-y-3">
@@ -270,7 +275,12 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh }: ErrorListTa
                   </div>
                 ))}
               </div>
-            ) : ( <div className="text-center py-8 text-gray-500"><Filter className="w-12 h-12 mx-auto mb-2 opacity-50" /><p>Không tìm thấy lỗi nào phù hợp</p></div> )
+            ) : ( 
+              <div className="text-center py-8 text-gray-500">
+                <Filter className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>Không tìm thấy lỗi nào phù hợp với bộ lọc.</p>
+              </div> 
+            )
           )}
         </CardContent>
       </Card>
