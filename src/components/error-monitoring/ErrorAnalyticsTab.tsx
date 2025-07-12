@@ -11,6 +11,15 @@ interface ErrorAnalyticsTabProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1919'];
 
+// Định nghĩa mã màu hex hợp lệ cho từng mức độ nghiêm trọng
+const SEVERITY_HEX_COLORS: { [key: string]: string } = {
+  critical: '#EF4444', // red-500
+  high: '#F97316',     // orange-500
+  medium: '#F59E0B',    // yellow-500
+  low: '#22C55E',      // green-500
+  unknown: '#6B7280',  // gray-500 (màu mặc định nếu không khớp)
+};
+
 export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabProps) {
   if (isLoading) {
     return (
@@ -175,7 +184,7 @@ export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabPr
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 >
                   {severityData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={getSeverityColor(entry.name).split(' ')[0].replace('text-', '#')} />
+                    <Cell key={`cell-${index}`} fill={SEVERITY_HEX_COLORS[entry.name] || SEVERITY_HEX_COLORS.unknown} />
                   ))}
                 </Pie>
                 <Tooltip />
