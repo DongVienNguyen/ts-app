@@ -48,8 +48,7 @@ export function useErrorMonitoringData() {
         .from('system_errors')
         .select('*')
         .gte('created_at', sevenDaysAgo) // Filter for errors within the last 7 days
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false }); // Removed limit to get all errors for accurate stats
 
       if (error) {
         console.error('❌ [ERROR_MONITORING] Error refreshing errors:', error);
@@ -60,11 +59,11 @@ export function useErrorMonitoringData() {
       console.log('✅ [ERROR_MONITORING] Refreshed errors:', freshErrors?.length || 0);
       setRecentErrors(freshErrors || []);
       
-      // Cập nhật stats từ fresh errors
+      // Cập nhật stats từ fresh errors (now based on all errors in 7 days)
       const totalErrors = freshErrors?.length || 0;
       const criticalErrors = freshErrors?.filter(e => e.severity === 'critical').length || 0;
       const resolvedErrors = freshErrors?.filter(e => e.status === 'resolved').length || 0;
-      const errorRate = Number(totalErrors) / (7 * 24); // This calculation is now more accurate for the 7-day period
+      const errorRate = Number(totalErrors) / (7 * 24); 
 
       const errorTypeCount = freshErrors?.reduce((acc: { [key: string]: number }, error) => {
         acc[error.error_type] = (acc[error.error_type] || 0) + 1;
@@ -72,8 +71,8 @@ export function useErrorMonitoringData() {
       }, {}) || {};
 
       const topErrorTypes = Object.entries(errorTypeCount)
-        .sort(([, a], [, b]) => Number(b) - Number(a)) // Fix: Cast to Number
-        .map(([type, count]) => ({ type, count: Number(count) })); // Fix: Cast count to Number
+        .sort(([, a], [, b]) => Number(b) - Number(a)) 
+        .map(([type, count]) => ({ type, count: Number(count) })); 
 
       // Generate error trend for last 7 days
       const trendData: { [key: string]: number } = {};
@@ -101,7 +100,7 @@ export function useErrorMonitoringData() {
         errorRate,
         topErrorTypes,
         errorTrend,
-        recent: freshErrors || [],
+        recent: freshErrors?.slice(0, 10) || [], // Slice for recent display
       }));
 
       toast.success('Đã làm mới dữ liệu lỗi');
@@ -121,13 +120,12 @@ export function useErrorMonitoringData() {
     
     try {
       const sevenDaysAgo = subDays(new Date(), 7).toISOString(); // Calculate 7 days ago
-      // Load errors directly from database
+      // Load all errors directly from database for accurate stats
       const { data: errors, error: errorsError } = await supabase
         .from('system_errors')
         .select('*')
         .gte('created_at', sevenDaysAgo) // Filter for errors within the last 7 days
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .order('created_at', { ascending: false }); // Removed limit to get all errors for accurate stats
 
       if (errorsError) {
         console.error('❌ [ERROR_MONITORING] Error loading errors:', errorsError);
@@ -139,7 +137,7 @@ export function useErrorMonitoringData() {
       const totalErrors = errors?.length || 0;
       const criticalErrors = errors?.filter(e => e.severity === 'critical').length || 0;
       const resolvedErrors = errors?.filter(e => e.status === 'resolved').length || 0;
-      const errorRate = Number(totalErrors) / (7 * 24); // This calculation is now more accurate for the 7-day period
+      const errorRate = Number(totalErrors) / (7 * 24); // This calculation is now accurate for the 7-day period
 
       // Group by type
       const byType = errors?.reduce((acc: { [key: string]: number }, error) => {
@@ -164,8 +162,8 @@ export function useErrorMonitoringData() {
       });
 
       const topErrorTypes = Object.entries(byType)
-        .sort(([, a], [, b]) => Number(b) - Number(a)) // Fix: Cast to Number
-        .map(([type, count]) => ({ type, count: Number(count) })); // Fix: Cast count to Number
+        .sort(([, a], [, b]) => Number(b) - Number(a)) 
+        .map(([type, count]) => ({ type, count: Number(count) })); 
 
       // Generate error trend for last 7 days
       const trendData: { [key: string]: number } = {};
@@ -196,7 +194,7 @@ export function useErrorMonitoringData() {
         bySeverity,
         byBrowser,
         byOS,
-        recent: errors?.slice(0, 10) || [],
+        recent: errors?.slice(0, 10) || [], // Slice for recent display
       });
 
       setRecentErrors(errors || []);
