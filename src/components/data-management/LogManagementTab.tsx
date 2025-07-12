@@ -25,12 +25,14 @@ import {
   Settings,
   Clock,
   Server,
-  Bell // Added Bell icon
+  Bell,
+  Bug // Added Bug icon
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { captureError } from '@/utils/errorTracking';
 
 interface LogStats {
   security_events: number;
@@ -42,7 +44,7 @@ interface LogStats {
   sent_asset_reminders: number;
   sent_crc_reminders: number;
   system_status: number;
-  system_alerts: number; // Added system_alerts
+  system_alerts: number;
   total: number;
 }
 
@@ -65,14 +67,13 @@ export const LogManagementTab = () => {
     sent_asset_reminders: 0,
     sent_crc_reminders: 0,
     system_status: 0,
-    system_alerts: 0, // Added system_alerts
+    system_alerts: 0,
     total: 0
   });
   const [retentionPeriod, setRetentionPeriod] = useState<'90' | '365'>('90');
   const [processingTable, setProcessingTable] = useState<string | null>(null);
   const [autoCleanupSettings, setAutoCleanupSettings] = useState<AutoCleanupSettings>({});
 
-  // State for log viewer dialog
   const [showLogViewer, setShowLogViewer] = useState(false);
   const [viewedLogs, setViewedLogs] = useState<any[]>([]);
   const [viewedLogTableName, setViewedLogTableName] = useState('');
@@ -147,7 +148,7 @@ export const LogManagementTab = () => {
         'sent_asset_reminders',
         'sent_crc_reminders',
         'system_status',
-        'system_alerts' // Added system_alerts
+        'system_alerts'
       ];
 
       const counts: any = {};
@@ -204,7 +205,7 @@ export const LogManagementTab = () => {
         'sent_asset_reminders',
         'sent_crc_reminders',
         'system_status',
-        'system_alerts' // Added system_alerts
+        'system_alerts'
       ];
 
       let deletedCount = 0;
@@ -215,7 +216,7 @@ export const LogManagementTab = () => {
           const { error } = await supabase
             .from(table)
             .delete()
-            .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+            .neq('id', '00000000-0000-0000-0000-000000000000');
           
           if (error) {
             errors.push(`${table}: ${error.message}`);
@@ -266,7 +267,7 @@ export const LogManagementTab = () => {
         { name: 'sent_asset_reminders', dateField: 'created_at' },
         { name: 'sent_crc_reminders', dateField: 'created_at' },
         { name: 'system_status', dateField: 'created_at' },
-        { name: 'system_alerts', dateField: 'created_at' } // Added system_alerts
+        { name: 'system_alerts', dateField: 'created_at' }
       ];
 
       let totalDeleted = 0;
@@ -316,7 +317,7 @@ export const LogManagementTab = () => {
       const { error } = await supabase
         .from(tableName)
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
       if (error) {
         console.error(`Error deleting ${tableName}:`, error);
@@ -376,7 +377,7 @@ export const LogManagementTab = () => {
         .from(tableName)
         .select('*')
         .order(dateField, { ascending: false })
-        .limit(50); // Fetch latest 50 logs
+        .limit(50);
 
       if (error) {
         console.error(`Error fetching logs for ${tableName}:`, error);
@@ -392,6 +393,22 @@ export const LogManagementTab = () => {
       toast.error(`Lỗi khi xem logs cho ${displayName}`);
     } finally {
       setProcessingTable(null);
+    }
+  };
+
+  const createTestError = async () => {
+    toast.info("Đang tạo lỗi test...");
+    try {
+      await captureError(new Error("Đây là lỗi test được tạo thủ công để kiểm tra biểu đồ."), {
+        functionName: 'createTestErrorButton',
+        severity: 'medium',
+        additionalData: { test: true, triggeredBy: 'admin' }
+      });
+      toast.success("Lỗi test đã được tạo và ghi lại thành công!");
+      await loadLogStats();
+    } catch (e) {
+      toast.error("Không thể tạo lỗi test.");
+      console.error(e);
     }
   };
 
@@ -487,7 +504,7 @@ export const LogManagementTab = () => {
       description: 'Trạng thái, thời gian phản hồi của các dịch vụ'
     },
     {
-      name: 'Cảnh báo hệ thống', // Added system_alerts category
+      name: 'Cảnh báo hệ thống',
       key: 'system_alerts',
       tableName: 'system_alerts',
       dateField: 'created_at',
@@ -500,7 +517,6 @@ export const LogManagementTab = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Quản lý Logs</h2>
@@ -516,7 +532,6 @@ export const LogManagementTab = () => {
         </Button>
       </div>
 
-      {/* Warning Alert */}
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>
@@ -525,7 +540,6 @@ export const LogManagementTab = () => {
         </AlertDescription>
       </Alert>
 
-      {/* Auto Cleanup Info */}
       <Alert>
         <Settings className="h-4 w-4" />
         <AlertDescription>
@@ -534,7 +548,6 @@ export const LogManagementTab = () => {
         </AlertDescription>
       </Alert>
 
-      {/* Retention Period Selection */}
       <Card className="bg-white border border-gray-200">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2 text-gray-900">
@@ -560,7 +573,6 @@ export const LogManagementTab = () => {
         </CardContent>
       </Card>
 
-      {/* Individual Log Categories */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {logCategories.map((category) => {
           const settings = autoCleanupSettings[category.tableName] || { enabled: false, retentionDays: 90 };
@@ -584,7 +596,6 @@ export const LogManagementTab = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Auto Cleanup Settings */}
                 <div className="bg-gray-50 p-3 rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -624,7 +635,6 @@ export const LogManagementTab = () => {
                   )}
                 </div>
 
-                {/* Manual Actions */}
                 <div className="flex space-x-2">
                   <Button
                     onClick={() => handleViewLogs(category.tableName, category.name, category.dateField)}
@@ -668,7 +678,25 @@ export const LogManagementTab = () => {
         })}
       </div>
 
-      {/* Total Stats */}
+      <Card className="bg-white border border-gray-200">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2 text-gray-900">
+            <Bug className="w-5 h-5 text-red-600" />
+            <span>Tạo Lỗi Test</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-600 mb-4">
+            Nhấn nút này để tạo một bản ghi lỗi hệ thống mới với thông tin trình duyệt hiện tại của bạn. 
+            Điều này sẽ giúp kiểm tra các biểu đồ phân tích lỗi trên trang Giám sát Hệ thống.
+          </p>
+          <Button onClick={createTestError} variant="destructive" className="bg-red-600 hover:bg-red-700">
+            <Bug className="w-4 h-4 mr-2" />
+            Tạo Lỗi Test
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
         <CardHeader>
           <CardTitle className="flex items-center space-x-2 text-blue-900">
@@ -686,9 +714,7 @@ export const LogManagementTab = () => {
         </CardContent>
       </Card>
 
-      {/* Bulk Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Cleanup All Old Logs */}
         <Card className="bg-white border border-gray-200">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2 text-gray-900">
@@ -712,7 +738,6 @@ export const LogManagementTab = () => {
           </CardContent>
         </Card>
 
-        {/* Delete All Logs */}
         <Card className="bg-white border border-red-200">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2 text-red-900">
@@ -751,7 +776,6 @@ export const LogManagementTab = () => {
         </Card>
       </div>
 
-      {/* Status */}
       {loading && (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -759,7 +783,6 @@ export const LogManagementTab = () => {
         </div>
       )}
 
-      {/* Log Viewer Dialog */}
       <Dialog open={showLogViewer} onOpenChange={setShowLogViewer}>
         <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
           <DialogHeader>

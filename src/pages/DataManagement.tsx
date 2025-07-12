@@ -12,6 +12,9 @@ import { EditDialog } from '@/components/data-management/EditDialog';
 import { entityConfig, EntityConfig } from '@/config/entityConfig';
 import { useDataManagement } from '@/hooks/useDataManagement';
 import { z } from 'zod';
+import { AdminEmailSettings } from '@/components/admin/AdminEmailSettings';
+import { PWATestPanel } from '@/components/PWATestPanel';
+import PushNotificationTester from '@/components/PushNotificationTester';
 
 type EditDialogField = {
   name: string;
@@ -135,10 +138,12 @@ const DataManagement = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList>
             <TabsTrigger value="management">Quản lý</TabsTrigger>
             <TabsTrigger value="statistics">Thống kê</TabsTrigger>
             <TabsTrigger value="logs">Logs</TabsTrigger>
+            <TabsTrigger value="admin-settings">Cài đặt Admin</TabsTrigger>
+            <TabsTrigger value="pwa-test">PWA & Push Test</TabsTrigger>
           </TabsList>
           <TabsContent value="management" className="mt-6">
             <DataManagementTab
@@ -189,6 +194,15 @@ const DataManagement = () => {
           </TabsContent>
           <TabsContent value="logs" className="mt-6">
             <LogManagementTab />
+          </TabsContent>
+          <TabsContent value="admin-settings" className="mt-6">
+            <AdminEmailSettings />
+          </TabsContent>
+          <TabsContent value="pwa-test" className="mt-6">
+            <div className="space-y-6">
+              <PWATestPanel />
+              <PushNotificationTester />
+            </div>
           </TabsContent>
         </Tabs>
 
