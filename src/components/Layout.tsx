@@ -8,7 +8,6 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-  SheetTrigger,
 } from '@/components/ui/sheet';
 import { 
   DropdownMenu,
@@ -209,11 +208,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       <div className="lg:pl-72">
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="lg:hidden">
-              <Menu className="h-6 w-6" />
-            </Button>
-          </SheetTrigger>
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setIsSidebarOpen(true)}>
+            <Menu className="h-6 w-6" />
+          </Button>
           
           <div className="h-6 w-px bg-gray-200 lg:hidden" aria-hidden="true" />
 
