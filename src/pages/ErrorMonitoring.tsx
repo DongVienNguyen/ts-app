@@ -1,28 +1,16 @@
 import Layout from '@/components/Layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
-import { PWATestPanel } from '@/components/PWATestPanel';
-import PushNotificationTester from '@/components/PushNotificationTester';
-import { VAPIDKeyTester } from '@/components/VAPIDKeyTester';
-import { AdminEmailSettings } from '@/components/admin/AdminEmailSettings';
-
-// Import the tab components
-import { ErrorListTab } from '@/components/error-monitoring/ErrorListTab';
-import { ErrorAnalyticsTab } from '@/components/error-monitoring/ErrorAnalyticsTab';
-import { ServiceStatusTab } from '@/components/error-monitoring/ServiceStatusTab';
-import { ErrorOverviewCards } from '@/components/error-monitoring/ErrorOverviewCards';
-import { ErrorMonitoringHeader } from '@/components/error-monitoring/ErrorMonitoringHeader';
-import { ErrorMonitoringDashboard } from '@/components/ErrorMonitoringDashboard'; // Import the dashboard component
+import { ErrorMonitoringDashboard } from '@/components/ErrorMonitoringDashboard';
 
 const ErrorMonitoring = () => {
   const { user } = useAuth();
   const {
     errorStats,
     recentErrors,
-    systemMetrics, // Add systemMetrics
+    systemMetrics,
     serviceHealth,
     isLoading,
     lastUpdated,
@@ -64,7 +52,6 @@ const ErrorMonitoring = () => {
   return (
     <Layout>
       <div className="space-y-6 p-4 md:p-6">
-        {/* Render the main dashboard component */}
         <ErrorMonitoringDashboard
           errorStats={errorStats}
           recentErrors={recentErrors}
@@ -78,16 +65,6 @@ const ErrorMonitoring = () => {
           getStatusColor={getStatusColor}
           getSeverityColor={getSeverityColor}
         />
-
-        {/* Add the AdminEmailSettings tab separately if needed, or integrate into dashboard */}
-        <Tabs defaultValue="settings" className="w-full">
-          <TabsList className="grid w-full grid-cols-1">
-            <TabsTrigger value="settings">Cài đặt Admin</TabsTrigger>
-          </TabsList>
-          <TabsContent value="settings" className="space-y-6">
-            <AdminEmailSettings />
-          </TabsContent>
-        </Tabs>
       </div>
     </Layout>
   );

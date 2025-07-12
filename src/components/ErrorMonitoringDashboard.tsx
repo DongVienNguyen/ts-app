@@ -11,6 +11,7 @@ import PushNotificationTester from '@/components/PushNotificationTester';
 import VAPIDKeyTester from '@/components/VAPIDKeyTester';
 import { SystemError, SystemMetric } from '@/utils/errorTracking';
 import { ServiceHealth } from './error-monitoring/ServiceStatusTab';
+import { AdminEmailSettings } from '@/components/admin/AdminEmailSettings';
 
 interface ErrorMonitoringDashboardProps {
   errorStats: {
@@ -57,7 +58,7 @@ export function ErrorMonitoringDashboard({
         isLoading={isLoading}
         isRefreshing={isRefreshingErrors}
         lastUpdated={lastUpdated}
-        onRefresh={refreshRecentErrors} // This header's refresh button should only refresh recent errors
+        onRefresh={refreshAll}
       />
 
       <ErrorOverviewCards 
@@ -73,6 +74,7 @@ export function ErrorMonitoringDashboard({
               <TabsTrigger value="services">Dịch vụ</TabsTrigger>
               <TabsTrigger value="resources">Tài nguyên</TabsTrigger>
               <TabsTrigger value="pwa_push">PWA & Push</TabsTrigger>
+              <TabsTrigger value="settings">Cài đặt Admin</TabsTrigger>
             </TabsList>
 
             <TabsContent value="errors">
@@ -80,7 +82,7 @@ export function ErrorMonitoringDashboard({
                 recentErrors={recentErrors}
                 isLoading={isLoading}
                 getSeverityColor={getSeverityColor}
-                onRefresh={refreshRecentErrors} // Actions in this tab should only refresh recent errors
+                onRefresh={refreshRecentErrors}
               />
             </TabsContent>
 
@@ -107,6 +109,10 @@ export function ErrorMonitoringDashboard({
               <PWATestPanel />
               <PushNotificationTester />
               <VAPIDKeyTester />
+            </TabsContent>
+
+            <TabsContent value="settings" className="space-y-6">
+              <AdminEmailSettings />
             </TabsContent>
           </Tabs>
         </div>
