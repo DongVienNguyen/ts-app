@@ -1,189 +1,155 @@
-import { useState, useMemo } from 'react';
-import { useRealTimeSecurityMonitoring } from '@/hooks/useRealTimeSecurityMonitoring';
-import { SecurityHeader } from './security/SecurityHeader';
-import { RealTimeMetricsCard } from './security/RealTimeMetricsCard';
-import { LiveActivityFeed } from './security/LiveActivityFeed';
-import { ThreatAnalysisCard } from './security/ThreatAnalysisCard';
-import { ActiveUsersCard } from './security/ActiveUsersCard';
-import { SystemOverviewCards } from './security/SystemOverviewCards'; // New import
-import { SecurityAlerts } from './security/SecurityAlerts'; // New import
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
 import { useSecureAuth } from '@/contexts/AuthContext';
-import { SystemAlert, SecurityEvent } from '@/hooks/useRealTimeSecurityMonitoring'; // Import types
+import { useRealTimeSecurityMonitoring } from '@/hooks/useRealTimeSecurityMonitoring';
+import { LiveActivityFeed } from '@/components/security/LiveActivityFeed';
+import { RealTimeMetricsCard } from '@/components/security/RealTimeMetricsCard';
+import { ThreatAnalysisCard } from '@/components/security/ThreatAnalysisCard';
+import { ActiveUsersCard } from '@/components/security/ActiveUsersCard';
+import { SystemOverviewCards } from '@/components/security/SystemOverviewCards';
+import { SecurityAlerts } from '@/components/security/SecurityAlerts';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export function RealTimeSecurityDashboard() {
-  const { user, loading: authLoading } = useSecureAuth();
-
+  const { user } = useSecureAuth();
   const {
     recentEvents,
     threatTrends,
     isSupabaseConnected,
     isLoading,
     error,
-    logEvent,
     activeUsers,
     systemStatus,
     securityAlerts,
   } = useRealTimeSecurityMonitoring(user);
 
-  if (authLoading) {
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Debug log để kiểm tra dữ liệu từ hook
+  useEffect(() => {
+    console.log('🔍 [RealTimeSecurityDashboard] Hook data:', {
+      eventsCount: recentEvents?.length || 0,
+      isConnected: isSupabaseConnected,
+      isLoading,
+      error,
+      refreshKey
+    });
+  }, [recentEvents, isSupabaseConnected, isLoading, error, refreshKey]);
+
+  const handleRefresh = () => {
+    console.log('🔄 [RealTimeSecurityDashboard] Manual refresh triggered');
+    setRefreshKey(prev => prev + 1);
+    // Force a re-render by updating a state
+    window.location.reload();
+  };
+
+  if (!user) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2">Đang xác thực...</span>
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
       </div>
     );
   }
 
-  // Add role check here
-  if (user?.role !== 'admin') {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Truy cập bị từ chối</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Bạn không có quyền xem trang này. Chức năng giám sát bảo mật chỉ dành cho quản trị viên.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Destructure the hook's return value to get stable references to arrays/values
-  const [isPaused, setIsPaused] = useState(false);
-  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
-  
-  // The snapshot will now store the specific data points, not the whole hook object
-  const [snapshotData, setSnapshotData] = useState<{
-    recentEvents: SecurityEvent[]; // Use SecurityEvent type
-    threatTrends: typeof threatTrends;
-    isSupabaseConnected: boolean;
-    systemStatus: typeof systemStatus; // Include in snapshot
-    securityAlerts: SystemAlert[]; // Use SystemAlert type
-    activeUsers: number; // Added activeUsers to snapshot
-  } | null>(null);
-
-  // Determine which data to display based on real-time status and pause state
-  const dataToDisplay = useMemo(() => {
-    if (isRealTimeEnabled && !isPaused) {
-      // Use live data
-      return { recentEvents, threatTrends, isSupabaseConnected, isLoading, activeUsers, systemStatus, securityAlerts };
-    } else {
-      // Use snapshot data if available, otherwise fall back to live data
-      return snapshotData 
-        ? { ...snapshotData, isLoading: false } 
-        : { recentEvents, threatTrends, isSupabaseConnected, isLoading, activeUsers, systemStatus, securityAlerts };
-    }
-  }, [isRealTimeEnabled, isPaused, snapshotData, recentEvents, threatTrends, isSupabaseConnected, isLoading, activeUsers, systemStatus, securityAlerts]);
-
-  // Derive lastUpdated from the dataToDisplay.recentEvents
-  const derivedLastUpdated = useMemo(() => {
-    if (dataToDisplay.recentEvents && dataToDisplay.recentEvents.length > 0) {
-      return new Date(dataToDisplay.recentEvents[0].created_at!); // Use created_at for timestamp, add non-null assertion
-    }
-    return null;
-  }, [dataToDisplay.recentEvents]);
-
-  const handleRealTimeToggle = (enabled: boolean) => {
-    setIsRealTimeEnabled(enabled);
-    if (!enabled) {
-      setIsPaused(true);
-      // Create a snapshot of the current data
-      setSnapshotData({ recentEvents, threatTrends, isSupabaseConnected, systemStatus, securityAlerts, activeUsers }); // Include activeUsers
-    } else {
-      setIsPaused(false);
-      setSnapshotData(null); // Clear snapshot
-    }
-  };
-
-  const handlePauseToggle = () => {
-    if (isRealTimeEnabled) {
-      setIsPaused(prev => {
-        const newPausedState = !prev;
-        if (newPausedState) {
-          // Create a snapshot when pausing
-          setSnapshotData({ recentEvents, threatTrends, isSupabaseConnected, systemStatus, securityAlerts, activeUsers }); // Include activeUsers
-        } else {
-          // Clear snapshot when resuming
-          setSnapshotData(null);
-        }
-        return newPausedState;
-      });
-    }
-  };
-
-  const handleReset = () => {
-    logEvent('METRICS_RESET', { resetBy: user?.username || 'unknown' });
-    toast.success("Đã gửi yêu cầu đặt lại số liệu.");
-  };
-
-  const metrics = useMemo(() => {
-    const events = dataToDisplay.recentEvents || [];
-    return {
-      loginAttempts: events.filter(e => e.event_type === 'LOGIN_SUCCESS' || e.event_type === 'LOGIN_FAILED').length,
-      successfulLogins: events.filter(e => e.event_type === 'LOGIN_SUCCESS').length,
-      failedLogins: events.filter(e => e.event_type === 'LOGIN_FAILED').length,
-      accountLocks: events.filter(e => e.event_type === 'ACCOUNT_LOCKED').length,
-      passwordResets: events.filter(e => e.event_type === 'PASSWORD_RESET_SUCCESS').length,
-      suspiciousActivities: events.filter(e => e.event_type === 'SUSPICIOUS_ACTIVITY' || e.event_type === 'RATE_LIMIT_EXCEEDED').length,
-    };
-  }, [dataToDisplay.recentEvents]);
-
-  if (isLoading && !snapshotData) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2">Đang tải dữ liệu thời gian thực...</span>
-      </div>
-    );
-  }
-
-  if (error) {
+  if (user.role !== 'admin') {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{error}</AlertDescription>
+        <AlertDescription>
+          Chỉ admin mới có thể truy cập dashboard real-time.
+        </AlertDescription>
       </Alert>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <SecurityHeader
-        lastUpdated={derivedLastUpdated}
-        isConnected={dataToDisplay.isSupabaseConnected}
-        isRealTimeEnabled={isRealTimeEnabled}
-        isPaused={isPaused}
-        onRealTimeToggle={handleRealTimeToggle}
-        onPauseToggle={handlePauseToggle}
-        onReset={handleReset}
+    <div className="space-y-6">
+      {/* Connection Status */}
+      <Alert variant={isSupabaseConnected ? "default" : "destructive"}>
+        {isSupabaseConnected ? (
+          <Wifi className="h-4 w-4" />
+        ) : (
+          <WifiOff className="h-4 w-4" />
+        )}
+        <AlertDescription>
+          {isSupabaseConnected 
+            ? "Kết nối real-time đang hoạt động bình thường." 
+            : "Mất kết nối real-time. Đang cố gắng kết nối lại..."}
+          {error && ` Lỗi: ${error}`}
+        </AlertDescription>
+      </Alert>
+
+      {/* System Overview Cards */}
+      <SystemOverviewCards 
+        systemStatus={systemStatus}
+        activeUsers={activeUsers}
+        isLoading={isLoading}
       />
-      <SystemOverviewCards systemStatus={dataToDisplay.systemStatus} isLoading={dataToDisplay.isLoading} /> {/* New row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <RealTimeMetricsCard metrics={metrics} isRealTimeEnabled={isRealTimeEnabled && !isPaused} />
-        <ActiveUsersCard activeUsers={dataToDisplay.activeUsers} isLoading={dataToDisplay.isLoading} />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
-          <LiveActivityFeed
-            events={dataToDisplay.recentEvents}
-            isRealTimeEnabled={isRealTimeEnabled && !isPaused}
-            isLoading={dataToDisplay.isLoading}
+
+      {/* Main Dashboard Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Live Activity Feed */}
+        <div className="lg:col-span-1">
+          <LiveActivityFeed 
+            events={recentEvents || []}
+            isRealTimeEnabled={isSupabaseConnected}
+            isLoading={isLoading}
+            onRefresh={handleRefresh}
           />
         </div>
-        <div className="lg:col-span-1 space-y-4"> {/* Added space-y-4 for vertical spacing */}
-          <ThreatAnalysisCard data={dataToDisplay.threatTrends} isLoading={dataToDisplay.isLoading} />
-          <SecurityAlerts alerts={dataToDisplay.securityAlerts} isLoading={dataToDisplay.isLoading} /> {/* New card */}
+
+        {/* Real-time Metrics */}
+        <div className="lg:col-span-1">
+          <RealTimeMetricsCard 
+            events={recentEvents || []}
+            isLoading={isLoading}
+          />
         </div>
       </div>
+
+      {/* Secondary Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Threat Analysis */}
+        <div className="lg:col-span-2">
+          <ThreatAnalysisCard 
+            threatTrends={threatTrends || []}
+            isLoading={isLoading}
+          />
+        </div>
+
+        {/* Active Users */}
+        <div className="lg:col-span-1">
+          <ActiveUsersCard 
+            activeUsers={activeUsers}
+            recentEvents={recentEvents || []}
+            isLoading={isLoading}
+          />
+        </div>
+      </div>
+
+      {/* Security Alerts */}
+      <SecurityAlerts 
+        alerts={securityAlerts || []}
+        isLoading={isLoading}
+      />
+
+      {/* Debug Info (Development Only) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mt-8 p-4 bg-gray-100 rounded-lg">
+          <h3 className="font-semibold mb-2">Debug Information</h3>
+          <div className="text-sm space-y-1">
+            <div>Events Count: {recentEvents?.length || 0}</div>
+            <div>Is Connected: {isSupabaseConnected ? 'Yes' : 'No'}</div>
+            <div>Is Loading: {isLoading ? 'Yes' : 'No'}</div>
+            <div>Error: {error || 'None'}</div>
+            <div>Refresh Key: {refreshKey}</div>
+            <div>User Role: {user?.role}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

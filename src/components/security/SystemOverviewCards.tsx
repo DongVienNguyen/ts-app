@@ -9,10 +9,11 @@ interface SystemOverviewCardsProps {
     dbConnected: boolean;
     dbResponseTime: number;
   };
+  activeUsers: number;
   isLoading: boolean;
 }
 
-export function SystemOverviewCards({ systemStatus, isLoading }: SystemOverviewCardsProps) {
+export function SystemOverviewCards({ systemStatus, activeUsers, isLoading }: SystemOverviewCardsProps) {
   const statusItems = [
     {
       title: 'Trạng thái API',

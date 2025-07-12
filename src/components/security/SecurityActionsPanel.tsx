@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bell, Activity, AlertCircle, UserCog } from 'lucide-react';
+import { Bell, Activity, AlertCircle, UserCog, TestTube } from 'lucide-react';
 import { useRealTimeSecurityMonitoring } from '@/hooks/useRealTimeSecurityMonitoring';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +16,7 @@ export function SecurityActionsPanel() {
   const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');
   const [eventType, setEventType] = useState<string>('ACCOUNT_LOCKED');
+  const [isTestingRealtime, setIsTestingRealtime] = useState(false);
 
   const handlePerformAction = async () => {
     if (!eventType) {
@@ -49,6 +50,40 @@ export function SecurityActionsPanel() {
         username || 'test_user'
       );
       toast.success(`Đã mô phỏng sự kiện: ${eventType}`);
+    }
+  };
+
+  const handleTestRealtime = async () => {
+    setIsTestingRealtime(true);
+    try {
+      console.log('🧪 [TEST] Testing real-time functionality...');
+      
+      // Test Edge Function directly
+      const { data, error } = await supabase.functions.invoke('log-security-event', {
+        body: {
+          eventType: 'TEST_REALTIME',
+          data: { 
+            message: 'Test real-time functionality',
+            timestamp: new Date().toISOString()
+          },
+          username: user?.username || 'test_admin',
+          userAgent: navigator.userAgent,
+          ipAddress: null,
+        },
+      });
+
+      if (error) {
+        console.error('❌ [TEST] Edge Function error:', error);
+        toast.error(`Lỗi Edge Function: ${error.message}`);
+      } else {
+        console.log('✅ [TEST] Edge Function success:', data);
+        toast.success('Edge Function hoạt động! Kiểm tra Dòng Hoạt động Trực tiếp.');
+      }
+    } catch (error) {
+      console.error('❌ [TEST] Test failed:', error);
+      toast.error('Test thất bại. Kiểm tra console để biết chi tiết.');
+    } finally {
+      setIsTestingRealtime(false);
     }
   };
 
@@ -111,6 +146,29 @@ export function SecurityActionsPanel() {
           <Button onClick={handlePerformAction} className="w-full">
             <Activity className="w-4 h-4 mr-2" />
             Thực hiện
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <TestTube className="w-5 h-5" />
+            <span>Kiểm tra Real-time</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Nhấn nút bên dưới để kiểm tra xem Edge Function và real-time có hoạt động không.
+          </p>
+          <Button 
+            onClick={handleTestRealtime} 
+            className="w-full" 
+            variant="outline"
+            disabled={isTestingRealtime}
+          >
+            <TestTube className="w-4 h-4 mr-2" />
+            {isTestingRealtime ? 'Đang kiểm tra...' : 'Test Real-time'}
           </Button>
         </CardContent>
       </Card>

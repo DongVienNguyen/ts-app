@@ -1,5 +1,6 @@
 import { Activity } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { SecurityEvent } from '@/hooks/useRealTimeSecurityMonitoring';
 
 interface RealTimeMetrics {
   loginAttempts: number;
@@ -11,11 +12,28 @@ interface RealTimeMetrics {
 }
 
 interface RealTimeMetricsCardProps {
-  metrics: RealTimeMetrics;
-  isRealTimeEnabled: boolean;
+  events: SecurityEvent[];
+  isLoading: boolean;
 }
 
-export function RealTimeMetricsCard({ metrics, isRealTimeEnabled }: RealTimeMetricsCardProps) {
+export function RealTimeMetricsCard({ events, isLoading }: RealTimeMetricsCardProps) {
+  // Calculate metrics from events (last 5 minutes)
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const recentEvents = events.filter(event => 
+    new Date(event.created_at!) > fiveMinutesAgo
+  );
+
+  const metrics: RealTimeMetrics = {
+    loginAttempts: recentEvents.filter(e => e.event_type === 'LOGIN_ATTEMPT').length,
+    failedLogins: recentEvents.filter(e => e.event_type === 'LOGIN_FAILED').length,
+    successfulLogins: recentEvents.filter(e => e.event_type === 'LOGIN_SUCCESS').length,
+    accountLocks: recentEvents.filter(e => e.event_type === 'ACCOUNT_LOCKED').length,
+    passwordResets: recentEvents.filter(e => e.event_type === 'PASSWORD_RESET_SUCCESS').length,
+    suspiciousActivities: recentEvents.filter(e => 
+      e.event_type === 'SUSPICIOUS_ACTIVITY' || e.event_type === 'RATE_LIMIT_EXCEEDED'
+    ).length,
+  };
+
   const metricItems = [
     { label: 'Thử đăng nhập', value: metrics.loginAttempts, color: 'blue' },
     { label: 'Thành công', value: metrics.successfulLogins, color: 'green' },
@@ -39,7 +57,7 @@ export function RealTimeMetricsCard({ metrics, isRealTimeEnabled }: RealTimeMetr
         <CardTitle className="flex items-center space-x-2">
           <Activity className="w-5 h-5" />
           <span>Số liệu thời gian thực (5 phút qua)</span>
-          {isRealTimeEnabled && (
+          {!isLoading && (
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
           )}
         </CardTitle>

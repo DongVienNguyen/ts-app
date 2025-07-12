@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { RealtimeChannel, PostgrestResponse } from '@supabase/supabase-js';
+import { RealtimeChannel } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables } from '@/integrations/supabase/types';
 import { AuthenticatedStaff } from '@/contexts/AuthContext';
-import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils'; // Import the correct logging function
+import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
 
 export type SecurityEvent = Tables<'security_events'>;
 export type SystemAlert = Tables<'system_alerts'>;
@@ -18,9 +18,9 @@ interface ThreatTrend {
 
 interface SystemStatus {
   apiConnected: boolean;
-  apiResponseTime: number; // in ms
+  apiResponseTime: number;
   dbConnected: boolean;
-  dbResponseTime: number; // in ms
+  dbResponseTime: number;
 }
 
 export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) => {
@@ -39,12 +39,13 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
   const [securityAlerts, setSecurityAlerts] = useState<SystemAlert[]>([]);
 
   const logEvent = async (type: string, data: any = {}, username?: string) => {
-    // Call the logSecurityEventRealTime function which uses the Edge Function
+    console.log(`🔄 [SECURITY] Logging event: ${type}`, { data, username });
     await logSecurityEventRealTime(type, data, username);
   };
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
+      console.log('❌ [REALTIME] User not admin or not logged in');
       setIsLoading(false);
       setIsSupabaseConnected(false);
       setRecentEvents([]);
@@ -52,32 +53,49 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
       return;
     }
 
-    const clientAtSubscriptionTime = supabase; // Capture the client instance at the time of subscription
+    console.log('🚀 [REALTIME] Setting up real-time monitoring for admin user:', user.username);
+
     let channel: RealtimeChannel | null = null;
     let alertsChannel: RealtimeChannel | null = null;
 
     const setupRealtime = async () => {
       setIsLoading(true);
       setError(null);
+      
       try {
-        const { data: initialEvents, error: eventsError } = await clientAtSubscriptionTime
+        console.log('📊 [REALTIME] Loading initial security events...');
+        
+        // Load initial events
+        const { data: initialEvents, error: eventsError } = await supabase
           .from('security_events')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(50);
 
-        if (eventsError) throw eventsError;
+        if (eventsError) {
+          console.error('❌ [REALTIME] Error loading initial events:', eventsError);
+          throw eventsError;
+        }
+
+        console.log('✅ [REALTIME] Loaded initial events:', initialEvents?.length || 0);
         setRecentEvents(initialEvents || []);
 
-        const { data: initialAlerts, error: alertsError } = await clientAtSubscriptionTime
+        // Load initial alerts
+        const { data: initialAlerts, error: alertsError } = await supabase
           .from('system_alerts')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(10);
 
-        if (alertsError) throw alertsError;
+        if (alertsError) {
+          console.error('❌ [REALTIME] Error loading initial alerts:', alertsError);
+          throw alertsError;
+        }
+
+        console.log('✅ [REALTIME] Loaded initial alerts:', initialAlerts?.length || 0);
         setSecurityAlerts(initialAlerts || []);
 
+        // Set system status
         setSystemStatus({
           apiConnected: true,
           apiResponseTime: Math.floor(Math.random() * 100) + 20,
@@ -85,59 +103,89 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
           dbResponseTime: Math.floor(Math.random() * 80) + 10,
         });
         setActiveUsers(Math.floor(Math.random() * 20) + 5);
-
         setIsSupabaseConnected(true);
 
-        // Use unique channel names to prevent conflicts
-        const securityChannelName = `security_events:${user.id}:${Date.now()}`;
-        const alertsChannelName = `system_alerts:${user.id}:${Date.now()}`;
-
-        channel = clientAtSubscriptionTime
+        // Setup real-time subscription for security events
+        const securityChannelName = `security_events_${Date.now()}`;
+        console.log(`🔗 [REALTIME] Creating security events channel: ${securityChannelName}`);
+        
+        channel = supabase
           .channel(securityChannelName)
           .on(
             'postgres_changes',
-            { event: '*', schema: 'public', table: 'security_events' },
+            { 
+              event: 'INSERT', 
+              schema: 'public', 
+              table: 'security_events' 
+            },
             (payload) => {
+              console.log('🎉 [REALTIME] New security event received:', payload);
               const newEvent = payload.new as SecurityEvent;
-              console.log('✅ [REALTIME] Received new security event:', newEvent);
-              setRecentEvents((prev) => [newEvent, ...prev].slice(0, 50));
-              toast.info(`Sự kiện bảo mật mới: ${newEvent.event_type}`);
+              
+              setRecentEvents((prev) => {
+                const updated = [newEvent, ...prev].slice(0, 50);
+                console.log('📝 [REALTIME] Updated events list, total:', updated.length);
+                return updated;
+              });
+              
+              toast.info(`Sự kiện bảo mật mới: ${newEvent.event_type}`, {
+                description: `Từ: ${newEvent.username || 'Không xác định'}`,
+              });
             }
           )
           .subscribe((status, err) => {
+            console.log(`📡 [REALTIME] Security channel status: ${status}`);
             if (status === 'SUBSCRIBED') {
-              console.log(`✅ [REALTIME] Subscribed to ${securityChannelName}!`);
+              console.log(`✅ [REALTIME] Successfully subscribed to ${securityChannelName}`);
             }
             if (status === 'CHANNEL_ERROR') {
               console.error(`❌ [REALTIME] Channel error on ${securityChannelName}:`, err);
               setError(`Lỗi kênh real-time: ${err?.message}`);
             }
+            if (status === 'CLOSED') {
+              console.log(`🔒 [REALTIME] Channel ${securityChannelName} closed`);
+            }
           });
 
-        alertsChannel = clientAtSubscriptionTime
+        // Setup real-time subscription for system alerts
+        const alertsChannelName = `system_alerts_${Date.now()}`;
+        console.log(`🔗 [REALTIME] Creating system alerts channel: ${alertsChannelName}`);
+        
+        alertsChannel = supabase
           .channel(alertsChannelName)
           .on(
             'postgres_changes',
-            { event: '*', schema: 'public', table: 'system_alerts' },
+            { 
+              event: 'INSERT', 
+              schema: 'public', 
+              table: 'system_alerts' 
+            },
             (payload) => {
+              console.log('🚨 [REALTIME] New system alert received:', payload);
               const newAlert = payload.new as SystemAlert;
-              console.log('✅ [REALTIME] Received new system alert:', newAlert);
-              setSecurityAlerts((prev) => [newAlert, ...prev].slice(0, 10));
+              
+              setSecurityAlerts((prev) => {
+                const updated = [newAlert, ...prev].slice(0, 10);
+                console.log('🚨 [REALTIME] Updated alerts list, total:', updated.length);
+                return updated;
+              });
+              
               toast.warning(`Cảnh báo hệ thống mới: ${newAlert.rule_name}`);
             }
           )
           .subscribe((status, err) => {
+            console.log(`📡 [REALTIME] Alerts channel status: ${status}`);
             if (status === 'SUBSCRIBED') {
-              console.log(`✅ [REALTIME] Subscribed to ${alertsChannelName}!`);
+              console.log(`✅ [REALTIME] Successfully subscribed to ${alertsChannelName}`);
             }
             if (status === 'CHANNEL_ERROR') {
               console.error(`❌ [REALTIME] Channel error on ${alertsChannelName}:`, err);
-              setError(`Lỗi kênh real-time: ${err?.message}`);
+              setError(`Lỗi kênh cảnh báo: ${err?.message}`);
             }
           });
 
       } catch (err: any) {
-        console.error('Error setting up real-time monitoring:', err.message);
+        console.error('❌ [REALTIME] Error setting up real-time monitoring:', err);
         setError(`Lỗi tải dữ liệu: ${err.message}`);
         setIsSupabaseConnected(false);
       } finally {
@@ -149,19 +197,17 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
 
     return () => {
       console.log('🧹 [REALTIME] Cleaning up security monitoring channels...');
-      const removePromises = [];
+      
       if (channel) {
-        removePromises.push(clientAtSubscriptionTime.removeChannel(channel));
+        console.log('🧹 [REALTIME] Removing security events channel...');
+        supabase.removeChannel(channel);
       }
       if (alertsChannel) {
-        removePromises.push(clientAtSubscriptionTime.removeChannel(alertsChannel));
+        console.log('🧹 [REALTIME] Removing alerts channel...');
+        supabase.removeChannel(alertsChannel);
       }
       
-      if (removePromises.length > 0) {
-        Promise.all(removePromises)
-          .then(() => console.log('🧹 [REALTIME] Channels removed successfully.'))
-          .catch(err => console.error('❌ [REALTIME] Error removing channels:', err));
-      }
+      console.log('✅ [REALTIME] Cleanup completed');
     };
   }, [user]);
 
@@ -169,6 +215,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     const generateThreatTrends = () => {
       const today = new Date();
       const trends: ThreatTrend[] = [];
+      
       for (let i = 6; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(today.getDate() - i);
@@ -182,9 +229,12 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
           date: dateString,
           successfulLogins: dailyEvents.filter(e => e.event_type === 'LOGIN_SUCCESS').length,
           failedLogins: dailyEvents.filter(e => e.event_type === 'LOGIN_FAILED').length,
-          suspiciousActivities: dailyEvents.filter(e => e.event_type === 'SUSPICIOUS_ACTIVITY' || e.event_type === 'RATE_LIMIT_EXCEEDED').length,
+          suspiciousActivities: dailyEvents.filter(e => 
+            e.event_type === 'SUSPICIOUS_ACTIVITY' || e.event_type === 'RATE_LIMIT_EXCEEDED'
+          ).length,
         });
       }
+      
       setThreatTrends(trends);
     };
 

@@ -1,13 +1,15 @@
 import { Users } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SecurityEvent } from '@/hooks/useRealTimeSecurityMonitoring';
 
 interface ActiveUsersCardProps {
   activeUsers: number;
+  recentEvents: SecurityEvent[];
   isLoading: boolean;
 }
 
-export function ActiveUsersCard({ activeUsers, isLoading }: ActiveUsersCardProps) {
+export function ActiveUsersCard({ activeUsers, recentEvents, isLoading }: ActiveUsersCardProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

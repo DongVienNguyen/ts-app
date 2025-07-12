@@ -4,7 +4,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface ThreatAnalysisCardProps {
-  data: {
+  threatTrends: {
     date: string;
     successfulLogins: number;
     failedLogins: number;
@@ -13,7 +13,7 @@ interface ThreatAnalysisCardProps {
   isLoading: boolean;
 }
 
-export function ThreatAnalysisCard({ data, isLoading }: ThreatAnalysisCardProps) {
+export function ThreatAnalysisCard({ threatTrends, isLoading }: ThreatAnalysisCardProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -26,10 +26,10 @@ export function ThreatAnalysisCard({ data, isLoading }: ThreatAnalysisCardProps)
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-[180px] w-full" />
           </div>
-        ) : data && data.length > 0 ? (
+        ) : threatTrends && threatTrends.length > 0 ? (
           <ResponsiveContainer width="100%" height={200}>
             <LineChart
-              data={data}
+              data={threatTrends}
               margin={{
                 top: 5,
                 right: 20,

@@ -1,17 +1,31 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertCircle, LogIn, Lock, Key, Activity, ShieldOff, Clock } from 'lucide-react';
+import { AlertCircle, LogIn, Lock, Key, Activity, ShieldOff, Clock, RefreshCw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SecurityEvent } from '@/hooks/useRealTimeSecurityMonitoring';
 import { formatRelativeTime } from '@/utils/dateUtils';
+import { Button } from '@/components/ui/button';
+import { useEffect } from 'react';
 
 interface LiveActivityFeedProps {
   events: SecurityEvent[];
   isRealTimeEnabled: boolean;
   isLoading: boolean;
+  onRefresh?: () => void;
 }
 
-export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading }: LiveActivityFeedProps) {
+export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, onRefresh }: LiveActivityFeedProps) {
+  
+  // Debug log để kiểm tra dữ liệu
+  useEffect(() => {
+    console.log('🔍 [LiveActivityFeed] Events received:', events?.length || 0);
+    console.log('🔍 [LiveActivityFeed] Real-time enabled:', isRealTimeEnabled);
+    console.log('🔍 [LiveActivityFeed] Loading:', isLoading);
+    if (events && events.length > 0) {
+      console.log('🔍 [LiveActivityFeed] Latest event:', events[0]);
+    }
+  }, [events, isRealTimeEnabled, isLoading]);
+
   const getEventIcon = (eventType: string) => {
     switch (eventType) {
       case 'LOGIN_SUCCESS':
@@ -30,6 +44,8 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading }: LiveA
         return <ShieldOff className="w-4 h-4 text-yellow-500" />;
       case 'METRICS_RESET':
         return <Clock className="w-4 h-4 text-gray-500" />;
+      case 'TEST_REALTIME':
+        return <Activity className="w-4 h-4 text-blue-500" />;
       default:
         return <Activity className="w-4 h-4 text-gray-500" />;
     }
@@ -60,11 +76,13 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading }: LiveA
         description = `Vượt quá giới hạn tốc độ bởi ${event.username || 'người dùng không xác định'}.`;
         break;
       case 'METRICS_RESET':
-        // Cast event.event_data to Record<string, any> to access resetBy
         description = `Số liệu đã được đặt lại bởi ${(event.event_data as Record<string, any>)?.resetBy || 'hệ thống'}.`;
         break;
+      case 'TEST_REALTIME':
+        description = `🧪 Test real-time: ${(event.event_data as Record<string, any>)?.message || 'Test event'}`;
+        break;
       default:
-        description = `Sự kiện không xác định: ${event.event_type}.`;
+        description = `Sự kiện: ${event.event_type} từ ${event.username || 'người dùng không xác định'}.`;
     }
     return description;
   };
@@ -74,18 +92,38 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading }: LiveA
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Dòng Hoạt động Trực tiếp</span>
-          {isRealTimeEnabled ? (
-            <span className="text-xs text-green-500 flex items-center">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+          <div className="flex items-center space-x-2">
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRefresh}
+                className="h-8 w-8 p-0"
+                title="Làm mới dữ liệu"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            )}
+            {isRealTimeEnabled ? (
+              <span className="text-xs text-green-500 flex items-center">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <span className="ml-1">Trực tiếp</span>
               </span>
-              <span className="ml-1">Trực tiếp</span>
-            </span>
-          ) : (
-            <span className="text-xs text-gray-500">Tạm dừng</span>
-          )}
+            ) : (
+              <span className="text-xs text-gray-500">Tạm dừng</span>
+            )}
+          </div>
         </CardTitle>
+        {/* Debug info - chỉ hiển thị trong development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="text-xs text-gray-400 space-y-1">
+            <div>Debug: {events?.length || 0} events, Loading: {isLoading ? 'Yes' : 'No'}</div>
+            <div>Real-time: {isRealTimeEnabled ? 'Enabled' : 'Disabled'}</div>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden">
         {isLoading ? (
@@ -94,7 +132,7 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading }: LiveA
               <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
-        ) : events.length > 0 ? (
+        ) : events && events.length > 0 ? (
           <ScrollArea className="h-[300px] pr-4">
             <div className="space-y-3">
               {events.map((event) => (
@@ -116,7 +154,20 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading }: LiveA
           </ScrollArea>
         ) : (
           <div className="text-center py-8 text-gray-500">
-            <p>Không có hoạt động bảo mật gần đây.</p>
+            <Activity className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+            <p className="text-lg font-medium">Không có hoạt động bảo mật gần đây</p>
+            <p className="text-sm">Các sự kiện bảo mật sẽ xuất hiện ở đây khi chúng xảy ra.</p>
+            {onRefresh && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRefresh}
+                className="mt-4"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Làm mới
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
