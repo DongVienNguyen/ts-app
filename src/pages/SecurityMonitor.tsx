@@ -1,10 +1,9 @@
 import Layout from '@/components/Layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Shield, TestTube, BookOpen, CheckCircle, ArrowRight, Activity } from 'lucide-react';
+import { AlertCircle, Shield, TestTube, BookOpen, CheckCircle, ArrowRight } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSecureAuth } from '@/contexts/AuthContext';
-import { RealTimeSecurityMonitor } from '@/components/RealTimeSecurityMonitor';
-import { EnhancedSecurityDashboard } from '@/components/EnhancedSecurityDashboard';
+import { SecurityOverview } from '@/components/SecurityOverview';
 import { SecurityTestPanel } from '@/components/SecurityTestPanel';
 import { SecurityDocumentation } from '@/components/SecurityDocumentation';
 import { SecurityImplementationSummary } from '@/components/SecurityImplementationSummary';
@@ -54,21 +53,17 @@ const SecurityMonitor = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-            <TabsTrigger value="dashboard"><Shield className="w-4 h-4 mr-2" />Dashboard</TabsTrigger>
-            <TabsTrigger value="realtime"><Activity className="w-4 h-4 mr-2" />Giám sát</TabsTrigger>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+            <TabsTrigger value="overview"><Shield className="w-4 h-4 mr-2" />Tổng quan</TabsTrigger>
             <TabsTrigger value="test"><TestTube className="w-4 h-4 mr-2" />Test</TabsTrigger>
             <TabsTrigger value="docs"><BookOpen className="w-4 h-4 mr-2" />Tài liệu</TabsTrigger>
             <TabsTrigger value="summary"><CheckCircle className="w-4 h-4 mr-2" />Tổng kết</TabsTrigger>
             <TabsTrigger value="workflow"><ArrowRight className="w-4 h-4 mr-2" />Demo</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="dashboard" className="mt-6">
-            <EnhancedSecurityDashboard />
-          </TabsContent>
-          <TabsContent value="realtime" className="mt-6">
-            <RealTimeSecurityMonitor />
+          <TabsContent value="overview" className="mt-6">
+            <SecurityOverview />
           </TabsContent>
           <TabsContent value="test" className="mt-6">
             <SecurityTestPanel />
