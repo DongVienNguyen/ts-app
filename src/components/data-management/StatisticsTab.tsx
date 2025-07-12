@@ -1,5 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Download, Database as DatabaseIcon, BarChart as BarChartIcon, PieChart as PieChartIcon, Activity, Users, Tag, LineChart as LineChartIcon } from 'lucide-react';
+import { 
+  Download, 
+  Database as DatabaseIcon, 
+  BarChart as BarChartIcon, 
+  PieChart as PieChartIcon, 
+  Activity, 
+  Users, 
+  Tag, 
+  LineChart as LineChartIcon,
+  ArrowUp,
+  ArrowDown
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,7 +21,8 @@ import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import DateInput from '@/components/DateInput';
 import { Label } from '@/components/ui/label';
-import { format, subDays, parseISO } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
+import { format, subDays, parseISO, differenceInDays } from 'date-fns';
 
 interface StatisticsTabProps {
   runAsAdmin: (callback: () => Promise<void>) => Promise<void>;
@@ -21,9 +33,28 @@ interface KeyMetrics {
   totalTransactions: number;
   activeStaff: number;
   mostFrequentType: string;
+  totalTransactionsChange?: number;
+  activeStaffChange?: number;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+
+const MetricChange = ({ value }: { value: number | undefined }) => {
+  if (value === undefined || !isFinite(value)) {
+    return <p className="text-xs text-muted-foreground">Không có dữ liệu kỳ trước để so sánh</p>;
+  }
+  const isPositive = value > 0;
+  const isNegative = value < 0;
+  const color = isPositive ? 'text-emerald-600' : isNegative ? 'text-red-600' : 'text-muted-foreground';
+  const Icon = isPositive ? ArrowUp : ArrowDown;
+
+  return (
+    <p className={`text-xs flex items-center font-medium ${color}`}>
+      {isPositive || isNegative ? <Icon className="h-3 w-3 mr-1" /> : null}
+      {value.toFixed(1)}% so với kỳ trước
+    </p>
+  );
+};
 
 export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad }) => {
   const [statistics, setStatistics] = useState<any[]>([]);
@@ -33,53 +64,23 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
   const [keyMetrics, setKeyMetrics] = useState<KeyMetrics | null>(null);
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [comparisonEnabled, setComparisonEnabled] = useState(false);
 
   const [startDate, setStartDate] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
-  const calculateKeyMetrics = (staffStats: { count: number }[], typeStats: { name: string; value: number }[]) => {
-    const totalTransactions = staffStats.reduce((acc, curr) => acc + curr.count, 0);
-    const activeStaff = staffStats.length;
-    const mostFrequentType = typeStats.length > 0 ? typeStats.reduce((prev, current) => (prev.value > current.value) ? prev : current).name : 'N/A';
-    
-    setKeyMetrics({ totalTransactions, activeStaff, mostFrequentType });
+  const calculatePercentageChange = (current: number, previous: number) => {
+    if (previous === 0) {
+      return current > 0 ? Infinity : 0;
+    }
+    return ((current - previous) / previous) * 100;
   };
 
-  const loadAllStats = useCallback(async (start: string, end: string) => {
-    setIsLoading(true);
-    onLoad();
-    try {
-      const [staffStats, typeStats, trends] = await Promise.all([
-        loadStaffTransactionStats(start, end),
-        loadTransactionTypeStats(start, end),
-        loadTransactionTrends(start, end),
-        loadStatistics(start, end) // This runs in parallel but doesn't return data for key metrics
-      ]);
-      
-      if (staffStats && typeStats) {
-        calculateKeyMetrics(staffStats, typeStats);
-      }
-      if (trends) {
-        setTransactionTrends(trends);
-      }
-
-    } catch (error) {
-      console.error("Error loading dashboard stats:", error);
-      toast.error("Không thể tải một số dữ liệu thống kê.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [onLoad]);
-
-  useEffect(() => {
-    loadAllStats(startDate, endDate);
-  }, []);
-
   const loadStatistics = async (start: string, end: string) => {
+    let stats: any[] = [];
     await runAsAdmin(async () => {
       try {
-        const stats = [];
-        for (const key in entityConfig) {
+        const promises = Object.keys(entityConfig).map(async (key) => {
           const config = entityConfig[key];
           let query = supabase.from(config.entity as any).select('*', { count: 'exact', head: true });
 
@@ -90,18 +91,19 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
 
           const { count, error } = await query;
           if (error) throw error;
-          stats.push({ name: config.name, count: count || 0 });
-        }
-        setStatistics(stats);
+          return { name: config.name, count: count || 0 };
+        });
+        stats = await Promise.all(promises);
       } catch (error: any) {
         console.error("Error loading statistics:", error.message);
         toast.error(`Không thể tải thống kê số lượng bản ghi: ${error.message}`);
       }
     });
+    return stats;
   };
 
   const loadStaffTransactionStats = async (start: string, end: string) => {
-    let dataToReturn: { name: string; count: number }[] = [];
+    let stats: { name: string; count: number }[] = [];
     await runAsAdmin(async () => {
       try {
         let query = supabase.from('asset_transactions').select('staff_code').gte('transaction_date', start).lte('transaction_date', end);
@@ -119,25 +121,22 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
           return acc;
         }, {} as Record<string, number>);
 
-        const stats = Object.entries(transactionCounts)
+        stats = Object.entries(transactionCounts)
           .map(([staffCode, count]) => ({
             name: staffNameMap.get(staffCode) || staffCode,
             count: count,
           }))
           .sort((a, b) => b.count - a.count);
-
-        setStaffTransactionStats(stats);
-        dataToReturn = stats;
       } catch (error: any) {
         console.error("Error loading staff transaction statistics:", error.message);
         toast.error(`Không thể tải thống kê giao dịch nhân viên: ${error.message}`);
       }
     });
-    return dataToReturn;
+    return stats;
   };
 
   const loadTransactionTypeStats = async (start: string, end: string) => {
-    let dataToReturn: { name: string; value: number }[] = [];
+    let stats: { name: string; value: number }[] = [];
     await runAsAdmin(async () => {
       try {
         let query = supabase.from('asset_transactions').select('transaction_type').gte('transaction_date', start).lte('transaction_date', end);
@@ -149,15 +148,13 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
           return acc;
         }, {} as Record<string, number>);
 
-        const stats = Object.entries(counts).map(([name, value]) => ({ name, value }));
-        setTransactionTypeStats(stats);
-        dataToReturn = stats;
+        stats = Object.entries(counts).map(([name, value]) => ({ name, value }));
       } catch (error: any) {
         console.error("Error loading transaction type stats:", error.message);
         toast.error(`Không thể tải thống kê loại giao dịch: ${error.message}`);
       }
     });
-    return dataToReturn;
+    return stats;
   };
 
   const loadTransactionTrends = async (start: string, end: string) => {
@@ -187,6 +184,72 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
     });
     return trends;
   };
+
+  const loadAllStats = useCallback(async (start: string, end: string) => {
+    setIsLoading(true);
+    onLoad();
+    try {
+      const currentPeriodPromises = [
+        loadStaffTransactionStats(start, end),
+        loadTransactionTypeStats(start, end),
+        loadTransactionTrends(start, end),
+        loadStatistics(start, end)
+      ];
+
+      let previousPeriodPromises: Promise<any>[] = [Promise.resolve(null), Promise.resolve(null)];
+      if (comparisonEnabled) {
+        const startDateObj = parseISO(start);
+        const endDateObj = parseISO(end);
+        const diff = differenceInDays(endDateObj, startDateObj);
+        const prevStartDate = format(subDays(startDateObj, diff + 1), 'yyyy-MM-dd');
+        const prevEndDate = format(subDays(endDateObj, diff + 1), 'yyyy-MM-dd');
+        previousPeriodPromises = [
+          loadStaffTransactionStats(prevStartDate, prevEndDate),
+          loadTransactionTypeStats(prevStartDate, prevEndDate),
+        ];
+      }
+
+      const [
+        currentStaffStats, 
+        currentTypeStats, 
+        currentTrends, 
+        currentRecordStats,
+        previousStaffStats,
+        previousTypeStats
+      ] = await Promise.all([...currentPeriodPromises, ...previousPeriodPromises]);
+
+      setStaffTransactionStats(currentStaffStats);
+      setTransactionTypeStats(currentTypeStats);
+      setTransactionTrends(currentTrends);
+      setStatistics(currentRecordStats);
+
+      const totalTransactions = currentStaffStats.reduce((acc: number, curr: { count: number }) => acc + curr.count, 0);
+      const activeStaff = currentStaffStats.length;
+      const mostFrequentType = currentTypeStats.length > 0 ? currentTypeStats.reduce((prev: any, current: any) => (prev.value > current.value) ? prev : current).name : 'N/A';
+
+      let metrics: KeyMetrics = { totalTransactions, activeStaff, mostFrequentType };
+
+      if (comparisonEnabled && previousStaffStats) {
+        const prevTotalTransactions = previousStaffStats.reduce((acc: number, curr: { count: number }) => acc + curr.count, 0);
+        const prevActiveStaff = previousStaffStats.length;
+        
+        metrics.totalTransactionsChange = calculatePercentageChange(totalTransactions, prevTotalTransactions);
+        metrics.activeStaffChange = calculatePercentageChange(activeStaff, prevActiveStaff);
+      }
+      
+      setKeyMetrics(metrics);
+
+    } catch (error) {
+      console.error("Error loading dashboard stats:", error);
+      toast.error("Không thể tải một số dữ liệu thống kê.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [onLoad, comparisonEnabled]);
+
+  useEffect(() => {
+    loadAllStats(startDate, endDate);
+  }, []);
 
   const backupAllData = async () => {
     setIsBackingUp(true);
@@ -237,6 +300,14 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
         </Button>
         <div className="flex-grow" />
         <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex items-center space-x-2 self-end">
+            <Switch
+              id="comparison-mode"
+              checked={comparisonEnabled}
+              onCheckedChange={setComparisonEnabled}
+            />
+            <Label htmlFor="comparison-mode">So sánh kỳ trước</Label>
+          </div>
           <div>
             <Label htmlFor="stats-start-date">Từ ngày</Label>
             <DateInput id="stats-start-date" value={startDate} onChange={setStartDate} />
@@ -259,7 +330,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{isLoading ? '...' : keyMetrics?.totalTransactions ?? 0}</div>
-            <p className="text-xs text-muted-foreground">trong khoảng thời gian đã chọn</p>
+            {comparisonEnabled && <MetricChange value={keyMetrics?.totalTransactionsChange} />}
           </CardContent>
         </Card>
         <Card>
@@ -269,7 +340,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{isLoading ? '...' : keyMetrics?.activeStaff ?? 0}</div>
-            <p className="text-xs text-muted-foreground">đã thực hiện giao dịch</p>
+            {comparisonEnabled && <MetricChange value={keyMetrics?.activeStaffChange} />}
           </CardContent>
         </Card>
         <Card>
