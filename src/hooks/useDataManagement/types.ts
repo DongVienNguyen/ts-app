@@ -85,7 +85,8 @@ export interface DataManagementReturn {
   paginatedData: any[];
   totalPages: number;
   handleRowSelect: (rowId: string) => void;
-  handleSelectAll: () => void; // Added handleSelectAll
+  handleSelectAll: () => void;
+  handleBulkDelete: () => Promise<void>; // Added handleBulkDelete
 }
 
 export interface DataLoaderReturn {

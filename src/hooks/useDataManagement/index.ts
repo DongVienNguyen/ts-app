@@ -231,6 +231,7 @@ export const useDataManagement = (): DataManagementReturn => {
     setSearchTerm,
     setCurrentPage,
     setDialogOpen,
+    setEditingItem, // Added setEditingItem here
     setStartDate,
     setEndDate,
     setActiveTab,
