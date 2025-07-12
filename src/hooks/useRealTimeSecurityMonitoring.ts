@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SecurityEvent } from '@/utils/realTimeSecurityUtils';
 import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
+import { CONNECTION_STATE } from '@supabase/supabase-js'; // Import CONNECTION_STATE
 
 export interface RealTimeSecurityStats {
   activeUsers: number;
@@ -121,7 +122,7 @@ export function useRealTimeSecurityMonitoring() {
     const handleDisconnect = () => setIsSupabaseConnected(false);
 
     // Initial check
-    setIsSupabaseConnected(supabase.realtime.connectionState() === 'CONNECTED');
+    setIsSupabaseConnected(supabase.realtime.connectionState() === CONNECTION_STATE.CONNECTED);
 
     // Listen for global real-time connection status changes
     supabase.realtime.on('CONNECT', handleConnect);
