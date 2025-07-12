@@ -62,12 +62,12 @@ export function SecurityOverview() {
                       <Shield className="h-5 w-5 text-gray-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{event.event_type}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{event.type}</p>
                       <p className="text-sm text-gray-500 truncate">{event.username || 'Sự kiện hệ thống'}</p>
                     </div>
                     <div className="inline-flex items-center text-xs text-gray-500 whitespace-nowrap">
                       <Clock className="h-3 w-3 mr-1" />
-                      {new Date(event.created_at).toLocaleString('vi-VN')}
+                      {new Date(event.timestamp).toLocaleString('vi-VN')}
                     </div>
                   </li>
                 ))}
