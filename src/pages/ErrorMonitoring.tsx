@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
+import { SystemStatus } from '@/utils/errorTracking'; // Import SystemStatus
 
 const ErrorMonitoring = () => {
   const { user } = useSecureAuth();
@@ -195,18 +196,18 @@ const ErrorMonitoring = () => {
                     <div key={service} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <span className={`text-lg ${getStatusColor(status.status)}`}>
-                            {getStatusIcon(status.status)}
+                          <span className={`text-lg ${getStatusColor((status as SystemStatus).status)}`}>
+                            {getStatusIcon((status as SystemStatus).status)}
                           </span>
                           <div>
                             <p className="font-medium text-gray-900 capitalize">{service}</p>
                             <p className="text-sm text-gray-500">
-                              Uptime: {status.uptime_percentage?.toFixed(1) || 0}%
+                              Uptime: {(status as SystemStatus).uptime_percentage?.toFixed(1) || 0}%
                             </p>
                           </div>
                         </div>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(status.status)}`}>
-                          {status.status}
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor((status as SystemStatus).status)}`}>
+                          {(status as SystemStatus).status}
                         </span>
                       </div>
                     </div>

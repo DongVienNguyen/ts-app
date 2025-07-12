@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { SystemStatus } from '@/utils/errorTracking';
 
-interface ServiceHealth {
+export interface ServiceHealth { // Exported ServiceHealth
   database: SystemStatus;
   email: SystemStatus;
   pushNotification: SystemStatus;

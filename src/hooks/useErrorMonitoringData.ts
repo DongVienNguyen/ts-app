@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getErrorStatistics, SystemError, SystemMetric, SystemStatus, checkServiceHealth } from '@/utils/errorTracking';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, subDays, startOfDay } from 'date-fns';
+import { ServiceHealth } from '@/components/error-monitoring/ServiceStatusTab'; // Import ServiceHealth
 
 export function useErrorMonitoringData() {
   const { user, loading: authLoading } = useAuth();
@@ -19,7 +20,13 @@ export function useErrorMonitoringData() {
   });
   const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
   const [systemMetrics, setSystemMetrics] = useState<SystemMetric[]>([]);
-  const [serviceHealth, setServiceHealth] = useState<Record<string, SystemStatus>>({}); // Corrected type
+  // Corrected type for serviceHealth and initialized with default values
+  const [serviceHealth, setServiceHealth] = useState<ServiceHealth>({
+    database: { service_name: 'database', status: 'unknown', uptime_percentage: 0 },
+    email: { service_name: 'email', status: 'unknown', uptime_percentage: 0 },
+    pushNotification: { service_name: 'pushNotification', status: 'unknown', uptime_percentage: 0 },
+    api: { service_name: 'api', status: 'unknown', uptime_percentage: 0 },
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -81,12 +88,20 @@ export function useErrorMonitoringData() {
       }
 
       if (healthResult.status === 'fulfilled' && healthResult.value) {
-        const healthObject = healthResult.value.reduce((acc, status) => {
+        const healthObject: ServiceHealth = healthResult.value.reduce((acc, status) => {
           let key = status.service_name;
           if (key === 'push_notification') key = 'pushNotification';
-          acc[key] = status;
+          // Ensure all expected keys are present, even if a service check fails
+          if (key === 'database' || key === 'email' || key === 'pushNotification' || key === 'api') {
+            acc[key] = status;
+          }
           return acc;
-        }, {} as Record<string, SystemStatus>); // Corrected initial value type
+        }, { // Provide default values for all properties to ensure type safety
+          database: { service_name: 'database', status: 'unknown', uptime_percentage: 0 },
+          email: { service_name: 'email', status: 'unknown', uptime_percentage: 0 },
+          pushNotification: { service_name: 'pushNotification', status: 'unknown', uptime_percentage: 0 },
+          api: { service_name: 'api', status: 'unknown', uptime_percentage: 0 },
+        } as ServiceHealth); // Explicitly cast to ServiceHealth
         setServiceHealth(healthObject);
         console.log('✅ Service health loaded:', healthObject);
       } else if (healthResult.status === 'rejected') {
@@ -115,6 +130,13 @@ export function useErrorMonitoringData() {
         topErrorTypes: [], errorTrend: [], byType: {}, bySeverity: {}, recent: [],
       });
       setRecentErrors([]);
+      // Reset serviceHealth to its initial state when user logs out
+      setServiceHealth({
+        database: { service_name: 'database', status: 'unknown', uptime_percentage: 0 },
+        email: { service_name: 'email', status: 'unknown', uptime_percentage: 0 },
+        pushNotification: { service_name: 'pushNotification', status: 'unknown', uptime_percentage: 0 },
+        api: { service_name: 'api', status: 'unknown', uptime_percentage: 0 },
+      });
     }
   }, [user, authLoading, fetchAllData]);
 
