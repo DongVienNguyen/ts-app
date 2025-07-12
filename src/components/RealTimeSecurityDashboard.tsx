@@ -3,7 +3,8 @@ import { SecurityHeader } from '@/components/security/SecurityHeader';
 import { RealTimeMetricsCard } from '@/components/security/RealTimeMetricsCard';
 import { LiveActivityFeed } from '@/components/security/LiveActivityFeed';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, LineChart, Users, Shield } from 'lucide-react';
+import { BarChart, Users } from 'lucide-react';
+import { ActiveUsersCard } from './security/ActiveUsersCard';
 
 export function RealTimeSecurityDashboard() {
   const {
@@ -54,19 +55,7 @@ export function RealTimeSecurityDashboard() {
               </p>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Users className="w-5 h-5" />
-                <span>Người dùng Hoạt động</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-500 text-center py-8">
-                Danh sách người dùng đang hoạt động sẽ được hiển thị ở đây.
-              </p>
-            </CardContent>
-          </Card>
+          <ActiveUsersCard events={events} />
         </div>
       </div>
     </div>
