@@ -59,7 +59,7 @@ export function ErrorMonitoringDashboard({
 
       <ErrorOverviewCards 
         errorStats={errorStats}
-        isLoading={isLoading} // Pass isLoading prop
+        isLoading={isLoading}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -92,6 +92,7 @@ export function ErrorMonitoringDashboard({
             <TabsContent value="services">
               <ServiceStatusTab
                 serviceHealth={serviceHealth}
+                isLoading={isLoading} // Pass isLoading prop
               />
             </TabsContent>
 

@@ -14,9 +14,10 @@ export interface ServiceHealth { // Exported ServiceHealth
 
 interface ServiceStatusTabProps {
   serviceHealth: ServiceHealth;
+  isLoading: boolean; // Add isLoading prop
 }
 
-export function ServiceStatusTab({ serviceHealth }: ServiceStatusTabProps) {
+export function ServiceStatusTab({ serviceHealth, isLoading }: ServiceStatusTabProps) {
   const getStatusIconComponent = (status: string) => {
     switch (status) {
       case 'online': return <CheckCircle className="w-4 h-4" />;
@@ -53,6 +54,15 @@ export function ServiceStatusTab({ serviceHealth }: ServiceStatusTabProps) {
       service: serviceHealth.api
     }
   ];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p className="ml-3 text-gray-600">Đang tải trạng thái dịch vụ...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
