@@ -43,9 +43,11 @@ export function useErrorMonitoringData() {
     console.log('🔄 [ERROR_MONITORING] Refreshing recent errors only...');
     
     try {
+      const sevenDaysAgo = subDays(new Date(), 7).toISOString(); // Calculate 7 days ago
       const { data: freshErrors, error } = await supabase
         .from('system_errors')
         .select('*')
+        .gte('created_at', sevenDaysAgo) // Filter for errors within the last 7 days
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -62,7 +64,7 @@ export function useErrorMonitoringData() {
       const totalErrors = freshErrors?.length || 0;
       const criticalErrors = freshErrors?.filter(e => e.severity === 'critical').length || 0;
       const resolvedErrors = freshErrors?.filter(e => e.status === 'resolved').length || 0;
-      const errorRate = Number(totalErrors) / (7 * 24); // Fix: Cast to Number
+      const errorRate = Number(totalErrors) / (7 * 24); // This calculation is now more accurate for the 7-day period
 
       const errorTypeCount = freshErrors?.reduce((acc: { [key: string]: number }, error) => {
         acc[error.error_type] = (acc[error.error_type] || 0) + 1;
@@ -118,10 +120,12 @@ export function useErrorMonitoringData() {
     console.log('🔄 [ERROR_MONITORING] Loading error monitoring data...');
     
     try {
+      const sevenDaysAgo = subDays(new Date(), 7).toISOString(); // Calculate 7 days ago
       // Load errors directly from database
       const { data: errors, error: errorsError } = await supabase
         .from('system_errors')
         .select('*')
+        .gte('created_at', sevenDaysAgo) // Filter for errors within the last 7 days
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -135,7 +139,7 @@ export function useErrorMonitoringData() {
       const totalErrors = errors?.length || 0;
       const criticalErrors = errors?.filter(e => e.severity === 'critical').length || 0;
       const resolvedErrors = errors?.filter(e => e.status === 'resolved').length || 0;
-      const errorRate = Number(totalErrors) / (7 * 24); // Fix: Cast to Number
+      const errorRate = Number(totalErrors) / (7 * 24); // This calculation is now more accurate for the 7-day period
 
       // Group by type
       const byType = errors?.reduce((acc: { [key: string]: number }, error) => {
