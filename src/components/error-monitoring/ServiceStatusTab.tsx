@@ -1,11 +1,10 @@
-import { Server, Mail, Bell, Wifi, CheckCircle, AlertCircle, XCircle, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Activity, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { SystemStatus } from '@/utils/errorTracking';
-import { getStatusColor } from '@/utils/errorTracking'; // Import directly
+import { Skeleton } from '@/components/ui/skeleton';
 
-export interface ServiceHealth { // Exported ServiceHealth
+// Define the structure for service health
+export interface ServiceHealth {
   database: SystemStatus;
   email: SystemStatus;
   pushNotification: SystemStatus;
@@ -13,88 +12,81 @@ export interface ServiceHealth { // Exported ServiceHealth
 }
 
 interface ServiceStatusTabProps {
-  serviceHealth: ServiceHealth;
-  isLoading: boolean; // Add isLoading prop
+  serviceHealth: ServiceHealth; // Changed to ServiceHealth object
+  isLoading: boolean;
 }
 
 export function ServiceStatusTab({ serviceHealth, isLoading }: ServiceStatusTabProps) {
-  const getStatusIconComponent = (status: string) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'online': return <CheckCircle className="w-4 h-4" />;
-      case 'degraded': return <AlertCircle className="w-4 h-4" />;
-      case 'offline': return <XCircle className="w-4 h-4" />;
-      case 'maintenance': return <Clock className="w-4 h-4" />;
-      default: return <CheckCircle className="w-4 h-4" />;
+      case 'online':
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case 'degraded':
+        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
+      case 'offline':
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      default:
+        return <Activity className="h-5 w-5 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'online':
+        return 'text-green-600';
+      case 'degraded':
+        return 'text-yellow-600';
+      case 'offline':
+        return 'text-red-600';
+      default:
+        return 'text-gray-600';
     }
   };
 
   const services = [
-    {
-      key: 'database',
-      name: 'Cơ sở dữ liệu',
-      icon: Server,
-      service: serviceHealth.database
-    },
-    {
-      key: 'email',
-      name: 'Email',
-      icon: Mail,
-      service: serviceHealth.email
-    },
-    {
-      key: 'pushNotification',
-      name: 'Push Notification',
-      icon: Bell,
-      service: serviceHealth.pushNotification
-    },
-    {
-      key: 'api',
-      name: 'API',
-      icon: Wifi,
-      service: serviceHealth.api
-    }
+    { name: 'Cơ sở dữ liệu', key: 'database' },
+    { name: 'API Backend', key: 'api' },
+    { name: 'Dịch vụ Email', key: 'email' },
+    { name: 'Thông báo đẩy (Push)', key: 'pushNotification' },
   ];
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="ml-3 text-gray-600">Đang tải trạng thái dịch vụ...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {services.map((service) => {
-        const Icon = service.icon;
-        return (
-          <Card key={service.key}>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center space-x-2">
-                <Icon className="w-5 h-5" />
-                <span>{service.name}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Trạng thái:</span>
-                  <Badge className={getStatusColor(service.service.status)}>
-                    {getStatusIconComponent(service.service.status)}
-                    <span className="ml-1">{service.service.status}</span>
-                  </Badge>
+    <Card>
+      <CardHeader>
+        <CardTitle>Trạng thái dịch vụ</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-4">
+            {services.map((service, index) => (
+              <div key={index} className="flex items-center justify-between border-b pb-2 last:border-b-0 last:pb-0">
+                <div className="flex items-center space-x-3">
+                  <Skeleton className="h-5 w-5 rounded-full" />
+                  <Skeleton className="h-4 w-32" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Uptime:</span>
-                  <span className="font-medium">{service.service.uptime_percentage}%</span>
-                </div>
-                <Progress value={service.service.uptime_percentage} className="h-2" />
+                <Skeleton className="h-4 w-20" />
               </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {services.map((service) => {
+              const statusData = serviceHealth[service.key as keyof ServiceHealth];
+              return (
+                <div key={service.key} className="flex items-center justify-between border-b pb-2 last:border-b-0 last:pb-0">
+                  <div className="flex items-center space-x-3">
+                    {getStatusIcon(statusData?.status || 'unknown')}
+                    <span className="font-medium">{service.name}</span>
+                  </div>
+                  <span className={`font-semibold ${getStatusColor(statusData?.status || 'unknown')}`}>
+                    {statusData?.status ? statusData.status.charAt(0).toUpperCase() + statusData.status.slice(1) : 'Unknown'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

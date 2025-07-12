@@ -3,24 +3,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ErrorMonitoringHeader } from './error-monitoring/ErrorMonitoringHeader';
 import { ErrorOverviewCards } from './error-monitoring/ErrorOverviewCards';
 import { ErrorListTab } from './error-monitoring/ErrorListTab';
-import { ServiceStatusTab } from './error-monitoring/ServiceStatusTab';
+import { ServiceStatusTab, ServiceHealth } from './error-monitoring/ServiceStatusTab';
 import { ErrorAnalyticsTab } from './error-monitoring/ErrorAnalyticsTab';
 import { RealTimeErrorFeed } from './error-monitoring/RealTimeErrorFeed';
 import { PWATestPanel } from '@/components/PWATestPanel';
 import PushNotificationTester from '@/components/PushNotificationTester';
 import VAPIDKeyTester from '@/components/VAPIDKeyTester';
-import { SystemError, SystemMetric, SystemStatus, SystemAlert } from '@/utils/errorTracking'; // Import SystemStatus and SystemAlert
-import { ServiceHealth } from './error-monitoring/ServiceStatusTab';
+import { SystemError, SystemMetric, SystemStatus, SystemAlert } from '@/utils/errorTracking';
 import { AdminEmailSettings } from '@/components/admin/AdminEmailSettings';
 import { SystemAlertsDisplay } from './error-monitoring/SystemAlertsDisplay';
-import { Card, CardHeader } from '@/components/ui/card'; // Import Card and CardHeader
-import { ResourcesTab } from './error-monitoring/ResourcesTab'; // Import ResourcesTab
+import { Card, CardHeader } from '@/components/ui/card';
+import { ResourcesTab } from './error-monitoring/ResourcesTab';
 
 interface ErrorMonitoringDashboardProps {
   errorStats: any;
   recentErrors: SystemError[];
   systemMetrics: SystemMetric[];
-  serviceHealth: SystemStatus[];
+  serviceHealth: ServiceHealth;
   systemAlerts: SystemAlert[];
   isLoading: boolean;
   lastUpdated: Date | null;
@@ -46,6 +45,12 @@ export function ErrorMonitoringDashboard({
   isRefreshingAlerts,
 }: ErrorMonitoringDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview');
+  const [cardFilter, setCardFilter] = useState<{ type: 'severity' | 'status'; value: string } | null>(null);
+
+  const handleCardClick = (type: 'severity' | 'status', value: string) => {
+    setCardFilter({ type, value });
+    setActiveTab('errors');
+  };
 
   return (
     <div className="space-y-6">
@@ -62,7 +67,7 @@ export function ErrorMonitoringDashboard({
           onAcknowledge={acknowledgeAlert}
           isLoading={isRefreshingAlerts || isLoading}
         />
-        <ErrorOverviewCards errorStats={errorStats} isLoading={isLoading} /> {/* Changed 'stats' to 'errorStats' */}
+        <ErrorOverviewCards errorStats={errorStats} isLoading={isLoading} onCardClick={handleCardClick} />
         <Card>
           <CardHeader>
             <Tabs defaultValue="errors" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -80,7 +85,8 @@ export function ErrorMonitoringDashboard({
                   recentErrors={recentErrors}
                   isLoading={isLoading}
                   onRefresh={refreshRecentErrors}
-                  // Removed initialFilter and onFilterApplied as they are not defined here
+                  initialFilter={cardFilter}
+                  onFilterApplied={() => setCardFilter(null)}
                 />
               </TabsContent>
 
