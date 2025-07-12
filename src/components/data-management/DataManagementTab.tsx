@@ -19,7 +19,7 @@ import {
 import OptimisedTable from '@/components/OptimizedTable';
 import DateInput from '@/components/DateInput';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ChevronDown } from 'lucide-react';
 import { EntityConfig, entityConfig } from '@/config/entityConfig';
 import {
   Pagination,
@@ -29,6 +29,12 @@ import {
   PaginationNext,
   PaginationLink,
 } from '@/components/ui/pagination';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface DataManagementTabProps {
   activeTab: string;
@@ -60,8 +66,13 @@ interface DataManagementTabProps {
   sortDirection: 'asc' | 'desc';
   filters: Record<string, any>;
   onFilterChange: (key: string, value: any) => void;
-  clearFilters: () => void; // Added clearFilters prop
+  clearFilters: () => void;
   config: EntityConfig;
+  selectedRows: Record<string, boolean>;
+  onRowSelect: (rowId: string) => void;
+  onSelectAll: () => void;
+  onBulkDelete: () => void;
+  onExportSelectedCSV: () => void;
 }
 
 const DataManagementTab: React.FC<DataManagementTabProps> = ({
@@ -94,9 +105,15 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
   sortDirection,
   filters,
   onFilterChange,
-  clearFilters, // Destructure clearFilters
+  clearFilters,
   config,
+  selectedRows,
+  onRowSelect,
+  onSelectAll,
+  onBulkDelete,
+  onExportSelectedCSV,
 }) => {
+  const selectedCount = Object.keys(selectedRows).length;
 
   if (!config) {
     return (
@@ -122,7 +139,7 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
     {
       key: 'actions',
       label: 'Hành động',
-      width: 180, // Gán chiều rộng cố định cho cột hành động
+      width: 180,
       render: (_: any, item: any) => (
         <div className="flex gap-2 justify-start">
           <Button variant="outline" size="sm" onClick={() => onEdit(item)}>Sửa</Button>
@@ -176,7 +193,25 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
               onChange={(e) => onSearchChange(e.target.value)}
             />
           </div>
-          <div className="flex-shrink-0 mt-auto">
+          <div className="flex-shrink-0 mt-auto flex items-center gap-2">
+            {selectedCount > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    Hành động ({selectedCount})
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onExportSelectedCSV}>
+                    Xuất các mục đã chọn
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onBulkDelete} className="text-red-600 focus:text-white focus:bg-red-600">
+                    Xóa các mục đã chọn
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <Button onClick={onAdd}>Thêm mới</Button>
           </div>
         </div>
@@ -238,6 +273,10 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
             onSort={onSort}
             sortColumn={sortColumn}
             sortDirection={sortDirection}
+            selectable
+            selectedRows={selectedRows}
+            onRowSelect={onRowSelect}
+            onSelectAll={onSelectAll}
           />
         )}
 

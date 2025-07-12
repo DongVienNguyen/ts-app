@@ -61,6 +61,7 @@ export interface DataManagementReturn {
   handleSave: (formData: any) => Promise<void>;
   refreshData: () => void;
   exportToCSV: () => void;
+  exportSelectedToCSV: () => void; // Added for exporting selected rows
   handleImportClick: () => void;
   restoreInputRef: React.RefObject<HTMLInputElement>;
   handleFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;

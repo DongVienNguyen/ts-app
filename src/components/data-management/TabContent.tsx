@@ -44,6 +44,11 @@ export const TabContent = ({ activeTab, dm }: TabContentProps) => {
             onFilterChange={dm.onFilterChange} // Changed from handleFilterChange to onFilterChange
             clearFilters={dm.clearFilters}
             config={dm.config}
+            selectedRows={dm.selectedRows}
+            onRowSelect={dm.handleRowSelect}
+            onSelectAll={dm.handleSelectAll}
+            onBulkDelete={dm.handleBulkDelete}
+            onExportSelectedCSV={dm.exportSelectedToCSV}
           />
         );
 

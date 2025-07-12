@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Database as DatabaseIcon } from 'lucide-react';
+import { Download, Database as DatabaseIcon, BarChart as BarChartIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { entityConfig } from '@/config/entityConfig';
 import { toCSV } from '@/utils/csvUtils';
 import JSZip from 'jszip';
-import { toast } from 'sonner'; // Import toast
+import { toast } from 'sonner';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface StatisticsTabProps {
   runAsAdmin: (callback: () => Promise<void>) => Promise<void>;
-  // setMessage: (message: { type: string; text: string }) => void; // Removed
   onLoad: () => void;
 }
 
@@ -40,7 +39,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
         setStatistics(stats);
       } catch (error: any) {
         console.error("Error loading statistics:", error.message);
-        toast.error(`Không thể tải thống kê: ${error.message}`); // Changed to toast
+        toast.error(`Không thể tải thống kê: ${error.message}`);
       }
     });
   };
@@ -76,14 +75,13 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
         setStaffTransactionStats(stats);
       } catch (error: any) {
         console.error("Error loading staff transaction statistics:", error.message);
-        toast.error(`Không thể tải thống kê giao dịch nhân viên: ${error.message}`); // Changed to toast
+        toast.error(`Không thể tải thống kê giao dịch nhân viên: ${error.message}`);
       }
     });
   };
 
   const backupAllData = async () => {
     setIsBackingUp(true);
-    // setMessage({ type: '', text: '' }); // Removed
     await runAsAdmin(async () => {
       try {
         const zip = new JSZip();
@@ -101,9 +99,9 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        toast.success("Sao lưu toàn bộ dữ liệu thành công."); // Changed to toast
+        toast.success("Sao lưu toàn bộ dữ liệu thành công.");
       } catch (error: any) {
-        toast.error(`Không thể sao lưu dữ liệu: ${error.message || 'Lỗi không xác định'}`); // Changed to toast
+        toast.error(`Không thể sao lưu dữ liệu: ${error.message || 'Lỗi không xác định'}`);
       }
     });
     setIsBackingUp(false);
@@ -114,58 +112,54 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
       <Button onClick={backupAllData} disabled={isBackingUp} className="mb-4">
         <Download className="mr-2 h-4 w-4" /> {isBackingUp ? 'Đang sao lưu...' : 'Sao lưu toàn bộ dữ liệu'}
       </Button>
+      
       <Card>
         <CardHeader>
-          <CardTitle>Thống kê số lượng bản ghi</CardTitle>
+          <CardTitle className="flex items-center">
+            <DatabaseIcon className="mr-2 h-5 w-5 text-blue-600" />
+            Thống kê số lượng bản ghi
+          </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <CardContent>
           {statistics.length > 0 ? (
-            statistics.map((stat) => (
-              <Card key={stat.name}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{stat.name}</CardTitle>
-                  <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stat.count}</div>
-                  <p className="text-xs text-muted-foreground">bản ghi</p>
-                </CardContent>
-              </Card>
-            ))
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={statistics} margin={{ top: 5, right: 20, left: 10, bottom: 75 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" interval={0} height={80} />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" fill="#3b82f6" name="Số bản ghi" />
+              </BarChart>
+            </ResponsiveContainer>
           ) : (
             <p>Không có dữ liệu thống kê.</p>
           )}
         </CardContent>
       </Card>
+
       <Card>
         <CardHeader>
-          <CardTitle>Thống kê giao dịch theo nhân viên</CardTitle>
+          <CardTitle className="flex items-center">
+            <BarChartIcon className="mr-2 h-5 w-5 text-green-600" />
+            Thống kê giao dịch theo nhân viên
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tên nhân viên</TableHead>
-                <TableHead className="text-right">Số lượng giao dịch</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {staffTransactionStats.length > 0 ? (
-                staffTransactionStats.map((stat) => (
-                  <TableRow key={stat.name}>
-                    <TableCell className="font-medium">{stat.name}</TableCell>
-                    <TableCell className="text-right">{stat.count}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={2} className="text-center">
-                    Không có dữ liệu thống kê.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          {staffTransactionStats.length > 0 ? (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={staffTransactionStats} layout="vertical" margin={{ top: 5, right: 20, left: 80, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={80} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" fill="#16a34a" name="Số giao dịch" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p>Không có dữ liệu thống kê.</p>
+          )}
         </CardContent>
       </Card>
     </div>

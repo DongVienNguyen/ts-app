@@ -8,6 +8,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { entityConfig, TableName } from '@/config/entityConfig'; // Import TableName
 import { dataService } from './dataService';
+import { toCSV } from '@/utils/csvUtils'; // Import toCSV
 
 const ITEMS_PER_PAGE = 20;
 
@@ -136,6 +137,35 @@ export const useDataManagement = (): DataManagementReturn => {
     });
   }, [selectedRows, runAsAdmin, selectedEntity, user, loadData, currentPage, debouncedSearchTerm, debouncedFilters, clearCache]);
 
+  const exportSelectedToCSV = useCallback(() => {
+    const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id]);
+    if (selectedIds.length === 0) {
+      toast.error('Vui lòng chọn ít nhất một bản ghi để xuất.');
+      return;
+    }
+
+    const selectedData = data.filter(row => selectedIds.includes(row.id));
+    const config = entityConfig[selectedEntity];
+    if (!config) {
+      toast.error('Không tìm thấy cấu hình cho thực thể này.');
+      return;
+    }
+
+    try {
+      const csvContent = toCSV(selectedData, config.fields);
+      const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', `${selectedEntity}_selected_export_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Đã xuất thành công ${selectedIds.length} bản ghi được chọn.`);
+    } catch (error: any) {
+      toast.error(`Lỗi khi xuất CSV: ${error.message}`);
+    }
+  }, [selectedRows, data, selectedEntity]);
+
   // Sort handler
   const handleSort = useCallback((columnKey: string) => {
     if (sortColumn === columnKey) {
@@ -251,6 +281,7 @@ export const useDataManagement = (): DataManagementReturn => {
     handleDelete,
     toggleStaffLock,
     exportToCSV,
+    exportSelectedToCSV,
     handleFileSelectForImport,
     startImportProcess,
     handleImportClick,
