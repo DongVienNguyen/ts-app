@@ -1,6 +1,7 @@
 import { Shield, Wifi, WifiOff, Play, Pause, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { formatRelativeTime } from '@/utils/dateUtils'; // Import formatRelativeTime
 
 interface SecurityHeaderProps {
   lastUpdated: Date | null; // Cho phép null
@@ -28,7 +29,7 @@ export function SecurityHeader({
         <div>
           <h1 className="text-3xl font-bold">Theo dõi Bảo mật Thời gian Thực</h1>
           <p className="text-gray-600">
-            Giám sát hoạt động bảo mật trực tiếp - Cập nhật lần cuối: {lastUpdated ? lastUpdated.toLocaleTimeString('vi-VN') : 'Đang cập nhật...'}
+            Giám sát hoạt động bảo mật trực tiếp - Cập nhật lần cuối: {lastUpdated ? formatRelativeTime(lastUpdated) : 'Đang cập nhật...'}
           </p>
         </div>
       </div>
