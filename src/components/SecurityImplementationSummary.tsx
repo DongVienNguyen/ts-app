@@ -38,7 +38,7 @@ export function SecurityImplementationSummary() {
         { name: "Login Rate Limiting", status: "completed", priority: "high" },
         { name: "Password Reset Rate Limiting", status: "completed", priority: "medium" },
         { name: "Security Event Logging", status: "completed", priority: "medium" },
-        { name: "Real-time Monitoring", status: "partial", priority: "low" },
+        { name: "Real-time Monitoring", status: "completed", priority: "high" },
       ]
     },
     {
@@ -199,16 +199,6 @@ export function SecurityImplementationSummary() {
                 <h4 className="font-medium text-blue-800">Password History</h4>
                 <p className="text-sm text-blue-700">
                   Triển khai tính năng ngăn chặn sử dụng lại mật khẩu cũ
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start space-x-3 p-3 bg-yellow-50 rounded-lg">
-              <Clock className="w-5 h-5 text-yellow-600 mt-0.5" />
-              <div>
-                <h4 className="font-medium text-yellow-800">Real-time Monitoring</h4>
-                <p className="text-sm text-yellow-700">
-                  Thêm dashboard theo dõi hoạt động bảo mật thời gian thực
                 </p>
               </div>
             </div>
