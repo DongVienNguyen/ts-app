@@ -21,7 +21,8 @@ export function ErrorMonitoringDashboard() {
     lastUpdated,
     refreshAll,
     getStatusColor,
-    getSeverityColor: originalGetSeverityColor
+    getSeverityColor: originalGetSeverityColor,
+    isRefreshingErrors,
   } = useErrorMonitoringData();
 
   const getSeverityColor = (severity: string | undefined): string => {
@@ -32,7 +33,8 @@ export function ErrorMonitoringDashboard() {
   return (
     <div className="space-y-6">
       <ErrorMonitoringHeader 
-        isLoading={isLoading} // Thêm prop isLoading
+        isLoading={isLoading}
+        isRefreshing={isRefreshingErrors}
         lastUpdated={lastUpdated}
         onRefresh={refreshAll}
       />

@@ -25,8 +25,10 @@ const ErrorMonitoring = () => {
     isLoading,
     lastUpdated,
     refreshAll,
+    refreshRecentErrors,
+    isRefreshingErrors,
     getSeverityColor,
-    getStatusColor, // Thêm getStatusColor vào đây
+    getStatusColor,
   } = useErrorMonitoringData();
 
   if (!user) {
@@ -62,8 +64,9 @@ const ErrorMonitoring = () => {
       <div className="space-y-6 p-4 md:p-6">
         <ErrorMonitoringHeader
           isLoading={isLoading}
+          isRefreshing={isRefreshingErrors}
           lastUpdated={lastUpdated}
-          onRefresh={refreshAll}
+          onRefresh={refreshRecentErrors}
         />
 
         <ErrorOverviewCards errorStats={errorStats} />

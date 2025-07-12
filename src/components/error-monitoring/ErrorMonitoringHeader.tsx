@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 
 interface ErrorMonitoringHeaderProps {
   isLoading: boolean;
-  lastUpdated?: Date | null; // Make it optional and allow null
+  isRefreshing: boolean; // Thêm prop này
+  lastUpdated?: Date | null;
   onRefresh: () => void;
 }
 
-export function ErrorMonitoringHeader({ lastUpdated, onRefresh }: ErrorMonitoringHeaderProps) {
+export function ErrorMonitoringHeader({ isLoading, isRefreshing, lastUpdated, onRefresh }: ErrorMonitoringHeaderProps) {
   return (
     <div className="flex items-center justify-between">
       <div>
@@ -23,8 +24,8 @@ export function ErrorMonitoringHeader({ lastUpdated, onRefresh }: ErrorMonitorin
         <div className="text-sm text-gray-500">
           Cập nhật lần cuối: {lastUpdated ? lastUpdated.toLocaleTimeString('vi-VN') : 'Đang tải...'}
         </div>
-        <Button onClick={onRefresh} variant="outline" size="sm">
-          <RefreshCw className="w-4 h-4 mr-2" />
+        <Button onClick={onRefresh} variant="outline" size="sm" disabled={isLoading || isRefreshing}>
+          {isRefreshing ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
           Làm mới
         </Button>
       </div>
