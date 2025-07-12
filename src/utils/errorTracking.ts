@@ -392,10 +392,12 @@ export function getErrorStatistics(errors: SystemError[]) {
     // Parse user agent for browser and OS
     console.log(`[DEBUG] Processing error ID: ${error.id}, Type: ${error.error_type}, Raw User Agent: "${error.user_agent}"`); // Debug log
 
-    if (error.user_agent) {
+    let browser = 'Unknown';
+    let os = 'Unknown';
+
+    // Check if user_agent is a non-empty string and not literally "null"
+    if (error.user_agent && typeof error.user_agent === 'string' && error.user_agent.trim() !== '' && error.user_agent.toLowerCase() !== 'null') {
       const userAgent = error.user_agent.toLowerCase();
-      let browser = 'Unknown';
-      let os = 'Unknown';
 
       if (userAgent.includes('chrome') && !userAgent.includes('chromium')) browser = 'Chrome';
       else if (userAgent.includes('firefox')) browser = 'Firefox';
@@ -408,14 +410,10 @@ export function getErrorStatistics(errors: SystemError[]) {
       else if (userAgent.includes('linux')) os = 'Linux';
       else if (userAgent.includes('android')) os = 'Android';
       else if (userAgent.includes('ios')) os = 'iOS';
-
-      byBrowser[browser] = (byBrowser[browser] || 0) + 1;
-      byOS[os] = (byOS[os] || 0) + 1;
-    } else {
-      // Explicitly handle cases where user_agent is null or empty
-      byBrowser['Unknown'] = (byBrowser['Unknown'] || 0) + 1;
-      byOS['Unknown'] = (byOS['Unknown'] || 0) + 1;
     }
+    
+    byBrowser[browser] = (byBrowser[browser] || 0) + 1;
+    byOS[os] = (byOS[os] || 0) + 1;
 
     // Update error trend
     if (error.created_at) {
@@ -436,6 +434,9 @@ export function getErrorStatistics(errors: SystemError[]) {
     .sort(([, countA], [, countB]) => countB - countA)
     .slice(0, 5)
     .map(([type, count]) => ({ type, count }));
+
+  console.log('getErrorStatistics - Final byBrowser:', byBrowser); // New debug log
+  console.log('getErrorStatistics - Final byOS:', byOS);     // New debug log
 
   return {
     totalErrors,
