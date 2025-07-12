@@ -69,40 +69,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return null;
       }
 
-      // Validate token format - our token is base64 encoded JSON, not JWT
+      // Validate JWT token
       try {
-        console.log('🔍 [AUTH] Token format check, length:', token.length);
-        
-        // Try to decode the token (it's base64 encoded JSON from edge function)
-        const payload = JSON.parse(atob(token));
-        console.log('✅ [AUTH] Token decoded successfully:', {
+        console.log('🔍 [AUTH] Validating JWT token...');
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+          console.log('❌ [AUTH] Invalid JWT format: not 3 parts');
+          return null;
+        }
+
+        // Decode the payload (the middle part of the JWT)
+        const payloadStr = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+        const payload = JSON.parse(payloadStr);
+
+        console.log('✅ [AUTH] JWT payload decoded successfully:', {
           username: payload.username,
           role: payload.role,
-          hasExp: !!payload.exp
+          exp: payload.exp
         });
-        
-        // Check token expiration if present
-        if (payload.exp) {
-          const currentTime = Date.now(); // Use milliseconds, not seconds
-          if (payload.exp < currentTime) {
-            console.log('❌ [AUTH] Token expired:', {
-              tokenExp: payload.exp,
-              currentTime: currentTime,
-              expiredMs: currentTime - payload.exp
-            });
-            return null;
-          }
-          
-          console.log('✅ [AUTH] Token valid:', {
-            exp: payload.exp,
-            timeUntilExp: Math.round((payload.exp - currentTime) / (60 * 60 * 1000)) + ' hours',
-            username: payload.username
+
+        // Check token expiration (exp is in seconds, Date.now() is in ms)
+        if (payload.exp && (payload.exp * 1000) < Date.now()) {
+          console.log('❌ [AUTH] JWT token has expired:', {
+            exp: new Date(payload.exp * 1000).toISOString(),
+            now: new Date().toISOString()
           });
-        } else {
-          console.log('✅ [AUTH] Token has no expiration');
+          return null;
         }
+        
+        console.log('✅ [AUTH] JWT token is valid and not expired.');
+
       } catch (tokenError) {
-        console.log('❌ [AUTH] Token parsing error:', tokenError);
+        console.log('❌ [AUTH] JWT token parsing or validation error:', tokenError);
         return null;
       }
 
