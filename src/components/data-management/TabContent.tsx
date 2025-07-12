@@ -3,18 +3,13 @@ import { StatisticsTab } from './StatisticsTab';
 import { AccountManagementTab } from './AccountManagementTab';
 import { LogManagementTab } from './LogManagementTab';
 import { AdminEmailSettings } from './AdminEmailSettings';
-import { SecurityDashboard } from '@/components/SecurityDashboard';
-import { SecurityTestPanel } from '@/components/SecurityTestPanel';
-import { SecurityDocumentation } from '@/components/SecurityDocumentation';
-import { SecurityImplementationSummary } from '@/components/SecurityImplementationSummary';
-import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
 import { VAPIDKeyTester } from '@/components/VAPIDKeyTester';
 import PushNotificationTester from '@/components/PushNotificationTester';
 import { PWATestPanel } from '@/components/PWATestPanel';
 import { ErrorMonitoringDashboard } from '@/components/ErrorMonitoringDashboard';
 import { UsageMonitoringDashboard } from '@/components/UsageMonitoringDashboard';
-import { EnhancedSecurityDashboard } from '@/components/EnhancedSecurityDashboard';
 import { SystemHealthWidget } from '@/components/SystemHealthWidget';
+import { SecurityDashboard } from '@/components/SecurityDashboard';
 
 interface TabContentProps {
   activeTab: string;
@@ -136,13 +131,6 @@ export const TabContent = ({
         );
 
       // Dashboard & Giám sát
-      case 'security-dashboard':
-        return (
-          <div className="mt-6 space-y-6">
-            <EnhancedSecurityDashboard />
-          </div>
-        );
-
       case 'error-monitoring':
         return (
           <div className="mt-6 space-y-6">
@@ -166,35 +154,6 @@ export const TabContent = ({
                 <SecurityDashboard />
               </div>
             </div>
-          </div>
-        );
-
-      // Bảo mật
-      case 'security-test':
-        return (
-          <div className="mt-6 space-y-6">
-            <SecurityTestPanel />
-          </div>
-        );
-
-      case 'security-docs':
-        return (
-          <div className="mt-6 space-y-6">
-            <SecurityDocumentation />
-          </div>
-        );
-
-      case 'security-summary':
-        return (
-          <div className="mt-6 space-y-6">
-            <SecurityImplementationSummary />
-          </div>
-        );
-
-      case 'security-workflow':
-        return (
-          <div className="mt-6 space-y-6">
-            <SecurityWorkflowDemo />
           </div>
         );
 

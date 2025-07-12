@@ -36,20 +36,9 @@ export const TabNavigation = ({ activeTab, onTabChange }: TabNavigationProps) =>
       label: 'Dashboard & Giám sát',
       icon: TrendingUp,
       tabs: [
-        { value: 'security-dashboard', label: 'Dashboard Bảo mật', icon: Shield },
         { value: 'error-monitoring', label: 'Giám sát Lỗi', icon: Activity },
         { value: 'usage-monitoring', label: 'Giám sát Sử dụng', icon: BarChart2 },
         { value: 'system-health', label: 'Sức khỏe Hệ thống', icon: TrendingUp },
-      ]
-    },
-    {
-      label: 'Bảo mật',
-      icon: Shield,
-      tabs: [
-        { value: 'security-test', label: 'Test Bảo mật', icon: Shield },
-        { value: 'security-docs', label: 'Tài liệu', icon: BookOpen },
-        { value: 'security-summary', label: 'Tổng kết', icon: CheckCircle },
-        { value: 'security-workflow', label: 'Demo', icon: ArrowRight },
       ]
     },
     {
@@ -67,7 +56,7 @@ export const TabNavigation = ({ activeTab, onTabChange }: TabNavigationProps) =>
       {/* Desktop Tabs */}
       <div className="hidden lg:block">
         <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 xl:grid-cols-13">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 xl:grid-cols-10">
             {tabGroups.flatMap(group => group.tabs).map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value} className="text-xs">
                 <tab.icon className="mr-1 h-3 w-3" />
