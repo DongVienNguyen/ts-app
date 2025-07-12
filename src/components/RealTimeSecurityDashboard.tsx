@@ -15,17 +15,8 @@ export function RealTimeSecurityDashboard() {
   
   const [isPaused, setIsPaused] = useState(false);
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
   // Initialize snapshotData to null, it will be set when needed
   const [snapshotData, setSnapshotData] = useState<typeof realTimeData | null>(null);
-
-  // This useEffect will now only update lastUpdated when realTimeData changes
-  // AND the dashboard is in active real-time mode.
-  useEffect(() => {
-    if (!isPaused && isRealTimeEnabled) {
-      setLastUpdated(new Date());
-    }
-  }, [realTimeData, isPaused, isRealTimeEnabled]);
 
   // Determine which data to display based on real-time status and pause state
   const dataToDisplay = useMemo(() => {
@@ -39,12 +30,21 @@ export function RealTimeSecurityDashboard() {
     }
   }, [isRealTimeEnabled, isPaused, snapshotData, realTimeData]);
 
+  // Derive lastUpdated from the dataToDisplay.recentEvents
+  const derivedLastUpdated = useMemo(() => {
+    if (dataToDisplay.recentEvents && dataToDisplay.recentEvents.length > 0) {
+      // Get the timestamp of the most recent event
+      return new Date(dataToDisplay.recentEvents[0].timestamp);
+    }
+    // If no events, or not real-time enabled, return null
+    return null;
+  }, [dataToDisplay.recentEvents]);
+
   const handleRealTimeToggle = (enabled: boolean) => {
     setIsRealTimeEnabled(enabled);
     if (!enabled) {
       setIsPaused(true); // If real-time is off, it's effectively paused
       setSnapshotData(realTimeData); // Capture snapshot when real-time is turned off
-      setLastUpdated(new Date()); // Update last updated time to snapshot time
     } else {
       setIsPaused(false); // Allow live updates
       setSnapshotData(null); // Clear snapshot when real-time is re-enabled
@@ -57,7 +57,6 @@ export function RealTimeSecurityDashboard() {
         const newPausedState = !prev;
         if (newPausedState) { // If transitioning to paused
           setSnapshotData(realTimeData); // Capture snapshot
-          setLastUpdated(new Date()); // Update last updated time to snapshot time
         } else { // If transitioning to unpaused
           setSnapshotData(null); // Clear snapshot when unpaused
         }
@@ -104,7 +103,7 @@ export function RealTimeSecurityDashboard() {
   return (
     <div className="space-y-4">
       <SecurityHeader
-        lastUpdated={lastUpdated}
+        lastUpdated={derivedLastUpdated}
         isConnected={dataToDisplay.isSupabaseConnected}
         isRealTimeEnabled={isRealTimeEnabled}
         isPaused={isPaused}
