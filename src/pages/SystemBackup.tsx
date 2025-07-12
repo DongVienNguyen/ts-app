@@ -21,7 +21,6 @@ import BackupVerificationCard from '@/components/backup/BackupVerificationCard';
 import BackupSettingsCard from '@/components/backup/BackupSettingsCard';
 import BackupPerformanceCard from '@/components/backup/BackupPerformanceCard';
 import BackupAnalyticsCard from '@/components/backup/BackupAnalyticsCard';
-import SystemHealthCard from '@/components/backup/SystemHealthCard';
 import RestoreActionsCard from '@/components/backup/RestoreActionsCard';
 import { RestorePreviewCard } from '@/components/backup/RestorePreviewCard';
 import { useBackupOperations } from '@/hooks/useBackupOperations';
@@ -129,7 +128,6 @@ const SystemBackup: React.FC = () => {
       case 'backup':
         return (
           <div className={contentClass}>
-            <SystemHealthCard />
             <BackupStatusCard backupStatus={backupStatus} onToggleAutoBackup={handleToggleAutoBackup} />
             <BackupActionsCard isRunning={backupStatus.isRunning} progress={backupStatus.progress} currentStep={backupStatus.currentStep} onPerformBackup={handlePerformBackup} onRefreshStatus={handleRefreshStatus} />
             <BackupComponentsCard backupItems={backupItems || []} />
@@ -182,7 +180,6 @@ const SystemBackup: React.FC = () => {
       case 'monitoring':
         return (
           <div className={contentClass}>
-            <SystemHealthCard />
             <BackupPerformanceCard backupHistory={backupHistory || []} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -198,7 +195,7 @@ const SystemBackup: React.FC = () => {
                 <div className="space-y-2 text-sm text-green-700">
                   <div className="flex justify-between"><span>Total Size:</span><span className="font-medium">{((backupHistory?.reduce((sum, h) => sum + (h.size || 0), 0) || 0) / 1024 / 1024).toFixed(1)} MB</span></div>
                   <div className="flex justify-between"><span>Avg Compression:</span><span className="font-medium">~65%</span></div>
-                  <div className="flex justify-between"><span>Space Saved:</span><span className="font-medium text-green-600">{((backupHistory?.reduce((sum, h) => sum + (h.size || 0), 0) || 0) * 0.65 / 1024 / 1024).toFixed(1)} MB</span></div>
+                  <div className="flex justify-between"><span>Space Saved:</span><span className="font-medium">{((backupHistory?.reduce((sum, h) => sum + (h.size || 0), 0) || 0) * 0.65 / 1024 / 1024).toFixed(1)} MB</span></div>
                 </div>
               </div>
             </div>

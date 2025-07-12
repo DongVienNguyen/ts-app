@@ -14,8 +14,6 @@ import {
   Users
 } from 'lucide-react';
 import { useSecureAuth } from '@/contexts/AuthContext';
-import { SecurityStatusWidget } from '@/components/SecurityStatusWidget';
-import { SystemHealthWidget } from '@/components/SystemHealthWidget';
 import { NotificationBell } from '@/components/NotificationBell';
 
 const Index = () => {
@@ -104,12 +102,6 @@ const Index = () => {
             </div>
           </div>
         </div>
-
-        {/* System Health Widget - Only for Admin */}
-        {user?.role === 'admin' && <SystemHealthWidget />}
-
-        {/* Security Status Widget - Only for Admin */}
-        {user?.role === 'admin' && <SecurityStatusWidget />}
 
         {/* Quick Actions */}
         <Card>

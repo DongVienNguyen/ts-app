@@ -10,11 +10,7 @@ export { SystemAlerts } from './SystemAlerts';
 export { PerformanceInsights } from './PerformanceInsights';
 export { SystemHealthHeader } from './SystemHealthHeader';
 export { SystemHealthFooter } from './SystemHealthFooter';
-export { RealTimeMonitor } from './RealTimeMonitor'; // Thêm dòng này
-
-// Services and hooks
-export { SystemHealthService } from './systemHealthService';
-export { useSystemHealth } from './useSystemHealth';
+export { RealTimeMonitor } from './RealTimeMonitor';
 
 // Types and utilities
 export type * from './types';

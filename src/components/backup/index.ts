@@ -10,6 +10,5 @@ export { default as BackupRetentionCard } from './BackupRetentionCard';
 export { default as BackupVerificationCard } from './BackupVerificationCard';
 export { default as BackupSettingsCard } from './BackupSettingsCard';
 export { default as BackupPerformanceCard } from './BackupPerformanceCard';
-export { default as SystemHealthCard } from './SystemHealthCard';
-export { default as RestoreActionsCard } from './RestoreActionsCard';
 export { RestorePreviewCard } from './RestorePreviewCard'; // Changed to named export
+export { default as RestoreActionsCard } from './RestoreActionsCard';
