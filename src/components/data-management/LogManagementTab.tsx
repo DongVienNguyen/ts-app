@@ -24,8 +24,7 @@ import {
   RefreshCw,
   Settings,
   Clock,
-  Server,
-  Eye // Added Eye icon for viewing logs
+  Server
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -618,10 +617,8 @@ export const LogManagementTab = () => {
                     variant="outline"
                     className="flex-1"
                   >
-                    {processingTable === category.tableName ? (
+                    {processingTable === category.tableName && (
                       <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                    ) : (
-                      <Eye className="w-3 h-3 mr-1" />
                     )}
                     Xem Logs
                   </Button>
@@ -631,10 +628,8 @@ export const LogManagementTab = () => {
                     size="sm"
                     className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
                   >
-                    {processingTable === category.tableName ? (
+                    {processingTable === category.tableName && (
                       <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                    ) : (
-                      <Calendar className="w-3 h-3 mr-1" />
                     )}
                     Dọn dẹp cũ
                   </Button>
@@ -645,10 +640,8 @@ export const LogManagementTab = () => {
                     variant="destructive"
                     className="flex-1"
                   >
-                    {processingTable === category.tableName ? (
+                    {processingTable === category.tableName && (
                       <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3 h-3 mr-1" />
                     )}
                     Xóa tất cả
                   </Button>
