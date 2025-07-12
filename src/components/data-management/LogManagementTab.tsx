@@ -24,7 +24,8 @@ import {
   RefreshCw,
   Settings,
   Clock,
-  Server
+  Server,
+  Bell // Added Bell icon
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -41,6 +42,7 @@ interface LogStats {
   sent_asset_reminders: number;
   sent_crc_reminders: number;
   system_status: number;
+  system_alerts: number; // Added system_alerts
   total: number;
 }
 
@@ -63,6 +65,7 @@ export const LogManagementTab = () => {
     sent_asset_reminders: 0,
     sent_crc_reminders: 0,
     system_status: 0,
+    system_alerts: 0, // Added system_alerts
     total: 0
   });
   const [retentionPeriod, setRetentionPeriod] = useState<'90' | '365'>('90');
@@ -143,7 +146,8 @@ export const LogManagementTab = () => {
         'asset_transactions',
         'sent_asset_reminders',
         'sent_crc_reminders',
-        'system_status'
+        'system_status',
+        'system_alerts' // Added system_alerts
       ];
 
       const counts: any = {};
@@ -199,7 +203,8 @@ export const LogManagementTab = () => {
         'user_sessions',
         'sent_asset_reminders',
         'sent_crc_reminders',
-        'system_status'
+        'system_status',
+        'system_alerts' // Added system_alerts
       ];
 
       let deletedCount = 0;
@@ -260,7 +265,8 @@ export const LogManagementTab = () => {
         { name: 'user_sessions', dateField: 'created_at' },
         { name: 'sent_asset_reminders', dateField: 'created_at' },
         { name: 'sent_crc_reminders', dateField: 'created_at' },
-        { name: 'system_status', dateField: 'created_at' }
+        { name: 'system_status', dateField: 'created_at' },
+        { name: 'system_alerts', dateField: 'created_at' } // Added system_alerts
       ];
 
       let totalDeleted = 0;
@@ -479,6 +485,16 @@ export const LogManagementTab = () => {
       icon: Server,
       color: 'bg-pink-500',
       description: 'Trạng thái, thời gian phản hồi của các dịch vụ'
+    },
+    {
+      name: 'Cảnh báo hệ thống', // Added system_alerts category
+      key: 'system_alerts',
+      tableName: 'system_alerts',
+      dateField: 'created_at',
+      count: stats.system_alerts,
+      icon: Bell,
+      color: 'bg-yellow-500',
+      description: 'Các cảnh báo được tạo bởi hệ thống giám sát'
     }
   ];
 
