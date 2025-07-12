@@ -48,7 +48,7 @@ export function useRealTimeSecurityMonitoring() {
         const { data: sessions, error: sessionError } = await supabase
           .from('user_sessions')
           .select('id')
-          .eq('session_end', null); // Assuming null session_end means active
+          .is('session_end', null); // Changed from .eq('session_end', null)
 
         if (sessionError) {
           console.warn("Could not fetch active sessions:", sessionError.message);
@@ -102,7 +102,7 @@ export function useRealTimeSecurityMonitoring() {
           const { data: sessions, error: sessionError } = await supabase
             .from('user_sessions')
             .select('id')
-            .eq('session_end', null);
+            .is('session_end', null); // Changed from .eq('session_end', null)
 
           if (sessionError) {
             console.warn("Could not update active sessions via real-time:", sessionError.message);
