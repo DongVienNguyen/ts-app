@@ -82,7 +82,7 @@ export const useStatisticsData = (runAsAdmin: (callback: () => Promise<any>) => 
   };
 
   const createStatsLoader = (field: 'staff_code' | 'room' | 'transaction_type' | 'parts_day', nameMappingTable?: 'staff') => async (start: string, end: string, type: string) => {
-    let query = supabase.from('asset_transactions').select(`${field}, staff_name:staff(staff_name)`).gte('transaction_date', start).lte('transaction_date', end);
+    let query = supabase.from('asset_transactions').select(field).gte('transaction_date', start).lte('transaction_date', end);
     if (type !== 'all') query = query.eq('transaction_type', type);
     
     const { data, error } = await query;

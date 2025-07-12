@@ -72,7 +72,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
           const { data: tableData, error } = await supabase.from(config.entity as any).select('*');
           if (error) throw error;
           const csvContent = toCSV(tableData || [], config.fields);
-          zip.file(`${key}.csv`, csvContent);
+          zip.file(`${key}.csv`, `\uFEFF${csvContent}`);
         }
         const content = await zip.generateAsync({ type: "blob" });
         const link = document.createElement('a');

@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { Settings, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import Layout from '@/components/Layout';
-import { TabNavigation } from '@/components/data-management/TabNavigation';
-import { TabContent } from '@/components/data-management/TabContent';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import DataManagementTab from '@/components/data-management/DataManagementTab';
+import { StatisticsTab } from '@/components/data-management/StatisticsTab';
+import { LogManagementTab } from '@/components/data-management/LogManagementTab';
 import { EditDialog } from '@/components/data-management/EditDialog';
 import { entityConfig, EntityConfig } from '@/config/entityConfig';
 import { useDataManagement } from '@/hooks/useDataManagement';
@@ -72,6 +75,7 @@ const mapEntityConfigToEditDialogFields = (config: EntityConfig): EditDialogFiel
 };
 
 const DataManagement = () => {
+  const [activeTab, setActiveTab] = useState('management');
   const dm = useDataManagement();
 
   if (dm.user === undefined) {
@@ -130,11 +134,63 @@ const DataManagement = () => {
           </Button>
         </div>
 
-        <TabNavigation activeTab={dm.activeTab} onTabChange={dm.setActiveTab} />
-
-        <div className="mt-6">
-          <TabContent activeTab={dm.activeTab} dm={dm} />
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="management">Quản lý</TabsTrigger>
+            <TabsTrigger value="statistics">Thống kê</TabsTrigger>
+            <TabsTrigger value="logs">Logs</TabsTrigger>
+          </TabsList>
+          <TabsContent value="management" className="mt-6">
+            <DataManagementTab
+              activeTab={activeTab} // Pass activeTab explicitly
+              selectedEntity={dm.selectedEntity}
+              onEntityChange={dm.setSelectedEntity}
+              isLoading={dm.isLoading}
+              searchTerm={dm.searchTerm}
+              onSearchChange={dm.setSearchTerm}
+              data={dm.data}
+              totalCount={dm.totalCount}
+              currentPage={dm.currentPage}
+              onPageChange={dm.setCurrentPage}
+              onAdd={dm.handleAdd}
+              onEdit={dm.handleEdit}
+              onDelete={dm.handleDelete}
+              onExportCSV={dm.exportToCSV}
+              onExportTemplate={dm.handleExportTemplate}
+              onImportClick={dm.handleImportClick}
+              restoreInputRef={dm.restoreInputRef}
+              onFileSelectForImport={dm.handleFileSelectForImport}
+              startImportProcess={dm.startImportProcess}
+              onImportCsvClick={dm.handleImportCsvClick}
+              importCsvInputRef={dm.importCsvInputRef}
+              onFileSelectForCsvImport={dm.handleFileSelectForCsvImport}
+              startDate={dm.startDate}
+              endDate={dm.endDate}
+              onStartDateChange={dm.setStartDate}
+              onEndDateChange={dm.setEndDate}
+              onBulkDeleteTransactions={dm.bulkDeleteTransactions}
+              onToggleStaffLock={dm.toggleStaffLock}
+              onSort={dm.handleSort}
+              sortColumn={dm.sortColumn}
+              sortDirection={dm.sortDirection}
+              filters={dm.filters}
+              onFilterChange={dm.onFilterChange}
+              clearFilters={dm.clearFilters}
+              config={dm.config}
+              selectedRows={dm.selectedRows}
+              onRowSelect={dm.handleRowSelect}
+              onSelectAll={dm.handleSelectAll}
+              onBulkDelete={dm.handleBulkDelete}
+              onExportSelectedCSV={dm.exportSelectedToCSV}
+            />
+          </TabsContent>
+          <TabsContent value="statistics" className="mt-6">
+            <StatisticsTab runAsAdmin={dm.runAsAdmin} onLoad={() => {}} />
+          </TabsContent>
+          <TabsContent value="logs" className="mt-6">
+            <LogManagementTab />
+          </TabsContent>
+        </Tabs>
 
         <EditDialog
           open={dm.dialogOpen}

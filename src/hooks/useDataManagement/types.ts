@@ -46,8 +46,6 @@ export interface BulkDeleteDataParams {
 
 export interface DataManagementReturn {
   user: AuthenticatedStaff | null | undefined;
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
   selectedEntity: TableName;
   setSelectedEntity: (entity: TableName) => void;
   isLoading: boolean;

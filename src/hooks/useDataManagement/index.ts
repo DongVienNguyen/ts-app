@@ -25,7 +25,6 @@ export const useDataManagement = (): DataManagementReturn => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState('management');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filters, setFilters] = useState<Record<string, FilterState>>({});
@@ -202,8 +201,6 @@ export const useDataManagement = (): DataManagementReturn => {
 
   return {
     user,
-    activeTab,
-    setActiveTab,
     selectedEntity,
     setSelectedEntity,
     isLoading,
