@@ -1,10 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Activity, Users, Lock, Clock, Shield, BarChart3, Settings } from 'lucide-react';
+import { AlertTriangle, Activity, Users, Lock, Clock } from 'lucide-react';
 import { useSecurityMonitoring } from '@/hooks/useSecurityMonitoring';
 import { SecurityFeaturesSummary } from './SecurityFeaturesSummary';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ThreatAnalysisCard } from './security/ThreatAnalysisCard'; // Import ThreatAnalysisCard
+import { ThreatAnalysisCard } from './security/ThreatAnalysisCard';
+import { UserRoleSummaryCard } from './security/UserRoleSummaryCard';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 const StatCard = ({ title, value, icon, isLoading }: { title: string, value: number | string, icon: React.ReactNode, isLoading: boolean }) => (
   <Card>
@@ -22,9 +25,16 @@ const StatCard = ({ title, value, icon, isLoading }: { title: string, value: num
   </Card>
 );
 
+const getEventTypeVariant = (eventType: string) => {
+  if (eventType.includes('SUCCESS')) return 'default';
+  if (eventType.includes('FAIL')) return 'destructive';
+  if (eventType.includes('SUSPICIOUS') || eventType.includes('RATE_LIMIT')) return 'destructive';
+  return 'secondary';
+};
+
 export function SecurityOverview() {
   const { stats, isLoading, error, getEventTrends } = useSecurityMonitoring();
-  const threatData = getEventTrends(); // Lấy dữ liệu xu hướng cho biểu đồ
+  const threatData = getEventTrends();
 
   if (error) {
     return (
@@ -40,8 +50,8 @@ export function SecurityOverview() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Sự kiện" value={stats.totalEvents} icon={<Activity className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
-        <StatCard title="Đăng nhập" value={stats.loginAttempts} icon={<Users className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
+        <StatCard title="Sự kiện (7 ngày)" value={stats.totalEvents} icon={<Activity className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
+        <StatCard title="Lượt đăng nhập" value={stats.loginAttempts} icon={<Users className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
         <StatCard title="Đăng nhập thất bại" value={stats.failedLogins} icon={<Lock className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
         <StatCard title="Hoạt động đáng ngờ" value={stats.suspiciousActivity} icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
       </div>
@@ -54,26 +64,33 @@ export function SecurityOverview() {
           <CardContent>
             {isLoading ? (
               <div className="space-y-4">
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
               </div>
             ) : stats.recentEvents.length > 0 ? (
-              <ul className="space-y-3">
-                {stats.recentEvents.slice(0, 5).map((event) => (
-                  <li key={event.id} className="flex items-center space-x-3 rounded-md border p-3 transition-colors hover:bg-gray-50">
-                    <div className="flex-shrink-0">
-                      <Shield className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{event.type}</p>
-                      <p className="text-sm text-gray-500 truncate">{event.username || 'Sự kiện hệ thống'}</p>
-                    </div>
-                    <div className="inline-flex items-center text-xs text-gray-500 whitespace-nowrap">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {new Date(event.timestamp).toLocaleString('vi-VN')}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Loại sự kiện</TableHead>
+                    <TableHead>Người dùng</TableHead>
+                    <TableHead>Địa chỉ IP</TableHead>
+                    <TableHead className="text-right">Thời gian</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stats.recentEvents.slice(0, 7).map((event) => (
+                    <TableRow key={event.id}>
+                      <TableCell>
+                        <Badge variant={getEventTypeVariant(event.type)}>{event.type}</Badge>
+                      </TableCell>
+                      <TableCell>{event.username || 'Hệ thống'}</TableCell>
+                      <TableCell>{event.ip || 'N/A'}</TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground">
+                        {new Date(event.timestamp).toLocaleString('vi-VN')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : (
               <div className="text-center py-8">
                 <p className="text-gray-500">Không có sự kiện bảo mật nào gần đây.</p>
@@ -83,20 +100,8 @@ export function SecurityOverview() {
         </Card>
 
         <div className="space-y-6">
-            {/* Thay thế thẻ giữ chỗ bằng ThreatAnalysisCard */}
+            <UserRoleSummaryCard />
             <ThreatAnalysisCard threatTrends={threatData} isLoading={isLoading} />
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cài đặt Bảo mật</CardTitle>
-                <Settings className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <h3 className="text-lg font-semibold text-gray-600 mb-2">Sắp ra mắt</h3>
-                  <p className="text-sm text-gray-500">Cài đặt nâng cao sẽ có trong phiên bản sau.</p>
-                </div>
-              </CardContent>
-            </Card>
         </div>
       </div>
 

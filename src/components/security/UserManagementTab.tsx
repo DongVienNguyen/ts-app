@@ -5,17 +5,41 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { Lock, Unlock, Search, RefreshCw } from 'lucide-react';
+import { Lock, Unlock, Search, RefreshCw, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatRelativeTime } from '@/utils/dateUtils';
+import { EditDialog } from '@/components/data-management/EditDialog';
+import { z } from 'zod';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Staff = Tables<'staff'>;
+
+const userFormSchema = z.object({
+  staff_name: z.string().min(1, "Tên nhân viên không được để trống"),
+  email: z.string().email("Email không hợp lệ").optional().or(z.literal('')),
+  role: z.enum(['user', 'admin'], { required_error: "Vai trò là bắt buộc" }),
+  department: z.string().optional(),
+});
 
 export function UserManagementTab() {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Staff | null>(null);
 
   const fetchStaff = async () => {
     setIsLoading(true);
@@ -48,12 +72,61 @@ export function UserManagementTab() {
           if (res.error) {
             throw new Error(res.error);
           }
-          fetchStaff(); // Refresh data on success
+          fetchStaff();
           return `Tài khoản ${user.username} đã được ${actionText} thành công.`;
         },
         error: (err) => `Lỗi ${actionText} tài khoản: ${err.message}`,
       }
     );
+  };
+
+  const handleEdit = (user: Staff) => {
+    setSelectedUser(user);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = (user: Staff) => {
+    setSelectedUser(user);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleSaveUser = async (updatedData: any) => {
+    if (!selectedUser) return;
+    setIsSaving(true);
+    const { error } = await supabase
+      .from('staff')
+      .update({
+        staff_name: updatedData.staff_name,
+        email: updatedData.email,
+        role: updatedData.role,
+        department: updatedData.department,
+      })
+      .eq('id', selectedUser.id);
+
+    setIsSaving(false);
+    if (error) {
+      toast.error(`Lỗi cập nhật người dùng: ${error.message}`);
+    } else {
+      toast.success('Cập nhật người dùng thành công.');
+      setIsEditDialogOpen(false);
+      fetchStaff();
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedUser) return;
+    const { error } = await supabase
+      .from('staff')
+      .delete()
+      .eq('id', selectedUser.id);
+
+    if (error) {
+      toast.error(`Lỗi xóa người dùng: ${error.message}`);
+    } else {
+      toast.success('Xóa người dùng thành công.');
+      setIsDeleteDialogOpen(false);
+      fetchStaff();
+    }
   };
 
   const filteredStaff = useMemo(() => {
@@ -62,6 +135,13 @@ export function UserManagementTab() {
       (user.staff_name && user.staff_name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [staff, searchTerm]);
+
+  const editFields = [
+    { name: 'staff_name', label: 'Tên nhân viên', type: 'text' as const, schema: userFormSchema.shape.staff_name },
+    { name: 'email', label: 'Email', type: 'email' as const, schema: userFormSchema.shape.email },
+    { name: 'role', label: 'Vai trò', type: 'select' as const, options: ['user', 'admin'], schema: userFormSchema.shape.role },
+    { name: 'department', label: 'Phòng ban', type: 'text' as const, schema: userFormSchema.shape.department },
+  ];
 
   return (
     <div className="space-y-4">
@@ -87,12 +167,12 @@ export function UserManagementTab() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-left">Tên nhân viên</TableHead>
-              <TableHead className="text-left">Tên đăng nhập</TableHead>
-              <TableHead className="text-left">Vai trò</TableHead>
-              <TableHead className="text-left">Trạng thái</TableHead>
-              <TableHead className="text-left">Cập nhật lần cuối</TableHead>
-              <TableHead className="text-left">Hành động</TableHead>
+              <TableHead>Tên nhân viên</TableHead>
+              <TableHead>Tên đăng nhập</TableHead>
+              <TableHead>Vai trò</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead>Cập nhật</TableHead>
+              <TableHead className="text-right">Hành động</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -107,27 +187,24 @@ export function UserManagementTab() {
             ) : filteredStaff.length > 0 ? (
               filteredStaff.map(user => (
                 <TableRow key={user.id}>
-                  <TableCell className="text-left">{user.staff_name || 'N/A'}</TableCell>
-                  <TableCell className="font-medium text-left">{user.username}</TableCell>
-                  <TableCell className="text-left">{user.role}</TableCell>
-                  <TableCell className="text-left">
+                  <TableCell>{user.staff_name || 'N/A'}</TableCell>
+                  <TableCell className="font-medium">{user.username}</TableCell>
+                  <TableCell>{user.role}</TableCell>
+                  <TableCell>
                     <Badge variant={user.account_status === 'active' ? 'default' : 'destructive'}>
                       {user.account_status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-left">{formatRelativeTime(user.updated_at!)}</TableCell>
-                  <TableCell className="text-left">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleToggleLock(user)}
-                    >
-                      {user.account_status === 'locked' ? (
-                        <Unlock className="w-4 h-4 mr-2" />
-                      ) : (
-                        <Lock className="w-4 h-4 mr-2" />
-                      )}
-                      {user.account_status === 'locked' ? 'Mở khóa' : 'Khóa'}
+                  <TableCell>{formatRelativeTime(user.updated_at!)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleToggleLock(user)}>
+                      {user.account_status === 'locked' ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(user)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600" onClick={() => handleDelete(user)}>
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -142,6 +219,43 @@ export function UserManagementTab() {
           </TableBody>
         </Table>
       </div>
+
+      {selectedUser && (
+        <EditDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          onSave={handleSaveUser}
+          title="Chỉnh sửa người dùng"
+          description={`Chỉnh sửa thông tin cho ${selectedUser.username}.`}
+          fields={editFields}
+          initialData={{
+            staff_name: selectedUser.staff_name,
+            email: selectedUser.email,
+            role: selectedUser.role,
+            department: selectedUser.department,
+          }}
+          isLoading={isSaving}
+        />
+      )}
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này không thể hoàn tác. Thao tác này sẽ xóa vĩnh viễn người dùng
+              <span className="font-bold"> {selectedUser?.username} </span>
+              khỏi hệ thống.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
