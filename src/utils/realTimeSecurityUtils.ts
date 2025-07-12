@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { isDevelopment } from '@/config';
+import { toast } from 'sonner';
 
 export interface SecurityEvent {
   id: string; // Thêm id để phân biệt các sự kiện
@@ -68,9 +69,16 @@ export async function logSecurityEventRealTime(
 
     if (error) {
       console.error('Error storing security event in database:', error);
+      toast.error('Lỗi ghi sự kiện bảo mật', {
+        description: `Không thể ghi vào CSDL. Lỗi: ${error.message}`,
+      });
     }
   } catch (error) {
     console.error('Error logging security event:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
+    toast.error('Lỗi ghi sự kiện bảo mật', {
+      description: `Đã xảy ra lỗi: ${errorMessage}`,
+    });
   }
 }
 
