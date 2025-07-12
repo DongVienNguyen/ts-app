@@ -246,12 +246,9 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
                 ))}
                 <SmartPagination
                   currentPage={currentPage}
-                  totalPages={totalPages}
-                  nextPage={nextPage}
-                  prevPage={prevPage}
-                  goToPage={goToPage}
-                  canNextPage={canNextPage}
-                  canPrevPage={canPrevPage}
+                  totalCount={filteredErrors.length}
+                  pageSize={10} // itemsPerPage value
+                  onPageChange={goToPage}
                 />
               </div>
             ) : ( <div className="text-center py-8 text-gray-500"><Filter className="w-12 h-12 mx-auto mb-2 opacity-50" /><p>Không tìm thấy lỗi nào phù hợp</p></div> )
