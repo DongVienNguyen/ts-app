@@ -10,7 +10,8 @@ import {
   LineChart as LineChartIcon,
   ArrowUp,
   ArrowDown,
-  Home
+  Home,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -37,6 +38,7 @@ interface KeyMetrics {
   activeStaff: number;
   mostFrequentType: string;
   mostActiveRoom: string;
+  mostActivePartsDay: string; // New key metric
   totalTransactionsChange?: number;
   activeStaffChange?: number;
 }
@@ -64,6 +66,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
   const [statistics, setStatistics] = useState<any[]>([]);
   const [staffTransactionStats, setStaffTransactionStats] = useState<{ name: string; count: number; originalKey: string; }[]>([]);
   const [roomTransactionStats, setRoomTransactionStats] = useState<{ name: string; count: number; originalKey: string; }[]>([]);
+  const [partsDayTransactionStats, setPartsDayTransactionStats] = useState<{ name: string; count: number; originalKey: string; }[]>([]); // New state for parts day stats
   const [transactionTypeStats, setTransactionTypeStats] = useState<{ name: string; value: number; originalKey: string; }[]>([]);
   const [transactionTrends, setTransactionTrends] = useState<{ date: string; count: number }[]>([]);
   const [keyMetrics, setKeyMetrics] = useState<KeyMetrics | null>(null);
@@ -122,7 +125,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
     return Promise.all(promises);
   };
 
-  const createStatsLoader = (field: 'staff_code' | 'room' | 'transaction_type', nameMappingTable?: 'staff') => async (start: string, end: string, type: string) => {
+  const createStatsLoader = (field: 'staff_code' | 'room' | 'transaction_type' | 'parts_day', nameMappingTable?: 'staff') => async (start: string, end: string, type: string) => {
     let query = supabase.from('asset_transactions').select(`${field}, staff_name:staff(staff_name)`).gte('transaction_date', start).lte('transaction_date', end);
     if (type !== 'all') query = query.eq('transaction_type', type);
     
@@ -154,6 +157,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
 
   const loadStaffTransactionStats = createStatsLoader('staff_code', 'staff');
   const loadRoomTransactionStats = createStatsLoader('room');
+  const loadPartsDayTransactionStats = createStatsLoader('parts_day'); // New loader for parts day
   const loadTransactionTypeStats = createStatsLoader('transaction_type');
 
   const loadTransactionTrends = async (start: string, end: string, type: string) => {
@@ -181,6 +185,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
       const loaders = {
         staff: loadStaffTransactionStats,
         room: loadRoomTransactionStats,
+        partsDay: loadPartsDayTransactionStats, // Add new loader
         type: loadTransactionTypeStats,
         trends: loadTransactionTrends,
         records: loadStatistics,
@@ -195,16 +200,17 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
         const diff = differenceInDays(endDateObj, startDateObj);
         const prevStartDate = format(subDays(startDateObj, diff + 1), 'yyyy-MM-dd');
         const prevEndDate = format(subDays(endDateObj, diff + 1), 'yyyy-MM-dd');
-        previousPeriodPromises = [loaders.staff, loaders.room].map(loader => loadData(loader, prevStartDate, prevEndDate, type));
+        previousPeriodPromises = [loaders.staff, loaders.room, loaders.partsDay].map(loader => loadData(loader, prevStartDate, prevEndDate, type)); // Add partsDay to comparison
       }
 
       const [
-        currentStaffStats, currentRoomStats, currentTypeStats, currentTrends, currentRecordStats,
+        currentStaffStats, currentRoomStats, currentPartsDayStats, currentTypeStats, currentTrends, currentRecordStats, // Destructure new stats
         previousStaffStats,
       ] = await Promise.all([...currentPeriodPromises, ...previousPeriodPromises]);
 
       setStaffTransactionStats(currentStaffStats || []);
       setRoomTransactionStats(currentRoomStats || []);
+      setPartsDayTransactionStats(currentPartsDayStats || []); // Set new state
       setTransactionTypeStats(currentTypeStats || []);
       setTransactionTrends(currentTrends || []);
       setStatistics(currentRecordStats || []);
@@ -213,8 +219,9 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
       const activeStaff = (currentStaffStats || []).length;
       const mostFrequentType = currentTypeStats && currentTypeStats.length > 0 ? currentTypeStats[0].name : 'N/A';
       const mostActiveRoom = currentRoomStats && currentRoomStats.length > 0 ? currentRoomStats[0].name : 'N/A';
+      const mostActivePartsDay = currentPartsDayStats && currentPartsDayStats.length > 0 ? currentPartsDayStats[0].name : 'N/A'; // Calculate new metric
 
-      let metrics: KeyMetrics = { totalTransactions, activeStaff, mostFrequentType, mostActiveRoom };
+      let metrics: KeyMetrics = { totalTransactions, activeStaff, mostFrequentType, mostActiveRoom, mostActivePartsDay }; // Include new metric
 
       if (comparisonEnabled) {
         const prevTotalTransactions = (previousStaffStats || []).reduce((acc: number, curr: { count: number }) => acc + curr.count, 0);
@@ -236,7 +243,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
     loadAllStats(startDate, endDate, selectedType);
   }, [loadAllStats, startDate, endDate, selectedType, comparisonEnabled]);
 
-  const handleChartClick = async (payload: any, filterField: 'staff_code' | 'room' | 'transaction_type') => {
+  const handleChartClick = async (payload: any, filterField: 'staff_code' | 'room' | 'transaction_type' | 'parts_day') => { // Update filterField type
     if (!payload || !payload.originalKey) return;
   
     const filterValue = payload.originalKey;
@@ -405,6 +412,17 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
             <p className="text-xs text-muted-foreground">sôi nổi nhất trong kỳ</p>
           </CardContent>
         </Card>
+        {/* New Card for Most Active Parts Day */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ca hoạt động nhất</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold truncate" title={keyMetrics?.mostActivePartsDay}>{isLoading ? '...' : keyMetrics?.mostActivePartsDay ?? 'N/A'}</div>
+            <p className="text-xs text-muted-foreground">sôi nổi nhất trong kỳ</p>
+          </CardContent>
+        </Card>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -474,7 +492,24 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
           </CardContent>
         </Card>
 
+        {/* New Card for Transactions by Parts Day */}
         <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center"><BarChartIcon className="mr-2 h-5 w-5 text-purple-600" />Giao dịch theo Ca</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => handleExportChartData(partsDayTransactionStats, [{key: 'name', label: 'Ca', type: 'text'}, {key: 'count', label: 'Số giao dịch', type: 'number'}], 'giao_dich_theo_ca')}><Download className="h-4 w-4" /></Button>
+          </CardHeader>
+          <CardContent className="relative">
+            {isLoading && renderLoading()}
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={partsDayTransactionStats} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" /><YAxis allowDecimals={false} /><Tooltip /><Legend />
+                <Bar dataKey="count" fill="#8b5cf6" name="Số giao dịch" onClick={(data) => handleChartClick(data, 'parts_day')} style={{ cursor: 'pointer' }} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-5"> {/* Adjusted col-span to fit new chart */}
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center"><DatabaseIcon className="mr-2 h-5 w-5 text-blue-600" />Số lượng bản ghi</CardTitle>
              <Button variant="ghost" size="sm" onClick={() => handleExportChartData(statistics, [{key: 'name', label: 'Bảng', type: 'text'}, {key: 'count', label: 'Số bản ghi', type: 'number'}], 'so_luong_ban_ghi')}><Download className="h-4 w-4" /></Button>
