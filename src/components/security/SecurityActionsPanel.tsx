@@ -60,6 +60,41 @@ export function SecurityActionsPanel() {
     });
   };
 
+  const handleDirectLogTest = () => {
+    if (!eventType) {
+      toast.error('Vui lòng chọn loại sự kiện hoặc hành động.');
+      return;
+    }
+
+    if (eventType === 'ACCOUNT_LOCKED' || eventType === 'ACCOUNT_UNLOCKED') {
+      if (!username) {
+        toast.error('Vui lòng nhập tên người dùng để khóa/mở khóa.');
+        return;
+      }
+      const status = eventType === 'ACCOUNT_LOCKED' ? 'locked' : 'active';
+      const actionText = status === 'locked' ? 'khóa' : 'mở khóa';
+
+      toast.promise(
+        supabase.functions.invoke('manage-user-status', {
+          body: { username, status },
+        }),
+        {
+          loading: `Đang ${actionText} tài khoản ${username}...`,
+          success: `Tài khoản ${username} đã được ${actionText} thành công.`,
+          error: (err) => `Lỗi ${actionText} tài khoản: ${err.message}`,
+        }
+      );
+    } else {
+      // Giữ lại logic mô phỏng cho các sự kiện khác
+      logEvent(
+        eventType,
+        { message: message || `Simulated ${eventType} event.` },
+        username || 'test_user'
+      );
+      toast.success(`Đã mô phỏng sự kiện: ${eventType}`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -129,6 +164,11 @@ export function SecurityActionsPanel() {
           <Button onClick={handleTestNotification} className="w-full" variant="outline">
             <AlertCircle className="w-4 h-4 mr-2" />
             Gửi Thông báo Kiểm tra
+          </Button>
+          {/* New button for direct log test */}
+          <Button onClick={handleDirectLogTest} className="w-full mt-2" variant="secondary">
+            <Activity className="w-4 h-4 mr-2" />
+            Gửi Sự kiện Bảo mật Trực tiếp (Test)
           </Button>
         </CardContent>
       </Card>
