@@ -38,6 +38,9 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     dbResponseTime: 0,
   });
   const [securityAlerts, setSecurityAlerts] = useState<SystemAlert[]>([]);
+  
+  // Force re-render counter
+  const [forceUpdateCounter, setForceUpdateCounter] = useState(0);
 
   // Ref để theo dõi mounted state
   const isMountedRef = useRef(true);
@@ -70,6 +73,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
       if (isMountedRef.current) {
         console.log('✅ [REFRESH] Refreshed events:', freshEvents?.length || 0);
         setRecentEvents(freshEvents || []);
+        setForceUpdateCounter(prev => prev + 1); // Force re-render
         toast.success('Đã làm mới dữ liệu');
       }
     } catch (err: any) {
@@ -82,7 +86,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     }
   }, [user]);
 
-  // Callback để xử lý sự kiện mới - sử dụng ref để tránh stale closure
+  // Callback để xử lý sự kiện mới
   const handleNewSecurityEvent = useCallback((payload: any) => {
     console.log('🎉 [REALTIME] New security event received:', payload);
     const newEvent = payload.new as SecurityEvent;
@@ -92,7 +96,14 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
       return;
     }
     
-    // Force update với functional update
+    console.log('🔄 [REALTIME] Processing new event:', {
+      id: newEvent.id,
+      type: newEvent.event_type,
+      username: newEvent.username,
+      created_at: newEvent.created_at
+    });
+    
+    // Force update với functional update và immediate re-render
     setRecentEvents((prevEvents) => {
       if (!isMountedRef.current) return prevEvents;
       
@@ -106,6 +117,14 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
       const updated = [newEvent, ...prevEvents].slice(0, 50);
       console.log('📝 [REALTIME] Updated events list, total:', updated.length);
       console.log('📝 [REALTIME] New event added:', newEvent.event_type, newEvent.username);
+      
+      // Force immediate re-render
+      setTimeout(() => {
+        if (isMountedRef.current) {
+          setForceUpdateCounter(prev => prev + 1);
+        }
+      }, 0);
+      
       return updated;
     });
     
@@ -203,12 +222,17 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
         setActiveUsers(Math.floor(Math.random() * 20) + 5);
         setIsSupabaseConnected(true);
 
-        // Setup real-time subscription for security events
-        const securityChannelName = `security_events_${Date.now()}_${Math.random()}`;
+        // Setup real-time subscription for security events với unique channel name
+        const securityChannelName = `security_events_${user.username}_${Date.now()}`;
         console.log(`🔗 [REALTIME] Creating security events channel: ${securityChannelName}`);
         
         channel = supabase
-          .channel(securityChannelName)
+          .channel(securityChannelName, {
+            config: {
+              broadcast: { self: true },
+              presence: { key: user.username }
+            }
+          })
           .on(
             'postgres_changes',
             { 
@@ -216,12 +240,27 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
               schema: 'public', 
               table: 'security_events' 
             },
-            handleNewSecurityEvent
+            (payload) => {
+              console.log('🎯 [REALTIME] Raw payload received:', payload);
+              handleNewSecurityEvent(payload);
+            }
           )
           .subscribe((status, err) => {
-            console.log(`📡 [REALTIME] Security channel status: ${status}`);
+            console.log(`📡 [REALTIME] Security channel status: ${status}`, err);
             if (status === 'SUBSCRIBED') {
               console.log(`✅ [REALTIME] Successfully subscribed to ${securityChannelName}`);
+              
+              // Test subscription bằng cách gửi một broadcast message
+              setTimeout(() => {
+                if (channel && isMountedRef.current) {
+                  console.log('🧪 [REALTIME] Testing channel with broadcast...');
+                  channel.send({
+                    type: 'broadcast',
+                    event: 'test',
+                    payload: { message: 'Channel test' }
+                  });
+                }
+              }, 1000);
             }
             if (status === 'CHANNEL_ERROR') {
               console.error(`❌ [REALTIME] Channel error on ${securityChannelName}:`, err);
@@ -229,10 +268,13 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
                 setError(`Lỗi kênh real-time: ${err?.message}`);
               }
             }
+            if (status === 'CLOSED') {
+              console.log(`🔒 [REALTIME] Channel ${securityChannelName} closed`);
+            }
           });
 
         // Setup real-time subscription for system alerts
-        const alertsChannelName = `system_alerts_${Date.now()}_${Math.random()}`;
+        const alertsChannelName = `system_alerts_${user.username}_${Date.now()}`;
         console.log(`🔗 [REALTIME] Creating system alerts channel: ${alertsChannelName}`);
         
         alertsChannel = supabase
@@ -319,7 +361,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     };
 
     generateThreatTrends();
-  }, [recentEvents]);
+  }, [recentEvents, forceUpdateCounter]); // Thêm forceUpdateCounter vào dependency
 
   return {
     recentEvents,
@@ -333,5 +375,6 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     activeUsers,
     systemStatus,
     securityAlerts,
+    forceUpdateCounter, // Export để component có thể sử dụng
   };
 };

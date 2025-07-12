@@ -23,6 +23,7 @@ export function RealTimeSecurityDashboard() {
     systemStatus,
     securityAlerts,
     refreshEvents,
+    forceUpdateCounter,
   } = useRealTimeSecurityMonitoring(user);
 
   // Debug log để kiểm tra dữ liệu từ hook
@@ -32,9 +33,10 @@ export function RealTimeSecurityDashboard() {
       isConnected: isSupabaseConnected,
       isLoading,
       isRefreshing,
-      error
+      error,
+      forceUpdateCounter
     });
-  }, [recentEvents, isSupabaseConnected, isLoading, isRefreshing, error]);
+  }, [recentEvents, isSupabaseConnected, isLoading, isRefreshing, error, forceUpdateCounter]);
 
   if (!user) {
     return (
@@ -92,6 +94,7 @@ export function RealTimeSecurityDashboard() {
             isLoading={isLoading}
             isRefreshing={isRefreshing}
             onRefresh={refreshEvents}
+            forceUpdateCounter={forceUpdateCounter}
           />
         </div>
 
@@ -139,6 +142,7 @@ export function RealTimeSecurityDashboard() {
             <div>Is Connected: {isSupabaseConnected ? 'Yes' : 'No'}</div>
             <div>Is Loading: {isLoading ? 'Yes' : 'No'}</div>
             <div>Is Refreshing: {isRefreshing ? 'Yes' : 'No'}</div>
+            <div>Force Update Counter: {forceUpdateCounter || 0}</div>
             <div>Error: {error || 'None'}</div>
             <div>User Role: {user?.role}</div>
           </div>

@@ -13,9 +13,17 @@ interface LiveActivityFeedProps {
   isLoading: boolean;
   isRefreshing?: boolean;
   onRefresh?: () => void;
+  forceUpdateCounter?: number; // Thêm prop này
 }
 
-export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, isRefreshing, onRefresh }: LiveActivityFeedProps) {
+export function LiveActivityFeed({ 
+  events, 
+  isRealTimeEnabled, 
+  isLoading, 
+  isRefreshing, 
+  onRefresh,
+  forceUpdateCounter 
+}: LiveActivityFeedProps) {
   
   // Debug log để kiểm tra dữ liệu
   useEffect(() => {
@@ -23,19 +31,23 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, isRefre
     console.log('🔍 [LiveActivityFeed] Real-time enabled:', isRealTimeEnabled);
     console.log('🔍 [LiveActivityFeed] Loading:', isLoading);
     console.log('🔍 [LiveActivityFeed] Refreshing:', isRefreshing);
+    console.log('🔍 [LiveActivityFeed] Force update counter:', forceUpdateCounter);
     if (events && events.length > 0) {
       console.log('🔍 [LiveActivityFeed] Latest event:', events[0]);
     }
-  }, [events, isRealTimeEnabled, isLoading, isRefreshing]);
+  }, [events, isRealTimeEnabled, isLoading, isRefreshing, forceUpdateCounter]);
 
-  // Memoize events để tránh re-render không cần thiết
+  // Memoize events với forceUpdateCounter để force re-render
   const sortedEvents = useMemo(() => {
     if (!events || events.length === 0) return [];
     
-    return [...events].sort((a, b) => 
+    const sorted = [...events].sort((a, b) => 
       new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime()
     );
-  }, [events]);
+    
+    console.log('🔄 [LiveActivityFeed] Sorted events:', sorted.length, 'Force counter:', forceUpdateCounter);
+    return sorted;
+  }, [events, forceUpdateCounter]);
 
   const getEventIcon = (eventType: string) => {
     switch (eventType) {
@@ -135,6 +147,7 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, isRefre
             <div>Debug: {sortedEvents?.length || 0} events, Loading: {isLoading ? 'Yes' : 'No'}</div>
             <div>Real-time: {isRealTimeEnabled ? 'Enabled' : 'Disabled'}</div>
             <div>Refreshing: {isRefreshing ? 'Yes' : 'No'}</div>
+            <div>Force counter: {forceUpdateCounter || 0}</div>
             <div>Last update: {new Date().toLocaleTimeString()}</div>
           </div>
         )}
@@ -151,7 +164,7 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, isRefre
             <div className="space-y-3">
               {sortedEvents.map((event, index) => (
                 <div 
-                  key={`${event.id}-${index}`} 
+                  key={`${event.id}-${index}-${forceUpdateCounter}`} 
                   className="flex items-start space-x-3 p-2 rounded-md hover:bg-gray-50 transition-colors border-l-2 border-l-blue-200"
                 >
                   <div className="flex-shrink-0 mt-1">
