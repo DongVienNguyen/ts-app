@@ -92,8 +92,6 @@ export interface DataManagementReturn {
   config: EntityConfig;
   restoreFile: File | null;
   selectedRows: Record<string, boolean>;
-  filteredData: any[];
-  paginatedData: any[];
   totalPages: number;
   handleRowSelect: (rowId: string) => void;
   handleSelectAll: () => void;

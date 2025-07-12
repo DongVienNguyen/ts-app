@@ -8,7 +8,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { entityConfig, TableName } from '@/config/entityConfig';
 import { dataService } from './dataService';
-import { toCSV } from '@/utils/csvUtils';
+import { exportService } from './exportService';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -147,20 +147,9 @@ export const useDataManagement = (): DataManagementReturn => {
 
     const selectedData = data.filter(row => selectedIds.includes(row.id));
     const config = entityConfig[selectedEntity];
-    if (!config) {
-      toast.error('Không tìm thấy cấu hình cho thực thể này.');
-      return;
-    }
-
+    
     try {
-      const csvContent = toCSV(selectedData, config.fields);
-      const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', `${selectedEntity}_selected_export_${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      exportService.exportSelectedToCSV(selectedData, config);
       toast.success(`Đã xuất thành công ${selectedIds.length} bản ghi được chọn.`);
     } catch (error: any) {
       toast.error(`Lỗi khi xuất CSV: ${error.message}`);
@@ -216,7 +205,6 @@ export const useDataManagement = (): DataManagementReturn => {
     setSelectedRows({});
   }, [selectedEntity, clearEntityCache]);
 
-  const paginatedData = data;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   const refreshData = useCallback(() => {
@@ -290,8 +278,6 @@ export const useDataManagement = (): DataManagementReturn => {
     config: currentEntityConfig,
     restoreFile,
     selectedRows,
-    filteredData: data,
-    paginatedData,
     totalPages,
     handleRowSelect,
     handleSelectAll,
