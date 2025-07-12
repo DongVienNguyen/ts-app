@@ -26,18 +26,6 @@ export function RealTimeSecurityDashboard() {
     forceUpdateCounter,
   } = useRealTimeSecurityMonitoring(user);
 
-  // Debug log để kiểm tra dữ liệu từ hook
-  useEffect(() => {
-    console.log('🔍 [RealTimeSecurityDashboard] Hook data:', {
-      eventsCount: recentEvents?.length || 0,
-      isConnected: isSupabaseConnected,
-      isLoading,
-      isRefreshing,
-      error,
-      forceUpdateCounter
-    });
-  }, [recentEvents, isSupabaseConnected, isLoading, isRefreshing, error, forceUpdateCounter]);
-
   if (!user) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -62,13 +50,8 @@ export function RealTimeSecurityDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Connection Status */}
       <Alert variant={isSupabaseConnected ? "default" : "destructive"}>
-        {isSupabaseConnected ? (
-          <Wifi className="h-4 w-4" />
-        ) : (
-          <WifiOff className="h-4 w-4" />
-        )}
+        {isSupabaseConnected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
         <AlertDescription>
           {isSupabaseConnected 
             ? "Kết nối real-time đang hoạt động bình thường." 
@@ -77,16 +60,13 @@ export function RealTimeSecurityDashboard() {
         </AlertDescription>
       </Alert>
 
-      {/* System Overview Cards */}
       <SystemOverviewCards 
         systemStatus={systemStatus}
         activeUsers={activeUsers}
         isLoading={isLoading}
       />
 
-      {/* Main Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Live Activity Feed */}
         <div className="lg:col-span-1">
           <LiveActivityFeed 
             events={recentEvents || []}
@@ -98,56 +78,41 @@ export function RealTimeSecurityDashboard() {
           />
         </div>
 
-        {/* Real-time Metrics */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 flex flex-col gap-6">
           <RealTimeMetricsCard 
             events={recentEvents || []}
             isLoading={isLoading}
+            title="Số liệu thời gian thực (1 giờ qua)"
+            timeframeMinutes={60}
+          />
+          <RealTimeMetricsCard 
+            events={recentEvents || []}
+            isLoading={isLoading}
+            title="Số liệu tổng hợp (24 giờ qua)"
+            timeframeMinutes={1440}
           />
         </div>
       </div>
 
-      {/* Secondary Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Threat Analysis */}
         <div className="lg:col-span-2">
           <ThreatAnalysisCard 
             threatTrends={threatTrends || []}
             isLoading={isLoading}
           />
         </div>
-
-        {/* Active Users */}
         <div className="lg:col-span-1">
           <ActiveUsersCard 
             activeUsers={activeUsers}
-            recentEvents={recentEvents || []}
             isLoading={isLoading}
           />
         </div>
       </div>
 
-      {/* Security Alerts */}
       <SecurityAlerts 
         alerts={securityAlerts || []}
         isLoading={isLoading}
       />
-
-      {/* Debug Info (Development Only) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-8 p-4 bg-gray-100 rounded-lg">
-          <h3 className="font-semibold mb-2">Debug Information</h3>
-          <div className="text-sm space-y-1">
-            <div>Events Count: {recentEvents?.length || 0}</div>
-            <div>Is Connected: {isSupabaseConnected ? 'Yes' : 'No'}</div>
-            <div>Is Loading: {isLoading ? 'Yes' : 'No'}</div>
-            <div>Is Refreshing: {isRefreshing ? 'Yes' : 'No'}</div>
-            <div>Force Update Counter: {forceUpdateCounter || 0}</div>
-            <div>Error: {error || 'None'}</div>
-            <div>User Role: {user?.role}</div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

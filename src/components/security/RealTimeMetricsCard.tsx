@@ -14,13 +14,14 @@ interface RealTimeMetrics {
 interface RealTimeMetricsCardProps {
   events: SecurityEvent[];
   isLoading: boolean;
+  title: string;
+  timeframeMinutes: number;
 }
 
-export function RealTimeMetricsCard({ events, isLoading }: RealTimeMetricsCardProps) {
-  // Calculate metrics from events (last 5 minutes)
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+export function RealTimeMetricsCard({ events, isLoading, title, timeframeMinutes }: RealTimeMetricsCardProps) {
+  const timeLimit = new Date(Date.now() - timeframeMinutes * 60 * 1000);
   const recentEvents = events.filter(event => 
-    new Date(event.created_at!) > fiveMinutesAgo
+    new Date(event.created_at!) > timeLimit
   );
 
   const metrics: RealTimeMetrics = {
@@ -56,14 +57,14 @@ export function RealTimeMetricsCard({ events, isLoading }: RealTimeMetricsCardPr
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Activity className="w-5 h-5" />
-          <span>Số liệu thời gian thực (5 phút qua)</span>
+          <span>{title}</span>
           {!isLoading && (
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
           )}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {metricItems.map((item, index) => (
             <div key={index} className={`text-center p-4 rounded-lg ${colorStyles[item.color] || 'bg-gray-50 text-gray-600'}`}>
               <div className="text-2xl font-bold">{item.value}</div>
