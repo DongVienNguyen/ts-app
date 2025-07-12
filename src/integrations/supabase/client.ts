@@ -9,17 +9,20 @@ let currentUsername: string | null = null;
 
 // Custom fetch to bypass service worker cache for Supabase API requests
 const customFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-  // Ensure we don't cache Supabase API calls, which can cause issues with service workers
-  // and partial responses (status 206).
-  const newInit: RequestInit = { ...init, cache: 'no-store' };
+  // Create a new Headers object from existing ones to ensure all original headers are preserved
+  const headers = new Headers(init?.headers);
 
   // Add Authorization header if currentAuthToken exists
   if (currentAuthToken) {
-    newInit.headers = {
-      ...newInit.headers, // Preserve existing headers
-      'Authorization': `Bearer ${currentAuthToken}`,
-    };
+    headers.set('Authorization', `Bearer ${currentAuthToken}`);
   }
+
+  const newInit: RequestInit = {
+    ...init,
+    headers: headers, // Use the new Headers object with all combined headers
+    cache: 'no-store' // Ensure no caching for Supabase API calls
+  };
+
   return fetch(input, newInit);
 };
 
