@@ -2,13 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { createDataCache } from './cache';
-import { useDataOperations } from './useDataOperations';
+import { useDataOperations } from './useDataOperations'; // Now contains runAsAdmin and loadData
+import { useDataCRUD } from './useDataCRUD';
+import { useDataImportExport } from './useDataImportExport';
+import { useDataBulkActions } from './useDataBulkActions';
 import type { DataManagementReturn, FilterState, FilterOperator } from './types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { entityConfig, TableName } from '@/config/entityConfig';
-import { dataService } from './dataService';
-import { exportService } from './exportService';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -28,7 +29,6 @@ export const useDataManagement = (): DataManagementReturn => {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filters, setFilters] = useState<Record<string, FilterState>>({});
-  const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const { user } = useSecureAuth();
@@ -40,121 +40,88 @@ export const useDataManagement = (): DataManagementReturn => {
   const { getCachedData, setCachedData, clearCache, clearEntityCache } = createDataCache();
   const currentEntityConfig = entityConfig[selectedEntity];
 
+  const { runAsAdmin, loadData } = useDataOperations({
+    selectedEntity,
+    user,
+    currentPage,
+    searchTerm: debouncedSearchTerm,
+    filters: debouncedFilters,
+    sortColumn,
+    sortDirection,
+    getCachedData,
+    setCachedData,
+    setData,
+    setTotalCount,
+    setIsLoading,
+  });
+
   const {
-    runAsAdmin,
-    loadData,
     handleAdd,
     handleEdit,
     handleSave,
     handleDelete,
     toggleStaffLock,
-    exportToCSV,
-    handleExportTemplate,
-    handleFileSelectForImport,
-    startImportProcess,
-    handleImportClick,
-    bulkDeleteTransactions,
-    importCsvInputRef,
-    handleImportCsvClick,
-    handleFileSelectForCsvImport,
-  } = useDataOperations({
+  } = useDataCRUD({
     selectedEntity,
     user,
     editingItem,
     currentPage,
     searchTerm: debouncedSearchTerm,
     filters: debouncedFilters,
-    startDate,
-    endDate,
-    restoreFile,
-    data,
+    setDialogOpen,
+    setEditingItem,
+    clearCache,
+    loadData,
+    runAsAdmin,
+  });
+
+  const {
+    exportToCSV,
+    handleExportTemplate,
+    handleFileSelectForImport,
+    startImportProcess,
+    handleImportClick,
+    importCsvInputRef,
+    handleImportCsvClick,
+    handleFileSelectForCsvImport,
+  } = useDataImportExport({
+    selectedEntity,
+    user,
+    currentPage,
+    searchTerm: debouncedSearchTerm,
+    filters: debouncedFilters,
     sortColumn,
     sortDirection,
     config: currentEntityConfig,
-    getCachedData,
-    setCachedData,
-    clearCache,
-    setData,
-    setTotalCount,
-    setIsLoading,
-    setDialogOpen,
-    setEditingItem,
     setRestoreFile,
-    restoreInputRef
+    restoreInputRef,
+    clearCache,
+    loadData,
+    runAsAdmin,
   });
 
-  const handleRowSelect = useCallback((rowId: string) => {
-    setSelectedRows(prev => {
-      const newSelection = { ...prev };
-      if (newSelection[rowId]) {
-        delete newSelection[rowId];
-      } else {
-        newSelection[rowId] = true;
-      }
-      return newSelection;
-    });
-  }, []);
-
-  const handleSelectAll = useCallback(() => {
-    const allVisibleIds = data.map(row => row.id);
-    const allSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedRows[id]);
-
-    if (allSelected) {
-      setSelectedRows({});
-    } else {
-      const newSelection = allVisibleIds.reduce((acc, id) => {
-        acc[id] = true;
-        return acc;
-      }, {} as Record<string, boolean>);
-      setSelectedRows(newSelection);
-    }
-  }, [data, selectedRows]);
-
-  const handleBulkDelete = useCallback(async () => {
-    const idsToDelete = Object.keys(selectedRows).filter(id => selectedRows[id]);
-    if (idsToDelete.length === 0) {
-      toast.error('Vui lòng chọn ít nhất một bản ghi để xóa.');
-      return;
-    }
-
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${idsToDelete.length} bản ghi đã chọn?`)) {
-      return;
-    }
-
-    await runAsAdmin(async () => {
-      try {
-        const result = await dataService.bulkDeleteData({
-          selectedEntity,
-          ids: idsToDelete,
-          user: user!
-        });
-        toast.success(result.message);
-        setSelectedRows({});
-        clearCache();
-        loadData(currentPage, debouncedSearchTerm, debouncedFilters);
-      } catch (error: any) {
-        toast.error(`Lỗi xóa hàng loạt: ${error.message}`);
-      }
-    });
-  }, [selectedRows, runAsAdmin, selectedEntity, user, loadData, currentPage, debouncedSearchTerm, debouncedFilters, clearCache]);
-
-  const exportSelectedToCSV = useCallback(() => {
-    const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id]);
-    if (selectedIds.length === 0) {
-      toast.error('Vui lòng chọn ít nhất một bản ghi để xuất.');
-      return;
-    }
-
-    const selectedData = data.filter(row => selectedIds.includes(row.id));
-    const config = entityConfig[selectedEntity];
-    
-    try {
-      exportService.exportSelectedToCSV(selectedData, config);
-      toast.success(`Đã xuất thành công ${selectedIds.length} bản ghi được chọn.`);
-    } catch (error: any) {
-      toast.error(`Lỗi khi xuất CSV: ${error.message}`);
-    }
-  }, [selectedRows, data, selectedEntity]);
+  const {
+    selectedRows,
+    handleRowSelect,
+    handleSelectAll,
+    handleBulkDelete,
+    exportSelectedToCSV,
+    bulkDeleteTransactions,
+    clearSelectedRows, // Destructure the new function
+  } = useDataBulkActions({
+    selectedEntity,
+    user,
+    data,
+    currentPage,
+    searchTerm: debouncedSearchTerm,
+    filters: debouncedFilters,
+    startDate,
+    endDate,
+    config: currentEntityConfig,
+    clearCache,
+    loadData,
+    runAsAdmin,
+  });
 
   const handleSort = useCallback((columnKey: string) => {
     if (sortColumn === columnKey) {
@@ -202,8 +169,8 @@ export const useDataManagement = (): DataManagementReturn => {
     setFilters({});
     setData([]);
     setTotalCount(0);
-    setSelectedRows({});
-  }, [selectedEntity, clearEntityCache]);
+    clearSelectedRows(); // Use the new function
+  }, [selectedEntity, clearEntityCache, clearSelectedRows]);
 
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
@@ -230,8 +197,8 @@ export const useDataManagement = (): DataManagementReturn => {
   }, [user, selectedEntity, navigate, loadData, currentPage, debouncedSearchTerm, debouncedFilters, sortColumn, sortDirection]);
   
   useEffect(() => {
-    setSelectedRows({});
-  }, [currentPage, debouncedSearchTerm, debouncedFilters, sortColumn, sortDirection]);
+    clearSelectedRows(); // Use the new function
+  }, [currentPage, debouncedSearchTerm, debouncedFilters, sortColumn, sortDirection, clearSelectedRows]);
 
   return {
     user,

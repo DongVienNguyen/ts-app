@@ -97,26 +97,3 @@ export interface DataManagementReturn {
   handleSelectAll: () => void;
   handleBulkDelete: () => Promise<void>;
 }
-
-export interface DataActionsReturn {
-  dialogOpen: boolean;
-  setDialogOpen: (open: boolean) => void;
-  editingItem: any | null;
-  setEditingItem: (item: any | null) => void;
-  handleAdd: () => void;
-  handleEdit: (item: any) => void;
-  handleDelete: (item: any) => Promise<void>;
-  handleSave: (formData: any) => Promise<void>;
-  exportToCSV: () => void;
-  handleImportClick: () => void;
-  restoreInputRef: React.RefObject<HTMLInputElement>;
-  handleFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  startImportProcess: (file: File) => void;
-  startDate: string;
-  setStartDate: (date: string) => void;
-  endDate: string;
-  setEndDate: (date: string) => void;
-  bulkDeleteTransactions: () => Promise<void>;
-  toggleStaffLock: (staff: any) => Promise<void>;
-  runAsAdmin: (action: () => Promise<void>) => Promise<void>;
-}
