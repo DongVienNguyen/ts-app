@@ -53,10 +53,11 @@ export function useRealTimeSecurityMonitoring() {
           .is('session_end', null);
 
         if (sessionError) {
-          console.warn("Could not fetch active sessions:", sessionError.message);
-          setActiveUsers(0); // Default to 0 if error
+            // Log the warning, but don't throw an error that stops the dashboard
+            console.warn("Could not fetch active sessions:", sessionError.message);
+            setActiveUsers(0); // Default to 0 if error
         } else {
-          setActiveUsers(sessions?.length || 0);
+            setActiveUsers(sessions?.length || 0);
         }
 
       } catch (err: any) {
@@ -120,17 +121,18 @@ export function useRealTimeSecurityMonitoring() {
     const handleDisconnect = () => setIsSupabaseConnected(false);
 
     // Initial check
-    setIsSupabaseConnected(supabase.realtime.connectionState === 'open');
+    setIsSupabaseConnected(supabase.realtime.connectionState() === 'CONNECTED');
 
     // Listen for global real-time connection status changes
-    supabase.realtime.on('open', handleConnect);
-    supabase.realtime.on('close', handleDisconnect);
+    supabase.realtime.on('CONNECT', handleConnect);
+    supabase.realtime.on('DISCONNECT', handleDisconnect);
 
     return () => {
       supabase.removeChannel(securityEventsChannel);
       supabase.removeChannel(userSessionsChannel);
-      supabase.realtime.off('open', handleConnect);
-      supabase.realtime.off('close', handleDisconnect);
+      // Unsubscribe from global real-time connection status changes
+      supabase.realtime.off('CONNECT', handleConnect);
+      supabase.realtime.off('DISCONNECT', handleDisconnect);
     };
   }, []);
 
