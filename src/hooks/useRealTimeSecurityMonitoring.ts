@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SecurityEvent } from '@/utils/realTimeSecurityUtils';
 import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
@@ -13,17 +13,38 @@ export interface RealTimeSecurityStats {
 export function useRealTimeSecurityMonitoring() {
   const [activeUsers, setActiveUsers] = useState(0);
   const [recentEvents, setRecentEvents] = useState<SecurityEvent[]>([]);
-  const [threatTrends, setThreatTrends] = useState<{ date: string; successfulLogins: number; failedLogins: number; suspiciousActivities: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isSupabaseConnected, setIsSupabaseConnected] = useState(true); // Default to true, will be updated based on data fetch success
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState(true);
+
+  const threatTrends = useMemo(() => {
+    const dailyData: { [date: string]: { successfulLogins: number; failedLogins: number; suspiciousActivities: number } } = {};
+
+    recentEvents.forEach(event => {
+      const date = new Date(event.timestamp).toLocaleDateString('en-CA'); // YYYY-MM-DD format
+      if (!dailyData[date]) {
+        dailyData[date] = { successfulLogins: 0, failedLogins: 0, suspiciousActivities: 0 };
+      }
+
+      if (event.type === 'LOGIN_SUCCESS') {
+        dailyData[date].successfulLogins++;
+      } else if (event.type === 'LOGIN_FAILED') {
+        dailyData[date].failedLogins++;
+      } else if (event.type === 'SUSPICIOUS_ACTIVITY' || event.type === 'RATE_LIMIT_EXCEEDED') {
+        dailyData[date].suspiciousActivities++;
+      }
+    });
+
+    const sortedDates = Object.keys(dailyData).sort();
+    const newTrends = sortedDates.map(date => ({ date, ...dailyData[date] }));
+    return newTrends;
+  }, [recentEvents]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        // Fetch initial recent events (e.g., last 20 events)
         const { data: events, error: fetchError } = await supabase
           .from('security_events')
           .select('*')
@@ -42,9 +63,7 @@ export function useRealTimeSecurityMonitoring() {
           username: event.username
         }));
         setRecentEvents(mappedEvents);
-        updateThreatTrends(mappedEvents);
 
-        // For active users, fetch from 'user_sessions' table if available
         const { data: sessions, error: sessionError } = await supabase
           .from('user_sessions')
           .select('id')
@@ -57,7 +76,6 @@ export function useRealTimeSecurityMonitoring() {
             setActiveUsers(sessions?.length || 0);
         }
 
-        // If we reach here, connection is working
         setIsSupabaseConnected(true);
 
       } catch (err: any) {
@@ -70,7 +88,6 @@ export function useRealTimeSecurityMonitoring() {
 
     fetchInitialData();
 
-    // Set up real-time subscription for security_events
     const securityEventsChannel = supabase
       .channel('security_events_channel')
       .on(
@@ -87,18 +104,12 @@ export function useRealTimeSecurityMonitoring() {
             ip: newEvent.ip_address,
             username: newEvent.username
           };
-          setRecentEvents(prevEvents => {
-            const updatedEvents = [mappedNewEvent, ...prevEvents].slice(0, 20);
-            updateThreatTrends(updatedEvents);
-            return updatedEvents;
-          });
-          // Update connection status on successful real-time event
+          setRecentEvents(prevEvents => [mappedNewEvent, ...prevEvents].slice(0, 20));
           setIsSupabaseConnected(true);
         }
       )
       .subscribe();
 
-    // Set up real-time subscription for user_sessions
     const userSessionsChannel = supabase
       .channel('user_sessions_channel')
       .on(
@@ -124,29 +135,6 @@ export function useRealTimeSecurityMonitoring() {
       supabase.removeChannel(userSessionsChannel);
     };
   }, []);
-
-  const updateThreatTrends = (events: SecurityEvent[]) => {
-    const dailyData: { [date: string]: { successfulLogins: number; failedLogins: number; suspiciousActivities: number } } = {};
-
-    events.forEach(event => {
-      const date = new Date(event.timestamp).toLocaleDateString('en-CA');
-      if (!dailyData[date]) {
-        dailyData[date] = { successfulLogins: 0, failedLogins: 0, suspiciousActivities: 0 };
-      }
-
-      if (event.type === 'LOGIN_SUCCESS') {
-        dailyData[date].successfulLogins++;
-      } else if (event.type === 'LOGIN_FAILED') {
-        dailyData[date].failedLogins++;
-      } else if (event.type === 'SUSPICIOUS_ACTIVITY' || event.type === 'RATE_LIMIT_EXCEEDED') {
-        dailyData[date].suspiciousActivities++;
-      }
-    });
-
-    const sortedDates = Object.keys(dailyData).sort();
-    const newTrends = sortedDates.map(date => ({ date, ...dailyData[date] }));
-    setThreatTrends(newTrends);
-  };
 
   const logEvent = async (eventType: string, data: any = {}, username?: string) => {
     await logSecurityEventRealTime(eventType, data, username);
