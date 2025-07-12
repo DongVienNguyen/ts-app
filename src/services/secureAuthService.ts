@@ -248,12 +248,22 @@ export function validateSession(): boolean {
       return false;
     }
 
-    // Validate token format - our token is base64 encoded JSON, not JWT
+    // Validate token format - assuming it's a JWT (header.payload.signature)
     try {
-      const payload = JSON.parse(atob(token));
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        console.log('Session validation failed: token is not a valid JWT format');
+        logSecurityEventRealTime('TOKEN_PARSING_ERROR', { 
+          error: 'Invalid JWT format (incorrect number of parts)' 
+        }, username);
+        return false;
+      }
       
-      // Check token expiration if present
-      if (payload.exp && payload.exp < Date.now()) {
+      // Decode payload (second part of JWT)
+      const payload = JSON.parse(atob(parts[1])); 
+      
+      // Check token expiration if present (exp is in seconds, Date.now() is ms)
+      if (payload.exp && payload.exp < Date.now() / 1000) {
         console.log('Session validation failed: token expired');
         logSecurityEventRealTime('TOKEN_EXPIRED', { exp: payload.exp }, username);
         return false;
