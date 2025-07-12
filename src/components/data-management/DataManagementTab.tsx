@@ -1,143 +1,13 @@
-import React, { useRef } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import OptimisedTable from '@/components/OptimizedTable';
-import DateInput from '@/components/DateInput';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
-import { EntityConfig, entityConfig } from '@/config/entityConfig';
-
-interface DataManagementTabProps {
-  activeTab: string;
-  selectedEntity: string;
-  onEntityChange: (entity: string) => void;
-  isLoading: boolean;
-  searchTerm: string;
-  onSearchChange: (term: string) => void;
-  data: any[];
-  totalCount: number;
-  currentPage: number;
-  onPageChange: (page: number) => void;
-  onAdd: () => void;
-  onEdit: (item: any) => void;
-  onDelete: (item: any) => void;
-  onExportCSV: () => void;
-  onImportClick: () => void;
-  restoreInputRef: React.RefObject<HTMLInputElement>;
-  onFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  startImportProcess: (file: File) => void;
-  startDate: string;
-  endDate: string;
-  onStartDateChange: (date: string) => void;
-  onEndDateChange: (date: string) => void;
-  onBulkDeleteTransactions: () => void;
-  onToggleStaffLock: (staff: any) => void;
-  onSort: (columnKey: string) => void;
-  sortColumn: string | null;
-  sortDirection: 'asc' | 'desc';
-  filters: Record<string, any>;
-  onFilterChange: (key: string, value: any) => void;
-  config: EntityConfig;
-  dialogOpen: boolean;
-  setDialogOpen: (open: boolean) => void;
-  editingItem: any;
-  handleSave: (formData: any) => void;
-}
+// ... existing code ...
 
 const DataManagementTab: React.FC<DataManagementTabProps> = ({
-  activeTab,
-  selectedEntity,
-  onEntityChange,
-  isLoading,
-  searchTerm,
-  onSearchChange,
-  data,
-  totalCount,
-  currentPage,
-  onPageChange,
-  onAdd,
-  onEdit,
-  onDelete,
-  onExportCSV,
-  onImportClick,
-  restoreInputRef,
-  onFileSelectForImport,
-  startImportProcess,
-  startDate,
-  endDate,
-  onStartDateChange,
-  onEndDateChange,
-  onBulkDeleteTransactions,
-  onToggleStaffLock,
-  onSort,
-  sortColumn,
-  sortDirection,
-  filters,
-  onFilterChange,
-  config,
-  dialogOpen,
-  setDialogOpen,
-  editingItem,
-  handleSave,
+  // ... existing props ...
 }) => {
 
-  if (!config) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          Không tìm thấy cấu hình cho thực thể đã chọn.
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  // ... existing code ...
 
-  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    onFileSelectForImport(event);
-    const file = event.target.files?.[0];
-    if (file) {
-      startImportProcess(file);
-    }
-  };
-
-  const columnsWithActions = [
-    ...config.fields,
-    {
-      key: 'actions',
-      label: 'Hành động',
-      render: (_: any, item: any) => (
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => onEdit(item)}>Sửa</Button>
-          <Button variant="destructive" size="sm" onClick={() => onDelete(item)}>Xóa</Button>
-          {selectedEntity === 'staff' && (
-            <Button
-              variant={item.account_status === 'locked' ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() => onToggleStaffLock(item)}
-            >
-              {item.account_status === 'locked' ? 'Mở khóa' : 'Khóa'}
-            </Button>
-          )}
-        </div>
-      ),
-    },
-  ];
+  const ITEMS_PER_PAGE = 20; // Assuming this constant is defined elsewhere or can be defined here
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   return (
     <Card>
@@ -227,6 +97,44 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
             sortColumn={sortColumn}
             sortDirection={sortDirection}
           />
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => {
+                    if (currentPage > 1) {
+                      onPageChange(currentPage - 1);
+                    }
+                  }}
+                  className={currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}
+                />
+              </PaginationItem>
+              {[...Array(totalPages)].map((_, index) => (
+                <PaginationItem key={index}>
+                  <PaginationLink
+                    onClick={() => onPageChange(index + 1)}
+                    isActive={currentPage === index + 1}
+                  >
+                    {index + 1}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => {
+                    if (currentPage < totalPages) {
+                      onPageChange(currentPage + 1);
+                    }
+                  }}
+                  className={currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         )}
 
         <div className="flex flex-wrap gap-4 justify-end">
