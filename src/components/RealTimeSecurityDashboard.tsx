@@ -1,124 +1,105 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Activity, Users, Clock, Shield, BarChart3, Wifi, WifiOff } from 'lucide-react'; // Import WifiOff
-import { Skeleton } from '@/components/ui/skeleton';
+import { useState, useEffect, useMemo } from 'react';
 import { useRealTimeSecurityMonitoring } from '@/hooks/useRealTimeSecurityMonitoring';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-
-const StatCard = ({ title, value, icon, isLoading }: { title: string, value: number | string, icon: React.ReactNode, isLoading: boolean }) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      {icon}
-    </CardHeader>
-    <CardContent>
-      {isLoading ? (
-        <Skeleton className="h-8 w-1/2" />
-      ) : (
-        <div className="text-2xl font-bold">{value}</div>
-      )}
-    </CardContent>
-  </Card>
-);
+import { SecurityHeader } from './security/SecurityHeader';
+import { RealTimeMetricsCard } from './security/RealTimeMetricsCard';
+import { LiveActivityFeed } from './security/LiveActivityFeed';
+import { ThreatAnalysisCard } from './security/ThreatAnalysisCard';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { useSecureAuth } from '@/contexts/AuthContext';
 
 export function RealTimeSecurityDashboard() {
-  const { activeUsers, recentEvents, threatTrends, isLoading, error, isSupabaseConnected } = useRealTimeSecurityMonitoring(); // Destructure isSupabaseConnected
+  const { user } = useSecureAuth();
+  const realTimeData = useRealTimeSecurityMonitoring();
+  
+  const [isPaused, setIsPaused] = useState(false);
+  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
+  const [snapshotData, setSnapshotData] = useState(realTimeData);
 
-  if (error) {
+  useEffect(() => {
+    if (!isPaused && isRealTimeEnabled) {
+      setSnapshotData(realTimeData);
+      setLastUpdated(new Date());
+    }
+  }, [realTimeData, isPaused, isRealTimeEnabled]);
+
+  const dataToDisplay = isRealTimeEnabled ? (isPaused ? snapshotData : realTimeData) : snapshotData;
+
+  const handleRealTimeToggle = (enabled: boolean) => {
+    setIsRealTimeEnabled(enabled);
+    if (!enabled) {
+      setIsPaused(true);
+    } else {
+      setIsPaused(false);
+    }
+  };
+
+  const handlePauseToggle = () => {
+    if (isRealTimeEnabled) {
+      setIsPaused(prev => !prev);
+    }
+  };
+
+  const handleReset = () => {
+    realTimeData.logEvent('METRICS_RESET', { resetBy: user?.username || 'unknown' });
+    toast.success("Đã gửi yêu cầu đặt lại số liệu.");
+  };
+
+  const metrics = useMemo(() => {
+    const events = dataToDisplay.recentEvents || [];
+    return {
+      loginAttempts: events.filter(e => e.type === 'LOGIN_SUCCESS' || e.type === 'LOGIN_FAILED').length,
+      successfulLogins: events.filter(e => e.type === 'LOGIN_SUCCESS').length,
+      failedLogins: events.filter(e => e.type === 'LOGIN_FAILED').length,
+      accountLocks: events.filter(e => e.type === 'ACCOUNT_LOCKED').length,
+      passwordResets: events.filter(e => e.type === 'PASSWORD_RESET_SUCCESS').length,
+      suspiciousActivities: events.filter(e => e.type === 'SUSPICIOUS_ACTIVITY' || e.type === 'RATE_LIMIT_EXCEEDED').length,
+    };
+  }, [dataToDisplay.recentEvents]);
+
+  if (realTimeData.isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2">Đang tải dữ liệu thời gian thực...</span>
+      </div>
+    );
+  }
+
+  if (realTimeData.error) {
     return (
       <Alert variant="destructive">
-        <AlertDescription>
-          Không thể tải dữ liệu giám sát thời gian thực: {error}
-        </AlertDescription>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{realTimeData.error}</AlertDescription>
       </Alert>
     );
   }
 
-  const connectionStatusText = isSupabaseConnected ? "Đang hoạt động" : "Mất kết nối";
-  const connectionStatusIcon = isSupabaseConnected ? <Wifi className="h-4 w-4 text-green-500" /> : <WifiOff className="h-4 w-4 text-red-500" />;
-
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard title="Người dùng đang hoạt động" value={activeUsers} icon={<Users className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
-        <StatCard title="Sự kiện gần đây" value={recentEvents.length} icon={<Activity className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
-        <StatCard title="Trạng thái kết nối" value={connectionStatusText} icon={connectionStatusIcon} isLoading={isLoading} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Dòng hoạt động trực tiếp</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
-              </div>
-            ) : recentEvents.length > 0 ? (
-              <ul className="space-y-3 max-h-96 overflow-y-auto">
-                {recentEvents.map((event) => (
-                  <li key={event.id} className="flex items-center space-x-3 rounded-md border p-3 transition-colors hover:bg-gray-50">
-                    <div className="flex-shrink-0">
-                      <Shield className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{event.type}</p>
-                      <p className="text-xs text-gray-500 truncate">{event.username || 'Hệ thống'} - {event.ip}</p>
-                    </div>
-                    <div className="inline-flex items-center text-xs text-gray-500 whitespace-nowrap">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {new Date(event.timestamp).toLocaleTimeString('vi-VN')}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-500">Không có sự kiện bảo mật nào gần đây.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <BarChart3 className="w-5 h-5" />
-              <span>Xu hướng mối đe dọa thời gian thực</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-[250px] w-full" />
-            ) : threatTrends.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart
-                  data={threatTrends}
-                  margin={{
-                    top: 5,
-                    right: 30,
-                    left: 20,
-                    bottom: 5,
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="successfulLogins" stroke="#82ca9d" name="Đăng nhập thành công" />
-                  <Line type="monotone" dataKey="failedLogins" stroke="#8884d8" name="Đăng nhập thất bại" />
-                  <Line type="monotone" dataKey="suspiciousActivities" stroke="#ffc658" name="Hoạt động đáng ngờ" />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-8">
-                Không có đủ dữ liệu để hiển thị xu hướng mối đe dọa.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+    <div className="space-y-4">
+      <SecurityHeader
+        lastUpdated={lastUpdated}
+        isConnected={dataToDisplay.isSupabaseConnected}
+        isRealTimeEnabled={isRealTimeEnabled}
+        isPaused={isPaused}
+        onRealTimeToggle={handleRealTimeToggle}
+        onPauseToggle={handlePauseToggle}
+        onReset={handleReset}
+      />
+      <RealTimeMetricsCard metrics={metrics} isRealTimeEnabled={isRealTimeEnabled && !isPaused} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <LiveActivityFeed
+            events={dataToDisplay.recentEvents}
+            isRealTimeEnabled={isRealTimeEnabled && !isPaused}
+            isLoading={dataToDisplay.isLoading}
+          />
+        </div>
+        <div className="lg:col-span-1">
+          <ThreatAnalysisCard data={dataToDisplay.threatTrends} />
+        </div>
       </div>
     </div>
   );

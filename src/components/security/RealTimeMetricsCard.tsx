@@ -25,6 +25,14 @@ export function RealTimeMetricsCard({ metrics, isRealTimeEnabled }: RealTimeMetr
     { label: 'Hoạt động nghi ngờ', value: metrics.suspiciousActivities, color: 'red' }
   ];
 
+  const colorStyles: { [key: string]: string } = {
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-green-50 text-green-600',
+    red: 'bg-red-50 text-red-600',
+    orange: 'bg-orange-50 text-orange-600',
+    purple: 'bg-purple-50 text-purple-600',
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -39,8 +47,8 @@ export function RealTimeMetricsCard({ metrics, isRealTimeEnabled }: RealTimeMetr
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {metricItems.map((item, index) => (
-            <div key={index} className={`text-center p-4 bg-${item.color}-50 rounded-lg`}>
-              <div className={`text-2xl font-bold text-${item.color}-600`}>{item.value}</div>
+            <div key={index} className={`text-center p-4 rounded-lg ${colorStyles[item.color] || 'bg-gray-50 text-gray-600'}`}>
+              <div className="text-2xl font-bold">{item.value}</div>
               <div className="text-sm text-gray-600">{item.label}</div>
             </div>
           ))}
