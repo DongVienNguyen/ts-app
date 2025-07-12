@@ -66,33 +66,13 @@ export function SecurityActionsPanel() {
       return;
     }
 
-    if (eventType === 'ACCOUNT_LOCKED' || eventType === 'ACCOUNT_UNLOCKED') {
-      if (!username) {
-        toast.error('Vui lòng nhập tên người dùng để khóa/mở khóa.');
-        return;
-      }
-      const status = eventType === 'ACCOUNT_LOCKED' ? 'locked' : 'active';
-      const actionText = status === 'locked' ? 'khóa' : 'mở khóa';
-
-      toast.promise(
-        supabase.functions.invoke('manage-user-status', {
-          body: { username, status },
-        }),
-        {
-          loading: `Đang ${actionText} tài khoản ${username}...`,
-          success: `Tài khoản ${username} đã được ${actionText} thành công.`,
-          error: (err) => `Lỗi ${actionText} tài khoản: ${err.message}`,
-        }
-      );
-    } else {
-      // Giữ lại logic mô phỏng cho các sự kiện khác
-      logEvent(
-        eventType,
-        { message: message || `Simulated ${eventType} event.` },
-        username || 'test_user'
-      );
-      toast.success(`Đã mô phỏng sự kiện: ${eventType}`);
-    }
+    // Always call logEvent directly for this test button
+    logEvent(
+      eventType,
+      { message: message || `Simulated ${eventType} event.` },
+      username || 'test_user' // Use 'test_user' if username is empty
+    );
+    toast.success(`Đã mô phỏng sự kiện: ${eventType}`);
   };
 
   return (

@@ -151,11 +151,20 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     setupRealtime();
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
+      // Get all active channels from the current supabase client
+      const activeChannels = supabase.getChannels();
+      
+      // Find and remove the specific channels by name
+      const securityChannel = activeChannels.find(c => c.topic === 'realtime:public:security_events_channel');
+      if (securityChannel) {
+        supabase.removeChannel(securityChannel);
+        console.log('Dyad: 🧹 [REALTIME] Removed security_events_channel during cleanup.');
       }
+      
+      const alertsChannel = activeChannels.find(c => c.topic === 'realtime:public:system_alerts_channel');
       if (alertsChannel) {
         supabase.removeChannel(alertsChannel);
+        console.log('Dyad: 🧹 [REALTIME] Removed system_alerts_channel during cleanup.');
       }
     };
   }, [user]);
