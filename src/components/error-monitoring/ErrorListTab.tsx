@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { SystemError } from '@/utils/errorTracking';
 import { ErrorFilters, ErrorFilters as ErrorFiltersComponent } from './ErrorFilters';
 import { ErrorDetailsModal } from './ErrorDetailsModal';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ErrorListTabProps {
   recentErrors: SystemError[];
@@ -15,9 +18,32 @@ interface ErrorListTabProps {
 }
 
 export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefresh }: ErrorListTabProps) {
+  const { user } = useAuth();
   const [filters, setFilters] = useState<ErrorFilters>({});
   const [selectedError, setSelectedError] = useState<SystemError | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleResolveError = async (errorId: string) => {
+    if (!user) {
+      toast.error('Bạn phải đăng nhập để thực hiện hành động này.');
+      return;
+    }
+    const { error } = await supabase
+      .from('system_errors')
+      .update({ 
+        status: 'resolved', 
+        resolved_at: new Date().toISOString(),
+        resolved_by: user.username,
+      })
+      .eq('id', errorId);
+
+    if (error) {
+      toast.error('Đánh dấu lỗi là đã giải quyết thất bại.');
+    } else {
+      toast.success('Lỗi đã được đánh dấu là đã giải quyết.');
+      onRefresh();
+    }
+  };
 
   // Apply filters to errors
   const filteredErrors = recentErrors.filter(error => {
@@ -128,6 +154,16 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
                       <Badge variant={error.status === 'resolved' ? 'default' : 'destructive'}>
                         {error.status}
                       </Badge>
+                      {error.status !== 'resolved' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResolveError(error.id!)}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Giải quyết
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -163,7 +199,7 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
         error={selectedError}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        // onErrorUpdated={onRefresh} // Removed this prop
+        onErrorUpdated={onRefresh}
       />
     </div>
   );

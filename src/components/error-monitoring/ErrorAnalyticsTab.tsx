@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 
 interface ErrorStats {
   errorTrend: { date: string; count: number }[];
   topErrorTypes: { type: string; count: number }[];
+  bySeverity: { [key: string]: number };
 }
 
 interface ErrorAnalyticsTabProps {
@@ -11,6 +12,16 @@ interface ErrorAnalyticsTabProps {
 }
 
 export function ErrorAnalyticsTab({ errorStats }: ErrorAnalyticsTabProps) {
+  const severityData = Object.entries(errorStats.bySeverity || {}).map(([name, value]) => ({ name, value }));
+  
+  const SEVERITY_COLORS: { [key: string]: string } = {
+    critical: '#ef4444',
+    high: '#f97316',
+    medium: '#eab308',
+    low: '#3b82f6',
+    unknown: '#6b7280',
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Card>
@@ -43,6 +54,35 @@ export function ErrorAnalyticsTab({ errorStats }: ErrorAnalyticsTabProps) {
               <Tooltip />
               <Bar dataKey="count" fill="#ef4444" />
             </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Phân bố lỗi theo mức độ</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={severityData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                outerRadius={100}
+                fill="#8884d8"
+                dataKey="value"
+                nameKey="name"
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              >
+                {severityData.map((entry) => (
+                  <Cell key={`cell-${entry.name}`} fill={SEVERITY_COLORS[entry.name.toLowerCase()] || SEVERITY_COLORS.unknown} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value, name) => [`${value} lỗi`, name]} />
+              <Legend />
+            </PieChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>

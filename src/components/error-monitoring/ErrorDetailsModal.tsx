@@ -6,26 +6,58 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy } from 'lucide-react';
+import { Copy, CheckCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ErrorDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   error: any; // Use a more specific type if available, e.g., SystemError
-  // onErrorUpdated?: () => void; // Removed as it's not used
+  onErrorUpdated?: () => void;
 }
 
-export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, onClose, error }) => {
+export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, onClose, error, onErrorUpdated }) => {
+  const { user } = useAuth();
+
   if (!error) return null;
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('Đã sao chép vào clipboard!');
+  };
+
+  const handleUpdateStatus = async (status: 'resolved' | 'open') => {
+    if (!user) {
+      toast.error('Bạn phải đăng nhập để thực hiện hành động này.');
+      return;
+    }
+    
+    const { error: updateError } = await supabase
+      .from('system_errors')
+      .update({ 
+        status,
+        resolved_at: status === 'resolved' ? new Date().toISOString() : null,
+        resolved_by: status === 'resolved' ? user.username : null,
+      })
+      .eq('id', error.id);
+
+    if (updateError) {
+      toast.error('Cập nhật trạng thái lỗi thất bại.');
+      console.error(updateError);
+    } else {
+      toast.success(`Lỗi đã được đánh dấu là ${status === 'resolved' ? 'đã giải quyết' : 'mở'}.`);
+      if (onErrorUpdated) {
+        onErrorUpdated();
+      }
+      onClose();
+    }
   };
 
   return (
@@ -45,11 +77,13 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
                 <p><strong>ID Lỗi:</strong> {error.id}</p>
                 <p><strong>Loại Lỗi:</strong> <Badge variant="destructive">{error.error_type}</Badge></p>
                 <p><strong>Thời gian:</strong> {format(new Date(error.created_at), 'dd/MM/yyyy HH:mm:ss')}</p>
-                <p><strong>Mức độ:</strong> <Badge variant={error.severity === 'high' ? 'destructive' : error.severity === 'medium' ? 'secondary' : 'outline'}>{error.severity}</Badge></p> {/* Changed 'warning' to 'secondary' */}
+                <p><strong>Mức độ:</strong> <Badge variant={error.severity === 'high' ? 'destructive' : error.severity === 'medium' ? 'secondary' : 'outline'}>{error.severity}</Badge></p>
                 <p><strong>Trạng thái:</strong> <Badge variant={error.status === 'open' ? 'destructive' : 'default'}>{error.status}</Badge></p>
                 <p><strong>Người dùng:</strong> {error.user_id || 'N/A'}</p>
                 <p><strong>Chức năng:</strong> {error.function_name || 'N/A'}</p>
                 <p><strong>URL Yêu cầu:</strong> {error.request_url || 'N/A'}</p>
+                {error.resolved_at && <p><strong>Giải quyết lúc:</strong> {format(new Date(error.resolved_at), 'dd/MM/yyyy HH:mm:ss')}</p>}
+                {error.resolved_by && <p><strong>Giải quyết bởi:</strong> {error.resolved_by}</p>}
               </div>
             </div>
 
@@ -102,6 +136,19 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
             )}
           </div>
         </ScrollArea>
+        <DialogFooter className="pt-4">
+          {error.status !== 'resolved' ? (
+            <Button onClick={() => handleUpdateStatus('resolved')}>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Đánh dấu là đã giải quyết
+            </Button>
+          ) : (
+            <Button variant="secondary" onClick={() => handleUpdateStatus('open')}>
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              Mở lại lỗi này
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
