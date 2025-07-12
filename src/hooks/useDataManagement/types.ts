@@ -82,7 +82,10 @@ export interface DataManagementReturn {
   restoreFile: File | null;
   selectedRows: Record<string, boolean>;
   filteredData: any[];
-  paginatedData: any[]; // Added paginatedData
+  paginatedData: any[];
+  totalPages: number;
+  handleRowSelect: (rowId: string) => void;
+  handleSelectAll: () => void; // Added handleSelectAll
 }
 
 export interface DataLoaderReturn {
