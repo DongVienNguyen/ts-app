@@ -1,5 +1,5 @@
 import { isAuthenticated, safeDbOperation } from '@/utils/supabaseAuth';
-import { updateSystemStatus, logSystemMetric, SystemStatus as SystemStatusInterface } from '@/utils/errorTracking'; // Import SystemStatusInterface
+import { updateSystemStatus, logSystemMetric, SystemStatus } from '@/utils/errorTracking'; // Removed 'as SystemStatusInterface'
 
 export class HealthCheckService {
   private static instance: HealthCheckService;
@@ -213,7 +213,7 @@ export class HealthCheckService {
 export const healthCheckService = HealthCheckService.getInstance();
 
 // Check service health
-export async function checkServiceHealth(serviceName: string): Promise<SystemStatusInterface> {
+export async function checkServiceHealth(serviceName: string): Promise<SystemStatus> {
   const startTime = performance.now();
   
   try {
