@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import { supabase } from '@/integrations/supabase/client';
-import { entityConfig, EntityConfig } from '@/config/entityConfig'; // Import EntityConfig
+import { entityConfig, EntityConfig } from '@/config/entityConfig';
 import { fromCSV } from '@/utils/csvUtils';
 import { toast } from 'sonner';
 
@@ -45,13 +45,13 @@ export const restoreService = {
         if (configEntry) {
           toast.info(`Đang xử lý bảng: ${configEntry.name} (${tableName})...`);
           try {
-            const dataToInsert = fromCSV(csvContent, configEntry.fields); // Pass fields for accurate mapping
+            const dataToInsert = fromCSV(csvContent, configEntry.fields);
 
             if (dataToInsert.length > 0) {
               const mappedData = dataToInsert.map(row => {
                 const newRow: { [key: string]: any } = {};
                 configEntry.fields.forEach(field => {
-                  const value = row[field.key]; // Use field.key as the key from fromCSV output
+                  const value = row[field.key];
                   if (value !== undefined) {
                     if (field.type === 'number') {
                       newRow[field.key] = value === '' ? null : Number(value);
@@ -67,27 +67,27 @@ export const restoreService = {
                 return newRow;
               });
 
-              const { error } = await supabase.from(tableName).insert(mappedData);
+              // --- Xóa dữ liệu hiện có trước khi chèn ---
+              const { error: deleteError } = await supabase
+                .from(tableName)
+                .delete()
+                .neq(configEntry.primaryKey || 'id', '00000000-0000-0000-0000-000000000000');
+              
+              if (deleteError) {
+                console.error(`Lỗi xóa dữ liệu cũ trong bảng ${tableName}:`, deleteError.message);
+                toast.error(`Lỗi xóa dữ liệu cũ trong bảng ${configEntry.name}: ${deleteError.message}. Bỏ qua chèn dữ liệu mới.`);
+                errors.push({ tableName, message: `Lỗi xóa dữ liệu cũ: ${deleteError.message}` });
+                continue; // Bỏ qua chèn dữ liệu cho bảng này nếu xóa thất bại
+              }
+              // --- Kết thúc xóa dữ liệu hiện có ---
 
-              if (error) {
-                if (error.code === '23505' && configEntry.primaryKey) {
-                  toast.warning(`Xung đột dữ liệu trong bảng ${configEntry.name}. Đang thử cập nhật các bản ghi hiện có...`); // Changed to toast.warning
-                  const updatePromises = mappedData.map(async (item) => {
-                    const { error: updateError } = await supabase
-                      .from(tableName)
-                      .update(item)
-                      .eq(configEntry.primaryKey!, item[configEntry.primaryKey!]);
-                    if (updateError) {
-                      console.error(`Lỗi cập nhật bản ghi trong ${tableName}:`, updateError.message);
-                      toast.error(`Lỗi cập nhật bản ghi trong ${configEntry.name}: ${updateError.message}`);
-                      errors.push({ tableName, message: `Cập nhật lỗi: ${updateError.message}` });
-                    }
-                  });
-                  await Promise.all(updatePromises);
-                  restoredTables.push({ tableName, count: mappedData.length });
-                } else {
-                  throw error;
-                }
+              // Chèn dữ liệu mới
+              const { error: insertError } = await supabase.from(tableName).insert(mappedData);
+
+              if (insertError) {
+                console.error(`Lỗi chèn dữ liệu mới vào bảng ${tableName}:`, insertError.message);
+                toast.error(`Lỗi chèn dữ liệu mới vào bảng ${configEntry.name}: ${insertError.message}`);
+                errors.push({ tableName, message: `Lỗi chèn dữ liệu mới: ${insertError.message}` });
               } else {
                 restoredTables.push({ tableName, count: mappedData.length });
                 toast.success(`Đã khôi phục ${mappedData.length} bản ghi vào bảng ${configEntry.name}.`);
@@ -101,7 +101,7 @@ export const restoreService = {
             errors.push({ tableName, message: tableError.message });
           }
         } else {
-          toast.warning(`Không tìm thấy cấu hình cho bảng: ${tableName}. Bỏ qua.`); // Changed to toast.warning
+          toast.warning(`Không tìm thấy cấu hình cho bảng: ${tableName}. Bỏ qua.`);
         }
         processedFiles++;
         toast.info(`Tiến độ: ${processedFiles}/${totalFiles} tệp đã xử lý.`);
@@ -129,7 +129,7 @@ export const restoreService = {
         if (configEntry) {
           try {
             const csvContent = await loadedZip.files[filename].async('string');
-            const data = fromCSV(csvContent, configEntry.fields); // Pass fields for accurate mapping
+            const data = fromCSV(csvContent, configEntry.fields);
             preview.push({
               tableName: tableName,
               name: configEntry.name,
@@ -148,7 +148,7 @@ export const restoreService = {
         } else {
           preview.push({
             tableName: tableName,
-            name: tableName, // Use filename as name if config not found
+            name: tableName,
             recordCount: 0,
             status: 'not_found',
             errorMessage: 'Không tìm thấy cấu hình bảng'
