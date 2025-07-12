@@ -45,7 +45,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
-      console.log('❌ [REALTIME] User not admin or not logged in');
+      console.log('❌ [REALTIME] User not admin or not logged in', { user: user?.username, role: user?.role });
       setIsLoading(false);
       setIsSupabaseConnected(false);
       setRecentEvents([]);
@@ -65,12 +65,36 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
       try {
         console.log('📊 [REALTIME] Loading initial security events...');
         
-        // Load initial events
+        // Test database connection first
+        const startTime = Date.now();
+        const { data: testData, error: testError } = await supabase
+          .from('security_events')
+          .select('count', { count: 'exact' });
+        
+        const dbResponseTime = Date.now() - startTime;
+        console.log('🔍 [REALTIME] Database test:', { 
+          responseTime: dbResponseTime, 
+          error: testError, 
+          count: testData 
+        });
+
+        if (testError) {
+          console.error('❌ [REALTIME] Database connection test failed:', testError);
+          throw new Error(`Database connection failed: ${testError.message}`);
+        }
+
+        // Load initial events with detailed logging
         const { data: initialEvents, error: eventsError } = await supabase
           .from('security_events')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(50);
+
+        console.log('🔍 [REALTIME] Initial events query result:', {
+          data: initialEvents,
+          error: eventsError,
+          count: initialEvents?.length || 0
+        });
 
         if (eventsError) {
           console.error('❌ [REALTIME] Error loading initial events:', eventsError);
@@ -89,18 +113,18 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
 
         if (alertsError) {
           console.error('❌ [REALTIME] Error loading initial alerts:', alertsError);
-          throw alertsError;
+          console.log('⚠️ [REALTIME] Continuing without alerts...');
+        } else {
+          console.log('✅ [REALTIME] Loaded initial alerts:', initialAlerts?.length || 0);
+          setSecurityAlerts(initialAlerts || []);
         }
-
-        console.log('✅ [REALTIME] Loaded initial alerts:', initialAlerts?.length || 0);
-        setSecurityAlerts(initialAlerts || []);
 
         // Set system status
         setSystemStatus({
           apiConnected: true,
           apiResponseTime: Math.floor(Math.random() * 100) + 20,
           dbConnected: true,
-          dbResponseTime: Math.floor(Math.random() * 80) + 10,
+          dbResponseTime,
         });
         setActiveUsers(Math.floor(Math.random() * 20) + 5);
         setIsSupabaseConnected(true);
