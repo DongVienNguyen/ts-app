@@ -1,6 +1,6 @@
 import Layout from '@/components/Layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSecureAuth } from '@/contexts/AuthContext';
@@ -16,9 +16,17 @@ const ErrorMonitoring = () => {
     lastUpdated,
     refreshAll,
     getStatusColor,
-    getStatusIcon,
     getSeverityColor
   } = useErrorMonitoringData();
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'online': return <CheckCircle className="w-4 h-4" />;
+      case 'degraded': return <AlertCircle className="w-4 h-4" />;
+      case 'offline': return <XCircle className="w-4 h-4" />;
+      default: return <CheckCircle className="w-4 h-4" />;
+    }
+  };
 
   // Show access denied message for non-admin users
   if (!user) {
@@ -144,7 +152,7 @@ const ErrorMonitoring = () => {
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center space-x-2">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(error.severity)}`}>
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSeverityColor(error.severity || 'low')}`}>
                                 {error.severity}
                               </span>
                               <span className="text-sm font-medium text-gray-900">{error.error_type}</span>
@@ -156,7 +164,7 @@ const ErrorMonitoring = () => {
                           </div>
                           <div className="text-right">
                             <p className="text-xs text-gray-500">
-                              {new Date(error.created_at).toLocaleString('vi-VN')}
+                              {new Date(error.created_at!).toLocaleString('vi-VN')}
                             </p>
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                               error.status === 'resolved' ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'
@@ -233,7 +241,7 @@ const ErrorMonitoring = () => {
                     {errorStats.errorTrend.map((day) => (
                       <div key={day.date} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <span className="text-sm font-medium text-gray-900">
-                          {new Date(day.date).toLocaleDateString('vi-VN')}
+                          {new Date(day.date).toLocaleDateString('vi-VN', { timeZone: 'UTC' })}
                         </span>
                         <span className="text-sm text-gray-600">{day.count} errors</span>
                       </div>
@@ -247,7 +255,7 @@ const ErrorMonitoring = () => {
 
         {/* Last Updated */}
         <div className="text-center text-sm text-gray-500">
-          Last updated: {lastUpdated.toLocaleString('vi-VN')}
+          Last updated: {lastUpdated?.toLocaleString('vi-VN')}
         </div>
       </div>
     </Layout>

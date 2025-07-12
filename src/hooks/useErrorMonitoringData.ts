@@ -1,367 +1,127 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useSecureAuth } from '@/contexts/AuthContext';
-
-interface SystemError {
-  id: string;
-  error_type: string;
-  error_message: string;
-  error_stack?: string;
-  function_name?: string;
-  user_id?: string;
-  severity: string;
-  status: string;
-  created_at: string;
-  resolved_at?: string;
-  resolved_by?: string;
-}
-
-interface ErrorStats {
-  totalErrors: number;
-  criticalErrors: number;
-  resolvedErrors: number;
-  errorRate: number;
-  topErrorTypes: { type: string; count: number }[];
-  errorTrend: { date: string; count: number }[];
-}
-
-const ERRORS_PER_PAGE = 20;
-const CACHE_DURATION = 2 * 60 * 1000; // 2 phút
+import { useState, useEffect, useCallback } from 'react';
+import { getErrorStatistics, SystemError, SystemMetric, SystemStatus, checkServiceHealth } from '@/utils/errorTracking';
+import { useAuth } from '@/contexts/AuthContext';
+import { format, subDays, startOfDay } from 'date-fns';
 
 export function useErrorMonitoringData() {
-  const { user } = useSecureAuth();
-  const [errorStats, setErrorStats] = useState<ErrorStats>({
+  const { user, loading: authLoading } = useAuth();
+
+  const [errorStats, setErrorStats] = useState({
     totalErrors: 0,
     criticalErrors: 0,
     resolvedErrors: 0,
     errorRate: 0,
-    topErrorTypes: [],
-    errorTrend: []
+    topErrorTypes: [] as { type: string; count: number }[],
+    errorTrend: [] as { date: string; count: number }[],
+    byType: {},
+    bySeverity: {},
+    recent: [] as SystemError[],
   });
-
   const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
-  const [systemMetrics, setSystemMetrics] = useState<any[]>([]);
-  const [serviceHealth, setServiceHealth] = useState({
-    database: { service_name: 'database', status: 'online', uptime_percentage: 100 },
-    email: { service_name: 'email', status: 'online', uptime_percentage: 100 },
-    pushNotification: { service_name: 'push_notification', status: 'online', uptime_percentage: 100 },
-    api: { service_name: 'api', status: 'online', uptime_percentage: 100 }
-  });
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetric[]>([]);
+  const [serviceHealth, setServiceHealth] = useState<Record<string, SystemStatus>>({}); // Corrected type
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalErrorCount, setTotalErrorCount] = useState(0);
-
-  // Cache để tránh load lại
-  const dataCache = useRef<Map<string, { data: any, timestamp: number }>>(new Map());
-
-  // Only load data if user is admin
-  const canAccess = user?.role === 'admin';
-
-  // Load error stats - chỉ load khi cần
-  const loadErrorStats = useCallback(async () => {
-    if (!canAccess) return;
-
-    const cacheKey = 'error-stats';
-    const cached = dataCache.current.get(cacheKey);
-    
-    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-      setErrorStats(cached.data);
-      return;
-    }
-
-    try {
-      console.log('📊 Loading error statistics...');
-
-      // Load basic error count
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-      const { count: totalCount, error: countError } = await supabase
-        .from('system_errors')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', sevenDaysAgo.toISOString());
-
-      if (countError) {
-        console.warn('⚠️ Error loading error count:', countError);
-        return;
-      }
-
-      // Load critical errors count
-      const { count: criticalCount } = await supabase
-        .from('system_errors')
-        .select('*', { count: 'exact', head: true })
-        .eq('severity', 'critical')
-        .gte('created_at', sevenDaysAgo.toISOString());
-
-      // Load resolved errors count
-      const { count: resolvedCount } = await supabase
-        .from('system_errors')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'resolved')
-        .gte('created_at', sevenDaysAgo.toISOString());
-
-      const totalErrors = totalCount || 0;
-      const criticalErrors = criticalCount || 0;
-      const resolvedErrors = resolvedCount || 0;
-      const errorRate = totalErrors / (7 * 24); // errors per hour
-
-      const stats = {
-        totalErrors,
-        criticalErrors,
-        resolvedErrors,
-        errorRate,
-        topErrorTypes: [], // Load khi cần
-        errorTrend: [] // Load khi cần
-      };
-
-      setErrorStats(stats);
-      setTotalErrorCount(totalErrors);
-
-      // Cache data
-      dataCache.current.set(cacheKey, { data: stats, timestamp: Date.now() });
-
-      console.log('✅ Error stats loaded:', stats);
-
-    } catch (error) {
-      console.error('❌ Error loading error stats:', error);
-    }
-  }, [canAccess]);
-
-  // Load recent errors với phân trang
-  const loadRecentErrors = useCallback(async (page: number = 1) => {
-    if (!canAccess) return;
-
-    const cacheKey = `recent-errors-${page}`;
-    const cached = dataCache.current.get(cacheKey);
-    
-    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-      setRecentErrors(cached.data);
-      return;
-    }
+  const fetchAllData = useCallback(async () => {
+    if (!user) return;
 
     setIsLoading(true);
-
+    console.log('🔄 Loading error statistics...');
     try {
-      console.log(`📊 Loading recent errors - Page ${page}...`);
+      const [statsResult, healthResult] = await Promise.allSettled([
+        getErrorStatistics('week'),
+        Promise.all([
+          checkServiceHealth('database'),
+          checkServiceHealth('api'),
+          checkServiceHealth('email'),
+          checkServiceHealth('push_notification'),
+        ]),
+      ]);
 
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      if (statsResult.status === 'fulfilled' && statsResult.value) {
+        const stats = statsResult.value;
+        const totalErrors = stats.total;
+        const criticalErrors = stats.bySeverity.critical || 0;
+        const resolvedErrors = stats.recent.filter(e => e.status === 'resolved').length;
+        const errorRate = totalErrors / (7 * 24);
 
-      const from = (page - 1) * ERRORS_PER_PAGE;
-      const to = from + ERRORS_PER_PAGE - 1;
+        const topErrorTypes = Object.entries(stats.byType)
+          .sort(([, a], [, b]) => b - a)
+          .map(([type, count]) => ({ type, count }));
 
-      const { data: errors, error } = await supabase
-        .from('system_errors')
-        .select('*')
-        .gte('created_at', sevenDaysAgo.toISOString())
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        const trendData: { [key: string]: number } = {};
+        for (let i = 6; i >= 0; i--) {
+          const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
+          trendData[date] = 0;
+        }
+        stats.recent.forEach(error => {
+          if (error.created_at) {
+            const date = format(startOfDay(new Date(error.created_at)), 'yyyy-MM-dd');
+            if (trendData[date] !== undefined) {
+              trendData[date]++;
+            }
+          }
+        });
+        const errorTrend = Object.entries(trendData).map(([date, count]) => ({ date, count }));
 
-      if (error) {
-        console.warn('⚠️ Error loading recent errors:', error);
-        setRecentErrors([]);
-        return;
+        setErrorStats({
+          ...stats,
+          totalErrors,
+          criticalErrors,
+          resolvedErrors,
+          errorRate,
+          topErrorTypes,
+          errorTrend,
+        });
+        setRecentErrors(stats.recent);
+        console.log('✅ Error stats loaded:', { totalErrors, criticalErrors });
+      } else if (statsResult.status === 'rejected') {
+        console.error('❌ Failed to load error statistics:', statsResult.reason);
       }
 
-      const errorList = errors || [];
-      setRecentErrors(errorList);
-
-      // Cache data
-      dataCache.current.set(cacheKey, { data: errorList, timestamp: Date.now() });
-
-      console.log(`✅ Recent errors loaded: ${errorList.length} records`);
+      if (healthResult.status === 'fulfilled' && healthResult.value) {
+        const healthObject = healthResult.value.reduce((acc, status) => {
+          let key = status.service_name;
+          if (key === 'push_notification') key = 'pushNotification';
+          acc[key] = status;
+          return acc;
+        }, {} as Record<string, SystemStatus>); // Corrected initial value type
+        setServiceHealth(healthObject);
+        console.log('✅ Service health loaded:', healthObject);
+      } else if (healthResult.status === 'rejected') {
+        console.error('❌ Failed to load service health:', healthResult.reason);
+      }
 
     } catch (error) {
-      console.error('❌ Error loading recent errors:', error);
-      setRecentErrors([]);
+      console.error('❌ Failed to fetch error monitoring data:', error);
     } finally {
       setIsLoading(false);
-    }
-  }, [canAccess]);
-
-  // Load error analytics - chỉ khi user click vào tab Analytics
-  const loadErrorAnalytics = useCallback(async () => {
-    if (!canAccess) return;
-
-    const cacheKey = 'error-analytics';
-    const cached = dataCache.current.get(cacheKey);
-    
-    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-      setErrorStats(prev => ({ ...prev, ...cached.data }));
-      return;
-    }
-
-    try {
-      console.log('📊 Loading error analytics...');
-
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-      // Load error types
-      const { data: errorTypes, error: typesError } = await supabase
-        .from('system_errors')
-        .select('error_type')
-        .gte('created_at', sevenDaysAgo.toISOString());
-
-      if (!typesError && errorTypes) {
-        const typeCounts: { [key: string]: number } = {};
-        errorTypes.forEach(error => {
-          typeCounts[error.error_type] = (typeCounts[error.error_type] || 0) + 1;
-        });
-
-        const topErrorTypes = Object.entries(typeCounts)
-          .map(([type, count]) => ({ type, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 5);
-
-        // Error trend (last 7 days)
-        const errorTrend: { date: string; count: number }[] = [];
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          const dateStr = date.toISOString().split('T')[0];
-          
-          const { count } = await supabase
-            .from('system_errors')
-            .select('*', { count: 'exact', head: true })
-            .gte('created_at', `${dateStr}T00:00:00.000Z`)
-            .lt('created_at', `${dateStr}T23:59:59.999Z`);
-          
-          errorTrend.push({ date: dateStr, count: count || 0 });
-        }
-
-        const analytics = { topErrorTypes, errorTrend };
-
-        setErrorStats(prev => ({ ...prev, ...analytics }));
-
-        // Cache data
-        dataCache.current.set(cacheKey, { data: analytics, timestamp: Date.now() });
-      }
-
-    } catch (error) {
-      console.error('❌ Error loading analytics:', error);
-    }
-  }, [canAccess]);
-
-  // Load system metrics - chỉ khi cần
-  const loadSystemMetrics = useCallback(async () => {
-    if (!canAccess) return;
-
-    const cacheKey = 'system-metrics';
-    const cached = dataCache.current.get(cacheKey);
-    
-    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-      setSystemMetrics(cached.data);
-      return;
-    }
-
-    try {
-      const twentyFourHoursAgo = new Date();
-      twentyFourHoursAgo.setDate(twentyFourHoursAgo.getDate() - 1);
-
-      const { data: metrics, error } = await supabase
-        .from('system_metrics')
-        .select('*')
-        .gte('created_at', twentyFourHoursAgo.toISOString())
-        .order('created_at', { ascending: false })
-        .limit(20); // Giảm từ 50 xuống 20
-
-      if (!error && metrics) {
-        setSystemMetrics(metrics);
-
-        // Cache data
-        dataCache.current.set(cacheKey, { data: metrics, timestamp: Date.now() });
-      }
-    } catch (error) {
-      console.warn('⚠️ Error loading system metrics:', error);
-    }
-  }, [canAccess]);
-
-  // Check service health - simplified
-  const checkServiceHealth = useCallback(async () => {
-    if (!canAccess) return;
-
-    try {
-      // Simplified health check - không query database
-      setServiceHealth(prevHealth => {
-        const updatedHealth = { ...prevHealth };
-        // Simulate health status
-        Object.keys(updatedHealth).forEach(service => {
-          const random = Math.random();
-          updatedHealth[service as keyof typeof updatedHealth] = {
-            service_name: service,
-            status: random > 0.95 ? 'degraded' : 'online',
-            uptime_percentage: 99.9 - Math.random() * 0.5
-          };
-        });
-        return updatedHealth;
-      });
-    } catch (error) {
-      console.warn('⚠️ Error checking service health:', error);
-    }
-  }, [canAccess]);
-
-  // Initial load - chỉ load stats cơ bản
-  useEffect(() => {
-    if (canAccess) {
-      loadErrorStats();
-      checkServiceHealth();
-    } else {
-      // Clear data if user doesn't have access
-      setRecentErrors([]);
-      setErrorStats({
-        totalErrors: 0,
-        criticalErrors: 0,
-        resolvedErrors: 0,
-        errorRate: 0,
-        topErrorTypes: [],
-        errorTrend: []
-      });
-      setSystemMetrics([]);
-    }
-  }, [canAccess, loadErrorStats, checkServiceHealth]);
-
-  // Load recent errors khi component mount
-  useEffect(() => {
-    if (canAccess) {
-      loadRecentErrors(currentPage);
-    }
-  }, [canAccess, currentPage, loadRecentErrors]);
-
-  const refreshAll = useCallback(() => {
-    if (canAccess) {
-      // Clear cache
-      dataCache.current.clear();
-      
-      // Reload data
-      loadErrorStats();
-      loadRecentErrors(currentPage);
-      checkServiceHealth();
       setLastUpdated(new Date());
     }
-  }, [canAccess, currentPage, loadErrorStats, loadRecentErrors, checkServiceHealth]);
+  }, [user]);
 
-  // Helper functions for styling
+  useEffect(() => {
+    if (authLoading) {
+      setIsLoading(true);
+      return;
+    }
+    if (user) {
+      fetchAllData();
+    } else {
+      setIsLoading(false);
+      setErrorStats({
+        totalErrors: 0, criticalErrors: 0, resolvedErrors: 0, errorRate: 0,
+        topErrorTypes: [], errorTrend: [], byType: {}, bySeverity: {}, recent: [],
+      });
+      setRecentErrors([]);
+    }
+  }, [user, authLoading, fetchAllData]);
+
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online': return 'text-green-600 bg-green-100';
-      case 'degraded': return 'text-yellow-600 bg-yellow-100';
-      case 'offline': return 'text-red-600 bg-red-100';
-      case 'maintenance': return 'text-blue-600 bg-blue-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'online': return '●';
-      case 'degraded': return '⚠';
-      case 'offline': return '●';
-      case 'maintenance': return '⏱';
-      default: return '●';
-    }
+    if (status === 'online') return 'text-green-600 bg-green-100';
+    if (status === 'degraded') return 'text-yellow-600 bg-yellow-100';
+    return 'text-red-600 bg-red-100';
   };
 
   const getSeverityColor = (severity: string) => {
@@ -379,18 +139,10 @@ export function useErrorMonitoringData() {
     recentErrors,
     systemMetrics,
     serviceHealth,
-    isLoading,
+    isLoading: authLoading || isLoading,
     lastUpdated,
-    canAccess,
-    currentPage,
-    setCurrentPage,
-    totalErrorCount,
-    totalPages: Math.ceil(totalErrorCount / ERRORS_PER_PAGE),
-    refreshAll,
-    loadErrorAnalytics,
-    loadSystemMetrics,
+    refreshAll: fetchAllData,
     getStatusColor,
-    getStatusIcon,
-    getSeverityColor
+    getSeverityColor,
   };
 }

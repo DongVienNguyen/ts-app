@@ -1,5 +1,6 @@
 import { safeDbOperation } from '@/utils/supabaseAuth';
 import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
+import { supabase } from '@/integrations/supabase/client';
 
 export class HealthCheckService {
   private static instance: HealthCheckService;
@@ -13,25 +14,21 @@ export class HealthCheckService {
     return HealthCheckService.instance;
   }
 
-  // Start health monitoring
   startMonitoring(intervalMinutes: number = 15) {
     if (this.isRunning) return;
 
     this.isRunning = true;
     console.log('🏥 Starting health monitoring...');
 
-    // Run initial check after a longer delay to allow authentication to settle
     setTimeout(() => {
       this.runHealthChecks();
-    }, 10000); // 10 seconds delay
+    }, 10000);
 
-    // Set up periodic checks with longer interval
     this.checkInterval = setInterval(() => {
       this.runHealthChecks();
     }, intervalMinutes * 60 * 1000);
   }
 
-  // Stop health monitoring
   stopMonitoring() {
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
@@ -41,8 +38,13 @@ export class HealthCheckService {
     console.log('🏥 Health monitoring stopped');
   }
 
-  // Run all health checks
   private async runHealthChecks() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.warn('⚠️ Aborting health checks: not authenticated.');
+      return;
+    }
+
     console.log('🔍 Running health checks...');
     
     try {
@@ -56,12 +58,10 @@ export class HealthCheckService {
     }
   }
 
-  // Check database health
   private async checkDatabaseHealth() {
     const startTime = performance.now();
     
     try {
-      // Simple query to test database connectivity
       const result = await safeDbOperation(async (client) => {
         const { data, error } = await client
           .from('staff')
@@ -87,7 +87,6 @@ export class HealthCheckService {
           }
         });
 
-        // Log performance metric
         await logSystemMetric({
           metric_type: 'performance',
           metric_name: 'database_response_time',
@@ -100,19 +99,13 @@ export class HealthCheckService {
 
     } catch (error) {
       console.warn('⚠️ Database health check failed:', error);
-      
-      // Don't try to update system status if we can't connect to database
-      // This prevents infinite error loops
     }
   }
 
-  // Collect basic system metrics
   private async collectBasicMetrics() {
     try {
-      // Memory usage
       if ('memory' in performance) {
         const memory = (performance as any).memory;
-        
         await logSystemMetric({
           metric_type: 'memory',
           metric_name: 'used_heap_size',
@@ -121,16 +114,13 @@ export class HealthCheckService {
         });
       }
 
-      // Connection info
       if ('connection' in navigator) {
         const connection = (navigator as any).connection;
-        
         if (connection?.effectiveType) {
           const effectiveTypeValue = 
             connection.effectiveType === '4g' ? 4 : 
             connection.effectiveType === '3g' ? 3 : 
             connection.effectiveType === '2g' ? 2 : 1;
-
           await logSystemMetric({
             metric_type: 'network',
             metric_name: 'effective_type',
@@ -140,7 +130,6 @@ export class HealthCheckService {
         }
       }
 
-      // Page performance
       const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
       if (navigation) {
         await logSystemMetric({
@@ -156,7 +145,6 @@ export class HealthCheckService {
     }
   }
 
-  // Get current system health summary
   async getHealthSummary() {
     try {
       const statuses = await safeDbOperation(async (client) => {
@@ -179,7 +167,6 @@ export class HealthCheckService {
         };
       }
 
-      // Get the latest status for each service
       const latestStatuses: { [key: string]: any } = {};
       statuses.forEach(status => {
         if (!latestStatuses[status.service_name]) {
@@ -187,7 +174,6 @@ export class HealthCheckService {
         }
       });
 
-      // Calculate overall health
       const services = Object.values(latestStatuses);
       const onlineServices = services.filter(s => s.status === 'online').length;
       const totalServices = services.length;
@@ -213,21 +199,17 @@ export class HealthCheckService {
     }
   }
 
-  // Start monitoring when user logs in
   onUserLogin() {
     console.log('🔐 User logged in, starting health monitoring...');
-    // Start with longer delay to ensure auth is fully set up
     setTimeout(() => {
       this.startMonitoring();
     }, 5000);
   }
 
-  // Stop monitoring when user logs out
   onUserLogout() {
     console.log('🔓 User logged out, stopping health monitoring...');
     this.stopMonitoring();
   }
 }
 
-// Export singleton instance
 export const healthCheckService = HealthCheckService.getInstance();

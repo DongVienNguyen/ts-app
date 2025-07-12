@@ -8,8 +8,8 @@ import { ResourcesTab } from './error-monitoring/ResourcesTab';
 import { RealTimeErrorFeed } from './error-monitoring/RealTimeErrorFeed';
 import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
 import { PWATestPanel } from '@/components/PWATestPanel';
-import PushNotificationTester from '@/components/PushNotificationTester'; // Changed to default import
-import VAPIDKeyTester from '@/components/VAPIDKeyTester'; // Changed to default import
+import PushNotificationTester from '@/components/PushNotificationTester';
+import VAPIDKeyTester from '@/components/VAPIDKeyTester';
 
 export function ErrorMonitoringDashboard() {
   const {
@@ -24,7 +24,6 @@ export function ErrorMonitoringDashboard() {
     getSeverityColor: originalGetSeverityColor
   } = useErrorMonitoringData();
 
-  // Wrap getSeverityColor to handle undefined severity
   const getSeverityColor = (severity: string | undefined): string => {
     if (!severity) return 'text-gray-600 bg-gray-100';
     return originalGetSeverityColor(severity);
@@ -44,7 +43,7 @@ export function ErrorMonitoringDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Tabs defaultValue="errors" className="space-y-4">
-            <TabsList className="flex w-full justify-between">
+            <TabsList className="flex flex-wrap w-full justify-start gap-1 sm:gap-2">
               <TabsTrigger value="errors">Danh sách Lỗi</TabsTrigger>
               <TabsTrigger value="analytics">Phân tích</TabsTrigger>
               <TabsTrigger value="services">Dịch vụ</TabsTrigger>
