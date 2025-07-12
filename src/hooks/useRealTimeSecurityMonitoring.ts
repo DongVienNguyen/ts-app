@@ -1,68 +1,129 @@
-import { useState, useEffect, useCallback } from 'react';
-import {
-  subscribeToSecurityEvents,
-  getRealTimeSecurityStats,
-  logSecurityEventRealTime,
-  RealTimeSecurityStats,
-  SecurityEvent
-} from '@/utils/realTimeSecurityUtils';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { SecurityEvent } from '@/utils/realTimeSecurityUtils';
+import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils'; // Import logSecurityEventRealTime
+
+export interface RealTimeSecurityStats {
+  activeUsers: number;
+  recentEvents: SecurityEvent[];
+  threatTrends: { date: string; successfulLogins: number; failedLogins: number; suspiciousActivities: number }[];
+}
 
 export function useRealTimeSecurityMonitoring() {
-  const [stats, setStats] = useState<RealTimeSecurityStats>({
-    activeConnections: 0,
-    recentEvents: [],
-    threatLevel: 'LOW',
-    systemHealth: 'HEALTHY',
-    loginAttempts: 0,
-    failedLogins: 0,
-    successfulLogins: 0,
-    accountLocks: 0,
-    passwordResets: 0,
-    suspiciousActivities: 0
-  });
-  const [isConnected, setIsConnected] = useState(false);
+  const [activeUsers, setActiveUsers] = useState(0);
+  const [recentEvents, setRecentEvents] = useState<SecurityEvent[]>([]);
+  const [threatTrends, setThreatTrends] = useState<{ date: string; successfulLogins: number; failedLogins: number; suspiciousActivities: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
-  const [isPaused, setIsPaused] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Tải số liệu thống kê ban đầu
-  const loadStats = useCallback(async () => {
-    if (isPaused) return;
-    try {
+  useEffect(() => {
+    const fetchInitialData = async () => {
       setIsLoading(true);
       setError(null);
-      const newStats = await getRealTimeSecurityStats();
-      setStats(newStats);
-      setIsConnected(true);
-      setLastUpdated(new Date());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Lỗi không xác định');
-      setIsConnected(false);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isPaused]);
+      try {
+        // Fetch initial recent events (e.g., last 20 events)
+        const { data: events, error: fetchError } = await supabase
+          .from('security_events')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(20);
 
-  // Xử lý sự kiện thời gian thực
-  const handleRealTimeEvent = useCallback((event: SecurityEvent) => {
-    if (!isRealTimeEnabled || isPaused) return;
-    setStats(prevStats => ({
-      ...prevStats,
-      recentEvents: [event, ...prevStats.recentEvents].slice(0, 50)
-    }));
-    setLastUpdated(new Date());
-  }, [isRealTimeEnabled, isPaused]);
+        if (fetchError) throw fetchError;
 
-  // Hàm để xử lý dữ liệu sự kiện thành định dạng xu hướng cho biểu đồ
-  const getEventTrends = useCallback(() => {
-    const trends: { date: string; successfulLogins: number; failedLogins: number; suspiciousActivities: number }[] = [];
+        const mappedEvents: SecurityEvent[] = events.map(event => ({
+          id: event.id,
+          type: event.event_type,
+          timestamp: event.created_at,
+          data: event.event_data,
+          userAgent: event.user_agent,
+          ip: event.ip_address,
+          username: event.username
+        }));
+        setRecentEvents(mappedEvents);
+        updateThreatTrends(mappedEvents);
+
+        // For active users, we might need a more sophisticated method,
+        // for now, let's simulate or fetch from a 'user_sessions' table if available.
+        // Assuming 'user_sessions' table exists and tracks active sessions
+        const { data: sessions, error: sessionError } = await supabase
+          .from('user_sessions')
+          .select('id')
+          .eq('session_end', null); // Assuming null session_end means active
+
+        if (sessionError) {
+          console.warn("Could not fetch active sessions:", sessionError.message);
+          setActiveUsers(0); // Default to 0 if error
+        } else {
+          setActiveUsers(sessions?.length || 0);
+        }
+
+      } catch (err: any) {
+        setError('Failed to fetch initial data: ' + err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInitialData();
+
+    // Set up real-time subscription for security_events
+    const securityEventsChannel = supabase
+      .channel('security_events_channel')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'security_events' },
+        (payload) => {
+          const newEvent = payload.new as any;
+          const mappedNewEvent: SecurityEvent = {
+            id: newEvent.id,
+            type: newEvent.event_type,
+            timestamp: newEvent.created_at,
+            data: newEvent.event_data,
+            userAgent: newEvent.user_agent,
+            ip: newEvent.ip_address,
+            username: newEvent.username
+          };
+          setRecentEvents(prevEvents => {
+            const updatedEvents = [mappedNewEvent, ...prevEvents].slice(0, 20); // Keep only the latest 20
+            updateThreatTrends(updatedEvents);
+            return updatedEvents;
+          });
+        }
+      )
+      .subscribe();
+
+    // Set up real-time subscription for user_sessions (if applicable)
+    const userSessionsChannel = supabase
+      .channel('user_sessions_channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_sessions' }, // Listen to all changes for active user count
+        async () => {
+          const { data: sessions, error: sessionError } = await supabase
+            .from('user_sessions')
+            .select('id')
+            .eq('session_end', null);
+
+          if (sessionError) {
+            console.warn("Could not update active sessions via real-time:", sessionError.message);
+          } else {
+            setActiveUsers(sessions?.length || 0);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(securityEventsChannel);
+      supabase.removeChannel(userSessionsChannel);
+    };
+  }, []);
+
+  const updateThreatTrends = (events: SecurityEvent[]) => {
     const dailyData: { [date: string]: { successfulLogins: number; failedLogins: number; suspiciousActivities: number } } = {};
 
-    stats.recentEvents.forEach(event => {
-      // Sử dụng toLocaleDateString với 'en-CA' để đảm bảo định dạng YYYY-MM-DD nhất quán
-      const date = new Date(event.timestamp).toLocaleDateString('en-CA');
+    events.forEach(event => {
+      const date = new Date(event.timestamp).toLocaleDateString('en-CA'); // Use 'en-CA' for YYYY-MM-DD format
       if (!dailyData[date]) {
         dailyData[date] = { successfulLogins: 0, failedLogins: 0, suspiciousActivities: 0 };
       }
@@ -76,86 +137,22 @@ export function useRealTimeSecurityMonitoring() {
       }
     });
 
-    // Sắp xếp theo ngày và chuyển đổi thành mảng
-    Object.keys(dailyData).sort().forEach(date => {
-      trends.push({ date, ...dailyData[date] });
-    });
+    // Sort dates to ensure correct order in chart
+    const sortedDates = Object.keys(dailyData).sort();
+    const newTrends = sortedDates.map(date => ({ date, ...dailyData[date] }));
+    setThreatTrends(newTrends);
+  };
 
-    return trends;
-  }, [stats.recentEvents]);
-
-  // Đăng ký sự kiện thời gian thực
-  useEffect(() => {
-    loadStats();
-
-    let unsubscribe: () => void;
-    if (isRealTimeEnabled) {
-      unsubscribe = subscribeToSecurityEvents(handleRealTimeEvent);
-    }
-
-    // Làm mới số liệu thống kê định kỳ (chỉ khi không tạm dừng)
-    const interval = setInterval(() => {
-      if (!isPaused) {
-        loadStats();
-      }
-    }, 30000);
-
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-      clearInterval(interval);
-    };
-  }, [loadStats, handleRealTimeEvent, isRealTimeEnabled, isPaused]);
-
-  // Hàm bật/tắt thời gian thực
-  const handleRealTimeToggle = useCallback(() => {
-    setIsRealTimeEnabled(prev => !prev);
-    setIsPaused(false);
-  }, []);
-
-  // Hàm bật/tắt tạm dừng
-  const handlePauseToggle = useCallback(() => {
-    setIsPaused(prev => !prev);
-  }, []);
-
-  // Hàm đặt lại
-  const handleReset = useCallback(() => {
-    setStats({
-      activeConnections: 0,
-      recentEvents: [],
-      threatLevel: 'LOW',
-      systemHealth: 'HEALTHY',
-      loginAttempts: 0,
-      failedLogins: 0,
-      successfulLogins: 0,
-      accountLocks: 0,
-      passwordResets: 0,
-      suspiciousActivities: 0
-    });
-    setIsConnected(false);
-    setIsLoading(true);
-    setError(null);
-    setIsRealTimeEnabled(true);
-    setIsPaused(false);
-    setLastUpdated(null);
-    loadStats();
-  }, [loadStats]);
+  const logEvent = async (eventType: string, data: any = {}, username?: string) => {
+    await logSecurityEventRealTime(eventType, data, username);
+  };
 
   return {
-    events: stats.recentEvents,
-    metrics: stats,
-    lastUpdated,
-    isConnected,
-    isRealTimeEnabled,
-    isPaused,
+    activeUsers,
+    recentEvents,
+    threatTrends,
     isLoading,
     error,
-    handleRealTimeToggle,
-    handlePauseToggle,
-    handleReset,
-    logEvent: logSecurityEventRealTime,
-    refreshStats: loadStats,
-    getEventTrends // Thêm hàm này vào giá trị trả về
+    logEvent, // Export the logEvent function
   };
 }
