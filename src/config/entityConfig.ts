@@ -5,7 +5,7 @@ export type TableName = keyof Database['public']['Tables'];
 export interface FieldConfig { // Exported FieldConfig
   key: string;
   label: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'boolean';
+  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'boolean' | 'password'; // Added 'password' type
   options?: string[];
   required?: boolean;
   defaultValue?: any;
@@ -186,7 +186,7 @@ export const entityConfig: Record<string, EntityConfig> = {
     primaryKey: 'id',
     fields: [
       { key: 'username', label: 'Tên đăng nhập', type: 'text', required: true, filterable: true },
-      { key: 'password', label: 'Mật khẩu', type: 'text', required: true },
+      { key: 'password', label: 'Mật khẩu', type: 'password', required: true }, // Changed to 'password'
       { key: 'staff_name', label: 'Tên nhân viên', type: 'text', filterable: true },
       { key: 'role', label: 'Vai trò', type: 'text', filterable: true },
       { key: 'department', label: 'Phòng ban', type: 'text', filterable: true },

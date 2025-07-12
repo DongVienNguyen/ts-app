@@ -45,6 +45,10 @@ const mapEntityConfigToEditDialogFields = (config: EntityConfig): EditDialogFiel
         editDialogType = 'date';
         schema = field.required ? z.date({ invalid_type_error: `${field.label} phải là ngày hợp lệ` }) : z.date().nullable();
         break;
+      case 'password': // Handle password type
+        editDialogType = 'password';
+        schema = field.required ? z.string().min(1, `${field.label} không được để trống`) : z.string().nullable();
+        break;
       case 'text':
       default:
         editDialogType = 'text';
