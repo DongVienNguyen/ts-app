@@ -24,10 +24,13 @@ import {
   RefreshCw,
   Settings,
   Clock,
-  Server // Added Server icon
+  Server,
+  Eye // Added Eye icon for viewing logs
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface LogStats {
   security_events: number;
@@ -38,7 +41,7 @@ interface LogStats {
   asset_transactions: number;
   sent_asset_reminders: number;
   sent_crc_reminders: number;
-  system_status: number; // Added system_status
+  system_status: number;
   total: number;
 }
 
@@ -60,12 +63,18 @@ export const LogManagementTab = () => {
     asset_transactions: 0,
     sent_asset_reminders: 0,
     sent_crc_reminders: 0,
-    system_status: 0, // Added system_status
+    system_status: 0,
     total: 0
   });
   const [retentionPeriod, setRetentionPeriod] = useState<'90' | '365'>('90');
   const [processingTable, setProcessingTable] = useState<string | null>(null);
   const [autoCleanupSettings, setAutoCleanupSettings] = useState<AutoCleanupSettings>({});
+
+  // State for log viewer dialog
+  const [showLogViewer, setShowLogViewer] = useState(false);
+  const [viewedLogs, setViewedLogs] = useState<any[]>([]);
+  const [viewedLogTableName, setViewedLogTableName] = useState('');
+  const [viewedLogDisplayName, setViewedLogDisplayName] = useState('');
 
   useEffect(() => {
     loadLogStats();
@@ -126,7 +135,6 @@ export const LogManagementTab = () => {
     try {
       setLoading(true);
       
-      // Get counts from each table
       const tables = [
         'security_events',
         'system_errors', 
@@ -136,7 +144,7 @@ export const LogManagementTab = () => {
         'asset_transactions',
         'sent_asset_reminders',
         'sent_crc_reminders',
-        'system_status' // Added system_status
+        'system_status'
       ];
 
       const counts: any = {};
@@ -192,7 +200,7 @@ export const LogManagementTab = () => {
         'user_sessions',
         'sent_asset_reminders',
         'sent_crc_reminders',
-        'system_status' // Added system_status
+        'system_status'
       ];
 
       let deletedCount = 0;
@@ -222,7 +230,6 @@ export const LogManagementTab = () => {
         toast.success(`✅ Đã xóa thành công tất cả logs từ ${deletedCount} bảng!`);
       }
 
-      // Reload stats
       await loadLogStats();
     } catch (error) {
       console.error('Error deleting all logs:', error);
@@ -254,7 +261,7 @@ export const LogManagementTab = () => {
         { name: 'user_sessions', dateField: 'created_at' },
         { name: 'sent_asset_reminders', dateField: 'created_at' },
         { name: 'sent_crc_reminders', dateField: 'created_at' },
-        { name: 'system_status', dateField: 'created_at' } // Added system_status
+        { name: 'system_status', dateField: 'created_at' }
       ];
 
       let totalDeleted = 0;
@@ -284,7 +291,6 @@ export const LogManagementTab = () => {
         toast.success(`✅ Đã xóa ${totalDeleted} bản ghi logs cũ hơn ${periodText}!`);
       }
 
-      // Reload stats
       await loadLogStats();
     } catch (error) {
       console.error('Error cleaning up old logs:', error);
@@ -353,6 +359,32 @@ export const LogManagementTab = () => {
     } catch (error) {
       console.error(`Error cleaning up ${tableName}:`, error);
       toast.error(`Lỗi khi dọn dẹp ${displayName}`);
+    } finally {
+      setProcessingTable(null);
+    }
+  };
+
+  const handleViewLogs = async (tableName: string, displayName: string, dateField: string) => {
+    try {
+      setProcessingTable(tableName);
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .order(dateField, { ascending: false })
+        .limit(50); // Fetch latest 50 logs
+
+      if (error) {
+        console.error(`Error fetching logs for ${tableName}:`, error);
+        toast.error(`Lỗi khi tải logs cho ${displayName}: ${error.message}`);
+      } else {
+        setViewedLogs(data || []);
+        setViewedLogTableName(tableName);
+        setViewedLogDisplayName(displayName);
+        setShowLogViewer(true);
+      }
+    } catch (error) {
+      console.error(`Error viewing logs for ${tableName}:`, error);
+      toast.error(`Lỗi khi xem logs cho ${displayName}`);
     } finally {
       setProcessingTable(null);
     }
@@ -580,6 +612,20 @@ export const LogManagementTab = () => {
                 {/* Manual Actions */}
                 <div className="flex space-x-2">
                   <Button
+                    onClick={() => handleViewLogs(category.tableName, category.name, category.dateField)}
+                    disabled={processingTable === category.tableName || category.count === 0}
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    {processingTable === category.tableName ? (
+                      <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                    ) : (
+                      <Eye className="w-3 h-3 mr-1" />
+                    )}
+                    Xem Logs
+                  </Button>
+                  <Button
                     onClick={() => handleCleanupSpecificLog(category.tableName, category.name, category.dateField)}
                     disabled={processingTable === category.tableName || category.count === 0}
                     size="sm"
@@ -703,6 +749,27 @@ export const LogManagementTab = () => {
           <span className="ml-2 text-gray-600">Đang xử lý...</span>
         </div>
       )}
+
+      {/* Log Viewer Dialog */}
+      <Dialog open={showLogViewer} onOpenChange={setShowLogViewer}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Logs: {viewedLogDisplayName}</DialogTitle>
+            <DialogDescription>
+              Hiển thị 50 bản ghi log gần nhất từ bảng `{viewedLogTableName}`.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-grow p-4 border rounded-md bg-gray-50">
+            {viewedLogs.length > 0 ? (
+              <pre className="text-xs whitespace-pre-wrap break-all">
+                {JSON.stringify(viewedLogs, null, 2)}
+              </pre>
+            ) : (
+              <p className="text-center text-gray-500">Không có logs nào để hiển thị.</p>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
