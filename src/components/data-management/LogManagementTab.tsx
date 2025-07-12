@@ -23,7 +23,8 @@ import {
   BarChart3,
   RefreshCw,
   Settings,
-  Clock
+  Clock,
+  Server // Added Server icon
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -37,6 +38,7 @@ interface LogStats {
   asset_transactions: number;
   sent_asset_reminders: number;
   sent_crc_reminders: number;
+  system_status: number; // Added system_status
   total: number;
 }
 
@@ -58,6 +60,7 @@ export const LogManagementTab = () => {
     asset_transactions: 0,
     sent_asset_reminders: 0,
     sent_crc_reminders: 0,
+    system_status: 0, // Added system_status
     total: 0
   });
   const [retentionPeriod, setRetentionPeriod] = useState<'90' | '365'>('90');
@@ -132,7 +135,8 @@ export const LogManagementTab = () => {
         'notifications',
         'asset_transactions',
         'sent_asset_reminders',
-        'sent_crc_reminders'
+        'sent_crc_reminders',
+        'system_status' // Added system_status
       ];
 
       const counts: any = {};
@@ -187,7 +191,8 @@ export const LogManagementTab = () => {
         'system_metrics', 
         'user_sessions',
         'sent_asset_reminders',
-        'sent_crc_reminders'
+        'sent_crc_reminders',
+        'system_status' // Added system_status
       ];
 
       let deletedCount = 0;
@@ -248,7 +253,8 @@ export const LogManagementTab = () => {
         { name: 'system_metrics', dateField: 'created_at' },
         { name: 'user_sessions', dateField: 'created_at' },
         { name: 'sent_asset_reminders', dateField: 'created_at' },
-        { name: 'sent_crc_reminders', dateField: 'created_at' }
+        { name: 'sent_crc_reminders', dateField: 'created_at' },
+        { name: 'system_status', dateField: 'created_at' } // Added system_status
       ];
 
       let totalDeleted = 0;
@@ -432,6 +438,16 @@ export const LogManagementTab = () => {
       icon: Activity,
       color: 'bg-cyan-500',
       description: 'Lịch sử gửi nhắc CRC'
+    },
+    {
+      name: 'Trạng thái hệ thống',
+      key: 'system_status',
+      tableName: 'system_status',
+      dateField: 'created_at',
+      count: stats.system_status,
+      icon: Server,
+      color: 'bg-pink-500',
+      description: 'Trạng thái, thời gian phản hồi của các dịch vụ'
     }
   ];
 
