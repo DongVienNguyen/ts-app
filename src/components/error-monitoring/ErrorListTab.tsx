@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { startOfDay, endOfDay } from 'date-fns';
 
 interface ErrorListTabProps {
   recentErrors: SystemError[];
@@ -79,20 +80,15 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
     if (filters.status && error.status !== filters.status) return false;
     if (filters.errorType && error.error_type !== filters.errorType) return false;
     
-    if (filters.dateRange) {
+    if (filters.dateRange?.from) {
       const errorDate = new Date(error.created_at!);
-      const now = new Date();
-      let cutoffDate: Date;
-      
-      switch (filters.dateRange) {
-        case '1h': cutoffDate = new Date(now.getTime() - 60 * 60 * 1000); break;
-        case '24h': cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
-        case '7d': cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
-        case '30d': cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
-        default: cutoffDate = new Date(0);
-      }
-      
-      if (errorDate < cutoffDate) return false;
+      const fromDate = startOfDay(filters.dateRange.from);
+      if (errorDate < fromDate) return false;
+    }
+    if (filters.dateRange?.to) {
+      const errorDate = new Date(error.created_at!);
+      const toDate = endOfDay(filters.dateRange.to);
+      if (errorDate > toDate) return false;
     }
     
     if (filters.searchTerm) {
