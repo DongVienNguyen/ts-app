@@ -366,67 +366,81 @@ export function setGlobalErrorHandler(handler: (error: Error, context?: any) => 
   globalErrorHandler = handler;
 }
 
-// Get error statistics
-export async function getErrorStatistics(timeRange: 'day' | 'week' | 'month' = 'day') {
-  try {
-    const now = new Date();
-    let startDate: Date;
+// Calculate error statistics from a given array of errors
+export function getErrorStatistics(errors: SystemError[]) {
+  const byType: { [key: string]: number } = {};
+  const bySeverity: { [key: string]: number } = {};
+  const byBrowser: { [key: string]: number } = {};
+  const byOS: { [key: string]: number } = {};
+  const errorTrend: { date: string; count: number }[] = [];
 
-    switch (timeRange) {
-      case 'day':
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        break;
-      case 'week':
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case 'month':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-    }
-
-    const result = await safeDbOperation(async (client) => {
-      const { data, error } = await client
-        .from('system_errors')
-        .select('*')
-        .gte('created_at', startDate.toISOString())
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data;
-    });
-
-    if (!result) {
-      return {
-        total: 0,
-        byType: {},
-        bySeverity: {},
-        recent: []
-      };
-    }
-
-    const byType: { [key: string]: number } = {};
-    const bySeverity: { [key: string]: number } = {};
-
-    result.forEach(error => {
-      byType[error.error_type] = (byType[error.error_type] || 0) + 1;
-      bySeverity[error.severity || 'medium'] = (bySeverity[error.severity || 'medium'] || 0) + 1;
-    });
-
-    return {
-      total: result.length,
-      byType,
-      bySeverity,
-      recent: result.slice(0, 10)
-    };
-  } catch (error) {
-    console.error('❌ Failed to get error statistics:', error);
-    return {
-      total: 0,
-      byType: {},
-      bySeverity: {},
-      recent: []
-    };
+  // Initialize errorTrend for the last 7 days
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    errorTrend.push({ date: date.toISOString().split('T')[0], count: 0 });
   }
+
+  errors.forEach(error => {
+    byType[error.error_type] = (byType[error.error_type] || 0) + 1;
+    bySeverity[error.severity || 'medium'] = (bySeverity[error.severity || 'medium'] || 0) + 1;
+
+    // Parse user agent for browser and OS
+    if (error.user_agent) {
+      const userAgent = error.user_agent.toLowerCase();
+      let browser = 'Unknown';
+      let os = 'Unknown';
+
+      if (userAgent.includes('chrome') && !userAgent.includes('chromium')) browser = 'Chrome';
+      else if (userAgent.includes('firefox')) browser = 'Firefox';
+      else if (userAgent.includes('safari') && !userAgent.includes('chrome')) browser = 'Safari';
+      else if (userAgent.includes('edge')) browser = 'Edge';
+      else if (userAgent.includes('opera')) browser = 'Opera';
+
+      if (userAgent.includes('windows')) os = 'Windows';
+      else if (userAgent.includes('mac os')) os = 'macOS';
+      else if (userAgent.includes('linux')) os = 'Linux';
+      else if (userAgent.includes('android')) os = 'Android';
+      else if (userAgent.includes('ios')) os = 'iOS';
+
+      byBrowser[browser] = (byBrowser[browser] || 0) + 1;
+      byOS[os] = (byOS[os] || 0) + 1;
+    }
+
+    // Update error trend
+    if (error.created_at) {
+      const errorDate = new Date(error.created_at).toISOString().split('T')[0];
+      const trendEntry = errorTrend.find(entry => entry.date === errorDate);
+      if (trendEntry) {
+        trendEntry.count++;
+      }
+    }
+  });
+
+  const totalErrors = errors.length;
+  const criticalErrors = bySeverity['critical'] || 0;
+  const resolvedErrors = errors.filter(e => e.status === 'resolved').length;
+  const errorRate = totalErrors > 0 ? (criticalErrors / totalErrors) * 100 : 0;
+
+  const topErrorTypes = Object.entries(byType)
+    .sort(([, countA], [, countB]) => countB - countA)
+    .slice(0, 5)
+    .map(([type, count]) => ({ type, count }));
+
+  return {
+    totalErrors,
+    criticalErrors,
+    resolvedErrors,
+    errorRate,
+    topErrorTypes,
+    errorTrend,
+    byType,
+    bySeverity,
+    byBrowser,
+    byOS,
+    recent: errors.slice(0, 10)
+  };
 }
 
 export const getStatusColor = (status: string) => {

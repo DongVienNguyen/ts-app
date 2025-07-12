@@ -12,11 +12,14 @@ const ErrorMonitoring = () => {
     recentErrors,
     systemMetrics,
     serviceHealth,
+    systemAlerts,
     isLoading,
     lastUpdated,
     refreshAll,
     refreshRecentErrors,
     isRefreshingErrors,
+    acknowledgeAlert,
+    isRefreshingAlerts,
   } = useErrorMonitoringData();
 
   if (!user) {
@@ -55,11 +58,14 @@ const ErrorMonitoring = () => {
           recentErrors={recentErrors}
           systemMetrics={systemMetrics}
           serviceHealth={serviceHealth}
+          systemAlerts={systemAlerts}
           isLoading={isLoading}
           lastUpdated={lastUpdated}
           refreshAll={refreshAll}
           refreshRecentErrors={refreshRecentErrors}
           isRefreshingErrors={isRefreshingErrors}
+          acknowledgeAlert={acknowledgeAlert}
+          isRefreshingAlerts={isRefreshingAlerts}
         />
       </div>
     </Layout>

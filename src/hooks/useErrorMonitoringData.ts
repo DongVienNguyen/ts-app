@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { SystemError, SystemMetric, SystemStatus } from '@/utils/errorTracking';
+import { getErrorStatistics, SystemError, SystemMetric, SystemStatus, SystemAlert } from '@/utils/errorTracking';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, subDays, startOfDay } from 'date-fns';
 import { ServiceHealth } from '@/components/error-monitoring/ServiceStatusTab';
@@ -7,114 +7,27 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { parseUserAgent } from '@/utils/userAgentParser';
 import { checkServiceHealth } from '@/services/healthCheckService';
+import { healthCheckService } from '@/services/healthCheckService';
+import { systemAlertService } from '@/services/systemAlertService';
 
-// Define the structure for error statistics
-interface ErrorStats {
-  totalErrors: number;
-  criticalErrors: number;
-  resolvedErrors: number;
-  errorRate: number;
-  topErrorTypes: { type: string; count: number }[];
-  errorTrend: { date: string; count: number }[];
-  byType: { [key: string]: number };
-  bySeverity: { [key: string]: number };
-  byBrowser: { [key: string]: number };
-  byOS: { [key: string]: number };
-  recent: SystemError[];
-}
-
-// Helper function to process raw error data into error statistics
-const processErrorData = (errors: SystemError[]): ErrorStats => {
-  const totalErrors = errors?.length || 0;
-  const criticalErrors = errors?.filter(e => e.severity === 'critical').length || 0;
-  const resolvedErrors = errors?.filter(e => e.status === 'resolved').length || 0;
-  const errorRate = Number(totalErrors) / (7 * 24); // Assuming 7 days * 24 hours for a rough rate
-
-  const byType = errors?.reduce((acc: { [key: string]: number }, error) => {
-    acc[error.error_type] = (acc[error.error_type] || 0) + 1;
-    return acc;
-  }, {}) || {};
-
-  const bySeverity = errors?.reduce((acc: { [key: string]: number }, error) => {
-    const severity = error.severity || 'medium';
-    acc[severity] = (acc[severity] || 0) + 1;
-    return acc;
-  }, {}) || {};
-
-  const byBrowser: { [key: string]: number } = {};
-  const byOS: { [key: string]: number } = {};
-
-  errors?.forEach(error => {
-    const { browser, os } = parseUserAgent(error.user_agent);
-    byBrowser[browser] = (byBrowser[browser] || 0) + 1;
-    byOS[os] = (byOS[os] || 0) + 1;
-  });
-
-  const topErrorTypes = Object.entries(byType)
-    .sort(([, a], [, b]) => Number(b) - Number(a))
-    .map(([type, count]) => ({ type, count: Number(count) }));
-
-  const trendData: { [key: string]: number } = {};
-  for (let i = 6; i >= 0; i--) {
-    const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
-    trendData[date] = 0;
-  }
-
-  errors?.forEach(error => {
-    if (error.created_at) {
-      const date = format(startOfDay(new Date(error.created_at)), 'yyyy-MM-dd');
-      if (trendData[date] !== undefined) {
-        trendData[date]++;
-      }
-    }
-  });
-
-  const errorTrend = Object.entries(trendData).map(([date, count]) => ({ date, count }));
-
-  return {
-    totalErrors,
-    criticalErrors,
-    resolvedErrors,
-    errorRate,
-    topErrorTypes,
-    errorTrend,
-    byType,
-    bySeverity,
-    byBrowser,
-    byOS,
-    recent: errors?.slice(0, 10) || [],
-  };
-};
-
-export function useErrorMonitoringData() {
-  const { user, loading: authLoading } = useAuth();
-
-  const [errorStats, setErrorStats] = useState<ErrorStats>({
-    totalErrors: 0,
-    criticalErrors: 0,
-    resolvedErrors: 0,
-    errorRate: 0,
-    topErrorTypes: [],
-    errorTrend: [],
-    byType: {},
-    bySeverity: {},
-    byBrowser: {},
-    byOS: {},
-    recent: [],
-  });
+export const useErrorMonitoringData = () => {
+  const { user } = useAuth();
+  const [errorStats, setErrorStats] = useState<any>({ total: 0, byType: {}, bySeverity: {}, recent: [] });
   const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
   const [systemMetrics, setSystemMetrics] = useState<SystemMetric[]>([]);
-  const [serviceHealth, setServiceHealth] = useState<ServiceHealth>({
-    database: { service_name: 'database', status: 'unknown', uptime_percentage: 0 },
-    email: { service_name: 'email', status: 'unknown', uptime_percentage: 0 },
-    pushNotification: { service_name: 'pushNotification', status: 'unknown', uptime_percentage: 0 },
-    api: { service_name: 'api', status: 'unknown', uptime_percentage: 0 },
+  const [serviceHealth, setServiceHealth] = useState<ServiceHealth>({ // Changed type to ServiceHealth
+    database: { service_name: 'database', status: 'unknown' },
+    email: { service_name: 'email', status: 'unknown' },
+    pushNotification: { service_name: 'pushNotification', status: 'unknown' },
+    api: { service_name: 'api', status: 'unknown' },
   });
+  const [systemAlerts, setSystemAlerts] = useState<SystemAlert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshingErrors, setIsRefreshingErrors] = useState(false);
+  const [isRefreshingAlerts, setIsRefreshingAlerts] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const refreshRecentErrors = useCallback(async () => {
+  const fetchErrorData = useCallback(async () => {
     if (!user || user.role !== 'admin') return;
 
     setIsRefreshingErrors(true);
@@ -135,8 +48,9 @@ export function useErrorMonitoringData() {
       }
 
       console.log('✅ [ERROR_MONITORING] Refreshed errors:', freshErrors?.length || 0);
-      setRecentErrors(freshErrors || []);
-      setErrorStats(processErrorData(freshErrors || [])); // Use helper function
+      const stats = getErrorStatistics(freshErrors || []); // Use the refactored getErrorStatistics
+      setErrorStats(stats);
+      setRecentErrors(stats.recent);
 
       toast.success('Đã làm mới dữ liệu lỗi');
     } catch (err: any) {
@@ -144,13 +58,18 @@ export function useErrorMonitoringData() {
       toast.error('Lỗi làm mới dữ liệu');
     } finally {
       setIsRefreshingErrors(false);
+      setLastUpdated(new Date());
     }
   }, [user]);
 
-  const fetchAllData = useCallback(async () => {
+  const fetchSystemAlerts = useCallback(async () => {
+    const alerts = await systemAlertService.getActiveAlerts();
+    setSystemAlerts(alerts);
+  }, []);
+
+  const fetchHealthData = useCallback(async () => {
     if (!user || user.role !== 'admin') return;
 
-    setIsLoading(true);
     console.log('🔄 [ERROR_MONITORING] Loading error monitoring data...');
 
     try {
@@ -168,8 +87,9 @@ export function useErrorMonitoringData() {
 
       console.log('✅ [ERROR_MONITORING] Loaded errors:', errors?.length || 0);
 
-      setErrorStats(processErrorData(errors || [])); // Use helper function
-      setRecentErrors(errors || []);
+      const stats = getErrorStatistics(errors || []); // Use the refactored getErrorStatistics
+      setErrorStats(stats);
+      setRecentErrors(stats.recent);
 
       // Load service health
       try {
@@ -181,10 +101,10 @@ export function useErrorMonitoringData() {
         ]);
 
         const healthObject: ServiceHealth = {
-          database: { service_name: 'database', status: 'unknown', uptime_percentage: 0 },
-          email: { service_name: 'email', status: 'unknown', uptime_percentage: 0 },
-          pushNotification: { service_name: 'pushNotification', status: 'unknown', uptime_percentage: 0 },
-          api: { service_name: 'api', status: 'unknown', uptime_percentage: 0 },
+          database: { service_name: 'database', status: 'unknown' },
+          email: { service_name: 'email', status: 'unknown' },
+          pushNotification: { service_name: 'pushNotification', status: 'unknown' },
+          api: { service_name: 'api', status: 'unknown' },
         };
 
         healthResults.forEach((result) => {
@@ -198,7 +118,7 @@ export function useErrorMonitoringData() {
           }
         });
 
-        setServiceHealth(healthObject);
+        setServiceHealth(healthObject); // Removed Object.values()
         console.log('✅ [ERROR_MONITORING] Service health loaded');
       } catch (healthError) {
         console.error('❌ [ERROR_MONITORING] Failed to load service health:', healthError);
@@ -223,47 +143,63 @@ export function useErrorMonitoringData() {
     } catch (error) {
       console.error('❌ [ERROR_MONITORING] Failed to fetch error monitoring data:', error);
       toast.error('Lỗi tải dữ liệu giám sát lỗi');
-    } finally {
-      setIsLoading(false);
-      setLastUpdated(new Date());
     }
   }, [user]);
 
+  const fetchAllData = useCallback(async () => {
+    setIsLoading(true);
+    await Promise.all([
+      fetchErrorData(),
+      fetchHealthData(),
+      fetchSystemAlerts(),
+    ]);
+    setIsLoading(false);
+    setLastUpdated(new Date());
+  }, [fetchErrorData, fetchHealthData, fetchSystemAlerts]);
+
   useEffect(() => {
-    if (authLoading) {
-      setIsLoading(true);
+    if (user?.role === 'admin') {
+      fetchAllData();
+    }
+  }, [user, fetchAllData]);
+
+  const refreshAll = useCallback(async () => {
+    fetchAllData();
+    toast.success('Dữ liệu giám sát đã được làm mới.');
+  }, [fetchAllData]);
+
+  const refreshRecentErrors = useCallback(async () => {
+    fetchErrorData();
+    setIsRefreshingErrors(false);
+    setLastUpdated(new Date());
+  }, [fetchErrorData]);
+
+  const acknowledgeAlert = async (alertId: string) => {
+    if (!user) {
+      toast.error('Yêu cầu đăng nhập để thực hiện.');
       return;
     }
-
-    if (user && user.role === 'admin') {
-      fetchAllData();
+    const success = await systemAlertService.acknowledgeAlert(alertId, user.username);
+    if (success) {
+      toast.success('Cảnh báo đã được ghi nhận.');
+      await fetchSystemAlerts(); // Refresh alerts list
     } else {
-      setIsLoading(false);
-      // Reset data when user is not admin
-      setErrorStats({
-        totalErrors: 0, criticalErrors: 0, resolvedErrors: 0, errorRate: 0,
-        topErrorTypes: [], errorTrend: [], byType: {}, bySeverity: {}, byBrowser: {}, byOS: {}, recent: [],
-      });
-      setRecentErrors([]);
-      setSystemMetrics([]);
-      setServiceHealth({
-        database: { service_name: 'database', status: 'unknown', uptime_percentage: 0 },
-        email: { service_name: 'email', status: 'unknown', uptime_percentage: 0 },
-        pushNotification: { service_name: 'pushNotification', status: 'unknown', uptime_percentage: 0 },
-        api: { service_name: 'api', status: 'unknown', uptime_percentage: 0 },
-      });
+      toast.error('Không thể ghi nhận cảnh báo.');
     }
-  }, [user, authLoading, fetchAllData]);
+  };
 
   return {
     errorStats,
     recentErrors,
     systemMetrics,
     serviceHealth,
-    isLoading: authLoading || isLoading,
-    isRefreshingErrors,
+    systemAlerts,
+    isLoading,
     lastUpdated,
-    refreshAll: fetchAllData,
+    refreshAll,
     refreshRecentErrors,
+    isRefreshingErrors,
+    acknowledgeAlert,
+    isRefreshingAlerts,
   };
 }
