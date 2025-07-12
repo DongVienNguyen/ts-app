@@ -16,20 +16,28 @@ export function RealTimeSecurityDashboard() {
   const [isPaused, setIsPaused] = useState(false);
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
-  // Initialize snapshotData with the current realTimeData on first render
-  const [snapshotData, setSnapshotData] = useState(realTimeData);
+  // Initialize snapshotData to null, it will be set when needed
+  const [snapshotData, setSnapshotData] = useState<typeof realTimeData | null>(null);
 
   // This useEffect will now only update lastUpdated when realTimeData changes
   // AND the dashboard is in active real-time mode.
-  // It no longer sets snapshotData, preventing the infinite loop.
   useEffect(() => {
     if (!isPaused && isRealTimeEnabled) {
       setLastUpdated(new Date());
     }
   }, [realTimeData, isPaused, isRealTimeEnabled]);
 
-
-  const dataToDisplay = isRealTimeEnabled ? (isPaused ? snapshotData : realTimeData) : snapshotData;
+  // Determine which data to display based on real-time status and pause state
+  const dataToDisplay = useMemo(() => {
+    if (isRealTimeEnabled && !isPaused) {
+      return realTimeData;
+    } else {
+      // If paused or real-time disabled, use the snapshot.
+      // If no snapshot has been taken yet (snapshotData is null),
+      // we should still display the current realTimeData as a fallback.
+      return snapshotData || realTimeData;
+    }
+  }, [isRealTimeEnabled, isPaused, snapshotData, realTimeData]);
 
   const handleRealTimeToggle = (enabled: boolean) => {
     setIsRealTimeEnabled(enabled);
@@ -39,6 +47,7 @@ export function RealTimeSecurityDashboard() {
       setLastUpdated(new Date()); // Update last updated time to snapshot time
     } else {
       setIsPaused(false); // Allow live updates
+      setSnapshotData(null); // Clear snapshot when real-time is re-enabled
     }
   };
 
@@ -49,6 +58,8 @@ export function RealTimeSecurityDashboard() {
         if (newPausedState) { // If transitioning to paused
           setSnapshotData(realTimeData); // Capture snapshot
           setLastUpdated(new Date()); // Update last updated time to snapshot time
+        } else { // If transitioning to unpaused
+          setSnapshotData(null); // Clear snapshot when unpaused
         }
         return newPausedState;
       });
