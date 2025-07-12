@@ -1,186 +1,264 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, LineChart, PieChart } from 'recharts';
-import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Pie, Cell, Line } from 'recharts';
 import { SystemError } from '@/utils/errorTracking';
-import { Filter, Download } from 'lucide-react'; // Import Download icon
-import { Button } from '@/components/ui/button'; // Import Button component
-import { toast } from 'sonner'; // Import toast for notifications
-import { convertToCSV, downloadCSV } from '@/utils/csvUtils'; // Import CSV utilities
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { getSeverityColor } from '@/utils/errorTracking';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ErrorAnalyticsTabProps {
-  errorStats: {
-    totalErrors: number;
-    criticalErrors: number;
-    resolvedErrors: number;
-    errorRate: number;
-    topErrorTypes: { type: string; count: number }[];
-    errorTrend: { date: string; count: number }[];
-    byType: { [key: string]: number };
-    bySeverity: { [key: string]: number };
-    byBrowser: { [key: string]: number };
-    byOS: { [key: string]: number };
-    recent: SystemError[];
-  };
+  errorStats: any; // Contains totalErrors, criticalErrors, errorRate, topErrorTypes, errorTrend, byType, bySeverity, byBrowser, byOS
   isLoading: boolean;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF19B7'];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1919'];
 
 export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabProps) {
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <p className="ml-3 text-gray-600">Đang tải dữ liệu phân tích...</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Skeleton className="h-[300px] w-full" />
+        <Skeleton className="h-[300px] w-full" />
+        <Skeleton className="h-[300px] w-full lg:col-span-2" />
       </div>
     );
   }
 
-  if (errorStats.totalErrors === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        <Filter className="w-12 h-12 mx-auto mb-2 opacity-50" />
-        <p>Không có dữ liệu lỗi để phân tích.</p>
-      </div>
-    );
-  }
+  const { totalErrors, criticalErrors, resolvedErrors, errorRate, topErrorTypes, errorTrend, byType, bySeverity, byBrowser, byOS } = errorStats;
 
-  const severityData = Object.entries(errorStats.bySeverity).map(([name, value]) => ({ name, value }));
-  const typeData = Object.entries(errorStats.byType).map(([name, value]) => ({ name, value }));
-  const browserData = Object.entries(errorStats.byBrowser).map(([name, value]) => ({ name, value }));
-  const osData = Object.entries(errorStats.byOS).map(([name, value]) => ({ name, value }));
+  const severityData = Object.entries(bySeverity).map(([name, value]) => ({ name, value }));
+  const typeData = Object.entries(byType).map(([name, value]) => ({ name, value }));
+  const browserData = Object.entries(byBrowser).map(([name, value]) => ({ name, value }));
+  const osData = Object.entries(byOS).map(([name, value]) => ({ name, value }));
 
-  const handleExport = (data: any[], headers: string[], filename: string) => {
-    if (data.length === 0) {
-      toast.info('Không có dữ liệu để xuất.');
-      return;
-    }
-    try {
-      const csv = convertToCSV(data, headers);
-      downloadCSV(csv, filename);
-      toast.success(`Đã xuất dữ liệu ${filename}.csv thành công!`);
-    } catch (error) {
-      console.error('Lỗi khi xuất CSV:', error);
-      toast.error('Không thể xuất dữ liệu CSV.');
-    }
-  };
+  // Prepare errorTrend data for Recharts LineChart
+  const trendData = errorTrend.map((item: { date: string; count: number }) => ({
+    date: new Date(item.date).toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric' }),
+    count: item.count,
+  }));
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Xu hướng lỗi (7 ngày qua)</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => handleExport(errorStats.errorTrend, ['date', 'count'], 'error_trend')}>
-            <Download className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={errorStats.errorTrend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="count" stroke="#8884d8" activeDot={{ r: 8 }} name="Số lỗi" />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tổng số lỗi</CardTitle>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              className="h-4 w-4 text-muted-foreground"
+            >
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+            </svg>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalErrors}</div>
+            <p className="text-xs text-muted-foreground">
+              {criticalErrors} lỗi nghiêm trọng
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Tỷ lệ lỗi nghiêm trọng</CardTitle>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              className="h-4 w-4 text-muted-foreground"
+            >
+              <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 000-4-4V21"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M22 21v-2a4 4 000-3-3h-6a4 4 000-3-3V21"></path>
+              <circle cx="16" cy="7" r="3"></circle>
+            </svg>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{errorRate.toFixed(2)}%</div>
+            <p className="text-xs text-muted-foreground">
+              trong tổng số lỗi
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Lỗi đã giải quyết</CardTitle>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              className="h-4 w-4 text-muted-foreground"
+            >
+              <rect width="20" height="14" x="2" y="5" rx="2"></rect>
+              <path d="M2 10h20"></path>
+            </svg>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{resolvedErrors}</div>
+            <p className="text-xs text-muted-foreground">
+              trong tổng số lỗi
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Lỗi phổ biến nhất</CardTitle>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              className="h-4 w-4 text-muted-foreground"
+            >
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {topErrorTypes.length > 0 ? topErrorTypes[0].type : 'N/A'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              ({topErrorTypes.length > 0 ? topErrorTypes[0].count : 0} lần)
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Lỗi theo mức độ nghiêm trọng</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => handleExport(severityData, ['name', 'value'], 'error_by_severity')}>
-            <Download className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={severityData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-                label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-              >
-                {severityData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Xu hướng lỗi (7 ngày qua)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={trendData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="count" stroke="#8884d8" activeDot={{ r: 8 }} name="Số lượng lỗi" />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Lỗi theo loại</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => handleExport(typeData, ['name', 'value'], 'error_by_type')}>
-            <Download className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={typeData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="value" fill="#82ca9d" name="Số lỗi" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Lỗi theo mức độ nghiêm trọng</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={severityData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {severityData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={getSeverityColor(entry.name).split(' ')[0].replace('text-', '#')} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Lỗi theo trình duyệt</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => handleExport(browserData, ['name', 'value'], 'error_by_browser')}>
-            <Download className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={browserData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="value" fill="#ffc658" name="Số lỗi" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Lỗi theo loại</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={typeData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#82ca9d" name="Số lượng lỗi" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Lỗi theo hệ điều hành</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => handleExport(osData, ['name', 'value'], 'error_by_os')}>
-            <Download className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={osData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="value" fill="#a4de6c" name="Số lỗi" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Lỗi theo trình duyệt</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={browserData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {browserData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Lỗi theo hệ điều hành</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={osData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {osData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
