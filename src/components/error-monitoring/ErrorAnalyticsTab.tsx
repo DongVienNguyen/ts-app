@@ -4,8 +4,21 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { getSeverityColor } from '@/utils/errorTracking';
 import { Skeleton } from '@/components/ui/skeleton';
 
+interface ErrorStats {
+  totalErrors: number;
+  criticalErrors: number;
+  resolvedErrors: number;
+  errorRate: number;
+  topErrorTypes: { type: string; count: number }[];
+  errorTrend: { date: string; count: number }[];
+  byType: { [key: string]: number };
+  bySeverity: { [key: string]: number };
+  byBrowser: { [key: string]: number };
+  byOS: { [key: string]: number };
+}
+
 interface ErrorAnalyticsTabProps {
-  errorStats: any; // Contains totalErrors, criticalErrors, errorRate, topErrorTypes, errorTrend, byType, bySeverity, byBrowser, byOS
+  errorStats: ErrorStats;
   isLoading: boolean;
 }
 
@@ -33,10 +46,10 @@ export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabPr
 
   const { totalErrors, criticalErrors, resolvedErrors, errorRate, topErrorTypes, errorTrend, byType, bySeverity, byBrowser, byOS } = errorStats;
 
-  const severityData = Object.entries(bySeverity).map(([name, value]) => ({ name, value }));
+  const severityData = Object.entries(bySeverity).map(([name, value]) => ({ name, value })).filter(item => item.value > 0);
   const typeData = Object.entries(byType).map(([name, value]) => ({ name, value }));
-  const browserData = Object.entries(byBrowser).map(([name, value]) => ({ name, value }));
-  const osData = Object.entries(byOS).map(([name, value]) => ({ name, value }));
+  const browserData = Object.entries(byBrowser).map(([name, value]) => ({ name, value })).filter(item => item.value > 0);
+  const osData = Object.entries(byOS).map(([name, value]) => ({ name, value })).filter(item => item.value > 0);
 
   // Prepare errorTrend data for Recharts LineChart
   const trendData = errorTrend.map((item: { date: string; count: number }) => ({

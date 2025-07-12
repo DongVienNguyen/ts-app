@@ -44,8 +44,9 @@ export const ResourceUsageCharts: React.FC<ResourceUsageChartsProps> = ({ metric
             <AreaChart data={metrics}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="timestamp" tick={{ fontSize: 10 }} />
-              <YAxis />
+              <YAxis domain={[0, 100]} />
               <Tooltip />
+              <Legend />
               <Area type="monotone" dataKey="cpuUsage" stackId="1" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.6} name="CPU Usage (%)" />
               <Area type="monotone" dataKey="memoryUsage" stackId="2" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.6} name="Memory Usage (%)" />
             </AreaChart>
