@@ -1,71 +1,67 @@
-import { FieldConfig } from '@/config/entityConfig'; // Import FieldConfig
+import { FieldConfig } from '@/config/entityConfig';
 
-export const toCSV = (data: any[], fields: Array<{ key: string; label: string }>): string => {
-  if (!data || data.length === 0) {
-    return fields.map(f => f.label).join(',');
+// Helper function to escape CSV fields
+const escapeCSV = (field: any): string => {
+  if (field === null || field === undefined) {
+    return '';
   }
-
-  const header = fields.map(f => f.label).join(',');
-  const rows = data.map(row =>
-    fields.map(f => {
-      let value = row[f.key];
-      if (value === null || value === undefined) {
-        value = '';
-      } else if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
-        value = `"${value.replace(/"/g, '""')}"`;
-      }
-      return value;
-    }).join(',')
-  );
-
-  return [header, ...rows].join('\n');
+  const str = String(field);
+  // If the string contains a comma, double quote, or newline, enclose it in double quotes.
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    // Escape existing double quotes by doubling them
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
 };
 
-export const fromCSV = (csvString: string, fields?: FieldConfig[]): any[] => { // Added optional fields parameter
-  const lines = csvString.split('\n').filter(line => line.trim() !== '');
-  if (lines.length === 0) return [];
+export const toCSV = (data: any[], fields: FieldConfig[]): string => {
+  if (!data || data.length === 0) {
+    return '';
+  }
 
-  const headerLine = lines[0];
-  const dataLines = lines.slice(1);
+  const headers = fields.map(field => field.label).join(',');
+  const rows = data.map(row => {
+    return fields.map(field => {
+      return escapeCSV(row[field.key]);
+    }).join(',');
+  });
 
-  // Simple CSV parsing: split by comma, handle quoted fields
-  const parseLine = (line: string): string[] => {
-    const result: string[] = [];
-    let inQuote = false;
-    let currentField = '';
+  return [headers, ...rows].join('\n');
+};
 
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"') {
-        if (inQuote && line[i + 1] === '"') { // Escaped quote
-          currentField += '"';
-          i++; // Skip next quote
-        } else {
-          inQuote = !inQuote;
-        }
-      } else if (char === ',' && !inQuote) {
-        result.push(currentField);
-        currentField = '';
-      } else {
-        currentField += char;
-      }
-    }
-    result.push(currentField); // Add the last field
-    return result.map(field => field.trim());
-  };
+export const toCSVTemplate = (fields: FieldConfig[]): string => {
+  const headers = fields.map(field => field.key).join(',');
+  return headers;
+};
 
-  const csvHeaders = parseLine(headerLine);
-  const result = dataLines.map(line => {
-    const values = parseLine(line);
+export const fromCSV = (csvText: string, fields: FieldConfig[]): any[] => {
+  const lines = csvText.trim().split('\n');
+  if (lines.length < 2) {
+    return []; // Must have at least a header and one data row
+  }
+
+  const headers = lines[0].split(',').map(h => h.trim());
+  const dataRows = lines.slice(1);
+
+  const data = dataRows.map(row => {
+    const values = row.split(','); // Simple split, may need improvement for quoted commas
     const obj: { [key: string]: any } = {};
-    csvHeaders.forEach((csvHeader, index) => {
-      // If fields config is provided, try to map CSV header (label) to field key
-      const fieldConfig = fields?.find(f => f.label === csvHeader);
-      const key = fieldConfig ? fieldConfig.key : csvHeader; // Use key if found, otherwise use CSV header directly
-      obj[key] = values[index];
+
+    headers.forEach((header, index) => {
+      const fieldConfig = fields.find(f => f.key === header);
+      if (fieldConfig) {
+        let value: any = values[index];
+        // Basic type conversion
+        if (fieldConfig.type === 'number') {
+          value = value ? Number(value) : null;
+        } else if (fieldConfig.type === 'boolean') {
+          value = value.toLowerCase() === 'true';
+        }
+        obj[header] = value;
+      }
     });
     return obj;
   });
 
-  return result;
+  return data;
 };

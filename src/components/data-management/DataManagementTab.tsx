@@ -45,6 +45,7 @@ interface DataManagementTabProps {
   onEdit: (item: any) => void;
   onDelete: (item: any) => void;
   onExportCSV: () => void;
+  onExportTemplate: () => void;
   onImportClick: () => void;
   restoreInputRef: React.RefObject<HTMLInputElement>;
   onFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -86,6 +87,7 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
   onEdit,
   onDelete,
   onExportCSV,
+  onExportTemplate,
   onImportClick,
   restoreInputRef,
   onFileSelectForImport,
@@ -332,6 +334,7 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
 
         <div className="flex flex-wrap gap-4 justify-end">
           <Button onClick={onExportCSV}>Xuất CSV</Button>
+          <Button onClick={onExportTemplate} variant="outline">Tải mẫu CSV</Button>
           <Button onClick={onImportCsvClick} variant="outline">Nhập từ CSV</Button>
           <Input
             type="file"

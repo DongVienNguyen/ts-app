@@ -68,14 +68,15 @@ export interface DataManagementReturn {
   handleSave: (formData: any) => Promise<void>;
   refreshData: () => void;
   exportToCSV: () => void;
-  exportSelectedToCSV: () => void; // Added for exporting selected rows
+  exportSelectedToCSV: () => void;
+  handleExportTemplate: () => void;
   handleImportClick: () => void;
   restoreInputRef: React.RefObject<HTMLInputElement>;
   handleFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
   startImportProcess: (file: File) => void;
-  importCsvInputRef: React.RefObject<HTMLInputElement>; // Added for CSV import
-  handleImportCsvClick: () => void; // Added for CSV import
-  handleFileSelectForCsvImport: (event: React.ChangeEvent<HTMLInputElement>) => void; // Added for CSV import
+  importCsvInputRef: React.RefObject<HTMLInputElement>;
+  handleImportCsvClick: () => void;
+  handleFileSelectForCsvImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
   startDate: string;
   setStartDate: (date: string) => void;
   endDate: string;
@@ -86,8 +87,8 @@ export interface DataManagementReturn {
   handleSort: (columnKey: string) => void;
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
-  filters: Record<string, FilterState>; // Updated type
-  onFilterChange: (key: string, value: any, operator?: FilterOperator) => void; // Updated signature
+  filters: Record<string, FilterState>;
+  onFilterChange: (key: string, value: any, operator?: FilterOperator) => void;
   clearFilters: () => void;
   config: EntityConfig;
   restoreFile: File | null;
@@ -97,7 +98,7 @@ export interface DataManagementReturn {
   totalPages: number;
   handleRowSelect: (rowId: string) => void;
   handleSelectAll: () => void;
-  handleBulkDelete: () => Promise<void>; // Added handleBulkDelete
+  handleBulkDelete: () => Promise<void>;
 }
 
 export interface DataLoaderReturn {
@@ -112,8 +113,8 @@ export interface DataLoaderReturn {
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
   handleSort: (columnKey: string) => void;
-  filters: Record<string, FilterState>; // Updated type
-  handleFilterChange: (key: string, value: any, operator?: FilterOperator) => void; // Updated signature
+  filters: Record<string, FilterState>;
+  handleFilterChange: (key: string, value: any, operator?: FilterOperator) => void;
   clearFilters: () => void;
 }
 

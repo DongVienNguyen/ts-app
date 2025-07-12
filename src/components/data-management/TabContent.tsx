@@ -27,6 +27,7 @@ export const TabContent = ({ activeTab, dm }: TabContentProps) => {
             onEdit={dm.handleEdit}
             onDelete={dm.handleDelete}
             onExportCSV={dm.exportToCSV}
+            onExportTemplate={dm.handleExportTemplate}
             onImportClick={dm.handleImportClick}
             restoreInputRef={dm.restoreInputRef}
             onFileSelectForImport={dm.handleFileSelectForImport}

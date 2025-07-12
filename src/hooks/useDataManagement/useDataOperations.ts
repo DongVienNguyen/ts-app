@@ -165,6 +165,17 @@ export const useDataOperations = ({
     });
   }, [selectedEntity, user, searchTerm, sortColumn, sortDirection, filters, runAsAdmin, currentPage]);
 
+  const handleExportTemplate = useCallback(() => {
+    runAsAdmin(async () => {
+      try {
+        exportService.exportTemplateCSV(config);
+        toast.success('Mẫu CSV đã được tải xuống.');
+      } catch (error: any) {
+        toast.error(`Lỗi tải mẫu: ${error.message}`);
+      }
+    });
+  }, [config, runAsAdmin]);
+
   const handleFileSelectForImport = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -256,6 +267,7 @@ export const useDataOperations = ({
     handleDelete,
     toggleStaffLock,
     exportToCSV,
+    handleExportTemplate,
     handleFileSelectForImport,
     startImportProcess,
     handleImportClick,
