@@ -6,9 +6,8 @@ export { UserActivityChart } from './UserActivityChart';
 export { PerformanceAnalysis } from './PerformanceAnalysis';
 export { PerformanceHeader } from './PerformanceHeader';
 
-// Services and hooks
+// Services
 export { PerformanceDataService } from './performanceDataService';
-export { usePerformanceAnalytics } from './usePerformanceAnalytics';
 
 // Types
 export type * from './types';
