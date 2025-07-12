@@ -73,6 +73,9 @@ export interface DataManagementReturn {
   restoreInputRef: React.RefObject<HTMLInputElement>;
   handleFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
   startImportProcess: (file: File) => void;
+  importCsvInputRef: React.RefObject<HTMLInputElement>; // Added for CSV import
+  handleImportCsvClick: () => void; // Added for CSV import
+  handleFileSelectForCsvImport: (event: React.ChangeEvent<HTMLInputElement>) => void; // Added for CSV import
   startDate: string;
   setStartDate: (date: string) => void;
   endDate: string;

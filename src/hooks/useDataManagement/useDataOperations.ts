@@ -1,25 +1,27 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { dataService } from './dataService';
 import { exportService } from './exportService';
 import { restoreService } from '@/services/restoreService';
+import { importService } from './importService';
 import { toast } from 'sonner';
-import { TableName } from '@/config/entityConfig'; // Import TableName
-import { AuthenticatedStaff } from '@/contexts/AuthContext'; // Import AuthenticatedStaff
-import { FilterState } from './types'; // Import FilterState
+import { TableName, EntityConfig } from '@/config/entityConfig';
+import { AuthenticatedStaff } from '@/contexts/AuthContext';
+import { FilterState } from './types';
 
 interface UseDataOperationsProps {
-  selectedEntity: TableName; // Changed type to TableName
-  user: AuthenticatedStaff | null | undefined; // Changed type to AuthenticatedStaff
+  selectedEntity: TableName;
+  user: AuthenticatedStaff | null | undefined;
   editingItem: any;
   currentPage: number;
   searchTerm: string;
-  filters: Record<string, FilterState>; // Updated type
+  filters: Record<string, FilterState>;
   startDate: string;
   endDate: string;
   restoreFile: File | null;
   data: any[];
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
+  config: EntityConfig;
   getCachedData: (key: string) => any;
   setCachedData: (key: string, data: any, count: number) => void;
   clearCache: () => void;
@@ -42,9 +44,9 @@ export const useDataOperations = ({
   startDate,
   endDate,
   restoreFile,
-  data,
   sortColumn,
   sortDirection,
+  config,
   getCachedData,
   setCachedData,
   clearCache,
@@ -72,7 +74,7 @@ export const useDataOperations = ({
     }
   }, [user, setIsLoading]);
 
-  const loadData = useCallback(async (page: number, search: string, currentFilters: Record<string, FilterState>) => { // Updated currentFilters type
+  const loadData = useCallback(async (page: number, search: string, currentFilters: Record<string, FilterState>) => {
     setIsLoading(true);
     try {
       const cacheKey = `${selectedEntity}-${page}-${search}-${JSON.stringify(currentFilters)}-${sortColumn}-${sortDirection}`;
@@ -82,7 +84,7 @@ export const useDataOperations = ({
         setData(cached.data);
         setTotalCount(cached.count);
       } else {
-        const { data: fetchedData, count } = await dataService.loadData({ // Changed from fetchData to loadData
+        const { data: fetchedData, count } = await dataService.loadData({
           selectedEntity,
           page,
           searchTerm: search,
@@ -137,7 +139,7 @@ export const useDataOperations = ({
 
   const toggleStaffLock = useCallback(async (staff: any) => {
     await runAsAdmin(async () => {
-      const result = await dataService.toggleStaffLock({ staffId: staff.id, currentStatus: staff.account_status, user }); // Corrected arguments
+      const result = await dataService.toggleStaffLock({ staffId: staff.id, currentStatus: staff.account_status, user });
       toast.success(result.message);
       clearCache();
       loadData(currentPage, searchTerm, filters);
@@ -147,7 +149,7 @@ export const useDataOperations = ({
   const exportToCSV = useCallback(() => {
     runAsAdmin(async () => {
       try {
-        const { data: allData } = await dataService.loadData({ // Changed from fetchData to loadData
+        const { data: allData } = await dataService.loadData({
           selectedEntity,
           page: 1,
           searchTerm,
@@ -167,7 +169,7 @@ export const useDataOperations = ({
     const file = event.target.files?.[0];
     if (file) {
       setRestoreFile(file);
-      toast.info('Tệp đã được chọn. Nhấn "Import" để bắt đầu khôi phục.');
+      toast.info('Tệp đã được chọn. Nhấn "Khôi phục từ ZIP" để bắt đầu.');
     } else {
       setRestoreFile(null);
     }
@@ -185,11 +187,11 @@ export const useDataOperations = ({
           toast.error(result.message);
         }
       } catch (error: any) {
-        toast.error(`Lỗi trong quá trình import: ${error.message}`);
+        toast.error(`Lỗi trong quá trình khôi phục: ${error.message}`);
       } finally {
-        setRestoreFile(null); // Clear the selected file after processing
+        setRestoreFile(null);
         if (restoreInputRef.current) {
-          restoreInputRef.current.value = ''; // Clear the input field
+          restoreInputRef.current.value = '';
         }
       }
     });
@@ -201,6 +203,34 @@ export const useDataOperations = ({
     }
   }, [restoreInputRef]);
 
+  const importCsvInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportCsvClick = useCallback(() => {
+    if (importCsvInputRef.current) {
+      importCsvInputRef.current.click();
+    }
+  }, []);
+
+  const handleFileSelectForCsvImport = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    await runAsAdmin(async () => {
+      const result = await importService.importFromCSV(file, selectedEntity, config, user);
+      if (result.success) {
+        toast.success(result.message);
+        clearCache();
+        loadData(1, '', {});
+      } else {
+        toast.error(result.message);
+      }
+    });
+
+    if (event.target) {
+      event.target.value = '';
+    }
+  }, [runAsAdmin, selectedEntity, config, user, clearCache, loadData]);
+
   const bulkDeleteTransactions = useCallback(async () => {
     if (!startDate || !endDate) {
       toast.error('Vui lòng chọn cả ngày bắt đầu và ngày kết thúc để xóa hàng loạt.');
@@ -210,7 +240,7 @@ export const useDataOperations = ({
       return;
     }
     await runAsAdmin(async () => {
-      const result = await dataService.bulkDeleteTransactions({ startDate, endDate, user }); // Corrected arguments
+      const result = await dataService.bulkDeleteTransactions({ startDate, endDate, user });
       toast.success(result.message);
       clearCache();
       loadData(currentPage, searchTerm, filters);
@@ -229,6 +259,9 @@ export const useDataOperations = ({
     handleFileSelectForImport,
     startImportProcess,
     handleImportClick,
-    bulkDeleteTransactions
+    bulkDeleteTransactions,
+    importCsvInputRef,
+    handleImportCsvClick,
+    handleFileSelectForCsvImport,
   };
 };

@@ -3,18 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { createDataCache } from './cache';
 import { useDataOperations } from './useDataOperations';
-import type { DataManagementReturn, FilterState, FilterOperator } from './types'; // Import new types
+import type { DataManagementReturn, FilterState, FilterOperator } from './types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
-import { entityConfig, TableName } from '@/config/entityConfig'; // Import TableName
+import { entityConfig, TableName } from '@/config/entityConfig';
 import { dataService } from './dataService';
-import { toCSV } from '@/utils/csvUtils'; // Import toCSV
+import { toCSV } from '@/utils/csvUtils';
 
 const ITEMS_PER_PAGE = 20;
 
 export const useDataManagement = (): DataManagementReturn => {
-  // State
-  const [selectedEntity, setSelectedEntityState] = useState<TableName>('asset_transactions'); // Changed type to TableName
+  const [selectedEntity, setSelectedEntityState] = useState<TableName>('asset_transactions');
   const [data, setData] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,21 +27,19 @@ export const useDataManagement = (): DataManagementReturn => {
   const [activeTab, setActiveTab] = useState('management');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [filters, setFilters] = useState<Record<string, FilterState>>({}); // Updated type
+  const [filters, setFilters] = useState<Record<string, FilterState>>({});
   const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const { user } = useSecureAuth();
   const navigate = useNavigate();
 
-  // Debounce search and filter terms
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const debouncedFilters = useDebounce(filters, 500);
 
-  // Cache management
   const { getCachedData, setCachedData, clearCache, clearEntityCache } = createDataCache();
+  const currentEntityConfig = entityConfig[selectedEntity];
 
-  // Data operations
   const {
     runAsAdmin,
     loadData,
@@ -55,7 +52,10 @@ export const useDataManagement = (): DataManagementReturn => {
     handleFileSelectForImport,
     startImportProcess,
     handleImportClick,
-    bulkDeleteTransactions
+    bulkDeleteTransactions,
+    importCsvInputRef,
+    handleImportCsvClick,
+    handleFileSelectForCsvImport,
   } = useDataOperations({
     selectedEntity,
     user,
@@ -69,6 +69,7 @@ export const useDataManagement = (): DataManagementReturn => {
     data,
     sortColumn,
     sortDirection,
+    config: currentEntityConfig,
     getCachedData,
     setCachedData,
     clearCache,
@@ -81,7 +82,6 @@ export const useDataManagement = (): DataManagementReturn => {
     restoreInputRef
   });
 
-  // Selection Handlers
   const handleRowSelect = useCallback((rowId: string) => {
     setSelectedRows(prev => {
       const newSelection = { ...prev };
@@ -125,7 +125,7 @@ export const useDataManagement = (): DataManagementReturn => {
         const result = await dataService.bulkDeleteData({
           selectedEntity,
           ids: idsToDelete,
-          user: user! // user is guaranteed to be AuthenticatedStaff here due to early return
+          user: user!
         });
         toast.success(result.message);
         setSelectedRows({});
@@ -166,7 +166,6 @@ export const useDataManagement = (): DataManagementReturn => {
     }
   }, [selectedRows, data, selectedEntity]);
 
-  // Sort handler
   const handleSort = useCallback((columnKey: string) => {
     if (sortColumn === columnKey) {
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
@@ -177,7 +176,6 @@ export const useDataManagement = (): DataManagementReturn => {
     setCurrentPage(1);
   }, [sortColumn]);
 
-  // Filter handlers
   const handleFilterChange = useCallback((key: string, value: any, operator?: FilterOperator) => {
     setFilters(prev => {
       const fieldConfig = entityConfig[selectedEntity].fields.find(f => f.key === key);
@@ -204,8 +202,7 @@ export const useDataManagement = (): DataManagementReturn => {
     setCurrentPage(1);
   }, []);
 
-  // Entity change handler
-  const setSelectedEntity = useCallback((entity: TableName) => { // Changed type to TableName
+  const setSelectedEntity = useCallback((entity: TableName) => {
     clearEntityCache(selectedEntity);
     setSelectedEntityState(entity);
     setCurrentPage(1);
@@ -218,17 +215,14 @@ export const useDataManagement = (): DataManagementReturn => {
     setSelectedRows({});
   }, [selectedEntity, clearEntityCache]);
 
-  // Computed values
   const paginatedData = data;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
-  // Refresh data function
   const refreshData = useCallback(() => {
     clearCache();
     loadData(currentPage, debouncedSearchTerm, debouncedFilters);
   }, [loadData, currentPage, debouncedSearchTerm, debouncedFilters, clearCache]);
 
-  // Effects for data loading
   useEffect(() => {
     if (user === null) {
       navigate('/login');
@@ -246,72 +240,63 @@ export const useDataManagement = (): DataManagementReturn => {
     }
   }, [user, selectedEntity, navigate, loadData, currentPage, debouncedSearchTerm, debouncedFilters, sortColumn, sortDirection]);
   
-  // Effect to clear selection on page change
   useEffect(() => {
     setSelectedRows({});
   }, [currentPage, debouncedSearchTerm, debouncedFilters, sortColumn, sortDirection]);
 
-  const currentEntityConfig = entityConfig[selectedEntity];
-
   return {
-    // State
+    user,
+    activeTab,
+    setActiveTab,
     selectedEntity,
-    data,
-    totalCount,
+    setSelectedEntity,
     isLoading,
     searchTerm,
+    setSearchTerm,
+    data,
+    totalCount,
     currentPage,
+    setCurrentPage,
     dialogOpen,
+    setDialogOpen,
     editingItem,
+    setEditingItem,
+    handleAdd,
+    handleEdit,
+    handleDelete,
+    handleSave,
+    refreshData,
+    exportToCSV,
+    exportSelectedToCSV,
+    handleImportClick,
+    restoreInputRef,
+    handleFileSelectForImport,
+    startImportProcess,
     startDate,
+    setStartDate,
     endDate,
-    restoreFile,
-    activeTab,
+    setEndDate,
+    bulkDeleteTransactions,
+    toggleStaffLock,
+    runAsAdmin,
+    handleSort,
     sortColumn,
     sortDirection,
     filters,
+    onFilterChange: handleFilterChange,
+    clearFilters: handleClearFilters,
+    config: currentEntityConfig,
+    restoreFile,
     selectedRows,
-    
-    // Setters
-    setSelectedEntity,
-    setSearchTerm,
-    setCurrentPage,
-    setDialogOpen,
-    setEditingItem, // Added setEditingItem here
-    setStartDate,
-    setEndDate,
-    setActiveTab,
-    restoreInputRef,
-    
-    // Computed values
     filteredData: data,
     paginatedData,
     totalPages,
-    config: currentEntityConfig,
-    
-    // Actions
-    runAsAdmin,
-    handleAdd,
-    handleEdit,
-    handleSave,
-    handleDelete,
-    toggleStaffLock,
-    exportToCSV,
-    exportSelectedToCSV,
-    handleFileSelectForImport,
-    startImportProcess,
-    handleImportClick,
-    bulkDeleteTransactions,
-    refreshData,
-    handleSort,
-    onFilterChange: handleFilterChange, // Renamed to onFilterChange to match interface
-    clearFilters: handleClearFilters, // Renamed to clearFilters to match interface
     handleRowSelect,
     handleSelectAll,
     handleBulkDelete,
-    
-    // User
-    user
+    importCsvInputRef,
+    handleImportCsvClick,
+    handleFileSelectForCsvImport,
   };
 };
 

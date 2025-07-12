@@ -31,6 +31,9 @@ export const TabContent = ({ activeTab, dm }: TabContentProps) => {
             restoreInputRef={dm.restoreInputRef}
             onFileSelectForImport={dm.handleFileSelectForImport}
             startImportProcess={dm.startImportProcess}
+            importCsvInputRef={dm.importCsvInputRef}
+            onImportCsvClick={dm.handleImportCsvClick}
+            onFileSelectForCsvImport={dm.handleFileSelectForCsvImport}
             startDate={dm.startDate}
             endDate={dm.endDate}
             onStartDateChange={dm.setStartDate}
@@ -41,7 +44,7 @@ export const TabContent = ({ activeTab, dm }: TabContentProps) => {
             sortColumn={dm.sortColumn}
             sortDirection={dm.sortDirection}
             filters={dm.filters}
-            onFilterChange={dm.onFilterChange} // Changed from handleFilterChange to onFilterChange
+            onFilterChange={dm.onFilterChange}
             clearFilters={dm.clearFilters}
             config={dm.config}
             selectedRows={dm.selectedRows}

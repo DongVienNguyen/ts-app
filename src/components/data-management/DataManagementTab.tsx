@@ -49,6 +49,9 @@ interface DataManagementTabProps {
   restoreInputRef: React.RefObject<HTMLInputElement>;
   onFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
   startImportProcess: (file: File) => void;
+  onImportCsvClick: () => void;
+  importCsvInputRef: React.RefObject<HTMLInputElement>;
+  onFileSelectForCsvImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
   startDate: string;
   endDate: string;
   onStartDateChange: (date: string) => void;
@@ -58,8 +61,8 @@ interface DataManagementTabProps {
   onSort: (columnKey: string) => void;
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
-  filters: Record<string, FilterState>; // Updated type
-  onFilterChange: (key: string, value: any, operator?: FilterOperator) => void; // Updated signature
+  filters: Record<string, FilterState>;
+  onFilterChange: (key: string, value: any, operator?: FilterOperator) => void;
   clearFilters: () => void;
   config: EntityConfig;
   selectedRows: Record<string, boolean>;
@@ -70,7 +73,6 @@ interface DataManagementTabProps {
 }
 
 const DataManagementTab: React.FC<DataManagementTabProps> = ({
-  activeTab,
   selectedEntity,
   onEntityChange,
   isLoading,
@@ -88,6 +90,9 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
   restoreInputRef,
   onFileSelectForImport,
   startImportProcess,
+  onImportCsvClick,
+  importCsvInputRef,
+  onFileSelectForCsvImport,
   startDate,
   endDate,
   onStartDateChange,
@@ -316,7 +321,6 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
           />
         )}
 
-        {/* Pagination Controls */}
         {totalPages > 1 && (
           <SmartPagination
             currentPage={currentPage}
@@ -328,7 +332,15 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
 
         <div className="flex flex-wrap gap-4 justify-end">
           <Button onClick={onExportCSV}>Xuất CSV</Button>
-          <Button onClick={onImportClick}>Nhập dữ liệu</Button>
+          <Button onClick={onImportCsvClick} variant="outline">Nhập từ CSV</Button>
+          <Input
+            type="file"
+            ref={importCsvInputRef}
+            onChange={onFileSelectForCsvImport}
+            style={{ display: 'none' }}
+            accept=".csv"
+          />
+          <Button onClick={onImportClick}>Khôi phục từ ZIP</Button>
           <Input
             type="file"
             ref={restoreInputRef}
