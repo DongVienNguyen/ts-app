@@ -65,7 +65,7 @@ const TableRowComponent = memo<ListChildComponentProps>(({ index, style, data })
         </div>
       )}
       {columns.map((column) => (
-        <div key={column.key} className="flex-grow p-4 truncate" style={{ width: column.width, flexBasis: column.width }}>
+        <div key={column.key} className="flex-grow p-4 truncate text-left" style={{ width: column.width, flexBasis: column.width }}>
           {column.render ? column.render(row[column.key], row) : row[column.key]}
         </div>
       ))}
@@ -134,14 +134,14 @@ const OptimizedTable: React.FC<OptimizedTableProps> = memo(({
         {columns.map((column) => (
           <div 
             key={column.key} 
-            className={`flex-grow p-4 ${onSort && column.key !== 'actions' ? 'cursor-pointer hover:bg-muted' : ''}`}
+            className={`flex-grow p-4 text-left ${onSort && column.key !== 'actions' ? 'cursor-pointer hover:bg-muted' : ''}`}
             style={{ width: column.width, flexBasis: column.width }}
             onClick={() => onSort && column.key !== 'actions' && onSort(column.key)}
           >
-            <div className="flex items-center">
+            <div className=""> {/* Removed 'flex items-center' here */}
               {column.label}
               {sortColumn === column.key && (
-                <span className="ml-2">
+                <span className="ml-2 inline-block"> {/* Added inline-block to keep icon next to text */}
                   {sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
                 </span>
               )}
