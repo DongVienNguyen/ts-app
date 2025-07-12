@@ -253,7 +253,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         <main className="py-8">
-          <div className="px-4 sm:px-6 lg:px-8">{children}</div>
+          <div>{children}</div>
         </main>
       </div>
     </div>
