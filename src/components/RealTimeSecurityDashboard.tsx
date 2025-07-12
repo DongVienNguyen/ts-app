@@ -4,6 +4,7 @@ import { SecurityHeader } from './security/SecurityHeader';
 import { RealTimeMetricsCard } from './security/RealTimeMetricsCard';
 import { LiveActivityFeed } from './security/LiveActivityFeed';
 import { ThreatAnalysisCard } from './security/ThreatAnalysisCard';
+import { ActiveUsersCard } from './security/ActiveUsersCard'; // New import
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
@@ -40,6 +41,7 @@ export function RealTimeSecurityDashboard() {
     isLoading,
     error,
     logEvent,
+    activeUsers, // Destructure activeUsers
   } = useRealTimeSecurityMonitoring();
 
   const [isPaused, setIsPaused] = useState(false);
@@ -147,7 +149,10 @@ export function RealTimeSecurityDashboard() {
         onPauseToggle={handlePauseToggle}
         onReset={handleReset}
       />
-      <RealTimeMetricsCard metrics={metrics} isRealTimeEnabled={isRealTimeEnabled && !isPaused} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> {/* New grid for metrics cards */}
+        <RealTimeMetricsCard metrics={metrics} isRealTimeEnabled={isRealTimeEnabled && !isPaused} />
+        <ActiveUsersCard activeUsers={activeUsers} isLoading={dataToDisplay.isLoading} /> {/* New card */}
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
           <LiveActivityFeed
