@@ -11,8 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSecureAuth } from '@/contexts/AuthContext';
 
 export function SecurityActionsPanel() {
-  const { logEvent } = useRealTimeSecurityMonitoring();
   const { user } = useSecureAuth();
+  const { logEvent } = useRealTimeSecurityMonitoring(user);
   const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');
   const [eventType, setEventType] = useState<string>('ACCOUNT_LOCKED');

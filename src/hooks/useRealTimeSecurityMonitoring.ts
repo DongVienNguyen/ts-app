@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client'; // Changed import
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables } from '@/integrations/supabase/types';
+import { AuthenticatedStaff } from '@/contexts/AuthContext';
 
-export type SecurityEvent = Tables<'security_events'>; // Corrected type
-export type SystemAlert = Tables<'system_alerts'>; // Corrected type
+export type SecurityEvent = Tables<'security_events'>;
+export type SystemAlert = Tables<'system_alerts'>;
 
 interface ThreatTrend {
   date: string;
@@ -21,7 +22,7 @@ interface SystemStatus {
   dbResponseTime: number; // in ms
 }
 
-export const useRealTimeSecurityMonitoring = () => {
+export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) => {
   const [recentEvents, setRecentEvents] = useState<SecurityEvent[]>([]);
   const [threatTrends, setThreatTrends] = useState<ThreatTrend[]>([]);
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
@@ -36,11 +37,11 @@ export const useRealTimeSecurityMonitoring = () => {
   });
   const [securityAlerts, setSecurityAlerts] = useState<SystemAlert[]>([]);
 
-  const logEvent = async (type: string, data: any = {}, username?: string) => { // Added username parameter
+  const logEvent = async (type: string, data: any = {}, username?: string) => {
     try {
       const { error: insertError } = await supabase
         .from('security_events')
-        .insert({ event_type: type, event_data: data, username: username }); // Included username
+        .insert({ event_type: type, event_data: data, username: username });
 
       if (insertError) {
         console.error('Error logging security event:', insertError);
@@ -51,14 +52,21 @@ export const useRealTimeSecurityMonitoring = () => {
   };
 
   useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      setIsLoading(false);
+      setIsSupabaseConnected(false);
+      setRecentEvents([]);
+      setSecurityAlerts([]);
+      return;
+    }
+
     let channel: RealtimeChannel | null = null;
-    let alertsChannel: RealtimeChannel | null = null; // Declare alertsChannel
+    let alertsChannel: RealtimeChannel | null = null;
 
     const setupRealtime = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        // Fetch initial data
         const { data: initialEvents, error: eventsError } = await supabase
           .from('security_events')
           .select('*')
@@ -77,39 +85,36 @@ export const useRealTimeSecurityMonitoring = () => {
         if (alertsError) throw alertsError;
         setSecurityAlerts(initialAlerts || []);
 
-        // Simulate system status and active users
         setSystemStatus({
           apiConnected: true,
-          apiResponseTime: Math.floor(Math.random() * 100) + 20, // 20-120ms
+          apiResponseTime: Math.floor(Math.random() * 100) + 20,
           dbConnected: true,
-          dbResponseTime: Math.floor(Math.random() * 80) + 10, // 10-90ms
+          dbResponseTime: Math.floor(Math.random() * 80) + 10,
         });
-        setActiveUsers(Math.floor(Math.random() * 20) + 5); // 5-25 active users
+        setActiveUsers(Math.floor(Math.random() * 20) + 5);
 
         setIsSupabaseConnected(true);
 
-        // Setup real-time channel for security events
         channel = supabase
           .channel('security_events_channel')
           .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'security_events' },
             (payload) => {
-              const newEvent = payload.new as SecurityEvent; // Explicitly cast
+              const newEvent = payload.new as SecurityEvent;
               setRecentEvents((prev) => [newEvent, ...prev].slice(0, 50));
               toast.info(`Sự kiện bảo mật mới: ${newEvent.event_type}`);
             }
           )
           .subscribe();
 
-        // Setup real-time channel for system alerts
-        alertsChannel = supabase // Assign to alertsChannel
+        alertsChannel = supabase
           .channel('system_alerts_channel')
           .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'system_alerts' },
             (payload) => {
-              const newAlert = payload.new as SystemAlert; // Explicitly cast
+              const newAlert = payload.new as SystemAlert;
               setSecurityAlerts((prev) => [newAlert, ...prev].slice(0, 10));
               toast.warning(`Cảnh báo hệ thống mới: ${newAlert.rule_name}`);
             }
@@ -131,13 +136,12 @@ export const useRealTimeSecurityMonitoring = () => {
       if (channel) {
         supabase.removeChannel(channel);
       }
-      if (alertsChannel) { // Remove alertsChannel if it was created
+      if (alertsChannel) {
         supabase.removeChannel(alertsChannel);
       }
     };
-  }, [supabase]);
+  }, [user]);
 
-  // Simulate threat trends based on recent events
   useEffect(() => {
     const generateThreatTrends = () => {
       const today = new Date();
@@ -148,7 +152,7 @@ export const useRealTimeSecurityMonitoring = () => {
         const dateString = date.toISOString().split('T')[0];
 
         const dailyEvents = recentEvents.filter(event =>
-          new Date(event.created_at!).toISOString().split('T')[0] === dateString // Use non-null assertion
+          new Date(event.created_at!).toISOString().split('T')[0] === dateString
         );
 
         trends.push({

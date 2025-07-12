@@ -17,6 +17,18 @@ import { SystemAlert, SecurityEvent } from '@/hooks/useRealTimeSecurityMonitorin
 export function RealTimeSecurityDashboard() {
   const { user } = useSecureAuth();
 
+  const {
+    recentEvents,
+    threatTrends,
+    isSupabaseConnected,
+    isLoading,
+    error,
+    logEvent,
+    activeUsers,
+    systemStatus,
+    securityAlerts,
+  } = useRealTimeSecurityMonitoring(user);
+
   // Add role check here
   if (user?.role !== 'admin') {
     return (
@@ -37,18 +49,6 @@ export function RealTimeSecurityDashboard() {
   }
 
   // Destructure the hook's return value to get stable references to arrays/values
-  const {
-    recentEvents,
-    threatTrends,
-    isSupabaseConnected,
-    isLoading,
-    error,
-    logEvent,
-    activeUsers,
-    systemStatus, // Destructure systemStatus
-    securityAlerts, // Destructure securityAlerts
-  } = useRealTimeSecurityMonitoring();
-
   const [isPaused, setIsPaused] = useState(false);
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
   
