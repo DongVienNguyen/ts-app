@@ -5,7 +5,7 @@ export type TableName = keyof Database['public']['Tables'];
 export interface FieldConfig { // Exported FieldConfig
   key: string;
   label: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'boolean' | 'password'; // Added 'password' type
+  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'boolean' | 'password' | 'email'; // Added 'email' type
   options?: string[];
   required?: boolean;
   defaultValue?: any;
@@ -99,7 +99,7 @@ export const entityConfig: Record<string, EntityConfig> = {
     primaryKey: 'id',
     fields: [
       { key: 'ten_nv', label: 'Tên nhân viên', type: 'text', required: true, filterable: true },
-      { key: 'email', label: 'Email', type: 'text', required: true, filterable: true },
+      { key: 'email', label: 'Email', type: 'email', required: true, filterable: true },
     ],
   },
   cbkh: {
@@ -108,7 +108,7 @@ export const entityConfig: Record<string, EntityConfig> = {
     primaryKey: 'id',
     fields: [
       { key: 'ten_nv', label: 'Tên nhân viên', type: 'text', required: true, filterable: true },
-      { key: 'email', label: 'Email', type: 'text', required: true, filterable: true },
+      { key: 'email', label: 'Email', type: 'email', required: true, filterable: true },
     ],
   },
   ldpcrc: {
@@ -117,7 +117,7 @@ export const entityConfig: Record<string, EntityConfig> = {
     primaryKey: 'id',
     fields: [
       { key: 'ten_nv', label: 'Tên nhân viên', type: 'text', required: true, filterable: true },
-      { key: 'email', label: 'Email', type: 'text', required: true, filterable: true },
+      { key: 'email', label: 'Email', type: 'email', required: true, filterable: true },
     ],
   },
   cbcrc: {
@@ -126,7 +126,7 @@ export const entityConfig: Record<string, EntityConfig> = {
     primaryKey: 'id',
     fields: [
       { key: 'ten_nv', label: 'Tên nhân viên', type: 'text', required: true, filterable: true },
-      { key: 'email', label: 'Email', type: 'text', required: true, filterable: true },
+      { key: 'email', label: 'Email', type: 'email', required: true, filterable: true },
     ],
   },
   quycrc: {
@@ -135,7 +135,7 @@ export const entityConfig: Record<string, EntityConfig> = {
     primaryKey: 'id',
     fields: [
       { key: 'ten_nv', label: 'Tên nhân viên', type: 'text', required: true, filterable: true },
-      { key: 'email', label: 'Email', type: 'text', required: true, filterable: true },
+      { key: 'email', label: 'Email', type: 'email', required: true, filterable: true },
     ],
   },
   sent_asset_reminders: {
@@ -186,12 +186,12 @@ export const entityConfig: Record<string, EntityConfig> = {
     primaryKey: 'id',
     fields: [
       { key: 'username', label: 'Tên đăng nhập', type: 'text', required: true, filterable: true },
-      { key: 'password', label: 'Mật khẩu', type: 'password', required: true }, // Changed to 'password'
+      { key: 'password', label: 'Mật khẩu', type: 'password', required: true },
       { key: 'staff_name', label: 'Tên nhân viên', type: 'text', filterable: true },
       { key: 'role', label: 'Vai trò', type: 'text', filterable: true },
       { key: 'department', label: 'Phòng ban', type: 'text', filterable: true },
       { key: 'account_status', label: 'Trạng thái tài khoản', type: 'text', filterable: true },
-      { key: 'email', label: 'Email', type: 'text', filterable: true },
+      { key: 'email', label: 'Email', type: 'email', filterable: true },
       { key: 'created_at', label: 'Ngày tạo', type: 'date' },
       { key: 'updated_at', label: 'Ngày cập nhật', type: 'date' },
     ],
