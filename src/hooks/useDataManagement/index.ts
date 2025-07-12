@@ -6,6 +6,7 @@ import { useDataOperations } from './useDataOperations';
 import { dataService } from './dataService';
 import type { DataManagementReturn } from './types';
 import { useDebounce } from '@/hooks/useDebounce';
+import { toast } from 'sonner'; // Import toast from sonner
 
 const ITEMS_PER_PAGE = 20;
 
@@ -21,7 +22,7 @@ export const useDataManagement = (): DataManagementReturn => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [message, setMessage] = useState({ type: '', text: '' });
+  // const [message, setMessage] = useState({ type: '', text: '' }); // Removed
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState('management');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -72,7 +73,7 @@ export const useDataManagement = (): DataManagementReturn => {
     setData,
     setTotalCount,
     setIsLoading,
-    setMessage,
+    // setMessage, // Removed
     setDialogOpen,
     setEditingItem,
     setRestoreFile,
@@ -110,7 +111,7 @@ export const useDataManagement = (): DataManagementReturn => {
   const handleBulkDelete = useCallback(async () => {
     const idsToDelete = Object.keys(selectedRows).filter(id => selectedRows[id]);
     if (idsToDelete.length === 0) {
-      setMessage({ type: 'error', text: 'Vui lòng chọn ít nhất một bản ghi để xóa.' });
+      toast.error('Vui lòng chọn ít nhất một bản ghi để xóa.');
       return;
     }
 
@@ -125,15 +126,15 @@ export const useDataManagement = (): DataManagementReturn => {
           ids: idsToDelete,
           user
         });
-        setMessage({ type: 'success', text: result.message });
+        toast.success(result.message);
         setSelectedRows({});
         clearCache();
         loadData(currentPage, debouncedSearchTerm, debouncedFilters);
       } catch (error: any) {
-        setMessage({ type: 'error', text: `Lỗi xóa hàng loạt: ${error.message}` });
+        toast.error(`Lỗi xóa hàng loạt: ${error.message}`);
       }
     });
-  }, [selectedRows, runAsAdmin, selectedEntity, user, loadData, currentPage, debouncedSearchTerm, debouncedFilters, clearCache, setMessage]);
+  }, [selectedRows, runAsAdmin, selectedEntity, user, loadData, currentPage, debouncedSearchTerm, debouncedFilters, clearCache]);
 
   // Sort handler
   const handleSort = useCallback((columnKey: string) => {
@@ -195,7 +196,7 @@ export const useDataManagement = (): DataManagementReturn => {
     } else if (user) {
       setData([]);
       setTotalCount(0);
-      setMessage({ type: 'error', text: 'Chỉ admin mới có thể truy cập module này.' });
+      toast.error('Chỉ admin mới có thể truy cập module này.'); // Changed to toast
     }
   }, [user, selectedEntity, navigate, loadData, currentPage, debouncedSearchTerm, debouncedFilters, sortColumn, sortDirection]);
   
@@ -216,7 +217,7 @@ export const useDataManagement = (): DataManagementReturn => {
     editingItem,
     startDate,
     endDate,
-    message,
+    // message, // Removed
     restoreFile,
     activeTab,
     sortColumn,
@@ -231,7 +232,7 @@ export const useDataManagement = (): DataManagementReturn => {
     setDialogOpen,
     setStartDate,
     setEndDate,
-    setMessage,
+    // setMessage, // Removed
     setActiveTab,
     restoreInputRef,
     

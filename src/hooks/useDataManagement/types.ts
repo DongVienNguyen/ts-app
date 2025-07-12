@@ -9,13 +9,13 @@ export interface DataManagementState {
   editingItem: any;
   startDate: string;
   endDate: string;
-  message: { type: string; text: string };
+  // message: { type: string; text: string }; // Removed
   restoreFile: File | null;
   activeTab: string;
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
   filters: Record<string, any>;
-  selectedRows: Record<string, boolean>; // Added
+  selectedRows: Record<string, boolean>;
 }
 
 export interface CacheEntry {
@@ -38,9 +38,9 @@ export interface DataManagementActions {
   handleSort: (columnKey: string) => void;
   handleFilterChange: (key: string, value: any) => void;
   handleClearFilters: () => void;
-  handleRowSelect: (rowId: string) => void; // Added
-  handleSelectAll: () => void; // Added
-  handleBulkDelete: () => Promise<void>; // Added
+  handleRowSelect: (rowId: string) => void;
+  handleSelectAll: () => void;
+  handleBulkDelete: () => Promise<void>;
 }
 
 export interface DataManagementReturn extends DataManagementState, DataManagementActions {
@@ -50,7 +50,7 @@ export interface DataManagementReturn extends DataManagementState, DataManagemen
   setDialogOpen: (open: boolean) => void;
   setStartDate: (date: string) => void;
   setEndDate: (date: string) => void;
-  setMessage: (message: { type: string; text: string }) => void;
+  // setMessage: (message: { type: string; text: string }) => void; // Removed
   setActiveTab: (tab: string) => void;
   restoreInputRef: React.RefObject<HTMLInputElement>;
   filteredData: any[];
@@ -83,7 +83,7 @@ export interface DeleteDataParams {
   user: any;
 }
 
-export interface BulkDeleteDataParams { // Added
+export interface BulkDeleteDataParams {
   selectedEntity: string;
   ids: string[];
   user: any;

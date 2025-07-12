@@ -7,14 +7,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { entityConfig } from '@/config/entityConfig';
 import { toCSV } from '@/utils/csvUtils';
 import JSZip from 'jszip';
+import { toast } from 'sonner'; // Import toast
 
 interface StatisticsTabProps {
   runAsAdmin: (callback: () => Promise<void>) => Promise<void>;
-  setMessage: (message: { type: string; text: string }) => void;
+  // setMessage: (message: { type: string; text: string }) => void; // Removed
   onLoad: () => void;
 }
 
-export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, setMessage, onLoad }) => {
+export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad }) => {
   const [statistics, setStatistics] = useState<any[]>([]);
   const [staffTransactionStats, setStaffTransactionStats] = useState<{ name: string; count: number }[]>([]);
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -39,7 +40,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, setMes
         setStatistics(stats);
       } catch (error: any) {
         console.error("Error loading statistics:", error.message);
-        setMessage({ type: 'error', text: `Không thể tải thống kê: ${error.message}` });
+        toast.error(`Không thể tải thống kê: ${error.message}`); // Changed to toast
       }
     });
   };
@@ -75,14 +76,14 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, setMes
         setStaffTransactionStats(stats);
       } catch (error: any) {
         console.error("Error loading staff transaction statistics:", error.message);
-        setMessage({ type: 'error', text: `Không thể tải thống kê giao dịch nhân viên: ${error.message}` });
+        toast.error(`Không thể tải thống kê giao dịch nhân viên: ${error.message}`); // Changed to toast
       }
     });
   };
 
   const backupAllData = async () => {
     setIsBackingUp(true);
-    setMessage({ type: '', text: '' });
+    // setMessage({ type: '', text: '' }); // Removed
     await runAsAdmin(async () => {
       try {
         const zip = new JSZip();
@@ -100,9 +101,9 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, setMes
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        setMessage({ type: 'success', text: "Sao lưu toàn bộ dữ liệu thành công." });
+        toast.success("Sao lưu toàn bộ dữ liệu thành công."); // Changed to toast
       } catch (error: any) {
-        setMessage({ type: 'error', text: `Không thể sao lưu dữ liệu: ${error.message || 'Lỗi không xác định'}` });
+        toast.error(`Không thể sao lưu dữ liệu: ${error.message || 'Lỗi không xác định'}`); // Changed to toast
       }
     });
     setIsBackingUp(false);

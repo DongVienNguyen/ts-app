@@ -1,5 +1,5 @@
 import { Settings, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert'; // Keep Alert for admin access check
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import Layout from '@/components/Layout';
@@ -72,8 +72,8 @@ const DataManagement = () => {
     setStartDate,
     endDate,
     setEndDate,
-    message,
-    setMessage,
+    // message, // Removed
+    // setMessage, // Removed
     activeTab,
     setActiveTab,
     restoreInputRef,
@@ -165,7 +165,8 @@ const DataManagement = () => {
           </Button>
         </div>
 
-        {message.text && (
+        {/* Message Alert - Removed, now using toast */}
+        {/* {message.text && (
           <Alert 
             variant={message.type === 'error' ? 'destructive' : 'default'} 
             className={message.type === 'success' ? 'bg-green-100 border-green-400 text-green-800' : ''}
@@ -173,7 +174,7 @@ const DataManagement = () => {
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{message.text}</AlertDescription>
           </Alert>
-        )}
+        )} */}
 
         <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -203,7 +204,7 @@ const DataManagement = () => {
             onEndDateChange={setEndDate}
             onBulkDeleteTransactions={bulkDeleteTransactions}
             runAsAdmin={runAsAdmin}
-            setMessage={setMessage}
+            // setMessage={setMessage} // Removed
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={handleSort}

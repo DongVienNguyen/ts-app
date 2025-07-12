@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { dataService } from './dataService';
-import { exportService } from './exportService';
-import type { CacheEntry } from './types';
+import { exportService } from './exportService'; // Corrected import
+import { toast } from 'sonner';
 
 interface UseDataOperationsProps {
   selectedEntity: string;
@@ -9,20 +9,19 @@ interface UseDataOperationsProps {
   editingItem: any;
   currentPage: number;
   searchTerm: string;
-  filters: Record<string, any>; // Added
+  filters: Record<string, any>;
   startDate: string;
   endDate: string;
   restoreFile: File | null;
   data: any[];
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
-  getCachedData: (key: string) => CacheEntry | null;
-  setCachedData: (key: string, data: any[], count: number) => void;
+  getCachedData: (key: string) => any;
+  setCachedData: (key: string, data: any, count: number) => void;
   clearCache: () => void;
   setData: (data: any[]) => void;
   setTotalCount: (count: number) => void;
   setIsLoading: (loading: boolean) => void;
-  setMessage: (message: { type: string; text: string }) => void;
   setDialogOpen: (open: boolean) => void;
   setEditingItem: (item: any) => void;
   setRestoreFile: (file: File | null) => void;
@@ -35,7 +34,7 @@ export const useDataOperations = ({
   editingItem,
   currentPage,
   searchTerm,
-  filters, // Added
+  filters,
   startDate,
   endDate,
   restoreFile,
@@ -48,7 +47,6 @@ export const useDataOperations = ({
   setData,
   setTotalCount,
   setIsLoading,
-  setMessage,
   setDialogOpen,
   setEditingItem,
   setRestoreFile,
@@ -57,57 +55,50 @@ export const useDataOperations = ({
 
   const runAsAdmin = useCallback(async (callback: () => Promise<void>) => {
     if (!user || user.role !== 'admin') {
-      setMessage({ type: 'error', text: "Hành động yêu cầu quyền admin." });
+      toast.error('Bạn không có quyền thực hiện thao tác này.');
       return;
     }
+    setIsLoading(true);
     try {
       await callback();
     } catch (error: any) {
-      setMessage({ type: 'error', text: `Lỗi thực thi tác vụ admin: ${error.message}` });
+      toast.error(`Lỗi: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
-  }, [user, setMessage]);
+  }, [user, setIsLoading]);
 
-  const loadData = useCallback(async (page: number = 1, search: string = '', currentFilters: Record<string, any> = {}) => {
-    if (!selectedEntity || !user || user.role !== 'admin') return;
-    
-    const cacheKey = `${selectedEntity}-${page}-${search}-${sortColumn}-${sortDirection}-${JSON.stringify(currentFilters)}`; // Updated cache key
-    const cached = getCachedData(cacheKey);
-    
-    if (cached) {
-      setData(cached.data);
-      setTotalCount(cached.count);
-      return;
-    }
-    
+  const loadData = useCallback(async (page: number, search: string, currentFilters: Record<string, any>) => {
     setIsLoading(true);
-    setMessage({ type: '', text: '' });
-    
     try {
-      const result = await dataService.loadData({
-        selectedEntity,
-        user,
-        page,
-        search,
-        sortColumn,
-        sortDirection,
-        filters: currentFilters // Passed to dataService
-      });
+      const cacheKey = `${selectedEntity}-${page}-${search}-${JSON.stringify(currentFilters)}-${sortColumn}-${sortDirection}`;
+      const cached = getCachedData(cacheKey);
 
-      setCachedData(cacheKey, result.data, result.count);
-      setData(result.data);
-      setTotalCount(result.count);
-      
+      if (cached) {
+        setData(cached.data);
+        setTotalCount(cached.count);
+      } else {
+        const { data: fetchedData, count } = await dataService.loadData({
+          selectedEntity,
+          user,
+          page,
+          search,
+          sortColumn,
+          sortDirection,
+          filters: currentFilters
+        });
+        setData(fetchedData);
+        setTotalCount(count);
+        setCachedData(cacheKey, fetchedData, count);
+      }
     } catch (error: any) {
-      setMessage({ 
-        type: 'error', 
-        text: `Không thể tải dữ liệu: ${error.message || 'Lỗi không xác định'}` 
-      });
+      toast.error(`Lỗi tải dữ liệu: ${error.message}`);
       setData([]);
       setTotalCount(0);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedEntity, user, sortColumn, sortDirection, getCachedData, setCachedData, setData, setTotalCount, setIsLoading, setMessage]);
+  }, [selectedEntity, user, getCachedData, setCachedData, setData, setTotalCount, setIsLoading, sortColumn, sortDirection, filters]);
 
   const handleAdd = useCallback(() => {
     setEditingItem(null);
@@ -120,155 +111,87 @@ export const useDataOperations = ({
   }, [setEditingItem, setDialogOpen]);
 
   const handleSave = useCallback(async (formData: any) => {
-    if (!selectedEntity) return;
-    setMessage({ type: '', text: '' });
-    
     await runAsAdmin(async () => {
-      try {
-        const result = await dataService.saveData({
-          selectedEntity,
-          formData,
-          editingItem,
-          user
-        });
-        
-        setMessage({ type: 'success', text: result.message });
-        setDialogOpen(false);
-        clearCache();
-        loadData(currentPage, searchTerm, filters); // Pass filters
-      } catch (error: any) {
-        setMessage({ 
-          type: 'error', 
-          text: `Không thể lưu dữ liệu: ${error.message || 'Lỗi không xác định'}` 
-        });
-      }
+      const result = await dataService.saveData({ selectedEntity, formData, editingItem, user });
+      toast.success(result.message);
+      setDialogOpen(false);
+      clearCache();
+      loadData(currentPage, searchTerm, filters);
     });
-  }, [selectedEntity, editingItem, user, runAsAdmin, currentPage, searchTerm, setMessage, setDialogOpen, clearCache, loadData, filters]);
+  }, [selectedEntity, editingItem, user, setDialogOpen, clearCache, loadData, currentPage, searchTerm, filters, runAsAdmin]);
 
   const handleDelete = useCallback(async (item: any) => {
-    if (!selectedEntity) return;
-    setMessage({ type: '', text: '' });
-    
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa bản ghi này?`)) {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa bản ghi này?')) {
       return;
     }
-    
     await runAsAdmin(async () => {
-      try {
-        const result = await dataService.deleteData({
-          selectedEntity,
-          item,
-          user
-        });
-        
-        setMessage({ type: 'success', text: result.message });
-        clearCache();
-        loadData(currentPage, searchTerm, filters); // Pass filters
-      } catch (error: any) {
-        setMessage({ 
-          type: 'error', 
-          text: `Không thể xóa dữ liệu: ${error.message || 'Lỗi không xác định'}` 
-        });
-      }
+      const result = await dataService.deleteData({ selectedEntity, item, user });
+      toast.success(result.message);
+      clearCache();
+      loadData(currentPage, searchTerm, filters);
     });
-  }, [selectedEntity, user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData, filters]);
+  }, [selectedEntity, user, clearCache, loadData, currentPage, searchTerm, filters, runAsAdmin]);
 
   const toggleStaffLock = useCallback(async (staff: any) => {
-    setMessage({ type: '', text: '' });
-    
     await runAsAdmin(async () => {
-      try {
-        const result = await dataService.toggleStaffLock(staff, user);
-        setMessage({ type: 'success', text: result.message });
-        clearCache();
-        loadData(currentPage, searchTerm, filters); // Pass filters
-      } catch (error: any) {
-        setMessage({ 
-          type: 'error', 
-          text: `Không thể thay đổi trạng thái tài khoản: ${error.message || 'Lỗi không xác định'}` 
-        });
-      }
+      const result = await dataService.toggleStaffLock(staff, user);
+      toast.success(result.message);
+      clearCache();
+      loadData(currentPage, searchTerm, filters);
     });
-  }, [user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData, filters]);
+  }, [user, clearCache, loadData, currentPage, searchTerm, filters, runAsAdmin]);
 
   const exportToCSV = useCallback(() => {
-    try {
-      const result = exportService.exportToCSV(data, selectedEntity, currentPage);
-      setMessage({ type: 'success', text: result.message });
-    } catch (error: any) {
-      setMessage({ type: 'error', text: error.message });
-    }
-  }, [data, selectedEntity, currentPage, setMessage]);
-
-  const handleRestoreData = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setRestoreFile(event.target.files[0]);
-      setMessage({ 
-        type: 'info', 
-        text: `Đã chọn tệp: ${event.target.files[0].name}. Nhấn Import lần nữa để bắt đầu.` 
-      });
-    }
-  }, [setRestoreFile, setMessage]);
-
-  const restoreAllData = useCallback(async () => {
-    if (!restoreFile) {
-      setMessage({ type: 'error', text: "Vui lòng chọn tệp ZIP để import." });
-      return;
-    }
-    
-    setMessage({ type: '', text: '' });
-    
-    if (!window.confirm("Bạn có chắc chắn muốn import dữ liệu? Thao tác này sẽ GHI ĐÈ dữ liệu hiện có trong tất cả các bảng.")) {
-      return;
-    }
-
-    await runAsAdmin(async () => {
+    runAsAdmin(async () => {
       try {
-        const result = await exportService.importFromZip(restoreFile, user);
-        setMessage({ type: 'success', text: result.message });
-        clearCache();
-        loadData(currentPage, searchTerm, filters); // Pass filters
-      } catch (error: any) {
-        setMessage({ 
-          type: 'error', 
-          text: `Không thể import dữ liệu: ${error.message || 'Lỗi không xác định'}` 
+        const { data: allData } = await dataService.loadData({
+          selectedEntity,
+          user,
+          page: 1,
+          search: searchTerm,
+          sortColumn,
+          sortDirection,
+          filters
         });
-      } finally {
-        setRestoreFile(null);
-        if (restoreInputRef.current) restoreInputRef.current.value = '';
+        exportService.exportToCSV(allData, selectedEntity, currentPage); // Corrected usage
+        toast.success('Dữ liệu đã được xuất ra CSV.');
+      } catch (error: any) {
+        toast.error(`Lỗi xuất CSV: ${error.message}`);
       }
     });
-  }, [restoreFile, user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData, setRestoreFile, restoreInputRef, filters]);
-  
-  const handleImportClick = useCallback(() => {
-    if (restoreFile) {
-      restoreAllData();
-    } else {
-      restoreInputRef.current?.click();
+  }, [selectedEntity, user, searchTerm, sortColumn, sortDirection, filters, runAsAdmin, currentPage]);
+
+  const handleRestoreData = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      toast.error('Vui lòng chọn một tệp để khôi phục.');
+      return;
     }
-  }, [restoreFile, restoreAllData, restoreInputRef]);
+    setRestoreFile(file);
+    toast.info('Tệp đã được chọn. Nhấn "Import" để bắt đầu khôi phục.');
+  }, [setRestoreFile]);
+
+  const handleImportClick = useCallback(() => {
+    if (restoreInputRef.current) {
+      restoreInputRef.current.click();
+    }
+  }, []);
 
   const bulkDeleteTransactions = useCallback(async () => {
-    setMessage({ type: '', text: '' });
-    
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa tất cả giao dịch từ ${startDate} đến ${endDate}? Thao tác này không thể hoàn tác.`)) {
+    if (!startDate || !endDate) {
+      toast.error('Vui lòng chọn cả ngày bắt đầu và ngày kết thúc để xóa hàng loạt.');
       return;
     }
-    
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa tất cả giao dịch từ ${startDate} đến ${endDate}? Hành động này không thể hoàn tác.`)) {
+      return;
+    }
     await runAsAdmin(async () => {
-      try {
-        const result = await dataService.bulkDeleteTransactions(startDate, endDate, user);
-        setMessage({ type: 'success', text: result.message });
-        clearCache();
-        loadData(currentPage, searchTerm, filters); // Pass filters
-      } catch (error: any) {
-        setMessage({ 
-          type: 'error', 
-          text: `Không thể xóa giao dịch hàng loạt: ${error.message || 'Lỗi không xác định'}` 
-        });
-      }
+      const result = await dataService.bulkDeleteTransactions(startDate, endDate, user);
+      toast.success(result.message);
+      clearCache();
+      loadData(currentPage, searchTerm, filters);
     });
-  }, [startDate, endDate, user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData, filters]);
+  }, [startDate, endDate, user, clearCache, loadData, currentPage, searchTerm, filters, runAsAdmin]);
 
   return {
     runAsAdmin,

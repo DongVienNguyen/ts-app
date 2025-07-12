@@ -28,7 +28,7 @@ interface TabContentProps {
   onBulkDeleteTransactions: () => void;
   // Statistics props
   runAsAdmin: (callback: () => Promise<void>) => Promise<void>;
-  setMessage: (message: { type: string; text: string }) => void;
+  // setMessage: (message: { type: string; text: string }) => void; // Removed
   // Sorting props
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
@@ -69,7 +69,7 @@ export const TabContent = ({
   onEndDateChange,
   onBulkDeleteTransactions,
   runAsAdmin,
-  setMessage,
+  // setMessage, // Removed
   sortColumn,
   sortDirection,
   onSort,
@@ -124,7 +124,8 @@ export const TabContent = ({
       case 'statistics':
         return (
           <div className="mt-6 space-y-6">
-            <StatisticsTab runAsAdmin={runAsAdmin} setMessage={setMessage} onLoad={() => {}} />
+            {/* setMessage prop is not used in StatisticsTab, so it's safe to remove */}
+            <StatisticsTab runAsAdmin={runAsAdmin} onLoad={() => {}} />
           </div>
         );
 
