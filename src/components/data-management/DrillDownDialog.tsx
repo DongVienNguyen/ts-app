@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Download } from "lucide-react";
-import { toCSV } from "@/utils/csvUtils";
+import { convertToCSV } from "@/utils/csvUtils";
 import { FieldConfig } from "@/config/entityConfig";
 import { toast } from "sonner";
 
@@ -30,7 +30,7 @@ export const DrillDownDialog: React.FC<DrillDownDialogProps> = ({ open, onOpenCh
       return;
     }
     try {
-      const csvContent = toCSV(data, columns);
+      const csvContent = convertToCSV(data, columns.map(col => col.key)); // Use convertToCSV and pass headers
       const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);

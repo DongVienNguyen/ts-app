@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { entityConfig, FieldConfig } from '@/config/entityConfig';
-import { toCSV } from '@/utils/csvUtils';
+import { convertToCSV } from '@/utils/csvUtils';
 import JSZip from 'jszip';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line } from 'recharts';
@@ -71,7 +71,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
           const config = entityConfig[key];
           const { data: tableData, error } = await supabase.from(config.entity as any).select('*');
           if (error) throw error;
-          const csvContent = toCSV(tableData || [], config.fields);
+          const csvContent = convertToCSV(tableData || [], config.fields.map(f => f.key)); // Use convertToCSV and pass headers
           zip.file(`${key}.csv`, `\uFEFF${csvContent}`);
         }
         const content = await zip.generateAsync({ type: "blob" });

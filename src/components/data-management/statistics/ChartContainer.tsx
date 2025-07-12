@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
-import { toCSV } from '@/utils/csvUtils';
+import { convertToCSV } from '@/utils/csvUtils';
 import { FieldConfig } from '@/config/entityConfig';
 
 interface ChartContainerProps {
@@ -33,7 +33,7 @@ export const ChartContainer: React.FC<ChartContainerProps> = ({ title, icon, isL
       return;
     }
     try {
-      const csvContent = toCSV(exportData, exportFields);
+      const csvContent = convertToCSV(exportData, exportFields.map(f => f.key)); // Use convertToCSV and pass headers
       const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);

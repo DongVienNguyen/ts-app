@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { toCSV } from '@/utils/csvUtils';
+import { convertToCSV } from '@/utils/csvUtils';
 import { FieldConfig } from '@/config/entityConfig'; // Corrected import path for FieldConfig
 
 export const useAssetReminderOperations = (loadData: () => Promise<void>, showMessage: (params: { type: 'success' | 'error' | 'info'; text: string }) => void) => {
@@ -106,7 +106,7 @@ export const useAssetReminderOperations = (loadData: () => Promise<void>, showMe
       showMessage({ type: 'info', text: "Không có dữ liệu để xuất" });
       return;
     }
-    const csvString = toCSV(data, assetReminderFields);
+    const csvString = convertToCSV(data, assetReminderFields.map(f => f.key)); // Use convertToCSV and pass headers
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     if (link.download !== undefined) {

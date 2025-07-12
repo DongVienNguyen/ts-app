@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, Eye, Filter, List, Layers } from 'lucide-react';
+import { CheckCircle, Eye, Filter, List, Layers, Download } from 'lucide-react'; // Import Download icon
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,14 +14,15 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { startOfDay, endOfDay } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
 import { SmartPagination } from '@/components/SmartPagination';
-import { getSeverityColor } from '@/utils/errorTracking'; // Import directly
+import { getSeverityColor } from '@/utils/errorTracking';
+import { convertToCSV, downloadCSV } from '@/utils/csvUtils'; // Import CSV utilities
 
 interface ErrorListTabProps {
   recentErrors: SystemError[];
   isLoading: boolean;
   onRefresh: () => void;
-  initialFilter?: { type: 'severity' | 'status'; value: string } | null; // New prop
-  onFilterApplied?: () => void; // New prop
+  initialFilter?: { type: 'severity' | 'status'; value: string } | null;
+  onFilterApplied?: () => void;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -40,7 +41,7 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter
         ...prevFilters,
         [initialFilter.type]: initialFilter.value,
       }));
-      onFilterApplied?.(); // Notify parent that filter has been applied
+      onFilterApplied?.();
     }
   }, [initialFilter, onFilterApplied]);
 
@@ -182,13 +183,47 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter
     }
   };
 
+  const handleExportCSV = () => {
+    if (filteredErrors.length === 0) {
+      toast.info('Không có dữ liệu lỗi để xuất.');
+      return;
+    }
+
+    const headers = [
+      'ID', 'Loại lỗi', 'Mức độ nghiêm trọng', 'Thông báo lỗi', 'Tên hàm', 'ID người dùng',
+      'URL yêu cầu', 'Tác nhân người dùng', 'Địa chỉ IP', 'Trạng thái', 'Thời gian tạo',
+      'Thời gian giải quyết', 'Người giải quyết', 'Ghi chú giải quyết'
+    ];
+
+    const data = filteredErrors.map(error => ({
+      ID: error.id,
+      'Loại lỗi': error.error_type,
+      'Mức độ nghiêm trọng': error.severity,
+      'Thông báo lỗi': error.error_message,
+      'Tên hàm': error.function_name,
+      'ID người dùng': error.user_id,
+      'URL yêu cầu': error.request_url,
+      'Tác nhân người dùng': error.user_agent,
+      'Địa chỉ IP': error.ip_address,
+      'Trạng thái': error.status,
+      'Thời gian tạo': error.created_at ? new Date(error.created_at).toLocaleString('vi-VN') : '',
+      'Thời gian giải quyết': error.resolved_at ? new Date(error.resolved_at).toLocaleString('vi-VN') : '',
+      'Người giải quyết': error.resolved_by,
+      'Ghi chú giải quyết': error.resolution_notes,
+    }));
+
+    const csv = convertToCSV(data, headers);
+    downloadCSV(csv, 'error_log');
+    toast.success('Dữ liệu lỗi đã được xuất thành công!');
+  };
+
   return (
     <div className="space-y-4">
       <ErrorFiltersComponent
         onFiltersChange={setFilters}
         totalErrors={recentErrors.length}
         filteredErrors={filteredErrors.length}
-        currentFilters={filters} // Pass current filters to allow ErrorFilters to reset/display them
+        currentFilters={filters}
       />
 
       {viewMode === 'list' && selectedIds.length > 0 && (
@@ -216,6 +251,10 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter
                   <Layers className="h-4 w-4" />
                 </ToggleGroupItem>
               </ToggleGroup>
+              <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                <Download className="w-4 h-4 mr-2" />
+                Xuất CSV
+              </Button>
               <Button variant="outline" size="sm" onClick={onRefresh}>Làm mới</Button>
             </div>
           </div>

@@ -14,19 +14,34 @@ const escapeCSV = (field: any): string => {
   return str;
 };
 
-export const toCSV = (data: any[], fields: FieldConfig[]): string => {
+export const convertToCSV = (data: any[], headers: string[]): string => {
   if (!data || data.length === 0) {
     return '';
   }
 
-  const headers = fields.map(field => field.label).join(',');
+  const csvHeaders = headers.map(header => escapeCSV(header)).join(',');
   const rows = data.map(row => {
-    return fields.map(field => {
-      return escapeCSV(row[field.key]);
+    return headers.map(header => {
+      // Use the header string as the key to access data from the row object
+      return escapeCSV(row[header]);
     }).join(',');
   });
 
-  return [headers, ...rows].join('\n');
+  return [csvHeaders, ...rows].join('\n');
+};
+
+export const downloadCSV = (csvContent: string, filename: string): void => {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  if (link.download !== undefined) { // Feature detection for download attribute
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 };
 
 export const toCSVTemplate = (fields: FieldConfig[]): string => {

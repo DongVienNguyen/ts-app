@@ -1,4 +1,4 @@
-import { toCSV, toCSVTemplate } from '@/utils/csvUtils';
+import { convertToCSV, toCSVTemplate } from '@/utils/csvUtils';
 import { EntityConfig, TableName, entityConfig } from '@/config/entityConfig';
 
 export const exportService = {
@@ -7,7 +7,7 @@ export const exportService = {
       throw new Error('Không có dữ liệu để xuất.');
     }
     const config = entityConfig[selectedEntity];
-    const csvContent = toCSV(data, config.fields);
+    const csvContent = convertToCSV(data, config.fields.map(f => f.key)); // Use convertToCSV and pass headers
     const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -39,7 +39,7 @@ export const exportService = {
       throw new Error('Không tìm thấy cấu hình cho thực thể này.');
     }
 
-    const csvContent = toCSV(selectedData, config.fields);
+    const csvContent = convertToCSV(selectedData, config.fields.map(f => f.key)); // Use convertToCSV and pass headers
     const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
