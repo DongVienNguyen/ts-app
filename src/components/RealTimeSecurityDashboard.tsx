@@ -5,12 +5,33 @@ import { RealTimeMetricsCard } from './security/RealTimeMetricsCard';
 import { LiveActivityFeed } from './security/LiveActivityFeed';
 import { ThreatAnalysisCard } from './security/ThreatAnalysisCard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSecureAuth } from '@/contexts/AuthContext';
 
 export function RealTimeSecurityDashboard() {
   const { user } = useSecureAuth();
+
+  // Add role check here
+  if (user?.role !== 'admin') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Truy cập bị từ chối</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Bạn không có quyền xem trang này. Chức năng giám sát bảo mật chỉ dành cho quản trị viên.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Destructure the hook's return value to get stable references to arrays/values
   const {
     recentEvents,
