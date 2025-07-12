@@ -15,12 +15,14 @@ import { ErrorAnalyticsTab } from '@/components/error-monitoring/ErrorAnalyticsT
 import { ServiceStatusTab } from '@/components/error-monitoring/ServiceStatusTab';
 import { ErrorOverviewCards } from '@/components/error-monitoring/ErrorOverviewCards';
 import { ErrorMonitoringHeader } from '@/components/error-monitoring/ErrorMonitoringHeader';
+import { ErrorMonitoringDashboard } from '@/components/ErrorMonitoringDashboard'; // Import the dashboard component
 
 const ErrorMonitoring = () => {
   const { user } = useAuth();
   const {
     errorStats,
     recentErrors,
+    systemMetrics, // Add systemMetrics
     serviceHealth,
     isLoading,
     lastUpdated,
@@ -62,47 +64,26 @@ const ErrorMonitoring = () => {
   return (
     <Layout>
       <div className="space-y-6 p-4 md:p-6">
-        <ErrorMonitoringHeader
+        {/* Render the main dashboard component */}
+        <ErrorMonitoringDashboard
+          errorStats={errorStats}
+          recentErrors={recentErrors}
+          systemMetrics={systemMetrics}
+          serviceHealth={serviceHealth}
           isLoading={isLoading}
-          isRefreshing={isRefreshingErrors}
           lastUpdated={lastUpdated}
-          onRefresh={refreshRecentErrors}
+          refreshAll={refreshAll}
+          refreshRecentErrors={refreshRecentErrors}
+          isRefreshingErrors={isRefreshingErrors}
+          getStatusColor={getStatusColor}
+          getSeverityColor={getSeverityColor}
         />
 
-        <ErrorOverviewCards errorStats={errorStats} />
-
-        <Tabs defaultValue="errors" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="errors">Danh sách lỗi</TabsTrigger>
-            <TabsTrigger value="analytics">Phân tích</TabsTrigger>
-            <TabsTrigger value="services">Trạng thái Dịch vụ</TabsTrigger>
-            <TabsTrigger value="pwa">PWA & Push</TabsTrigger>
+        {/* Add the AdminEmailSettings tab separately if needed, or integrate into dashboard */}
+        <Tabs defaultValue="settings" className="w-full">
+          <TabsList className="grid w-full grid-cols-1">
             <TabsTrigger value="settings">Cài đặt Admin</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="errors">
-            <ErrorListTab
-              recentErrors={recentErrors}
-              isLoading={isLoading}
-              getSeverityColor={getSeverityColor}
-              onRefresh={refreshAll}
-            />
-          </TabsContent>
-
-          <TabsContent value="services">
-            <ServiceStatusTab serviceHealth={serviceHealth} getStatusColor={getStatusColor} />
-          </TabsContent>
-
-          <TabsContent value="analytics">
-            <ErrorAnalyticsTab errorStats={errorStats} />
-          </TabsContent>
-
-          <TabsContent value="pwa" className="space-y-6">
-            <PWATestPanel />
-            <PushNotificationTester />
-            <VAPIDKeyTester />
-          </TabsContent>
-
           <TabsContent value="settings" className="space-y-6">
             <AdminEmailSettings />
           </TabsContent>

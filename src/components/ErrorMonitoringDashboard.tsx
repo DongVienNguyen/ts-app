@@ -6,38 +6,58 @@ import { ErrorAnalyticsTab } from './error-monitoring/ErrorAnalyticsTab';
 import { ServiceStatusTab } from './error-monitoring/ServiceStatusTab';
 import { ResourcesTab } from './error-monitoring/ResourcesTab';
 import { RealTimeErrorFeed } from './error-monitoring/RealTimeErrorFeed';
-import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
 import { PWATestPanel } from '@/components/PWATestPanel';
 import PushNotificationTester from '@/components/PushNotificationTester';
 import VAPIDKeyTester from '@/components/VAPIDKeyTester';
+import { SystemError, SystemMetric } from '@/utils/errorTracking';
+import { ServiceHealth } from './error-monitoring/ServiceStatusTab';
 
-export function ErrorMonitoringDashboard() {
-  const {
-    errorStats,
-    recentErrors,
-    systemMetrics,
-    serviceHealth,
-    isLoading,
-    lastUpdated,
-    refreshAll,
-    getStatusColor,
-    getSeverityColor: originalGetSeverityColor,
-    isRefreshingErrors,
-    refreshRecentErrors, // Add this line
-  } = useErrorMonitoringData();
-
-  const getSeverityColor = (severity: string | undefined): string => {
-    if (!severity) return 'text-gray-600 bg-gray-100';
-    return originalGetSeverityColor(severity);
+interface ErrorMonitoringDashboardProps {
+  errorStats: {
+    totalErrors: number;
+    criticalErrors: number;
+    resolvedErrors: number;
+    errorRate: number;
+    topErrorTypes: { type: string; count: number }[];
+    errorTrend: { date: string; count: number }[];
+    byType: { [key: string]: number };
+    bySeverity: { [key: string]: number };
+    byBrowser: { [key: string]: number };
+    byOS: { [key: string]: number };
+    recent: SystemError[];
   };
+  recentErrors: SystemError[];
+  systemMetrics: SystemMetric[];
+  serviceHealth: ServiceHealth;
+  isLoading: boolean;
+  lastUpdated: Date | null;
+  refreshAll: () => void;
+  refreshRecentErrors: () => void;
+  isRefreshingErrors: boolean;
+  getStatusColor: (status: string) => string;
+  getSeverityColor: (severity: string | undefined) => string;
+}
 
+export function ErrorMonitoringDashboard({
+  errorStats,
+  recentErrors,
+  systemMetrics,
+  serviceHealth,
+  isLoading,
+  lastUpdated,
+  refreshAll,
+  refreshRecentErrors,
+  isRefreshingErrors,
+  getStatusColor,
+  getSeverityColor,
+}: ErrorMonitoringDashboardProps) {
   return (
     <div className="space-y-6">
       <ErrorMonitoringHeader 
         isLoading={isLoading}
         isRefreshing={isRefreshingErrors}
         lastUpdated={lastUpdated}
-        onRefresh={refreshAll}
+        onRefresh={refreshRecentErrors} // This header's refresh button should only refresh recent errors
       />
 
       <ErrorOverviewCards 
@@ -60,7 +80,7 @@ export function ErrorMonitoringDashboard() {
                 recentErrors={recentErrors}
                 isLoading={isLoading}
                 getSeverityColor={getSeverityColor}
-                onRefresh={refreshRecentErrors} // Changed from refreshAll to refreshRecentErrors
+                onRefresh={refreshRecentErrors} // Actions in this tab should only refresh recent errors
               />
             </TabsContent>
 
