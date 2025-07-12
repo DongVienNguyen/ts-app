@@ -20,6 +20,7 @@ export function useSecurityMonitoring() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [allProcessedEvents, setAllProcessedEvents] = useState<SecurityEvent[]>([]); // Lưu trữ tất cả sự kiện đã xử lý
 
   const fetchSecurityStats = useCallback(async () => {
     setIsLoading(true);
@@ -44,6 +45,8 @@ export function useSecurityMonitoring() {
         ip: event.ip_address,
         username: event.username
       })) || [];
+
+      setAllProcessedEvents(processedEvents); // Lưu trữ để sử dụng cho biểu đồ
 
       const totalEvents = processedEvents.length;
       const loginAttempts = processedEvents.filter(e => e.type === 'LOGIN_ATTEMPT').length;
@@ -70,10 +73,38 @@ export function useSecurityMonitoring() {
     }
   }, []);
 
+  // Hàm để xử lý dữ liệu sự kiện thành định dạng xu hướng cho biểu đồ
+  const getEventTrends = useCallback(() => {
+    const trends: { date: string; successfulLogins: number; failedLogins: number; suspiciousActivities: number }[] = [];
+    const dailyData: { [date: string]: { successfulLogins: number; failedLogins: number; suspiciousActivities: number } } = {};
+
+    allProcessedEvents.forEach(event => {
+      // Sử dụng toLocaleDateString với 'en-CA' để đảm bảo định dạng YYYY-MM-DD nhất quán
+      const date = new Date(event.timestamp).toLocaleDateString('en-CA');
+      if (!dailyData[date]) {
+        dailyData[date] = { successfulLogins: 0, failedLogins: 0, suspiciousActivities: 0 };
+      }
+
+      if (event.type === 'LOGIN_SUCCESS') {
+        dailyData[date].successfulLogins++;
+      } else if (event.type === 'LOGIN_FAILED') {
+        dailyData[date].failedLogins++;
+      } else if (event.type === 'SUSPICIOUS_ACTIVITY' || event.type === 'RATE_LIMIT_EXCEEDED') {
+        dailyData[date].suspiciousActivities++;
+      }
+    });
+
+    // Sắp xếp theo ngày và chuyển đổi thành mảng
+    Object.keys(dailyData).sort().forEach(date => {
+      trends.push({ date, ...dailyData[date] });
+    });
+
+    return trends;
+  }, [allProcessedEvents]);
+
   useEffect(() => {
     fetchSecurityStats();
-    // Có thể thêm interval để làm mới định kỳ nếu cần, nhưng cho tổng hợp thì không quá cần thiết
   }, [fetchSecurityStats]);
 
-  return { stats, isLoading, error };
+  return { stats, isLoading, error, getEventTrends };
 }

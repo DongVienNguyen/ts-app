@@ -4,6 +4,7 @@ import { AlertTriangle, Activity, Users, Lock, Clock, Shield, BarChart3, Setting
 import { useSecurityMonitoring } from '@/hooks/useSecurityMonitoring';
 import { SecurityFeaturesSummary } from './SecurityFeaturesSummary';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ThreatAnalysisCard } from './security/ThreatAnalysisCard'; // Import ThreatAnalysisCard
 
 const StatCard = ({ title, value, icon, isLoading }: { title: string, value: number | string, icon: React.ReactNode, isLoading: boolean }) => (
   <Card>
@@ -22,7 +23,8 @@ const StatCard = ({ title, value, icon, isLoading }: { title: string, value: num
 );
 
 export function SecurityOverview() {
-  const { stats, isLoading, error } = useSecurityMonitoring();
+  const { stats, isLoading, error, getEventTrends } = useSecurityMonitoring();
+  const threatData = getEventTrends(); // Lấy dữ liệu xu hướng cho biểu đồ
 
   if (error) {
     return (
@@ -81,18 +83,8 @@ export function SecurityOverview() {
         </Card>
 
         <div className="space-y-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Phân tích Bảo mật</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <h3 className="text-lg font-semibold text-gray-600 mb-2">Sắp ra mắt</h3>
-                  <p className="text-sm text-gray-500">Phân tích chi tiết sẽ có trong phiên bản sau.</p>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Thay thế thẻ giữ chỗ bằng ThreatAnalysisCard */}
+            <ThreatAnalysisCard data={threatData} />
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Cài đặt Bảo mật</CardTitle>
