@@ -1,45 +1,49 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart3 } from 'lucide-react';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
 interface ThreatAnalysisCardProps {
-  data: { date: string; successfulLogins: number; failedLogins: number; suspiciousActivities: number }[];
+  data: {
+    date: string;
+    successfulLogins: number;
+    failedLogins: number;
+    suspiciousActivities: number;
+  }[];
 }
 
 export function ThreatAnalysisCard({ data }: ThreatAnalysisCardProps) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <BarChart className="w-5 h-5" />
-          <span>Phân tích Mối đe dọa</span>
-        </CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">Phân tích Mối đe dọa</CardTitle>
+        <BarChart3 className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        {data.length > 0 ? (
-          <ResponsiveContainer width="100%" height={250}>
+        {data && data.length > 0 ? (
+          <ResponsiveContainer width="100%" height={200}>
             <LineChart
               data={data}
               margin={{
                 top: 5,
-                right: 30,
-                left: 20,
+                right: 20,
+                left: -10,
                 bottom: 5,
               }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
+              <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis fontSize={12} tickLine={false} axisLine={false} />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="successfulLogins" stroke="#82ca9d" name="Đăng nhập thành công" />
-              <Line type="monotone" dataKey="failedLogins" stroke="#8884d8" name="Đăng nhập thất bại" />
-              <Line type="monotone" dataKey="suspiciousActivities" stroke="#ffc658" name="Hoạt động đáng ngờ" />
+              <Line type="monotone" dataKey="failedLogins" name="Thất bại" stroke="#ef4444" />
+              <Line type="monotone" dataKey="suspiciousActivities" name="Đáng ngờ" stroke="#f97316" />
+              <Line type="monotone" dataKey="successfulLogins" name="Thành công" stroke="#22c55e" />
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <p className="text-sm text-gray-500 text-center py-8">
-            Không có đủ dữ liệu để hiển thị phân tích mối đe dọa.
-          </p>
+          <div className="text-center py-8">
+            <p className="text-gray-500">Không có đủ dữ liệu để phân tích.</p>
+          </div>
         )}
       </CardContent>
     </Card>
