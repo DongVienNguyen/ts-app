@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle, Eye, Filter } from 'lucide-react';
+import { CheckCircle, Eye, Filter, List, Layers } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 interface ErrorListTabProps {
   recentErrors: SystemError[];
@@ -24,6 +25,7 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
   const [selectedError, setSelectedError] = useState<SystemError | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list');
 
   const handleResolveError = async (errorId: string) => {
     if (!user) {
@@ -72,7 +74,6 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
     }
   };
 
-  // Apply filters to errors
   const filteredErrors = recentErrors.filter(error => {
     if (filters.severity && error.severity !== filters.severity) return false;
     if (filters.status && error.status !== filters.status) return false;
@@ -84,20 +85,11 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
       let cutoffDate: Date;
       
       switch (filters.dateRange) {
-        case '1h':
-          cutoffDate = new Date(now.getTime() - 60 * 60 * 1000);
-          break;
-        case '24h':
-          cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-          break;
-        case '7d':
-          cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case '30d':
-          cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          cutoffDate = new Date(0);
+        case '1h': cutoffDate = new Date(now.getTime() - 60 * 60 * 1000); break;
+        case '24h': cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
+        case '7d': cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+        case '30d': cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+        default: cutoffDate = new Date(0);
       }
       
       if (errorDate < cutoffDate) return false;
@@ -116,6 +108,23 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
     return true;
   });
 
+  const groupErrors = (errors: SystemError[]) => {
+    const groups: { [key: string]: { count: number; latestError: SystemError } } = {};
+    for (const error of errors) {
+      const key = `${error.error_type}|${error.error_message}`;
+      if (!groups[key]) {
+        groups[key] = { count: 0, latestError: error };
+      }
+      groups[key].count++;
+      if (new Date(error.created_at!) > new Date(groups[key].latestError.created_at!)) {
+        groups[key].latestError = error;
+      }
+    }
+    return Object.values(groups).sort((a, b) => b.count - a.count);
+  };
+
+  const groupedErrors = viewMode === 'grouped' ? groupErrors(filteredErrors) : [];
+
   const handleViewDetails = (error: SystemError) => {
     setSelectedError(error);
     setIsModalOpen(true);
@@ -127,30 +136,22 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
   };
 
   const handleSelect = (id: string, checked: boolean) => {
-    setSelectedIds(prev => 
-      checked ? [...prev, id] : prev.filter(sid => sid !== id)
-    );
+    setSelectedIds(prev => checked ? [...prev, id] : prev.filter(sid => sid !== id));
   };
 
   const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(filteredErrors.map(e => e.id!));
-    } else {
-      setSelectedIds([]);
-    }
+    setSelectedIds(checked ? filteredErrors.map(e => e.id!) : []);
   };
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
       <ErrorFiltersComponent
         onFiltersChange={setFilters}
         totalErrors={recentErrors.length}
         filteredErrors={filteredErrors.length}
       />
 
-      {/* Bulk Actions Bar */}
-      {selectedIds.length > 0 && (
+      {viewMode === 'list' && selectedIds.length > 0 && (
         <div className="flex items-center justify-between p-2 bg-gray-100 rounded-md dark:bg-gray-800">
           <span className="text-sm font-medium">
             Đã chọn {selectedIds.length} / {filteredErrors.length} lỗi
@@ -162,116 +163,71 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
         </div>
       )}
 
-      {/* Error List */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Danh sách Lỗi</span>
-            <Button variant="outline" size="sm" onClick={onRefresh}>
-              Làm mới
-            </Button>
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Danh sách Lỗi</CardTitle>
+            <div className="flex items-center space-x-2">
+              <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as any)}>
+                <ToggleGroupItem value="list" aria-label="List view">
+                  <List className="h-4 w-4" />
+                </ToggleGroupItem>
+                <ToggleGroupItem value="grouped" aria-label="Grouped view">
+                  <Layers className="h-4 w-4" />
+                </ToggleGroupItem>
+              </ToggleGroup>
+              <Button variant="outline" size="sm" onClick={onRefresh}>Làm mới</Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : filteredErrors.length > 0 ? (
-            <div className="space-y-3">
-              <div className="flex items-center p-2 border-b">
-                <Checkbox
-                  id="select-all"
-                  checked={selectedIds.length > 0 && selectedIds.length === filteredErrors.length}
-                  onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                  className="mr-4"
-                />
-                <label htmlFor="select-all" className="text-sm font-medium">Chọn tất cả</label>
-              </div>
-              {filteredErrors.map((error) => (
-                <div key={error.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start flex-1">
-                      <Checkbox
-                        id={`select-${error.id}`}
-                        checked={selectedIds.includes(error.id!)}
-                        onCheckedChange={(checked) => handleSelect(error.id!, !!checked)}
-                        className="mr-4 mt-1"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <Badge className={getSeverityColor(error.severity)}>
-                            {error.severity?.toUpperCase() || 'UNKNOWN'}
-                          </Badge>
-                          <Badge variant="outline">{error.error_type}</Badge>
-                          <span className="text-sm text-gray-500">
-                            {new Date(error.created_at!).toLocaleString('vi-VN')}
-                          </span>
-                        </div>
-                        <h4 className="font-medium text-gray-900 mb-1 line-clamp-2">
-                          {error.error_message}
-                        </h4>
-                        <div className="flex items-center space-x-4 text-sm text-gray-600">
-                          {error.function_name && (
-                            <span>Chức năng: {error.function_name}</span>
-                          )}
-                          {error.user_id && (
-                            <span>Người dùng: {error.user_id}</span>
-                          )}
+            <div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
+          ) : viewMode === 'list' ? (
+            filteredErrors.length > 0 ? (
+              <div className="space-y-3">
+                <div className="flex items-center p-2 border-b">
+                  <Checkbox id="select-all" checked={selectedIds.length > 0 && selectedIds.length === filteredErrors.length} onCheckedChange={(checked) => handleSelectAll(!!checked)} className="mr-4" />
+                  <label htmlFor="select-all" className="text-sm font-medium">Chọn tất cả</label>
+                </div>
+                {filteredErrors.map((error) => (
+                  <div key={error.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start flex-1"><Checkbox id={`select-${error.id}`} checked={selectedIds.includes(error.id!)} onCheckedChange={(checked) => handleSelect(error.id!, !!checked)} className="mr-4 mt-1" />
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2"><Badge className={getSeverityColor(error.severity)}>{error.severity?.toUpperCase() || 'UNKNOWN'}</Badge><Badge variant="outline">{error.error_type}</Badge><span className="text-sm text-gray-500">{new Date(error.created_at!).toLocaleString('vi-VN')}</span></div>
+                          <h4 className="font-medium text-gray-900 mb-1 line-clamp-2">{error.error_message}</h4>
+                          <div className="flex items-center space-x-4 text-sm text-gray-600">{error.function_name && (<span>Chức năng: {error.function_name}</span>)}{error.user_id && (<span>Người dùng: {error.user_id}</span>)}</div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-2 ml-4">
-                      <Badge variant={error.status === 'resolved' ? 'default' : 'destructive'}>
-                        {error.status}
-                      </Badge>
-                      {error.status !== 'resolved' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleResolveError(error.id!)}
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Giải quyết
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewDetails(error)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center space-x-2 ml-4"><Badge variant={error.status === 'resolved' ? 'default' : 'destructive'}>{error.status}</Badge>{error.status !== 'resolved' && (<Button variant="outline" size="sm" onClick={() => handleResolveError(error.id!)}><CheckCircle className="w-4 h-4 mr-1" />Giải quyết</Button>)}<Button variant="ghost" size="sm" onClick={() => handleViewDetails(error)}><Eye className="w-4 h-4" /></Button></div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              {Object.keys(filters).length > 0 ? (
-                <>
-                  <Filter className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Không tìm thấy lỗi nào phù hợp với bộ lọc</p>
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>Không có lỗi nào được ghi nhận</p>
-                </>
-              )}
-            </div>
+                ))}
+              </div>
+            ) : ( <div className="text-center py-8 text-gray-500"><Filter className="w-12 h-12 mx-auto mb-2 opacity-50" /><p>Không tìm thấy lỗi nào phù hợp</p></div> )
+          ) : ( // Grouped View
+            groupedErrors.length > 0 ? (
+              <div className="space-y-3">
+                {groupedErrors.map(({ count, latestError }) => (
+                  <div key={latestError.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2"><Badge variant="secondary">{count} lần</Badge><Badge className={getSeverityColor(latestError.severity)}>{latestError.severity?.toUpperCase() || 'UNKNOWN'}</Badge><Badge variant="outline">{latestError.error_type}</Badge></div>
+                        <h4 className="font-medium text-gray-900 mb-1">{latestError.error_message}</h4>
+                        <span className="text-sm text-gray-500">Lần cuối lúc: {new Date(latestError.created_at!).toLocaleString('vi-VN')}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 ml-4"><Button variant="ghost" size="sm" onClick={() => handleViewDetails(latestError)}><Eye className="w-4 h-4 mr-1" />Xem chi tiết</Button></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : ( <div className="text-center py-8 text-gray-500"><Filter className="w-12 h-12 mx-auto mb-2 opacity-50" /><p>Không tìm thấy lỗi nào phù hợp</p></div> )
           )}
         </CardContent>
       </Card>
 
-      {/* Error Details Modal */}
-      <ErrorDetailsModal
-        error={selectedError}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        onErrorUpdated={onRefresh}
-      />
+      <ErrorDetailsModal error={selectedError} isOpen={isModalOpen} onClose={handleCloseModal} onErrorUpdated={onRefresh} />
     </div>
   );
 }
