@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
-import { Plus, Download, Upload, Trash2, Edit } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Plus, Download, Upload, Trash2, Edit, FilterX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import DateInput from '@/components/DateInput';
 import TestDataButton from '@/components/TestDataButton';
 import { entityConfig } from '@/config/entityConfig';
@@ -37,6 +38,9 @@ interface DataManagementTabProps {
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
   onSort: (columnKey: string) => void;
+  filters: Record<string, any>;
+  onFilterChange: (key: string, value: any) => void;
+  onClearFilters: () => void;
 }
 
 export const DataManagementTab = ({
@@ -45,7 +49,6 @@ export const DataManagementTab = ({
   isLoading,
   searchTerm,
   onSearchChange,
-  filteredData,
   paginatedData,
   totalCount,
   currentPage,
@@ -65,7 +68,10 @@ export const DataManagementTab = ({
   onBulkDeleteTransactions,
   sortColumn,
   sortDirection,
-  onSort
+  onSort,
+  filters,
+  onFilterChange,
+  onClearFilters
 }: DataManagementTabProps) => {
   const columns = useMemo(() => {
     const config = entityConfig[selectedEntity];
@@ -108,6 +114,10 @@ export const DataManagementTab = ({
     return [...fieldColumns, actionsColumn];
   }, [selectedEntity, onEdit, onDelete]);
 
+  const filterableFields = useMemo(() => {
+    return entityConfig[selectedEntity]?.fields.filter(f => f.filterable) || [];
+  }, [selectedEntity]);
+
   return (
     <div className="mt-6 space-y-6">
       {/* Entity Selection Card */}
@@ -148,17 +158,73 @@ export const DataManagementTab = ({
         </CardContent>
       </Card>
 
-      {/* Search Card */}
+      {/* Search & Filter Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Tìm kiếm trong bảng dữ liệu</CardTitle>
+          <CardTitle>Tìm kiếm & Lọc</CardTitle>
         </CardHeader>
         <CardContent>
           <Input
-            placeholder={`Tìm kiếm trong ${entityConfig[selectedEntity]?.name}...`}
+            placeholder={`Tìm kiếm chung trong ${entityConfig[selectedEntity]?.name}...`}
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
           />
+          <Accordion type="single" collapsible className="w-full mt-4">
+            <AccordionItem value="advanced-filters">
+              <AccordionTrigger>Bộ lọc nâng cao</AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border-t">
+                  {filterableFields.map(field => {
+                    if (field.type === 'date') {
+                      return (
+                        <React.Fragment key={field.key}>
+                          <div>
+                            <Label>{field.label} (Từ)</Label>
+                            <DateInput value={filters[`${field.key}_start`] || ''} onChange={date => onFilterChange(`${field.key}_start`, date)} />
+                          </div>
+                          <div>
+                            <Label>{field.label} (Đến)</Label>
+                            <DateInput value={filters[`${field.key}_end`] || ''} onChange={date => onFilterChange(`${field.key}_end`, date)} />
+                          </div>
+                        </React.Fragment>
+                      );
+                    }
+                    if (field.type === 'boolean' || field.options) {
+                      return (
+                        <div key={field.key}>
+                          <Label>{field.label}</Label>
+                          <Select value={filters[field.key] || ''} onValueChange={value => onFilterChange(field.key, value === 'all' ? '' : value)}>
+                            <SelectTrigger><SelectValue placeholder={`Lọc theo ${field.label}`} /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Tất cả</SelectItem>
+                              {(field.options || ['true', 'false']).map(option => (
+                                <SelectItem key={option} value={option}>{option === 'true' ? 'Có' : option === 'false' ? 'Không' : option}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={field.key}>
+                        <Label>{field.label}</Label>
+                        <Input
+                          placeholder={`Lọc theo ${field.label}`}
+                          value={filters[field.key] || ''}
+                          onChange={e => onFilterChange(field.key, e.target.value)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="p-4 pt-2 flex justify-end">
+                  <Button variant="ghost" onClick={onClearFilters}>
+                    <FilterX className="mr-2 h-4 w-4" /> Xóa bộ lọc
+                  </Button>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
 

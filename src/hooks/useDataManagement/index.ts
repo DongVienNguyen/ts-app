@@ -4,6 +4,7 @@ import { useSecureAuth } from '@/contexts/AuthContext';
 import { createDataCache } from './cache';
 import { useDataOperations } from './useDataOperations';
 import type { DataManagementReturn } from './types';
+import { useDebounce } from '@/hooks/useDebounce';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -24,10 +25,15 @@ export const useDataManagement = (): DataManagementReturn => {
   const [activeTab, setActiveTab] = useState('management');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [filters, setFilters] = useState<Record<string, any>>({});
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const { user } = useSecureAuth();
   const navigate = useNavigate();
+
+  // Debounce search and filter terms
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const debouncedFilters = useDebounce(filters, 500);
 
   // Cache management
   const { getCachedData, setCachedData, clearCache, clearEntityCache } = createDataCache();
@@ -50,7 +56,8 @@ export const useDataManagement = (): DataManagementReturn => {
     user,
     editingItem,
     currentPage,
-    searchTerm,
+    searchTerm: debouncedSearchTerm,
+    filters: debouncedFilters,
     startDate,
     endDate,
     restoreFile,
@@ -81,7 +88,18 @@ export const useDataManagement = (): DataManagementReturn => {
     setCurrentPage(1);
   }, [sortColumn]);
 
-  // Entity change handler with cache clearing
+  // Filter handlers
+  const handleFilterChange = useCallback((key: string, value: any) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setCurrentPage(1);
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setFilters({});
+    setCurrentPage(1);
+  }, []);
+
+  // Entity change handler
   const setSelectedEntity = useCallback((entity: string) => {
     clearEntityCache(selectedEntity);
     setSelectedEntityState(entity);
@@ -89,19 +107,20 @@ export const useDataManagement = (): DataManagementReturn => {
     setSearchTerm('');
     setSortColumn(null);
     setSortDirection('desc');
+    setFilters({});
     setData([]);
     setTotalCount(0);
   }, [selectedEntity, clearEntityCache]);
 
   // Computed values
-  const filteredData = data; // Data is already filtered on server
-  const paginatedData = data; // Data is already paginated on server
+  const paginatedData = data;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   // Refresh data function
   const refreshData = useCallback(() => {
-    loadData(currentPage, searchTerm);
-  }, [loadData, currentPage, searchTerm]);
+    clearCache();
+    loadData(currentPage, debouncedSearchTerm, debouncedFilters);
+  }, [loadData, currentPage, debouncedSearchTerm, debouncedFilters, clearCache]);
 
   // Effects for data loading
   useEffect(() => {
@@ -112,27 +131,14 @@ export const useDataManagement = (): DataManagementReturn => {
     
     if (user && user.role === 'admin') {
       if (selectedEntity) {
-        loadData(currentPage, searchTerm);
+        loadData(currentPage, debouncedSearchTerm, debouncedFilters);
       }
     } else if (user) {
       setData([]);
       setTotalCount(0);
       setMessage({ type: 'error', text: 'Chỉ admin mới có thể truy cập module này.' });
     }
-  }, [user, selectedEntity, navigate, loadData, currentPage, searchTerm, sortColumn, sortDirection]);
-
-  // Debounced search effect
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (currentPage !== 1) {
-        setCurrentPage(1);
-      } else {
-        loadData(1, searchTerm);
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, loadData]);
+  }, [user, selectedEntity, navigate, loadData, currentPage, debouncedSearchTerm, debouncedFilters, sortColumn, sortDirection]);
 
   return {
     // State
@@ -151,6 +157,7 @@ export const useDataManagement = (): DataManagementReturn => {
     activeTab,
     sortColumn,
     sortDirection,
+    filters,
     
     // Setters
     setSelectedEntity,
@@ -164,7 +171,7 @@ export const useDataManagement = (): DataManagementReturn => {
     restoreInputRef,
     
     // Computed values
-    filteredData,
+    filteredData: data, // Keep for compatibility, though paginatedData is used
     paginatedData,
     totalPages,
     
@@ -181,11 +188,12 @@ export const useDataManagement = (): DataManagementReturn => {
     bulkDeleteTransactions,
     refreshData,
     handleSort,
+    handleFilterChange,
+    handleClearFilters,
     
     // User
     user
   };
 };
 
-// Re-export types
 export type * from './types';

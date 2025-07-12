@@ -34,6 +34,10 @@ interface TabContentProps {
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
   onSort: (columnKey: string) => void;
+  // Filter props
+  filters: Record<string, any>;
+  onFilterChange: (key: string, value: any) => void;
+  onClearFilters: () => void;
 }
 
 export const TabContent = ({
@@ -65,7 +69,10 @@ export const TabContent = ({
   setMessage,
   sortColumn,
   sortDirection,
-  onSort
+  onSort,
+  filters,
+  onFilterChange,
+  onClearFilters
 }: TabContentProps) => {
   const renderTabContent = () => {
     switch (activeTab) {
@@ -99,6 +106,9 @@ export const TabContent = ({
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={onSort}
+            filters={filters}
+            onFilterChange={onFilterChange}
+            onClearFilters={onClearFilters}
           />
         );
 

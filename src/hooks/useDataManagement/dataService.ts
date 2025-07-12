@@ -5,7 +5,7 @@ import type { LoadDataParams, SaveDataParams, DeleteDataParams } from './types';
 const ITEMS_PER_PAGE = 20;
 
 export const dataService = {
-  async loadData({ selectedEntity, user, page = 1, search = '', sortColumn, sortDirection }: LoadDataParams) {
+  async loadData({ selectedEntity, user, page = 1, search = '', sortColumn, sortDirection, filters = {} }: LoadDataParams) {
     if (!selectedEntity || !user || user.role !== 'admin') {
       throw new Error('Unauthorized access');
     }
@@ -16,16 +16,39 @@ export const dataService = {
     }
 
     let query = supabase.from(config.entity as any).select('*', { count: 'exact' });
+
+    // Add advanced filters
+    for (const key in filters) {
+      const value = filters[key];
+      if (value === null || value === undefined || value === '') continue;
+
+      if (key.endsWith('_start')) {
+        const fieldName = key.replace('_start', '');
+        query = query.gte(fieldName, value);
+      } else if (key.endsWith('_end')) {
+        const fieldName = key.replace('_end', '');
+        query = query.lte(fieldName, value);
+      } else {
+        const fieldConfig = config.fields.find(f => f.key === key);
+        if (fieldConfig) {
+          if (fieldConfig.type === 'boolean') {
+            query = query.eq(key, value === 'true');
+          } else {
+            query = query = query.ilike(key, `%${value}%`);
+          }
+        }
+      }
+    }
     
-    // Add search filter
+    // Add global search filter
     if (search.trim()) {
       const textFields = config.fields.filter(f => 
-        !f.type || f.type === 'text' || f.type === 'textarea'
+        f.filterable && (f.type === 'text' || f.type === 'textarea' || f.type === 'number')
       ).map(f => f.key);
       
       if (textFields.length > 0) {
         const searchConditions = textFields.map(field => 
-          `${field}.ilike.%${search}%`
+          `${field}::text.ilike.%${search}%`
         ).join(',');
         query = query.or(searchConditions);
       }
@@ -41,7 +64,7 @@ export const dataService = {
       const hasCreatedAt = config.fields.some(f => f.key === 'created_at');
       if (hasCreatedAt) {
         query = query.order('created_at', { ascending: false });
-      } else {
+      } else if (config.fields.some(f => f.key === 'id')) {
         query = query.order('id', { ascending: false });
       }
     }
@@ -70,7 +93,6 @@ export const dataService = {
 
     const config = entityConfig[selectedEntity];
     
-    // Validate required fields
     for (const field of config.fields.filter(f => f.required)) {
       if (!formData[field.key]) {
         throw new Error(`Vui lòng điền ${field.label}`);
@@ -79,21 +101,18 @@ export const dataService = {
     
     const submitData: { [key: string]: any } = { ...formData };
 
-    // Handle boolean fields
     config.fields.filter(f => f.type === 'boolean').forEach(field => {
       if (submitData[field.key] !== undefined && submitData[field.key] !== null) {
-        submitData[field.key] = submitData[field.key] === 'true';
+        submitData[field.key] = String(submitData[field.key]).toLowerCase() === 'true';
       }
     });
 
-    // Clean empty values
     Object.keys(submitData).forEach(key => {
       if (key !== 'password' && (submitData[key] === '' || submitData[key] === null)) {
         delete submitData[key];
       }
     });
 
-    // Handle staff password
     if (selectedEntity === 'staff') {
       if (editingItem) {
         if (submitData.password === '') {

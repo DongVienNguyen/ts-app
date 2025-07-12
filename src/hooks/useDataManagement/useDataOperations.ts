@@ -9,12 +9,13 @@ interface UseDataOperationsProps {
   editingItem: any;
   currentPage: number;
   searchTerm: string;
+  filters: Record<string, any>; // Added
   startDate: string;
   endDate: string;
   restoreFile: File | null;
   data: any[];
-  sortColumn: string | null; // Added
-  sortDirection: 'asc' | 'desc'; // Added
+  sortColumn: string | null;
+  sortDirection: 'asc' | 'desc';
   getCachedData: (key: string) => CacheEntry | null;
   setCachedData: (key: string, data: any[], count: number) => void;
   clearCache: () => void;
@@ -34,12 +35,13 @@ export const useDataOperations = ({
   editingItem,
   currentPage,
   searchTerm,
+  filters, // Added
   startDate,
   endDate,
   restoreFile,
   data,
-  sortColumn, // Added
-  sortDirection, // Added
+  sortColumn,
+  sortDirection,
   getCachedData,
   setCachedData,
   clearCache,
@@ -65,10 +67,10 @@ export const useDataOperations = ({
     }
   }, [user, setMessage]);
 
-  const loadData = useCallback(async (page: number = 1, search: string = '') => {
+  const loadData = useCallback(async (page: number = 1, search: string = '', currentFilters: Record<string, any> = {}) => {
     if (!selectedEntity || !user || user.role !== 'admin') return;
     
-    const cacheKey = `${selectedEntity}-${page}-${search}-${sortColumn}-${sortDirection}`; // Updated cache key
+    const cacheKey = `${selectedEntity}-${page}-${search}-${sortColumn}-${sortDirection}-${JSON.stringify(currentFilters)}`; // Updated cache key
     const cached = getCachedData(cacheKey);
     
     if (cached) {
@@ -86,8 +88,9 @@ export const useDataOperations = ({
         user,
         page,
         search,
-        sortColumn, // Passed to dataService
-        sortDirection // Passed to dataService
+        sortColumn,
+        sortDirection,
+        filters: currentFilters // Passed to dataService
       });
 
       setCachedData(cacheKey, result.data, result.count);
@@ -132,7 +135,7 @@ export const useDataOperations = ({
         setMessage({ type: 'success', text: result.message });
         setDialogOpen(false);
         clearCache();
-        loadData(currentPage, searchTerm);
+        loadData(currentPage, searchTerm, filters); // Pass filters
       } catch (error: any) {
         setMessage({ 
           type: 'error', 
@@ -140,7 +143,7 @@ export const useDataOperations = ({
         });
       }
     });
-  }, [selectedEntity, editingItem, user, runAsAdmin, currentPage, searchTerm, setMessage, setDialogOpen, clearCache, loadData]);
+  }, [selectedEntity, editingItem, user, runAsAdmin, currentPage, searchTerm, setMessage, setDialogOpen, clearCache, loadData, filters]);
 
   const handleDelete = useCallback(async (item: any) => {
     if (!selectedEntity) return;
@@ -160,7 +163,7 @@ export const useDataOperations = ({
         
         setMessage({ type: 'success', text: result.message });
         clearCache();
-        loadData(currentPage, searchTerm);
+        loadData(currentPage, searchTerm, filters); // Pass filters
       } catch (error: any) {
         setMessage({ 
           type: 'error', 
@@ -168,7 +171,7 @@ export const useDataOperations = ({
         });
       }
     });
-  }, [selectedEntity, user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData]);
+  }, [selectedEntity, user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData, filters]);
 
   const toggleStaffLock = useCallback(async (staff: any) => {
     setMessage({ type: '', text: '' });
@@ -178,7 +181,7 @@ export const useDataOperations = ({
         const result = await dataService.toggleStaffLock(staff, user);
         setMessage({ type: 'success', text: result.message });
         clearCache();
-        loadData(currentPage, searchTerm);
+        loadData(currentPage, searchTerm, filters); // Pass filters
       } catch (error: any) {
         setMessage({ 
           type: 'error', 
@@ -186,7 +189,7 @@ export const useDataOperations = ({
         });
       }
     });
-  }, [user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData]);
+  }, [user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData, filters]);
 
   const exportToCSV = useCallback(() => {
     try {
@@ -224,7 +227,7 @@ export const useDataOperations = ({
         const result = await exportService.importFromZip(restoreFile, user);
         setMessage({ type: 'success', text: result.message });
         clearCache();
-        loadData(currentPage, searchTerm);
+        loadData(currentPage, searchTerm, filters); // Pass filters
       } catch (error: any) {
         setMessage({ 
           type: 'error', 
@@ -235,7 +238,7 @@ export const useDataOperations = ({
         if (restoreInputRef.current) restoreInputRef.current.value = '';
       }
     });
-  }, [restoreFile, user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData, setRestoreFile, restoreInputRef]);
+  }, [restoreFile, user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData, setRestoreFile, restoreInputRef, filters]);
   
   const handleImportClick = useCallback(() => {
     if (restoreFile) {
@@ -257,7 +260,7 @@ export const useDataOperations = ({
         const result = await dataService.bulkDeleteTransactions(startDate, endDate, user);
         setMessage({ type: 'success', text: result.message });
         clearCache();
-        loadData(currentPage, searchTerm);
+        loadData(currentPage, searchTerm, filters); // Pass filters
       } catch (error: any) {
         setMessage({ 
           type: 'error', 
@@ -265,7 +268,7 @@ export const useDataOperations = ({
         });
       }
     });
-  }, [startDate, endDate, user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData]);
+  }, [startDate, endDate, user, runAsAdmin, currentPage, searchTerm, setMessage, clearCache, loadData, filters]);
 
   return {
     runAsAdmin,
