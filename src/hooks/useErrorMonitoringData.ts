@@ -16,8 +16,8 @@ export function useErrorMonitoringData() {
     errorRate: 0,
     topErrorTypes: [] as { type: string; count: number }[],
     errorTrend: [] as { date: string; count: number }[],
-    byType: {},
-    bySeverity: {},
+    byType: {} as { [key: string]: number },
+    bySeverity: {} as { [key: string]: number },
     recent: [] as SystemError[],
   });
   const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
@@ -59,16 +59,16 @@ export function useErrorMonitoringData() {
       const totalErrors = freshErrors?.length || 0;
       const criticalErrors = freshErrors?.filter(e => e.severity === 'critical').length || 0;
       const resolvedErrors = freshErrors?.filter(e => e.status === 'resolved').length || 0;
-      const errorRate = totalErrors / (7 * 24); // errors per hour over last week
+      const errorRate = Number(totalErrors) / (7 * 24); // Fix: Cast to Number
 
-      const topErrorTypes = Object.entries(
-        freshErrors?.reduce((acc: { [key: string]: number }, error) => {
-          acc[error.error_type] = (acc[error.error_type] || 0) + 1;
-          return acc;
-        }, {}) || {}
-      )
-        .sort(([, a], [, b]) => b - a)
-        .map(([type, count]) => ({ type, count }));
+      const errorTypeCount = freshErrors?.reduce((acc: { [key: string]: number }, error) => {
+        acc[error.error_type] = (acc[error.error_type] || 0) + 1;
+        return acc;
+      }, {}) || {};
+
+      const topErrorTypes = Object.entries(errorTypeCount)
+        .sort(([, a], [, b]) => Number(b) - Number(a)) // Fix: Cast to Number
+        .map(([type, count]) => ({ type, count: Number(count) })); // Fix: Cast count to Number
 
       // Generate error trend for last 7 days
       const trendData: { [key: string]: number } = {};
@@ -132,7 +132,7 @@ export function useErrorMonitoringData() {
       const totalErrors = errors?.length || 0;
       const criticalErrors = errors?.filter(e => e.severity === 'critical').length || 0;
       const resolvedErrors = errors?.filter(e => e.status === 'resolved').length || 0;
-      const errorRate = totalErrors / (7 * 24);
+      const errorRate = Number(totalErrors) / (7 * 24); // Fix: Cast to Number
 
       // Group by type
       const byType = errors?.reduce((acc: { [key: string]: number }, error) => {
@@ -148,8 +148,8 @@ export function useErrorMonitoringData() {
       }, {}) || {};
 
       const topErrorTypes = Object.entries(byType)
-        .sort(([, a], [, b]) => b - a)
-        .map(([type, count]) => ({ type, count }));
+        .sort(([, a], [, b]) => Number(b) - Number(a)) // Fix: Cast to Number
+        .map(([type, count]) => ({ type, count: Number(count) })); // Fix: Cast count to Number
 
       // Generate error trend for last 7 days
       const trendData: { [key: string]: number } = {};
