@@ -4,7 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { Shield, Activity, BarChart3, Bell, Users } from 'lucide-react';
+import { Shield, Activity, BarChart3, Bell, Users, UserCog } from 'lucide-react';
 
 export function SecurityDocumentation() {
   return (
@@ -26,6 +26,21 @@ export function SecurityDocumentation() {
             </p>
           </AccordionContent>
         </AccordionItem>
+        <AccordionItem value="item-6">
+          <AccordionTrigger>
+            <div className="flex items-center space-x-2">
+              <UserCog className="w-4 h-4" />
+              <span>Quản lý Người dùng & Tác vụ Bảo mật</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent>
+            <p className="text-sm text-gray-700 leading-relaxed">
+              Tab "Test" đã được nâng cấp thành một bảng điều khiển tác vụ bảo mật. Ngoài việc mô phỏng các sự kiện để kiểm tra hệ thống, quản trị viên giờ đây có thể thực hiện các hành động quản trị thực sự.
+              <br/><br/>
+              <strong>Khóa/Mở khóa Tài khoản:</strong> Quản trị viên có thể khóa hoặc mở khóa tài khoản người dùng ngay lập tức bằng cách nhập tên người dùng và chọn hành động tương ứng. Các hành động này được thực hiện thông qua một Supabase Edge Function an toàn, yêu cầu quyền admin để thực thi. Mọi hành động khóa/mở khóa đều được ghi lại trong bảng `security_events` để phục vụ cho việc kiểm tra và giám sát.
+            </p>
+          </AccordionContent>
+        </AccordionItem>
         <AccordionItem value="item-2">
           <AccordionTrigger>
             <div className="flex items-center space-x-2">
@@ -35,7 +50,7 @@ export function SecurityDocumentation() {
           </AccordionTrigger>
           <AccordionContent>
             <p className="text-sm text-gray-700 leading-relaxed">
-              Mọi hoạt động quan trọng liên quan đến bảo mật đều được ghi lại trong bảng `security_events` của Supabase. Điều này bao gồm các lần đăng nhập thành công và thất bại, các hoạt động đáng ngờ, thay đổi mật khẩu, v.v. Việc ghi nhật ký này rất quan trọng cho việc kiểm tra, phân tích sau sự cố và tuân thủ các quy định. Mỗi bản ghi sự kiện chứa thông tin chi tiết như loại sự kiện, dấu thời gian, tên người dùng, địa chỉ IP và user agent.
+              Mọi hoạt động quan trọng liên quan đến bảo mật đều được ghi lại trong bảng `security_events` của Supabase. Điều này bao gồm các lần đăng nhập thành công và thất bại, các hoạt động đáng ngờ, thay đổi mật khẩu, và các hành động quản trị như khóa/mở khóa tài khoản. Việc ghi nhật ký này rất quan trọng cho việc kiểm tra, phân tích sau sự cố và tuân thủ các quy định.
             </p>
           </AccordionContent>
         </AccordionItem>
@@ -74,7 +89,7 @@ export function SecurityDocumentation() {
           </AccordionTrigger>
           <AccordionContent>
             <p className="text-sm text-gray-700 leading-relaxed">
-              Hệ thống sử dụng cơ chế kiểm soát truy cập dựa trên vai trò (Role-Based Access Control - RBAC). Trang giám sát bảo mật này chỉ có thể được truy cập bởi người dùng có vai trò 'admin'. Việc kiểm tra quyền được thực hiện ở phía client, đảm bảo rằng chỉ những người dùng được ủy quyền mới có thể xem và tương tác với các tính năng bảo mật nhạy cảm.
+              Hệ thống sử dụng cơ chế kiểm soát truy cập dựa trên vai trò (Role-Based Access Control - RBAC). Trang giám sát bảo mật này chỉ có thể được truy cập bởi người dùng có vai trò 'admin'. Việc kiểm tra quyền được thực hiện ở cả phía client và phía máy chủ (thông qua Edge Functions), đảm bảo rằng chỉ những người dùng được ủy quyền mới có thể xem và tương tác với các tính năng bảo mật nhạy cảm.
             </p>
           </AccordionContent>
         </AccordionItem>

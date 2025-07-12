@@ -4,28 +4,52 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bell, ShieldCheck, Activity, AlertCircle } from 'lucide-react';
+import { Bell, ShieldCheck, Activity, AlertCircle, UserCog } from 'lucide-react';
 import { useRealTimeSecurityMonitoring } from '@/hooks/useRealTimeSecurityMonitoring';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useSecureAuth } from '@/contexts/AuthContext';
 
 export function SecurityTestPanel() {
   const { logEvent } = useRealTimeSecurityMonitoring();
+  const { user } = useSecureAuth();
   const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');
   const [eventType, setEventType] = useState<string>('LOGIN_FAILED');
 
-  const handleSimulateEvent = () => {
+  const handlePerformAction = async () => {
     if (!eventType) {
-      toast.error('Vui lòng chọn loại sự kiện.');
+      toast.error('Vui lòng chọn loại sự kiện hoặc hành động.');
       return;
     }
 
-    logEvent(
-      eventType,
-      { message: message || `Simulated ${eventType} event.` },
-      username || 'test_user' // Pass username as the third argument
-    );
-    toast.success(`Đã mô phỏng sự kiện: ${eventType}`);
+    if (eventType === 'ACCOUNT_LOCKED' || eventType === 'ACCOUNT_UNLOCKED') {
+      if (!username) {
+        toast.error('Vui lòng nhập tên người dùng để khóa/mở khóa.');
+        return;
+      }
+      const status = eventType === 'ACCOUNT_LOCKED' ? 'locked' : 'active';
+      const actionText = status === 'locked' ? 'khóa' : 'mở khóa';
+
+      toast.promise(
+        supabase.functions.invoke('manage-user-status', {
+          body: { username, status },
+        }),
+        {
+          loading: `Đang ${actionText} tài khoản ${username}...`,
+          success: `Tài khoản ${username} đã được ${actionText} thành công.`,
+          error: (err) => `Lỗi ${actionText} tài khoản: ${err.message}`,
+        }
+      );
+    } else {
+      // Giữ lại logic mô phỏng cho các sự kiện khác
+      logEvent(
+        eventType,
+        { message: message || `Simulated ${eventType} event.` },
+        username || 'test_user'
+      );
+      toast.success(`Đã mô phỏng sự kiện: ${eventType}`);
+    }
   };
 
   const handleTestNotification = () => {
@@ -41,50 +65,52 @@ export function SecurityTestPanel() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            <ShieldCheck className="w-5 h-5" />
-            <span>Mô phỏng Sự kiện Bảo mật</span>
+            <UserCog className="w-5 h-5" />
+            <span>Bảng điều khiển Tác vụ Bảo mật</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="username">Tên người dùng (tùy chọn)</Label>
+              <Label htmlFor="username">Tên người dùng</Label>
               <Input
                 id="username"
-                placeholder="e.g., admin_test"
+                placeholder="e.g., user_to_manage"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
             </div>
             <div>
-              <Label htmlFor="eventType">Loại sự kiện</Label>
+              <Label htmlFor="eventType">Hành động / Loại sự kiện</Label>
               <Select value={eventType} onValueChange={setEventType}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Chọn loại sự kiện" />
+                  <SelectValue placeholder="Chọn hành động" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="LOGIN_SUCCESS">Đăng nhập thành công</SelectItem>
-                  <SelectItem value="LOGIN_FAILED">Đăng nhập thất bại</SelectItem>
-                  <SelectItem value="SUSPICIOUS_ACTIVITY">Hoạt động đáng ngờ</SelectItem>
-                  <SelectItem value="ACCOUNT_LOCKED">Tài khoản bị khóa</SelectItem>
-                  <SelectItem value="PASSWORD_RESET">Đặt lại mật khẩu</SelectItem>
-                  <SelectItem value="RATE_LIMIT_EXCEEDED">Vượt quá giới hạn tốc độ</SelectItem>
+                  <SelectItem value="ACCOUNT_LOCKED">Khóa tài khoản</SelectItem>
+                  <SelectItem value="ACCOUNT_UNLOCKED">Mở khóa tài khoản</SelectItem>
+                  <SelectItem value="LOGIN_SUCCESS">Mô phỏng: Đăng nhập thành công</SelectItem>
+                  <SelectItem value="LOGIN_FAILED">Mô phỏng: Đăng nhập thất bại</SelectItem>
+                  <SelectItem value="SUSPICIOUS_ACTIVITY">Mô phỏng: Hoạt động đáng ngờ</SelectItem>
+                  <SelectItem value="PASSWORD_RESET">Mô phỏng: Đặt lại mật khẩu</SelectItem>
+                  <SelectItem value="RATE_LIMIT_EXCEEDED">Mô phỏng: Vượt quá giới hạn</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div>
-            <Label htmlFor="message">Tin nhắn (tùy chọn)</Label>
+            <Label htmlFor="message">Tin nhắn (cho sự kiện mô phỏng)</Label>
             <Input
               id="message"
               placeholder="e.g., Sai mật khẩu"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              disabled={eventType === 'ACCOUNT_LOCKED' || eventType === 'ACCOUNT_UNLOCKED'}
             />
           </div>
-          <Button onClick={handleSimulateEvent} className="w-full">
+          <Button onClick={handlePerformAction} className="w-full">
             <Activity className="w-4 h-4 mr-2" />
-            Mô phỏng Sự kiện
+            Thực hiện
           </Button>
         </CardContent>
       </Card>

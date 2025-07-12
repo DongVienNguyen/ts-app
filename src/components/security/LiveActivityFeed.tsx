@@ -1,7 +1,8 @@
-import { Activity, Clock, Eye, CheckCircle, AlertTriangle, Lock, Unlock, Key } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { SecurityEvent } from '@/utils/realTimeSecurityUtils';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertCircle, LogIn, Lock, Key, Activity, ShieldOff, Clock } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SecurityEvent } from '@/hooks/useRealTimeSecurityMonitoring';
 import { formatRelativeTime } from '@/utils/dateUtils';
 
 interface LiveActivityFeedProps {
@@ -14,89 +15,107 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading }: LiveA
   const getEventIcon = (eventType: string) => {
     switch (eventType) {
       case 'LOGIN_SUCCESS':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
+        return <LogIn className="w-4 h-4 text-green-500" />;
       case 'LOGIN_FAILED':
-        return <AlertTriangle className="w-4 h-4 text-red-500" />;
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
       case 'ACCOUNT_LOCKED':
-        return <Lock className="w-4 h-4 text-orange-500" />;
+        return <Lock className="w-4 h-4 text-red-600" />;
       case 'ACCOUNT_UNLOCKED':
-        return <Unlock className="w-4 h-4 text-blue-500" />;
+        return <Key className="w-4 h-4 text-green-600" />;
       case 'PASSWORD_RESET_SUCCESS':
-        return <Key className="w-4 h-4 text-purple-500" />;
+        return <Key className="w-4 h-4 text-blue-500" />;
       case 'SUSPICIOUS_ACTIVITY':
-        return <AlertTriangle className="w-4 h-4 text-red-600" />;
+        return <Activity className="w-4 h-4 text-orange-500" />;
       case 'RATE_LIMIT_EXCEEDED':
-        return <AlertTriangle className="w-4 h-4 text-orange-600" />;
+        return <ShieldOff className="w-4 h-4 text-yellow-500" />;
+      case 'METRICS_RESET':
+        return <Clock className="w-4 h-4 text-gray-500" />;
       default:
         return <Activity className="w-4 h-4 text-gray-500" />;
     }
   };
 
   const getEventDescription = (event: SecurityEvent) => {
-    const descriptions: Record<string, string> = {
-      'LOGIN_SUCCESS': 'Đăng nhập thành công',
-      'LOGIN_FAILED': 'Đăng nhập thất bại',
-      'ACCOUNT_LOCKED': 'Tài khoản bị khóa',
-      'ACCOUNT_UNLOCKED': 'Tài khoản được mở khóa',
-      'PASSWORD_RESET_SUCCESS': 'Đổi mật khẩu thành công',
-      'PASSWORD_RESET_FAILED': 'Đổi mật khẩu thất bại',
-      'RATE_LIMIT_EXCEEDED': 'Vượt quá giới hạn thử',
-      'SUSPICIOUS_ACTIVITY': 'Hoạt động đáng nghi',
-      'SECURITY_ALERT_TRIGGERED': 'Cảnh báo bảo mật được kích hoạt',
-      'METRICS_RESET': 'Đặt lại số liệu thống kê'
-    };
-    return descriptions[event.type] || event.type;
+    let description = '';
+    switch (event.event_type) {
+      case 'LOGIN_SUCCESS':
+        description = `Đăng nhập thành công bởi ${event.username || 'người dùng không xác định'}.`;
+        break;
+      case 'LOGIN_FAILED':
+        description = `Đăng nhập thất bại bởi ${event.username || 'người dùng không xác định'}.`;
+        break;
+      case 'ACCOUNT_LOCKED':
+        description = `Tài khoản ${event.username || 'không xác định'} đã bị khóa.`;
+        break;
+      case 'ACCOUNT_UNLOCKED':
+        description = `Tài khoản ${event.username || 'không xác định'} đã được mở khóa.`;
+        break;
+      case 'PASSWORD_RESET_SUCCESS':
+        description = `Đặt lại mật khẩu thành công cho ${event.username || 'người dùng không xác định'}.`;
+        break;
+      case 'SUSPICIOUS_ACTIVITY':
+        description = `Hoạt động đáng ngờ từ ${event.username || 'người dùng không xác định'}.`;
+        break;
+      case 'RATE_LIMIT_EXCEEDED':
+        description = `Vượt quá giới hạn tốc độ bởi ${event.username || 'người dùng không xác định'}.`;
+        break;
+      case 'METRICS_RESET':
+        description = `Số liệu đã được đặt lại bởi ${event.event_data?.resetBy || 'hệ thống'}.`;
+        break;
+      default:
+        description = `Sự kiện không xác định: ${event.event_type}.`;
+    }
+    return description;
   };
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Activity className="w-5 h-5" />
-          <span>Luồng Hoạt động Trực tiếp</span>
-          {isRealTimeEnabled && (
-            <Badge variant="outline" className="ml-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-1"></div>
-              LIVE
-            </Badge>
+        <CardTitle className="flex items-center justify-between">
+          <span>Dòng Hoạt động Trực tiếp</span>
+          {isRealTimeEnabled ? (
+            <span className="text-xs text-green-500 flex items-center">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+              <span className="ml-1">Trực tiếp</span>
+            </span>
+          ) : (
+            <span className="text-xs text-gray-500">Tạm dừng</span>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Đang tải dữ liệu...</span>
-          </div>
-        ) : events.length > 0 ? (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {events.map((event, index) => (
-              <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                {getEventIcon(event.type)}
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{getEventDescription(event)}</span>
-                    <div className="flex items-center space-x-2 text-sm text-gray-500">
-                      <Clock className="w-3 h-3" />
-                      <span title={new Date(event.timestamp).toLocaleString('vi-VN')}>
-                        {formatRelativeTime(event.timestamp)}
-                      </span>
-                    </div>
-                  </div>
-                  {event.data?.username && (
-                    <p className="text-sm text-gray-600">Người dùng: {event.data.username}</p>
-                  )}
-                  {event.data?.message && (
-                    <p className="text-sm text-gray-600">{event.data.message}</p>
-                  )}
-                </div>
-              </div>
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
+        ) : events.length > 0 ? (
+          <ScrollArea className="h-[300px] pr-4">
+            <div className="space-y-3">
+              {events.map((event) => (
+                <div key={event.id} className="flex items-start space-x-3 p-2 rounded-md hover:bg-gray-50 transition-colors">
+                  <div className="flex-shrink-0 mt-1">
+                    {getEventIcon(event.event_type)}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{getEventDescription(event)}</p>
+                    <p className="text-xs text-gray-500">
+                      {event.ip_address && `IP: ${event.ip_address} - `}
+                      {event.user_agent && `Agent: ${event.user_agent.substring(0, 30)}... - `}
+                      {formatRelativeTime(event.created_at!)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         ) : (
           <div className="text-center py-8 text-gray-500">
-            <Eye className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>Chưa có hoạt động bảo mật nào được ghi nhận</p>
+            <p>Không có hoạt động bảo mật gần đây.</p>
           </div>
         )}
       </CardContent>

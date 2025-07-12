@@ -43,7 +43,7 @@ const AssetReminders = () => {
   } = useAssetReminderOperations(loadData, showMessage);
 
   const {
-    isDateDueOrOverdue,
+    isDayMonthDueOrOverdue, // Corrected from isDateDueOrOverdue
     sendSingleReminder,
     sendReminders
   } = useAssetReminderEmail(staff, loadData, showMessage);
@@ -81,7 +81,7 @@ const AssetReminders = () => {
   };
 
   const handleSendAllReminders = async () => {
-    const dueReminders = reminders.filter(r => isDateDueOrOverdue(r.ngay_den_han));
+    const dueReminders = reminders.filter(r => isDayMonthDueOrOverdue(r.ngay_den_han));
     const success = await sendReminders(dueReminders);
     if (success) {
       for (const reminder of dueReminders) {
@@ -234,7 +234,7 @@ const AssetReminders = () => {
               onEdit={handleEdit} 
               onDelete={handleDelete} 
               onSendSingle={handleSendSingleReminder} 
-              isDayMonthDueOrOverdue={isDateDueOrOverdue} 
+              isDayMonthDueOrOverdue={isDayMonthDueOrOverdue} 
             />
           </CardContent>
         </Card>
