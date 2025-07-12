@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, subDays, parseISO, differenceInDays } from 'date-fns';
+import { DrillDownDialog } from './DrillDownDialog';
 
 interface StatisticsTabProps {
   runAsAdmin: (callback: () => Promise<void>) => Promise<void>;
@@ -61,9 +62,9 @@ const MetricChange = ({ value }: { value: number | undefined }) => {
 
 export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad }) => {
   const [statistics, setStatistics] = useState<any[]>([]);
-  const [staffTransactionStats, setStaffTransactionStats] = useState<{ name: string; count: number }[]>([]);
-  const [roomTransactionStats, setRoomTransactionStats] = useState<{ name: string; count: number }[]>([]);
-  const [transactionTypeStats, setTransactionTypeStats] = useState<{ name: string; value: number }[]>([]);
+  const [staffTransactionStats, setStaffTransactionStats] = useState<{ name: string; count: number; originalKey: string; }[]>([]);
+  const [roomTransactionStats, setRoomTransactionStats] = useState<{ name: string; count: number; originalKey: string; }[]>([]);
+  const [transactionTypeStats, setTransactionTypeStats] = useState<{ name: string; value: number; originalKey: string; }[]>([]);
   const [transactionTrends, setTransactionTrends] = useState<{ date: string; count: number }[]>([]);
   const [keyMetrics, setKeyMetrics] = useState<KeyMetrics | null>(null);
   const [isBackingUp, setIsBackingUp] = useState(false);
@@ -75,6 +76,8 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
   
   const [transactionTypes, setTransactionTypes] = useState<string[]>([]);
   const [selectedType, setSelectedType] = useState<string>('all');
+
+  const [drillDown, setDrillDown] = useState<{ open: boolean; title: string; data: any[]; columns: FieldConfig[]; loading: boolean; }>({ open: false, title: '', data: [], columns: [], loading: false });
 
   useEffect(() => {
     const fetchTransactionTypes = async () => {
@@ -142,8 +145,9 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
     return Object.entries(counts)
       .map(([key, count]) => ({
         name: field === 'staff_code' && staffNameMap ? (staffNameMap.get(key) || key) : key,
+        originalKey: key,
         count: count,
-        value: count, // for pie chart
+        value: count,
       }))
       .sort((a, b) => b.count - a.count);
   };
@@ -196,7 +200,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
 
       const [
         currentStaffStats, currentRoomStats, currentTypeStats, currentTrends, currentRecordStats,
-        previousStaffStats, previousRoomStats
+        previousStaffStats,
       ] = await Promise.all([...currentPeriodPromises, ...previousPeriodPromises]);
 
       setStaffTransactionStats(currentStaffStats || []);
@@ -231,6 +235,38 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
   useEffect(() => {
     loadAllStats(startDate, endDate, selectedType);
   }, [loadAllStats, startDate, endDate, selectedType, comparisonEnabled]);
+
+  const handleChartClick = async (payload: any, filterField: 'staff_code' | 'room' | 'transaction_type') => {
+    if (!payload || !payload.originalKey) return;
+  
+    const filterValue = payload.originalKey;
+    const title = `Chi tiết giao dịch cho: ${payload.name}`;
+    
+    setDrillDown({ open: true, title, data: [], columns: entityConfig.asset_transactions.fields, loading: true });
+  
+    await runAsAdmin(async () => {
+      try {
+        let query = supabase
+          .from('asset_transactions')
+          .select('*')
+          .eq(filterField, filterValue)
+          .gte('transaction_date', startDate)
+          .lte('transaction_date', endDate);
+        
+        if (selectedType !== 'all') {
+          query = query.eq('transaction_type', selectedType);
+        }
+  
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (error) throw error;
+  
+        setDrillDown(prev => ({ ...prev, data: data || [], loading: false }));
+      } catch (error: any) {
+        toast.error(`Không thể tải dữ liệu chi tiết: ${error.message}`);
+        setDrillDown({ open: false, title: '', data: [], columns: [], loading: false });
+      }
+    });
+  };
 
   const backupAllData = async () => {
     setIsBackingUp(true);
@@ -287,6 +323,14 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
 
   return (
     <div className="space-y-6">
+      <DrillDownDialog 
+        open={drillDown.open}
+        onOpenChange={(open) => setDrillDown(prev => ({ ...prev, open }))}
+        title={drillDown.title}
+        data={drillDown.data}
+        columns={drillDown.columns}
+        loading={drillDown.loading}
+      />
       <div className="flex flex-wrap gap-4 items-end">
         <Button onClick={backupAllData} disabled={isBackingUp || isLoading}>
           <Download className="mr-2 h-4 w-4" /> {isBackingUp ? 'Đang sao lưu...' : 'Sao lưu toàn bộ dữ liệu'}
@@ -390,7 +434,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={staffTransactionStats} layout="vertical" margin={{ top: 5, right: 20, left: 80, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" /><XAxis type="number" allowDecimals={false} /><YAxis dataKey="name" type="category" width={80} /><Tooltip /><Legend />
-                <Bar dataKey="count" fill="#16a34a" name="Số giao dịch" />
+                <Bar dataKey="count" fill="#16a34a" name="Số giao dịch" onClick={(data) => handleChartClick(data, 'staff_code')} style={{ cursor: 'pointer' }} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -405,7 +449,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
             {isLoading && renderLoading()}
             <ResponsiveContainer width="100%" height={400}>
               <PieChart>
-                <Pie data={transactionTypeStats} cx="50%" cy="50%" labelLine={false} outerRadius={120} fill="#8884d8" dataKey="value" nameKey="name" label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
+                <Pie data={transactionTypeStats} cx="50%" cy="50%" labelLine={false} outerRadius={120} fill="#8884d8" dataKey="value" nameKey="name" label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`} onClick={(data) => handleChartClick(data.payload, 'transaction_type')} style={{ cursor: 'pointer' }}>
                   {transactionTypeStats.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
                 </Pie>
                 <Tooltip /><Legend />
@@ -424,7 +468,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={roomTransactionStats} layout="vertical" margin={{ top: 5, right: 20, left: 80, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" /><XAxis type="number" allowDecimals={false} /><YAxis dataKey="name" type="category" width={80} /><Tooltip /><Legend />
-                <Bar dataKey="count" fill="#0891b2" name="Số giao dịch" />
+                <Bar dataKey="count" fill="#0891b2" name="Số giao dịch" onClick={(data) => handleChartClick(data, 'room')} style={{ cursor: 'pointer' }} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
