@@ -5,14 +5,15 @@ import { restoreService } from '@/services/restoreService';
 import { toast } from 'sonner';
 import { TableName } from '@/config/entityConfig'; // Import TableName
 import { AuthenticatedStaff } from '@/contexts/AuthContext'; // Import AuthenticatedStaff
+import { FilterState } from './types'; // Import FilterState
 
 interface UseDataOperationsProps {
   selectedEntity: TableName; // Changed type to TableName
-  user: AuthenticatedStaff; // Changed type to AuthenticatedStaff
+  user: AuthenticatedStaff | null | undefined; // Changed type to AuthenticatedStaff
   editingItem: any;
   currentPage: number;
   searchTerm: string;
-  filters: Record<string, any>;
+  filters: Record<string, FilterState>; // Updated type
   startDate: string;
   endDate: string;
   restoreFile: File | null;
@@ -71,7 +72,7 @@ export const useDataOperations = ({
     }
   }, [user, setIsLoading]);
 
-  const loadData = useCallback(async (page: number, search: string, currentFilters: Record<string, any>) => {
+  const loadData = useCallback(async (page: number, search: string, currentFilters: Record<string, FilterState>) => { // Updated currentFilters type
     setIsLoading(true);
     try {
       const cacheKey = `${selectedEntity}-${page}-${search}-${JSON.stringify(currentFilters)}-${sortColumn}-${sortDirection}`;
@@ -81,11 +82,10 @@ export const useDataOperations = ({
         setData(cached.data);
         setTotalCount(cached.count);
       } else {
-        const { data: fetchedData, count } = await dataService.loadData({
+        const { data: fetchedData, count } = await dataService.loadData({ // Changed from fetchData to loadData
           selectedEntity,
-          user,
           page,
-          search,
+          searchTerm: search,
           sortColumn,
           sortDirection,
           filters: currentFilters
@@ -101,7 +101,7 @@ export const useDataOperations = ({
     } finally {
       setIsLoading(false);
     }
-  }, [selectedEntity, user, getCachedData, setCachedData, setData, setTotalCount, setIsLoading, sortColumn, sortDirection, filters]);
+  }, [selectedEntity, getCachedData, setCachedData, setData, setTotalCount, setIsLoading, sortColumn, sortDirection]);
 
   const handleAdd = useCallback(() => {
     setEditingItem(null);
@@ -137,7 +137,7 @@ export const useDataOperations = ({
 
   const toggleStaffLock = useCallback(async (staff: any) => {
     await runAsAdmin(async () => {
-      const result = await dataService.toggleStaffLock(staff, user);
+      const result = await dataService.toggleStaffLock({ staffId: staff.id, currentStatus: staff.account_status, user }); // Corrected arguments
       toast.success(result.message);
       clearCache();
       loadData(currentPage, searchTerm, filters);
@@ -147,11 +147,10 @@ export const useDataOperations = ({
   const exportToCSV = useCallback(() => {
     runAsAdmin(async () => {
       try {
-        const { data: allData } = await dataService.loadData({
+        const { data: allData } = await dataService.loadData({ // Changed from fetchData to loadData
           selectedEntity,
-          user,
           page: 1,
-          search: searchTerm,
+          searchTerm,
           sortColumn,
           sortDirection,
           filters
@@ -211,7 +210,7 @@ export const useDataOperations = ({
       return;
     }
     await runAsAdmin(async () => {
-      const result = await dataService.bulkDeleteTransactions(startDate, endDate, user);
+      const result = await dataService.bulkDeleteTransactions({ startDate, endDate, user }); // Corrected arguments
       toast.success(result.message);
       clearCache();
       loadData(currentPage, searchTerm, filters);

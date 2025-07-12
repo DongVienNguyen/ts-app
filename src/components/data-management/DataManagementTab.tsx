@@ -35,6 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { FilterOperator, FilterState } from '@/hooks/useDataManagement/types';
 
 interface DataManagementTabProps {
   activeTab: string;
@@ -64,8 +65,8 @@ interface DataManagementTabProps {
   onSort: (columnKey: string) => void;
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
-  filters: Record<string, any>;
-  onFilterChange: (key: string, value: any) => void;
+  filters: Record<string, FilterState>; // Updated type
+  onFilterChange: (key: string, value: any, operator?: FilterOperator) => void; // Updated signature
   clearFilters: () => void;
   config: EntityConfig;
   selectedRows: Record<string, boolean>;
@@ -223,8 +224,8 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
               <Label htmlFor={`filter-${field.key}`}>{field.label}</Label>
               {field.type === 'select' && field.options ? (
                 <Select
-                  value={filters[field.key] || ''}
-                  onValueChange={(value) => onFilterChange(field.key, value === '' ? undefined : value)}
+                  value={filters[field.key]?.value || ''}
+                  onValueChange={(value) => onFilterChange(field.key, value === '' ? undefined : value, 'eq')}
                 >
                   <SelectTrigger id={`filter-${field.key}`}>
                     <SelectValue placeholder={`Lọc theo ${field.label}`} />
@@ -238,17 +239,59 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
                 </Select>
               ) : field.type === 'date' ? (
                 <DateInput
-                  value={filters[field.key] || ''}
-                  onChange={(date) => onFilterChange(field.key, date)}
+                  value={filters[field.key]?.value || ''}
+                  onChange={(date) => onFilterChange(field.key, date, 'eq')}
                   placeholder={`Lọc theo ${field.label}`}
                 />
-              ) : (
-                <Input
-                  id={`filter-${field.key}`}
-                  placeholder={`Lọc theo ${field.label}`}
-                  value={filters[field.key] || ''}
-                  onChange={(e) => onFilterChange(field.key, e.target.value)}
-                />
+              ) : field.type === 'boolean' ? (
+                <Select
+                  value={filters[field.key]?.value === true ? 'true' : filters[field.key]?.value === false ? 'false' : ''}
+                  onValueChange={(value) => onFilterChange(field.key, value === 'true' ? true : value === 'false' ? false : undefined, 'is')}
+                >
+                  <SelectTrigger id={`filter-${field.key}`}>
+                    <SelectValue placeholder={`Lọc theo ${field.label}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tất cả</SelectItem>
+                    <SelectItem value="true">Có</SelectItem>
+                    <SelectItem value="false">Không</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : ( // For text, number, email types
+                <div className="flex space-x-2">
+                  <Select
+                    value={filters[field.key]?.operator || (field.type === 'text' || field.type === 'email' ? 'ilike' : 'eq')}
+                    onValueChange={(op) => onFilterChange(field.key, filters[field.key]?.value || '', op as FilterOperator)}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(field.type === 'text' || field.type === 'email') && (
+                        <>
+                          <SelectItem value="ilike">Chứa</SelectItem>
+                          <SelectItem value="eq">Chính xác</SelectItem>
+                        </>
+                      )}
+                      {field.type === 'number' && (
+                        <>
+                          <SelectItem value="eq">Bằng</SelectItem>
+                          <SelectItem value="gt">Lớn hơn</SelectItem>
+                          <SelectItem value="lt">Nhỏ hơn</SelectItem>
+                          <SelectItem value="gte">Lớn hơn hoặc bằng</SelectItem>
+                          <SelectItem value="lte">Nhỏ hơn hoặc bằng</SelectItem>
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id={`filter-${field.key}`}
+                    placeholder={`Lọc theo ${field.label}`}
+                    value={filters[field.key]?.value || ''}
+                    onChange={(e) => onFilterChange(field.key, e.target.value, filters[field.key]?.operator)}
+                    className="flex-grow"
+                  />
+                </div>
               )}
             </div>
           ))}

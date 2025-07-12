@@ -1,211 +1,243 @@
 import { supabase } from '@/integrations/supabase/client';
-import { entityConfig } from '@/config/entityConfig';
-import type { LoadDataParams, SaveDataParams, DeleteDataParams, BulkDeleteDataParams } from './types';
+import { entityConfig, TableName } from '@/config/entityConfig';
+import { FilterState } from './types'; // Import FilterState
 
 const ITEMS_PER_PAGE = 20;
 
-export const dataService = {
-  async loadData({ selectedEntity, user, page = 1, search = '', sortColumn, sortDirection, filters = {} }: LoadDataParams) {
-    if (!selectedEntity || !user || user.role !== 'admin') {
-      throw new Error('Unauthorized access');
-    }
+interface LoadDataParams {
+  selectedEntity: TableName;
+  page: number;
+  searchTerm: string;
+  filters: Record<string, FilterState>;
+  sortColumn: string | null;
+  sortDirection: 'asc' | 'desc';
+}
 
+interface SaveDataParams {
+  selectedEntity: TableName;
+  formData: any;
+  editingItem: any | null;
+  user: any; // AuthenticatedStaff
+}
+
+interface DeleteDataParams {
+  selectedEntity: TableName;
+  item: any;
+  user: any; // AuthenticatedStaff
+}
+
+interface BulkDeleteDataParams {
+  selectedEntity: TableName;
+  ids: string[];
+  user: any; // AuthenticatedStaff
+}
+
+interface ToggleStaffLockParams {
+  staffId: string;
+  currentStatus: string;
+  user: any; // AuthenticatedStaff
+}
+
+interface BulkDeleteTransactionsParams {
+  startDate: string;
+  endDate: string;
+  user: any; // AuthenticatedStaff
+}
+
+export const dataService = {
+  loadData: async ({
+    selectedEntity,
+    page,
+    searchTerm,
+    filters,
+    sortColumn,
+    sortDirection,
+  }: LoadDataParams) => {
     const config = entityConfig[selectedEntity];
     if (!config) {
-      throw new Error(`Entity config not found for: ${selectedEntity}`);
+      throw new Error(`Configuration for entity ${selectedEntity} not found.`);
     }
 
-    let query = supabase.from(config.entity as any).select('*', { count: 'exact' });
+    let query = supabase.from(selectedEntity).select('*', { count: 'exact' });
 
-    // Add advanced filters
-    for (const key in filters) {
-      const value = filters[key];
-      if (value === null || value === undefined || value === '') continue;
-
-      if (key.endsWith('_start')) {
-        const fieldName = key.replace('_start', '');
-        query = query.gte(fieldName, value);
-      } else if (key.endsWith('_end')) {
-        const fieldName = key.replace('_end', '');
-        query = query.lte(fieldName, value);
-      } else {
-        const fieldConfig = config.fields.find(f => f.key === key);
-        if (fieldConfig) {
-          if (fieldConfig.type === 'boolean') {
-            query = query.eq(key, value === 'true');
-          } else {
-            query = query.ilike(key, `%${value}%`);
-          }
-        }
-      }
-    }
-    
-    // Add global search filter
-    if (search.trim()) {
-      const textFields = config.fields.filter(f => 
-        f.filterable && (f.type === 'text' || f.type === 'textarea' || f.type === 'number')
-      ).map(f => f.key);
-      
-      if (textFields.length > 0) {
-        const searchConditions = textFields.map(field => 
-          `${field}::text.ilike.%${search}%`
-        ).join(',');
+    // Apply search term
+    if (searchTerm) {
+      const searchFields = config.fields.filter(f => f.type === 'text' || f.type === 'email').map(f => f.key);
+      if (searchFields.length > 0) {
+        const searchConditions = searchFields.map(field => `${field}.ilike.%${searchTerm}%`).join(',');
         query = query.or(searchConditions);
       }
     }
-    
-    // Add sorting
-    if (sortColumn && sortDirection) {
-      const isValidColumn = config.fields.some(f => f.key === sortColumn);
-      if (isValidColumn) {
-        query = query.order(sortColumn, { ascending: sortDirection === 'asc' });
-      }
-    } else {
-      const hasCreatedAt = config.fields.some(f => f.key === 'created_at');
-      if (hasCreatedAt) {
-        query = query.order('created_at', { ascending: false });
-      } else if (config.fields.some(f => f.key === 'id')) {
-        query = query.order('id', { ascending: false });
+
+    // Apply filters
+    for (const key in filters) {
+      const filterState = filters[key];
+      const value = filterState.value;
+      const operator = filterState.operator;
+
+      if (value !== undefined && value !== null && value !== '') {
+        switch (operator) {
+          case 'ilike':
+            query = query.ilike(key, `%${value}%`);
+            break;
+          case 'eq':
+            query = query.eq(key, value);
+            break;
+          case 'gte':
+            query = query.gte(key, value);
+            break;
+          case 'lte':
+            query = query.lte(key, value);
+            break;
+          case 'gt':
+            query = query.gt(key, value);
+            break;
+          case 'lt':
+            query = query.lt(key, value);
+            break;
+          case 'is': // For boolean/null checks
+            query = query.is(key, value);
+            break;
+          case 'in': // For multi-select (not implemented yet, but good to have)
+            query = query.in(key, value);
+            break;
+          default:
+            // Fallback to default behavior if operator is not recognized
+            query = query.eq(key, value);
+            break;
+        }
       }
     }
 
-    // Add pagination
+    // Apply sorting
+    if (sortColumn) {
+      query = query.order(sortColumn, { ascending: sortDirection === 'asc' });
+    }
+
+    // Apply pagination
     const from = (page - 1) * ITEMS_PER_PAGE;
     const to = from + ITEMS_PER_PAGE - 1;
     query = query.range(from, to);
 
-    const { data: result, error, count } = await query;
+    const { data, count, error } = await query;
 
     if (error) {
-      throw new Error(`Database error: ${error.message}`);
+      console.error('Error fetching data:', error);
+      throw error;
     }
 
-    return {
-      data: result || [],
-      count: count || 0
-    };
+    return { data, count: count || 0 };
   },
 
-  async saveData({ selectedEntity, formData, editingItem, user }: SaveDataParams) {
+  saveData: async ({ selectedEntity, formData, editingItem, user }: SaveDataParams) => {
     if (!user || user.role !== 'admin') {
-      throw new Error('Unauthorized access');
+      throw new Error('Chỉ quản trị viên mới có quyền thực hiện thao tác này.');
     }
 
-    const config = entityConfig[selectedEntity];
-    
-    for (const field of config.fields.filter(f => f.required)) {
-      if (!formData[field.key]) {
-        throw new Error(`Vui lòng điền ${field.label}`);
-      }
-    }
-    
-    const submitData: { [key: string]: any } = { ...formData };
-
-    config.fields.filter(f => f.type === 'boolean').forEach(field => {
-      if (submitData[field.key] !== undefined && submitData[field.key] !== null) {
-        submitData[field.key] = String(submitData[field.key]).toLowerCase() === 'true';
-      }
-    });
-
-    Object.keys(submitData).forEach(key => {
-      if (key !== 'password' && (submitData[key] === '' || submitData[key] === null)) {
-        delete submitData[key];
-      }
-    });
-
-    if (selectedEntity === 'staff') {
-      if (editingItem) {
-        if (submitData.password === '') {
-          delete submitData.password;
-        }
-      } else {
-        if (!submitData.password) {
-          submitData.password = '123456';
-        }
-      }
-    }
-
+    let result;
     if (editingItem) {
-      delete submitData.id;
-      const { error } = await supabase
-        .from(config.entity as any)
-        .update(submitData)
+      // Update existing item
+      result = await supabase
+        .from(selectedEntity)
+        .update(formData)
         .eq('id', editingItem.id);
-      
-      if (error) throw error;
-      return { success: true, message: "Cập nhật thành công" };
     } else {
-      const { error } = await supabase
-        .from(config.entity as any)
-        .insert([submitData]);
-      
-      if (error) throw error;
-      return { success: true, message: "Thêm mới thành công" };
+      // Insert new item
+      result = await supabase
+        .from(selectedEntity)
+        .insert(formData);
     }
+
+    if (result.error) {
+      console.error('Error saving data:', result.error);
+      throw new Error(`Không thể lưu bản ghi: ${result.error.message}`);
+    }
+
+    return { message: `Đã lưu bản ghi thành công.` };
   },
 
-  async deleteData({ selectedEntity, item, user }: DeleteDataParams) {
+  deleteData: async ({ selectedEntity, item, user }: DeleteDataParams) => {
     if (!user || user.role !== 'admin') {
-      throw new Error('Unauthorized access');
+      throw new Error('Chỉ quản trị viên mới có quyền thực hiện thao tác này.');
     }
 
-    const config = entityConfig[selectedEntity];
     const { error } = await supabase
-      .from(config.entity as any)
+      .from(selectedEntity)
       .delete()
       .eq('id', item.id);
-    
-    if (error) throw error;
-    return { success: true, message: "Xóa thành công" };
+
+    if (error) {
+      console.error('Error deleting data:', error);
+      throw new Error(`Không thể xóa bản ghi: ${error.message}`);
+    }
+
+    return { message: `Đã xóa bản ghi thành công.` };
   },
 
-  async bulkDeleteData({ selectedEntity, ids, user }: BulkDeleteDataParams) {
+  bulkDeleteData: async ({ selectedEntity, ids, user }: BulkDeleteDataParams) => {
     if (!user || user.role !== 'admin') {
-      throw new Error('Unauthorized access');
-    }
-    if (!ids || ids.length === 0) {
-      throw new Error('No items selected for deletion.');
+      throw new Error('Chỉ quản trị viên mới có quyền thực hiện thao tác này.');
     }
 
-    const config = entityConfig[selectedEntity];
     const { error } = await supabase
-      .from(config.entity as any)
+      .from(selectedEntity)
       .delete()
       .in('id', ids);
-    
-    if (error) throw error;
-    return { success: true, message: `Đã xóa thành công ${ids.length} bản ghi.` };
-  },
 
-  async toggleStaffLock(staff: any, user: any) {
-    if (!user || user.role !== 'admin') {
-      throw new Error('Unauthorized access');
+    if (error) {
+      console.error('Error bulk deleting data:', error);
+      throw new Error(`Không thể xóa các bản ghi đã chọn: ${error.message}`);
     }
 
-    const newStatus = staff.account_status === 'active' ? 'locked' : 'active';
-    const { error } = await supabase
-      .from('staff')
-      .update({ 
-        account_status: newStatus, 
-        failed_login_attempts: 0, 
-        locked_at: newStatus === 'locked' ? new Date().toISOString() : null // Fixed syntax error here
-      })
-      .eq('id', staff.id);
-    
-    if (error) throw error;
-    return { 
-      success: true, 
-      message: `Đã ${newStatus === 'locked' ? 'khóa' : 'mở khóa'} tài khoản` 
-    };
+    return { message: `Đã xóa thành công ${ids.length} bản ghi.` };
   },
 
-  async bulkDeleteTransactions(startDate: string, endDate: string, user: any) {
+  toggleStaffLock: async ({ staffId, currentStatus, user }: ToggleStaffLockParams) => {
     if (!user || user.role !== 'admin') {
-      throw new Error('Unauthorized access');
+      throw new Error('Chỉ quản trị viên mới có quyền thực hiện thao tác này.');
+    }
+
+    const newStatus = currentStatus === 'locked' ? 'active' : 'locked';
+    const { error } = await supabase
+      .from('staff')
+      .update({ account_status: newStatus })
+      .eq('id', staffId);
+
+    if (error) {
+      console.error('Error toggling staff lock:', error);
+      throw new Error(`Không thể thay đổi trạng thái tài khoản: ${error.message}`);
+    }
+
+    return { message: `Đã ${newStatus === 'locked' ? 'khóa' : 'mở khóa'} tài khoản thành công.` };
+  },
+
+  bulkDeleteTransactions: async ({ startDate, endDate, user }: BulkDeleteTransactionsParams) => {
+    if (!user || user.role !== 'admin') {
+      throw new Error('Chỉ quản trị viên mới có quyền thực hiện thao tác này.');
     }
 
     if (!startDate || !endDate) {
-      throw new Error('Vui lòng chọn cả ngày bắt đầu và ngày kết thúc.');
+      throw new Error('Vui lòng cung cấp cả ngày bắt đầu và ngày kết thúc.');
+    }
+
+    const { count, error: countError } = await supabase
+      .from('asset_transactions')
+      .select('*', { count: 'exact', head: true })
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate);
+
+    if (countError) {
+      console.error('Error counting transactions:', countError);
+      throw new Error(`Không thể đếm số lượng giao dịch: ${countError.message}`);
+    }
+
+    if (count === 0) {
+      return { message: 'Không có giao dịch nào để xóa trong khoảng thời gian đã chọn.' };
+    }
+
+    const confirmDelete = window.confirm(`Bạn có chắc chắn muốn xóa ${count} giao dịch từ ${startDate} đến ${endDate}? Thao tác này không thể hoàn tác.`);
+    if (!confirmDelete) {
+      throw new Error('Thao tác xóa đã bị hủy.');
     }
 
     const { error } = await supabase
@@ -214,10 +246,11 @@ export const dataService = {
       .gte('transaction_date', startDate)
       .lte('transaction_date', endDate);
 
-    if (error) throw error;
-    return { 
-      success: true, 
-      message: `Đã xóa thành công các giao dịch từ ${startDate} đến ${endDate}.` 
-    };
+    if (error) {
+      console.error('Error bulk deleting transactions:', error);
+      throw new Error(`Không thể xóa giao dịch hàng loạt: ${error.message}`);
+    }
+
+    return { message: `Đã xóa thành công ${count} giao dịch.` };
   }
 };

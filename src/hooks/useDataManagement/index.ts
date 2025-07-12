@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { createDataCache } from './cache';
 import { useDataOperations } from './useDataOperations';
-import type { DataManagementReturn } from './types';
+import type { DataManagementReturn, FilterState, FilterOperator } from './types'; // Import new types
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
 import { entityConfig, TableName } from '@/config/entityConfig'; // Import TableName
@@ -28,7 +28,7 @@ export const useDataManagement = (): DataManagementReturn => {
   const [activeTab, setActiveTab] = useState('management');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [filters, setFilters] = useState<Record<string, any>>({});
+  const [filters, setFilters] = useState<Record<string, FilterState>>({}); // Updated type
   const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
@@ -178,10 +178,26 @@ export const useDataManagement = (): DataManagementReturn => {
   }, [sortColumn]);
 
   // Filter handlers
-  const handleFilterChange = useCallback((key: string, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+  const handleFilterChange = useCallback((key: string, value: any, operator?: FilterOperator) => {
+    setFilters(prev => {
+      const fieldConfig = entityConfig[selectedEntity].fields.find(f => f.key === key);
+      let defaultOperator: FilterOperator = 'eq';
+      if (fieldConfig?.type === 'text' || fieldConfig?.type === 'email') {
+        defaultOperator = 'ilike';
+      } else if (fieldConfig?.type === 'boolean') {
+        defaultOperator = 'is';
+      }
+
+      return {
+        ...prev,
+        [key]: {
+          value: value,
+          operator: operator || defaultOperator
+        }
+      };
+    });
     setCurrentPage(1);
-  }, []);
+  }, [selectedEntity]);
 
   const handleClearFilters = useCallback(() => {
     setFilters({});

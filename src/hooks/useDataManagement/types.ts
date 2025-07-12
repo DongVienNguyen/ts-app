@@ -3,6 +3,13 @@ import { User } from '@supabase/supabase-js';
 import React from 'react';
 import { AuthenticatedStaff } from '@/contexts/AuthContext'; // Import AuthenticatedStaff
 
+export type FilterOperator = 'ilike' | 'eq' | 'gte' | 'lte' | 'gt' | 'lt' | 'is' | 'in'; // Add more as needed
+
+export interface FilterState {
+  value: any;
+  operator: FilterOperator;
+}
+
 export interface CacheEntry {
   data: any[];
   count: number;
@@ -16,7 +23,7 @@ export interface LoadDataParams {
   search?: string;
   sortColumn?: string | null;
   sortDirection?: 'asc' | 'desc';
-  filters?: Record<string, any>;
+  filters?: Record<string, FilterState>; // Updated type
 }
 
 export interface SaveDataParams {
@@ -76,8 +83,8 @@ export interface DataManagementReturn {
   handleSort: (columnKey: string) => void;
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
-  filters: Record<string, any>;
-  onFilterChange: (key: string, value: any) => void;
+  filters: Record<string, FilterState>; // Updated type
+  onFilterChange: (key: string, value: any, operator?: FilterOperator) => void; // Updated signature
   clearFilters: () => void;
   config: EntityConfig;
   restoreFile: File | null;
@@ -102,8 +109,8 @@ export interface DataLoaderReturn {
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
   handleSort: (columnKey: string) => void;
-  filters: Record<string, any>;
-  handleFilterChange: (key: string, value: any) => void;
+  filters: Record<string, FilterState>; // Updated type
+  handleFilterChange: (key: string, value: any, operator?: FilterOperator) => void; // Updated signature
   clearFilters: () => void;
 }
 
