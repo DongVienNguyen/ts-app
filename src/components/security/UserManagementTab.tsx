@@ -89,10 +89,10 @@ export function UserManagementTab() {
             <TableRow>
               <TableHead className="text-left">Tên nhân viên</TableHead>
               <TableHead className="text-left">Tên đăng nhập</TableHead>
-              <TableHead>Vai trò</TableHead>
-              <TableHead>Trạng thái</TableHead>
-              <TableHead>Cập nhật lần cuối</TableHead>
-              <TableHead className="text-right">Hành động</TableHead>
+              <TableHead className="text-left">Vai trò</TableHead>
+              <TableHead className="text-left">Trạng thái</TableHead>
+              <TableHead className="text-left">Cập nhật lần cuối</TableHead>
+              <TableHead className="text-left">Hành động</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -109,14 +109,14 @@ export function UserManagementTab() {
                 <TableRow key={user.id}>
                   <TableCell className="text-left">{user.staff_name || 'N/A'}</TableCell>
                   <TableCell className="font-medium text-left">{user.username}</TableCell>
-                  <TableCell>{user.role}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-left">{user.role}</TableCell>
+                  <TableCell className="text-left">
                     <Badge variant={user.account_status === 'active' ? 'default' : 'destructive'}>
                       {user.account_status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatRelativeTime(user.updated_at!)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-left">{formatRelativeTime(user.updated_at!)}</TableCell>
+                  <TableCell className="text-left">
                     <Button
                       variant="ghost"
                       size="sm"
