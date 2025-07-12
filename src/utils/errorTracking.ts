@@ -17,6 +17,7 @@ export interface SystemError {
   resolved_at?: string;
   resolved_by?: string;
   resolution_notes?: string;
+  assigned_to?: string; // Added for error assignment
   isNew?: boolean; // Added for real-time highlighting
 }
 

@@ -41,14 +41,33 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
   const { user } = useAuth();
   const [currentStatus, setCurrentStatus] = useState(error?.status || 'new');
   const [resolutionNotes, setResolutionNotes] = useState(error?.resolution_notes || '');
+  const [assignedTo, setAssignedTo] = useState(error?.assigned_to || ''); // New state for assignee
+  const [staffList, setStaffList] = useState<{ username: string; staff_name: string }[]>([]); // State for staff list
   const [showConfirmDelete, setShowConfirmDelete] = useState(false); // State for delete confirmation dialog
 
   React.useEffect(() => {
     if (error) {
       setCurrentStatus(error.status || 'new');
       setResolutionNotes(error.resolution_notes || '');
+      setAssignedTo(error.assigned_to || '');
     }
   }, [error]);
+
+  // Fetch staff list on component mount
+  React.useEffect(() => {
+    const fetchStaff = async () => {
+      const { data, error } = await supabase
+        .from('staff')
+        .select('username, staff_name');
+      if (error) {
+        console.error('Error fetching staff list:', error);
+        toast.error('Không thể tải danh sách nhân viên.');
+      } else {
+        setStaffList(data || []);
+      }
+    };
+    fetchStaff();
+  }, []);
 
   if (!error) return null;
 
@@ -66,6 +85,7 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
     const updateData: Partial<SystemError> = {
       status: currentStatus,
       resolution_notes: resolutionNotes,
+      assigned_to: assignedTo, // Include assigned_to in update
     };
 
     if (currentStatus === 'resolved' && !error.resolved_at) {
@@ -141,6 +161,7 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
                   <p><strong>URL Yêu cầu:</strong> {error.request_url || 'N/A'}</p>
                   {error.resolved_at && <p><strong>Giải quyết lúc:</strong> {format(new Date(error.resolved_at), 'dd/MM/yyyy HH:mm:ss')}</p>}
                   {error.resolved_by && <p><strong>Giải quyết bởi:</strong> {error.resolved_by}</p>}
+                  <p><strong>Người được gán:</strong> {error.assigned_to || 'Chưa gán'}</p> {/* Display assigned_to */}
                 </div>
               </div>
 
@@ -203,6 +224,23 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
                     <SelectItem value="in_progress">Đang xử lý</SelectItem>
                     <SelectItem value="resolved">Đã giải quyết</SelectItem>
                     <SelectItem value="archived">Đã lưu trữ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="assigned-to">Gán cho</Label>
+                <Select value={assignedTo} onValueChange={setAssignedTo}>
+                  <SelectTrigger id="assigned-to">
+                    <SelectValue placeholder="Chọn người được gán" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Chưa gán</SelectItem>
+                    {staffList.map((staff) => (
+                      <SelectItem key={staff.username} value={staff.username}>
+                        {staff.staff_name || staff.username}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
