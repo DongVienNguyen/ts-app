@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { create } from "https://deno.land/x/djwt@v2.7/mod.ts";
 
 declare const Deno: any;
 
@@ -168,13 +169,35 @@ serve(async (req: any) => {
       })
       .eq('username', username)
 
-    // Create JWT token
-    const token = btoa(JSON.stringify({
+    // Create a proper, signed JWT token
+    const jwtSecret = Deno.env.get('JWT_SECRET');
+    if (!jwtSecret) {
+      console.error('❌ Missing JWT_SECRET environment variable');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Server configuration error: JWT secret is not set.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}
+      )
+    }
+
+    const payload = {
       username: staff.username,
       role: staff.role,
       department: staff.department,
-      exp: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
-    }))
+      iss: 'asset-management-system', // Issuer
+      sub: staff.id, // Subject (user id)
+      iat: Math.floor(Date.now() / 1000), // Issued at
+      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // Expiration: 24 hours
+    };
+    
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(jwtSecret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign", "verify"],
+    );
+
+    const token = await create({ alg: "HS256", typ: "JWT" }, payload, key);
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = staff
