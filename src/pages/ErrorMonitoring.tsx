@@ -5,7 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
-import { SystemStatus } from '@/utils/errorTracking'; // Import SystemStatus
+import { SystemStatus } from '@/utils/errorTracking';
+import { PWATestPanel } from '@/components/PWATestPanel';
+import PushNotificationTester from '@/components/PushNotificationTester'; // Changed to default import
+import { VAPIDKeyTester } from '@/components/VAPIDKeyTester';
 
 const ErrorMonitoring = () => {
   const { user } = useSecureAuth();
@@ -131,10 +134,11 @@ const ErrorMonitoring = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="errors" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="errors">Recent Errors</TabsTrigger>
             <TabsTrigger value="services">Service Health</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="pwa">PWA & Push</TabsTrigger>
           </TabsList>
 
           <TabsContent value="errors" className="space-y-6">
@@ -251,6 +255,12 @@ const ErrorMonitoring = () => {
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="pwa" className="space-y-6">
+            <PWATestPanel />
+            <PushNotificationTester />
+            <VAPIDKeyTester />
           </TabsContent>
         </Tabs>
 
