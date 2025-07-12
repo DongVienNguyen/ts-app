@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useRealTimeSecurityMonitoring } from '@/hooks/useRealTimeSecurityMonitoring';
 import { SecurityHeader } from './security/SecurityHeader';
 import { RealTimeMetricsCard } from './security/RealTimeMetricsCard';
@@ -11,54 +11,69 @@ import { useSecureAuth } from '@/contexts/AuthContext';
 
 export function RealTimeSecurityDashboard() {
   const { user } = useSecureAuth();
-  const realTimeData = useRealTimeSecurityMonitoring();
-  
+  // Destructure the hook's return value to get stable references to arrays/values
+  const {
+    recentEvents,
+    threatTrends,
+    isSupabaseConnected,
+    isLoading,
+    error,
+    logEvent,
+  } = useRealTimeSecurityMonitoring();
+
   const [isPaused, setIsPaused] = useState(false);
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
-  // Initialize snapshotData to null, it will be set when needed
-  const [snapshotData, setSnapshotData] = useState<typeof realTimeData | null>(null);
+  
+  // The snapshot will now store the specific data points, not the whole hook object
+  const [snapshotData, setSnapshotData] = useState<{
+    recentEvents: typeof recentEvents;
+    threatTrends: typeof threatTrends;
+    isSupabaseConnected: boolean;
+  } | null>(null);
 
   // Determine which data to display based on real-time status and pause state
   const dataToDisplay = useMemo(() => {
     if (isRealTimeEnabled && !isPaused) {
-      return realTimeData;
+      // Use live data
+      return { recentEvents, threatTrends, isSupabaseConnected, isLoading };
     } else {
-      // If paused or real-time disabled, use the snapshot.
-      // If no snapshot has been taken yet (snapshotData is null),
-      // we should still display the current realTimeData as a fallback.
-      return snapshotData || realTimeData;
+      // Use snapshot data if available, otherwise fall back to live data
+      return snapshotData 
+        ? { ...snapshotData, isLoading: false } 
+        : { recentEvents, threatTrends, isSupabaseConnected, isLoading };
     }
-  }, [isRealTimeEnabled, isPaused, snapshotData, realTimeData]);
+  }, [isRealTimeEnabled, isPaused, snapshotData, recentEvents, threatTrends, isSupabaseConnected, isLoading]);
 
   // Derive lastUpdated from the dataToDisplay.recentEvents
   const derivedLastUpdated = useMemo(() => {
     if (dataToDisplay.recentEvents && dataToDisplay.recentEvents.length > 0) {
-      // Get the timestamp of the most recent event
       return new Date(dataToDisplay.recentEvents[0].timestamp);
     }
-    // If no events, or not real-time enabled, return null
     return null;
   }, [dataToDisplay.recentEvents]);
 
   const handleRealTimeToggle = (enabled: boolean) => {
     setIsRealTimeEnabled(enabled);
     if (!enabled) {
-      setIsPaused(true); // If real-time is off, it's effectively paused
-      setSnapshotData(realTimeData); // Capture snapshot when real-time is turned off
+      setIsPaused(true);
+      // Create a snapshot of the current data
+      setSnapshotData({ recentEvents, threatTrends, isSupabaseConnected });
     } else {
-      setIsPaused(false); // Allow live updates
-      setSnapshotData(null); // Clear snapshot when real-time is re-enabled
+      setIsPaused(false);
+      setSnapshotData(null); // Clear snapshot
     }
   };
 
   const handlePauseToggle = () => {
-    if (isRealTimeEnabled) { // Only pause if real-time is enabled
+    if (isRealTimeEnabled) {
       setIsPaused(prev => {
         const newPausedState = !prev;
-        if (newPausedState) { // If transitioning to paused
-          setSnapshotData(realTimeData); // Capture snapshot
-        } else { // If transitioning to unpaused
-          setSnapshotData(null); // Clear snapshot when unpaused
+        if (newPausedState) {
+          // Create a snapshot when pausing
+          setSnapshotData({ recentEvents, threatTrends, isSupabaseConnected });
+        } else {
+          // Clear snapshot when resuming
+          setSnapshotData(null);
         }
         return newPausedState;
       });
@@ -66,7 +81,7 @@ export function RealTimeSecurityDashboard() {
   };
 
   const handleReset = () => {
-    realTimeData.logEvent('METRICS_RESET', { resetBy: user?.username || 'unknown' });
+    logEvent('METRICS_RESET', { resetBy: user?.username || 'unknown' });
     toast.success("Đã gửi yêu cầu đặt lại số liệu.");
   };
 
@@ -82,7 +97,7 @@ export function RealTimeSecurityDashboard() {
     };
   }, [dataToDisplay.recentEvents]);
 
-  if (realTimeData.isLoading) {
+  if (isLoading && !snapshotData) {
     return (
       <div className="flex items-center justify-center py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -91,11 +106,11 @@ export function RealTimeSecurityDashboard() {
     );
   }
 
-  if (realTimeData.error) {
+  if (error) {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>{realTimeData.error}</AlertDescription>
+        <AlertDescription>{error}</AlertDescription>
       </Alert>
     );
   }
