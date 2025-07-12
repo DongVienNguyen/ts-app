@@ -267,28 +267,6 @@ export function useErrorMonitoringData() {
     
     if (user && user.role === 'admin') {
       fetchAllData();
-
-      const channel = supabase.channel('system-errors-realtime-channel')
-        .on<SystemError>(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'system_errors' },
-          (payload) => {
-            console.log('✅ [REALTIME] New error received:', payload.new);
-            toast.warning(`Lỗi mới: ${payload.new.error_type}`, {
-              description: payload.new.error_message,
-              action: {
-                label: 'Làm mới',
-                onClick: () => fetchAllData(),
-              },
-            });
-            setRecentErrors(prevErrors => [payload.new as SystemError, ...prevErrors]);
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
     } else {
       setIsLoading(false);
       // Reset data when user is not admin
