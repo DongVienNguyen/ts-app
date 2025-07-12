@@ -30,6 +30,9 @@ const getSupabaseOptions = (token: string | null): SupabaseClientOptions<"public
 export let supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, getSupabaseOptions(null));
 
 export const updateSupabaseAuthToken = (token: string | null) => {
+  // Disconnect the realtime client of the OLD instance before creating a new one.
+  supabase.realtime.disconnect();
+
   supabase = createClient(supabaseUrl, supabaseAnonKey, getSupabaseOptions(token));
   console.log(`[AUTH] Supabase client updated.`);
 };

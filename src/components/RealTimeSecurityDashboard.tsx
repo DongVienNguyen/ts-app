@@ -15,7 +15,7 @@ import { useSecureAuth } from '@/contexts/AuthContext';
 import { SystemAlert, SecurityEvent } from '@/hooks/useRealTimeSecurityMonitoring'; // Import types
 
 export function RealTimeSecurityDashboard() {
-  const { user } = useSecureAuth();
+  const { user, loading: authLoading } = useSecureAuth();
 
   const {
     recentEvents,
@@ -28,6 +28,15 @@ export function RealTimeSecurityDashboard() {
     systemStatus,
     securityAlerts,
   } = useRealTimeSecurityMonitoring(user);
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2">Đang xác thực...</span>
+      </div>
+    );
+  }
 
   // Add role check here
   if (user?.role !== 'admin') {

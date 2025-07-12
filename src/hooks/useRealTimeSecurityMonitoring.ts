@@ -106,7 +106,15 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
               toast.info(`Sự kiện bảo mật mới: ${newEvent.event_type}`);
             }
           )
-          .subscribe();
+          .subscribe((status, err) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ [REALTIME] Subscribed to security_events_channel!');
+            }
+            if (status === 'CHANNEL_ERROR') {
+              console.error('❌ [REALTIME] Channel error on security_events_channel:', err);
+              setError(`Lỗi kênh real-time: ${err?.message}`);
+            }
+          });
 
         alertsChannel = supabase
           .channel('system_alerts_channel')
@@ -119,7 +127,15 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
               toast.warning(`Cảnh báo hệ thống mới: ${newAlert.rule_name}`);
             }
           )
-          .subscribe();
+          .subscribe((status, err) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ [REALTIME] Subscribed to system_alerts_channel!');
+            }
+            if (status === 'CHANNEL_ERROR') {
+              console.error('❌ [REALTIME] Channel error on system_alerts_channel:', err);
+              setError(`Lỗi kênh real-time: ${err?.message}`);
+            }
+          });
 
       } catch (err: any) {
         console.error('Error setting up real-time monitoring:', err.message);
