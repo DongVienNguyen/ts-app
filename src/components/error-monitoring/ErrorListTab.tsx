@@ -12,6 +12,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { startOfDay, endOfDay } from 'date-fns';
+import { usePagination } from '@/hooks/usePagination';
+import { SmartPagination } from '@/components/SmartPagination';
 
 interface ErrorListTabProps {
   recentErrors: SystemError[];
@@ -110,6 +112,17 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
     return true;
   });
 
+  const {
+    paginatedData,
+    currentPage,
+    totalPages,
+    nextPage,
+    prevPage,
+    goToPage,
+    canNextPage,
+    canPrevPage,
+  } = usePagination({ data: filteredErrors, itemsPerPage: 10 });
+
   const groupErrors = (errors: SystemError[]) => {
     const groups: { [key: string]: { count: number; latestError: SystemError } } = {};
     for (const error of errors) {
@@ -202,7 +215,7 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
                   <Checkbox id="select-all" checked={selectedIds.length > 0 && selectedIds.length === filteredErrors.length} onCheckedChange={(checked) => handleSelectAll(!!checked)} className="mr-4" />
                   <label htmlFor="select-all" className="text-sm font-medium">Chọn tất cả</label>
                 </div>
-                {filteredErrors.map((error) => (
+                {paginatedData.map((error) => (
                   <div key={error.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start flex-1"><Checkbox id={`select-${error.id}`} checked={selectedIds.includes(error.id!)} onCheckedChange={(checked) => handleSelect(error.id!, !!checked)} className="mr-4 mt-1" />
@@ -231,6 +244,15 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
                     </div>
                   </div>
                 ))}
+                <SmartPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  nextPage={nextPage}
+                  prevPage={prevPage}
+                  goToPage={goToPage}
+                  canNextPage={canNextPage}
+                  canPrevPage={canPrevPage}
+                />
               </div>
             ) : ( <div className="text-center py-8 text-gray-500"><Filter className="w-12 h-12 mx-auto mb-2 opacity-50" /><p>Không tìm thấy lỗi nào phù hợp</p></div> )
           ) : ( // Grouped View

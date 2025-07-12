@@ -32,6 +32,7 @@ export function ErrorMonitoringDashboard() {
   return (
     <div className="space-y-6">
       <ErrorMonitoringHeader 
+        isLoading={isLoading} // Thêm prop isLoading
         lastUpdated={lastUpdated}
         onRefresh={refreshAll}
       />

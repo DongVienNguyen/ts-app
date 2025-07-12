@@ -28,7 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { FilterOperator, FilterState } from '@/hooks/useDataManagement/types';
-import SmartPagination from '@/components/SmartPagination';
+import { SmartPagination } from '@/components/SmartPagination';
 
 interface DataManagementTabProps {
   activeTab: string;

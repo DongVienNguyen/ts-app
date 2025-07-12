@@ -1,84 +1,67 @@
-import React from 'react';
-import { usePagination, DOTS } from '@/hooks/usePagination';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationPrevious,
-  PaginationNext,
-  PaginationLink,
-  PaginationEllipsis,
-} from '@/components/ui/pagination';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 interface SmartPaginationProps {
-  onPageChange: (page: number) => void;
-  totalCount: number;
   currentPage: number;
+  totalCount: number;
   pageSize: number;
-  className?: string;
+  onPageChange: (page: number) => void;
 }
 
-const SmartPagination: React.FC<SmartPaginationProps> = ({
-  onPageChange,
-  totalCount,
+export function SmartPagination({
   currentPage,
+  totalCount,
   pageSize,
-  className,
-}) => {
-  const paginationRange = usePagination({
-    currentPage,
-    totalCount,
-    pageSize,
-  });
+  onPageChange,
+}: SmartPaginationProps) {
+  const totalPages = Math.ceil(totalCount / pageSize);
 
-  if (currentPage === 0 || (paginationRange && paginationRange.length < 2)) {
+  if (totalPages <= 1) {
     return null;
   }
 
-  const onNext = () => {
-    onPageChange(currentPage + 1);
-  };
-
-  const onPrevious = () => {
-    onPageChange(currentPage - 1);
-  };
-
-  let lastPage = paginationRange ? paginationRange[paginationRange.length - 1] : 1;
+  const canNextPage = currentPage < totalPages;
+  const canPrevPage = currentPage > 1;
 
   return (
-    <Pagination className={className}>
-      <PaginationContent>
-        <PaginationItem>
-          <PaginationPrevious
-            onClick={onPrevious}
-            className={currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}
-          />
-        </PaginationItem>
-        {paginationRange?.map((pageNumber, index) => {
-          if (pageNumber === DOTS) {
-            return <PaginationItem key={`${DOTS}-${index}`}><PaginationEllipsis /></PaginationItem>;
-          }
-
-          return (
-            <PaginationItem key={pageNumber}>
-              <PaginationLink
-                onClick={() => onPageChange(pageNumber as number)}
-                isActive={currentPage === pageNumber}
-              >
-                {pageNumber}
-              </PaginationLink>
-            </PaginationItem>
-          );
-        })}
-        <PaginationItem>
-          <PaginationNext
-            onClick={onNext}
-            className={currentPage === lastPage ? 'opacity-50 cursor-not-allowed' : ''}
-          />
-        </PaginationItem>
-      </PaginationContent>
-    </Pagination>
+    <div className="flex items-center justify-between mt-4">
+      <span className="text-sm text-gray-600">
+        Trang {currentPage} / {totalPages}
+      </span>
+      <div className="flex items-center space-x-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(1)}
+          disabled={!canPrevPage}
+        >
+          <ChevronsLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={!canPrevPage}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={!canNextPage}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(totalPages)}
+          disabled={!canNextPage}
+        >
+          <ChevronsRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
   );
-};
-
-export default SmartPagination;
+}

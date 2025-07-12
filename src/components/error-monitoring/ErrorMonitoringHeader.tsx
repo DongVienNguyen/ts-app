@@ -2,6 +2,7 @@ import { Bug, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ErrorMonitoringHeaderProps {
+  isLoading: boolean; // Thêm prop này
   lastUpdated: Date;
   onRefresh: () => void;
 }
