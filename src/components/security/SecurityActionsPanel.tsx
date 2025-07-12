@@ -60,22 +60,6 @@ export function SecurityActionsPanel() {
     });
   };
 
-  const handleDirectLogTest = () => {
-    if (!eventType) {
-      toast.error('Vui lòng chọn loại sự kiện hoặc hành động.');
-      return;
-    }
-
-    // Always call logEvent directly for this test button
-    // The username is optional for logEvent, so we can pass a default if not provided
-    logEvent(
-      eventType,
-      { message: message || `Simulated ${eventType} event.` },
-      username || 'test_user'
-    );
-    toast.success(`Đã mô phỏng sự kiện: ${eventType}`);
-  };
-
   return (
     <div className="space-y-6">
       <Card>
@@ -145,11 +129,6 @@ export function SecurityActionsPanel() {
           <Button onClick={handleTestNotification} className="w-full" variant="outline">
             <AlertCircle className="w-4 h-4 mr-2" />
             Gửi Thông báo Kiểm tra
-          </Button>
-          {/* New button for direct log test */}
-          <Button onClick={handleDirectLogTest} className="w-full mt-2" variant="secondary">
-            <Activity className="w-4 h-4 mr-2" />
-            Gửi Sự kiện Bảo mật Trực tiếp (Test)
           </Button>
         </CardContent>
       </Card>

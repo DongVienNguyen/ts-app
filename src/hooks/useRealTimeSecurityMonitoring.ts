@@ -4,6 +4,7 @@ import { RealtimeChannel, PostgrestResponse } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables } from '@/integrations/supabase/types';
 import { AuthenticatedStaff } from '@/contexts/AuthContext';
+import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils'; // Import the correct logging function
 
 export type SecurityEvent = Tables<'security_events'>;
 export type SystemAlert = Tables<'system_alerts'>;
@@ -38,39 +39,8 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
   const [securityAlerts, setSecurityAlerts] = useState<SystemAlert[]>([]);
 
   const logEvent = async (type: string, data: any = {}, username?: string) => {
-    const promise = new Promise<PostgrestResponse<Tables<'security_events'>>>(async (resolve, reject) => {
-      try {
-        const response = await supabase
-          .from('security_events')
-          .insert({ event_type: type, event_data: data, username: username })
-          .select();
-
-        if (response.error) {
-          reject(response.error);
-        } else if (response.status >= 200 && response.status < 300) {
-          // Chỉ resolve khi có mã trạng thái thành công
-          resolve(response as PostgrestResponse<Tables<'security_events'>>);
-        } else {
-          // Coi các mã trạng thái khác là lỗi
-          reject(new Error(`Yêu cầu thất bại với mã trạng thái ${response.status}: ${response.statusText}`));
-        }
-      } catch (e) {
-        reject(e);
-      }
-    });
-
-    toast.promise(promise, {
-      loading: 'Đang ghi sự kiện bảo mật vào CSDL...',
-      success: (response) => {
-        console.log('Sự kiện đã được ghi thành công:', response.data);
-        return `Ghi sự kiện thành công (Status: ${response.status})!`;
-      },
-      error: (err) => {
-        console.error('Lỗi ghi sự kiện bảo mật:', err);
-        const errorMessage = (err instanceof Error) ? err.message : 'Lỗi không xác định';
-        return `Lỗi ghi sự kiện: ${errorMessage}`;
-      },
-    });
+    // Call the logSecurityEventRealTime function which uses the Edge Function
+    await logSecurityEventRealTime(type, data, username);
   };
 
   useEffect(() => {
