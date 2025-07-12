@@ -23,6 +23,7 @@ export function ErrorMonitoringDashboard() {
     getStatusColor,
     getSeverityColor: originalGetSeverityColor,
     isRefreshingErrors,
+    refreshRecentErrors, // Add this line
   } = useErrorMonitoringData();
 
   const getSeverityColor = (severity: string | undefined): string => {
@@ -59,7 +60,7 @@ export function ErrorMonitoringDashboard() {
                 recentErrors={recentErrors}
                 isLoading={isLoading}
                 getSeverityColor={getSeverityColor}
-                onRefresh={refreshAll}
+                onRefresh={refreshRecentErrors} // Changed from refreshAll to refreshRecentErrors
               />
             </TabsContent>
 
