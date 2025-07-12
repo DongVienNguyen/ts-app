@@ -7,7 +7,8 @@ import { AlertTriangle, Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { SystemError } from '@/utils/errorTracking';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { RealtimeChannel } from '@supabase/supabase-js'; // Import RealtimeChannel type
+import { RealtimeChannel } from '@supabase/supabase-js';
+import { useNotificationSound } from '@/hooks/useNotificationSound'; // Import the new hook
 
 interface RealTimeErrorFeedProps {
   onNewError?: (error: SystemError) => void;
@@ -18,6 +19,8 @@ export function RealTimeErrorFeed({ onNewError }: RealTimeErrorFeedProps) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
   const [errorCount, setErrorCount] = useState(0);
+
+  const { playSound } = useNotificationSound(); // Use the new hook
 
   useEffect(() => {
     let subscription: RealtimeChannel | null = null;
@@ -50,7 +53,10 @@ export function RealTimeErrorFeed({ onNewError }: RealTimeErrorFeedProps) {
             
             // Play sound notification
             if (soundEnabled && newError.severity) {
-              playNotificationSound(newError.severity);
+              const frequency = newError.severity === 'critical' ? 800 : 
+                                newError.severity === 'high' ? 600 : 
+                                newError.severity === 'medium' ? 400 : 300;
+              playSound({ frequency, duration: 0.5, gain: 0.1 });
             }
             
             // Show toast notification
@@ -79,34 +85,7 @@ export function RealTimeErrorFeed({ onNewError }: RealTimeErrorFeedProps) {
         subscription = null;
       }
     };
-  }, [isActive, soundEnabled, onNewError, supabase]); // Add supabase to dependencies
-
-  const playNotificationSound = (severity: string) => {
-    try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      // Different frequencies for different severities
-      const frequency = severity === 'critical' ? 800 : 
-                       severity === 'high' ? 600 : 
-                       severity === 'medium' ? 400 : 300;
-      
-      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-      oscillator.type = 'sine';
-      
-      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-      
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.5);
-    } catch (error) {
-      console.warn('Could not play notification sound:', error);
-    }
-  };
+  }, [isActive, soundEnabled, onNewError, supabase, playSound]); // Add playSound to dependencies
 
   const getSeverityColor = (severity: string | undefined) => {
     if (!severity) return 'text-gray-600 bg-gray-100';
