@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SecurityDashboard } from './SecurityDashboard';
 import { RealTimeSecurityMonitor } from './RealTimeSecurityMonitor';
 import { Shield, Activity, BarChart3, Settings } from 'lucide-react';
+import { SecurityFeaturesSummary } from './SecurityFeaturesSummary'; // Import the correct component
 
 export function EnhancedSecurityDashboard() {
   const [activeTab, setActiveTab] = useState('realtime');
@@ -34,7 +34,7 @@ export function EnhancedSecurityDashboard() {
         </TabsContent>
 
         <TabsContent value="overview" className="mt-6">
-          <SecurityDashboard />
+          <SecurityFeaturesSummary /> {/* Use SecurityFeaturesSummary here */}
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-6">

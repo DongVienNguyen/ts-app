@@ -9,7 +9,7 @@ import { PWATestPanel } from '@/components/PWATestPanel';
 import { ErrorMonitoringDashboard } from '@/components/ErrorMonitoringDashboard';
 import { UsageMonitoringDashboard } from '@/components/UsageMonitoringDashboard';
 import { SystemHealthWidget } from '@/components/SystemHealthWidget';
-// import { SecurityDashboard } from '@/components/SecurityDashboard'; // Removed as security features are now in SecurityMonitor
+// Removed as security features are now in SecurityMonitor
 
 interface TabContentProps {
   activeTab: string;
@@ -150,7 +150,7 @@ export const TabContent = ({
           <div className="mt-6 space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <SystemHealthWidget />
-              {/* <SecurityDashboard /> Removed as security features are now in SecurityMonitor */}
+              {/* SecurityDashboard was here, but its functionality is now in SecurityMonitor */}
             </div>
           </div>
         );
