@@ -80,7 +80,7 @@ const DataManagement = () => {
     activeTab,
     setActiveTab,
     restoreInputRef,
-    filters, // Destructure filters
+    filters, 
     
     // Computed values
     filteredData,
@@ -102,8 +102,8 @@ const DataManagement = () => {
     sortColumn,
     sortDirection,
     handleSort,
-    handleFilterChange, // Destructure handleFilterChange
-    handleClearFilters, // Destructure handleClearFilters
+    handleFilterChange, 
+    handleClearFilters, 
     
     // User
     user
@@ -215,9 +215,9 @@ const DataManagement = () => {
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={handleSort}
-            filters={filters} {/* Pass filters */}
-            onFilterChange={handleFilterChange} {/* Pass handleFilterChange */}
-            onClearFilters={handleClearFilters} {/* Pass handleClearFilters */}
+            filters={filters} 
+            onFilterChange={handleFilterChange} 
+            onClearFilters={handleClearFilters} 
           />
         </div>
 
