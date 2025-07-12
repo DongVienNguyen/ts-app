@@ -38,27 +38,40 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
   const [securityAlerts, setSecurityAlerts] = useState<SystemAlert[]>([]);
 
   const logEvent = async (type: string, data: any = {}, username?: string) => {
-    const query = supabase
-      .from('security_events')
-      .insert({ event_type: type, event_data: data, username: username })
-      .select();
+    // Bọc truy vấn Supabase trong một Promise tường minh
+    const promise = new Promise<PostgrestResponse<Tables<'security_events'>[]>>(async (resolve, reject) => {
+      try {
+        const { data: resultData, error: resultError } = await supabase
+          .from('security_events')
+          .insert({ event_type: type, event_data: data, username: username })
+          .select();
 
-    // Ép kiểu hai bước để tương thích với toast.promise
-    const promise: Promise<PostgrestResponse<Tables<'security_events'>[]>> = query as unknown as Promise<PostgrestResponse<Tables<'security_events'>[]>>;
+        if (resultError) {
+          // Nếu Supabase trả về lỗi, reject Promise
+          reject(resultError);
+        } else {
+          // Nếu thành công, resolve Promise với dữ liệu
+          resolve({ data: resultData, error: null, status: 201, statusText: 'Created', count: null });
+        }
+      } catch (e) {
+        // Bắt các lỗi không mong muốn khác (ví dụ: lỗi mạng)
+        reject(e);
+      }
+    });
 
     toast.promise(promise, {
       loading: 'Đang ghi sự kiện bảo mật vào CSDL...',
       success: (response) => {
-        if (response.error) {
-          // Ném lỗi để promise chuyển sang trạng thái error
-          throw response.error;
-        }
+        // Callback này chỉ được gọi khi Promise được resolve (thành công)
         console.log('Sự kiện đã được ghi thành công:', response.data);
         return 'Ghi sự kiện vào CSDL thành công!';
       },
       error: (err) => {
+        // Callback này được gọi khi Promise bị reject (thất bại)
         console.error('Lỗi ghi sự kiện bảo mật:', err);
-        return `Lỗi ghi sự kiện: ${err.message}`;
+        // Đảm bảo truy cập message một cách an toàn
+        const errorMessage = (err instanceof Error) ? err.message : (typeof err === 'object' && err !== null && 'message' in err ? (err as any).message : 'Lỗi không xác định');
+        return `Lỗi ghi sự kiện: ${errorMessage}`;
       },
     });
   };
