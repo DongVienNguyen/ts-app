@@ -60,6 +60,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
       return;
     }
 
+    const clientAtSubscriptionTime = supabase; // Capture the client instance at the time of subscription
     let channel: RealtimeChannel | null = null;
     let alertsChannel: RealtimeChannel | null = null;
 
@@ -67,7 +68,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
       setIsLoading(true);
       setError(null);
       try {
-        const { data: initialEvents, error: eventsError } = await supabase
+        const { data: initialEvents, error: eventsError } = await clientAtSubscriptionTime
           .from('security_events')
           .select('*')
           .order('created_at', { ascending: false })
@@ -76,7 +77,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
         if (eventsError) throw eventsError;
         setRecentEvents(initialEvents || []);
 
-        const { data: initialAlerts, error: alertsError } = await supabase
+        const { data: initialAlerts, error: alertsError } = await clientAtSubscriptionTime
           .from('system_alerts')
           .select('*')
           .order('created_at', { ascending: false })
@@ -95,46 +96,50 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
 
         setIsSupabaseConnected(true);
 
-        channel = supabase
-          .channel('security_events_channel')
+        // Use unique channel names to prevent conflicts
+        const securityChannelName = `security_events:${user.id}:${Date.now()}`;
+        const alertsChannelName = `system_alerts:${user.id}:${Date.now()}`;
+
+        channel = clientAtSubscriptionTime
+          .channel(securityChannelName)
           .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'security_events' },
             (payload) => {
               const newEvent = payload.new as SecurityEvent;
-              console.log('Dyad: Received new security event via real-time:', newEvent); // Added log for debugging
+              console.log('✅ [REALTIME] Received new security event:', newEvent);
               setRecentEvents((prev) => [newEvent, ...prev].slice(0, 50));
               toast.info(`Sự kiện bảo mật mới: ${newEvent.event_type}`);
             }
           )
           .subscribe((status, err) => {
             if (status === 'SUBSCRIBED') {
-              console.log('Dyad: ✅ [REALTIME] Subscribed to security_events_channel!'); // Added log for debugging
+              console.log(`✅ [REALTIME] Subscribed to ${securityChannelName}!`);
             }
             if (status === 'CHANNEL_ERROR') {
-              console.error('Dyad: ❌ [REALTIME] Channel error on security_events_channel:', err); // Added log for debugging
+              console.error(`❌ [REALTIME] Channel error on ${securityChannelName}:`, err);
               setError(`Lỗi kênh real-time: ${err?.message}`);
             }
           });
 
-        alertsChannel = supabase
-          .channel('system_alerts_channel')
+        alertsChannel = clientAtSubscriptionTime
+          .channel(alertsChannelName)
           .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'system_alerts' },
             (payload) => {
               const newAlert = payload.new as SystemAlert;
-              console.log('Dyad: Received new system alert via real-time:', newAlert); // Added log for debugging
+              console.log('✅ [REALTIME] Received new system alert:', newAlert);
               setSecurityAlerts((prev) => [newAlert, ...prev].slice(0, 10));
               toast.warning(`Cảnh báo hệ thống mới: ${newAlert.rule_name}`);
             }
           )
           .subscribe((status, err) => {
             if (status === 'SUBSCRIBED') {
-              console.log('Dyad: ✅ [REALTIME] Subscribed to system_alerts_channel!'); // Added log for debugging
+              console.log(`✅ [REALTIME] Subscribed to ${alertsChannelName}!`);
             }
             if (status === 'CHANNEL_ERROR') {
-              console.error('Dyad: ❌ [REALTIME] Channel error on system_alerts_channel:', err); // Added log for debugging
+              console.error(`❌ [REALTIME] Channel error on ${alertsChannelName}:`, err);
               setError(`Lỗi kênh real-time: ${err?.message}`);
             }
           });
@@ -151,20 +156,19 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     setupRealtime();
 
     return () => {
-      // Get all active channels from the current supabase client
-      const activeChannels = supabase.getChannels();
-      
-      // Find and remove the specific channels by name
-      const securityChannel = activeChannels.find(c => c.topic === 'realtime:public:security_events_channel');
-      if (securityChannel) {
-        supabase.removeChannel(securityChannel);
-        console.log('Dyad: 🧹 [REALTIME] Removed security_events_channel during cleanup.');
+      console.log('🧹 [REALTIME] Cleaning up security monitoring channels...');
+      const removePromises = [];
+      if (channel) {
+        removePromises.push(clientAtSubscriptionTime.removeChannel(channel));
+      }
+      if (alertsChannel) {
+        removePromises.push(clientAtSubscriptionTime.removeChannel(alertsChannel));
       }
       
-      const alertsChannel = activeChannels.find(c => c.topic === 'realtime:public:system_alerts_channel');
-      if (alertsChannel) {
-        supabase.removeChannel(alertsChannel);
-        console.log('Dyad: 🧹 [REALTIME] Removed system_alerts_channel during cleanup.');
+      if (removePromises.length > 0) {
+        Promise.all(removePromises)
+          .then(() => console.log('🧹 [REALTIME] Channels removed successfully.'))
+          .catch(err => console.error('❌ [REALTIME] Error removing channels:', err));
       }
     };
   }, [user]);
