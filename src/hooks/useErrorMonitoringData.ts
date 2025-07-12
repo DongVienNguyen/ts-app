@@ -1,28 +1,106 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getErrorStatistics, SystemError, SystemMetric, SystemStatus } from '@/utils/errorTracking';
+import { SystemError, SystemMetric, SystemStatus } from '@/utils/errorTracking';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, subDays, startOfDay } from 'date-fns';
 import { ServiceHealth } from '@/components/error-monitoring/ServiceStatusTab';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { parseUserAgent } from '@/utils/userAgentParser';
-import { checkServiceHealth } from '@/services/healthCheckService'; // Updated import path
+import { checkServiceHealth } from '@/services/healthCheckService';
+
+// Define the structure for error statistics
+interface ErrorStats {
+  totalErrors: number;
+  criticalErrors: number;
+  resolvedErrors: number;
+  errorRate: number;
+  topErrorTypes: { type: string; count: number }[];
+  errorTrend: { date: string; count: number }[];
+  byType: { [key: string]: number };
+  bySeverity: { [key: string]: number };
+  byBrowser: { [key: string]: number };
+  byOS: { [key: string]: number };
+  recent: SystemError[];
+}
+
+// Helper function to process raw error data into error statistics
+const processErrorData = (errors: SystemError[]): ErrorStats => {
+  const totalErrors = errors?.length || 0;
+  const criticalErrors = errors?.filter(e => e.severity === 'critical').length || 0;
+  const resolvedErrors = errors?.filter(e => e.status === 'resolved').length || 0;
+  const errorRate = Number(totalErrors) / (7 * 24); // Assuming 7 days * 24 hours for a rough rate
+
+  const byType = errors?.reduce((acc: { [key: string]: number }, error) => {
+    acc[error.error_type] = (acc[error.error_type] || 0) + 1;
+    return acc;
+  }, {}) || {};
+
+  const bySeverity = errors?.reduce((acc: { [key: string]: number }, error) => {
+    const severity = error.severity || 'medium';
+    acc[severity] = (acc[severity] || 0) + 1;
+    return acc;
+  }, {}) || {};
+
+  const byBrowser: { [key: string]: number } = {};
+  const byOS: { [key: string]: number } = {};
+
+  errors?.forEach(error => {
+    const { browser, os } = parseUserAgent(error.user_agent);
+    byBrowser[browser] = (byBrowser[browser] || 0) + 1;
+    byOS[os] = (byOS[os] || 0) + 1;
+  });
+
+  const topErrorTypes = Object.entries(byType)
+    .sort(([, a], [, b]) => Number(b) - Number(a))
+    .map(([type, count]) => ({ type, count: Number(count) }));
+
+  const trendData: { [key: string]: number } = {};
+  for (let i = 6; i >= 0; i--) {
+    const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
+    trendData[date] = 0;
+  }
+
+  errors?.forEach(error => {
+    if (error.created_at) {
+      const date = format(startOfDay(new Date(error.created_at)), 'yyyy-MM-dd');
+      if (trendData[date] !== undefined) {
+        trendData[date]++;
+      }
+    }
+  });
+
+  const errorTrend = Object.entries(trendData).map(([date, count]) => ({ date, count }));
+
+  return {
+    totalErrors,
+    criticalErrors,
+    resolvedErrors,
+    errorRate,
+    topErrorTypes,
+    errorTrend,
+    byType,
+    bySeverity,
+    byBrowser,
+    byOS,
+    recent: errors?.slice(0, 10) || [],
+  };
+};
 
 export function useErrorMonitoringData() {
   const { user, loading: authLoading } = useAuth();
 
-  const [errorStats, setErrorStats] = useState({
+  const [errorStats, setErrorStats] = useState<ErrorStats>({
     totalErrors: 0,
     criticalErrors: 0,
     resolvedErrors: 0,
     errorRate: 0,
-    topErrorTypes: [] as { type: string; count: number }[],
-    errorTrend: [] as { date: string; count: number }[],
-    byType: {} as { [key: string]: number },
-    bySeverity: {} as { [key: string]: number },
-    byBrowser: {} as { [key: string]: number },
-    byOS: {} as { [key: string]: number },
-    recent: [] as SystemError[],
+    topErrorTypes: [],
+    errorTrend: [],
+    byType: {},
+    bySeverity: {},
+    byBrowser: {},
+    byOS: {},
+    recent: [],
   });
   const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
   const [systemMetrics, setSystemMetrics] = useState<SystemMetric[]>([]);
@@ -36,20 +114,19 @@ export function useErrorMonitoringData() {
   const [isRefreshingErrors, setIsRefreshingErrors] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Function để refresh chỉ recent errors
   const refreshRecentErrors = useCallback(async () => {
     if (!user || user.role !== 'admin') return;
-    
+
     setIsRefreshingErrors(true);
     console.log('🔄 [ERROR_MONITORING] Refreshing recent errors only...');
-    
+
     try {
-      const sevenDaysAgo = subDays(new Date(), 7).toISOString(); // Calculate 7 days ago
+      const sevenDaysAgo = subDays(new Date(), 7).toISOString();
       const { data: freshErrors, error } = await supabase
         .from('system_errors')
         .select('*')
-        .gte('created_at', sevenDaysAgo) // Filter for errors within the last 7 days
-        .order('created_at', { ascending: false }); // Removed limit to get all errors for accurate stats
+        .gte('created_at', sevenDaysAgo)
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('❌ [ERROR_MONITORING] Error refreshing errors:', error);
@@ -59,50 +136,7 @@ export function useErrorMonitoringData() {
 
       console.log('✅ [ERROR_MONITORING] Refreshed errors:', freshErrors?.length || 0);
       setRecentErrors(freshErrors || []);
-      
-      // Cập nhật stats từ fresh errors (now based on all errors in 7 days)
-      const totalErrors = freshErrors?.length || 0;
-      const criticalErrors = freshErrors?.filter(e => e.severity === 'critical').length || 0;
-      const resolvedErrors = freshErrors?.filter(e => e.status === 'resolved').length || 0;
-      const errorRate = Number(totalErrors) / (7 * 24); 
-
-      const errorTypeCount = freshErrors?.reduce((acc: { [key: string]: number }, error) => {
-        acc[error.error_type] = (acc[error.error_type] || 0) + 1;
-        return acc;
-      }, {}) || {};
-
-      const topErrorTypes = Object.entries(errorTypeCount)
-        .sort(([, a], [, b]) => Number(b) - Number(a)) 
-        .map(([type, count]) => ({ type, count: Number(count) })); 
-
-      // Generate error trend for last 7 days
-      const trendData: { [key: string]: number } = {};
-      for (let i = 6; i >= 0; i--) {
-        const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
-        trendData[date] = 0;
-      }
-      
-      freshErrors?.forEach(error => {
-        if (error.created_at) {
-          const date = format(startOfDay(new Date(error.created_at)), 'yyyy-MM-dd');
-          if (trendData[date] !== undefined) {
-            trendData[date]++;
-          }
-        }
-      });
-      
-      const errorTrend = Object.entries(trendData).map(([date, count]) => ({ date, count }));
-
-      setErrorStats(prev => ({
-        ...prev,
-        totalErrors,
-        criticalErrors,
-        resolvedErrors,
-        errorRate,
-        topErrorTypes,
-        errorTrend,
-        recent: freshErrors?.slice(0, 10) || [], // Slice for recent display
-      }));
+      setErrorStats(processErrorData(freshErrors || [])); // Use helper function
 
       toast.success('Đã làm mới dữ liệu lỗi');
     } catch (err: any) {
@@ -118,15 +152,14 @@ export function useErrorMonitoringData() {
 
     setIsLoading(true);
     console.log('🔄 [ERROR_MONITORING] Loading error monitoring data...');
-    
+
     try {
-      const sevenDaysAgo = subDays(new Date(), 7).toISOString(); // Calculate 7 days ago
-      // Load all errors directly from database for accurate stats
+      const sevenDaysAgo = subDays(new Date(), 7).toISOString();
       const { data: errors, error: errorsError } = await supabase
         .from('system_errors')
         .select('*')
-        .gte('created_at', sevenDaysAgo) // Filter for errors within the last 7 days
-        .order('created_at', { ascending: false }); // Removed limit to get all errors for accurate stats
+        .gte('created_at', sevenDaysAgo)
+        .order('created_at', { ascending: false });
 
       if (errorsError) {
         console.error('❌ [ERROR_MONITORING] Error loading errors:', errorsError);
@@ -135,69 +168,7 @@ export function useErrorMonitoringData() {
 
       console.log('✅ [ERROR_MONITORING] Loaded errors:', errors?.length || 0);
 
-      const totalErrors = errors?.length || 0;
-      const criticalErrors = errors?.filter(e => e.severity === 'critical').length || 0;
-      const resolvedErrors = errors?.filter(e => e.status === 'resolved').length || 0;
-      const errorRate = Number(totalErrors) / (7 * 24); // This calculation is now accurate for the 7-day period
-
-      // Group by type
-      const byType = errors?.reduce((acc: { [key: string]: number }, error) => {
-        acc[error.error_type] = (acc[error.error_type] || 0) + 1;
-        return acc;
-      }, {}) || {};
-
-      // Group by severity
-      const bySeverity = errors?.reduce((acc: { [key: string]: number }, error) => {
-        const severity = error.severity || 'medium';
-        acc[severity] = (acc[severity] || 0) + 1;
-        return acc;
-      }, {}) || {};
-
-      const byBrowser: { [key: string]: number } = {};
-      const byOS: { [key: string]: number } = {};
-
-      errors?.forEach(error => {
-        const { browser, os } = parseUserAgent(error.user_agent);
-        byBrowser[browser] = (byBrowser[browser] || 0) + 1;
-        byOS[os] = (byOS[os] || 0) + 1;
-      });
-
-      const topErrorTypes = Object.entries(byType)
-        .sort(([, a], [, b]) => Number(b) - Number(a)) 
-        .map(([type, count]) => ({ type, count: Number(count) })); 
-
-      // Generate error trend for last 7 days
-      const trendData: { [key: string]: number } = {};
-      for (let i = 6; i >= 0; i--) {
-        const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
-        trendData[date] = 0;
-      }
-      
-      errors?.forEach(error => {
-        if (error.created_at) {
-          const date = format(startOfDay(new Date(error.created_at)), 'yyyy-MM-dd');
-          if (trendData[date] !== undefined) {
-            trendData[date]++;
-          }
-        }
-      });
-      
-      const errorTrend = Object.entries(trendData).map(([date, count]) => ({ date, count }));
-
-      setErrorStats({
-        totalErrors,
-        criticalErrors,
-        resolvedErrors,
-        errorRate,
-        topErrorTypes,
-        errorTrend,
-        byType,
-        bySeverity,
-        byBrowser,
-        byOS,
-        recent: errors?.slice(0, 10) || [], // Slice for recent display
-      });
-
+      setErrorStats(processErrorData(errors || [])); // Use helper function
       setRecentErrors(errors || []);
 
       // Load service health
@@ -216,7 +187,7 @@ export function useErrorMonitoringData() {
           api: { service_name: 'api', status: 'unknown', uptime_percentage: 0 },
         };
 
-        healthResults.forEach((result, index) => {
+        healthResults.forEach((result) => {
           if (result.status === 'fulfilled') {
             const status = result.value;
             let key = status.service_name;
@@ -263,7 +234,7 @@ export function useErrorMonitoringData() {
       setIsLoading(true);
       return;
     }
-    
+
     if (user && user.role === 'admin') {
       fetchAllData();
     } else {
