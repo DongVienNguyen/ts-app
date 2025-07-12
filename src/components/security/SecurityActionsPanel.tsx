@@ -67,10 +67,11 @@ export function SecurityActionsPanel() {
     }
 
     // Always call logEvent directly for this test button
+    // The username is optional for logEvent, so we can pass a default if not provided
     logEvent(
       eventType,
       { message: message || `Simulated ${eventType} event.` },
-      username || 'test_user' // Use 'test_user' if username is empty
+      username || 'test_user'
     );
     toast.success(`Đã mô phỏng sự kiện: ${eventType}`);
   };
