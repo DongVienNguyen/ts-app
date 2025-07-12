@@ -11,20 +11,22 @@ interface LiveActivityFeedProps {
   events: SecurityEvent[];
   isRealTimeEnabled: boolean;
   isLoading: boolean;
+  isRefreshing?: boolean;
   onRefresh?: () => void;
 }
 
-export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, onRefresh }: LiveActivityFeedProps) {
+export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, isRefreshing, onRefresh }: LiveActivityFeedProps) {
   
   // Debug log để kiểm tra dữ liệu
   useEffect(() => {
     console.log('🔍 [LiveActivityFeed] Events received:', events?.length || 0);
     console.log('🔍 [LiveActivityFeed] Real-time enabled:', isRealTimeEnabled);
     console.log('🔍 [LiveActivityFeed] Loading:', isLoading);
+    console.log('🔍 [LiveActivityFeed] Refreshing:', isRefreshing);
     if (events && events.length > 0) {
       console.log('🔍 [LiveActivityFeed] Latest event:', events[0]);
     }
-  }, [events, isRealTimeEnabled, isLoading]);
+  }, [events, isRealTimeEnabled, isLoading, isRefreshing]);
 
   // Memoize events để tránh re-render không cần thiết
   const sortedEvents = useMemo(() => {
@@ -107,10 +109,11 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, onRefre
                 variant="ghost"
                 size="sm"
                 onClick={onRefresh}
+                disabled={isRefreshing}
                 className="h-8 w-8 p-0"
                 title="Làm mới dữ liệu"
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               </Button>
             )}
             {isRealTimeEnabled ? (
@@ -131,6 +134,7 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, onRefre
           <div className="text-xs text-gray-400 space-y-1">
             <div>Debug: {sortedEvents?.length || 0} events, Loading: {isLoading ? 'Yes' : 'No'}</div>
             <div>Real-time: {isRealTimeEnabled ? 'Enabled' : 'Disabled'}</div>
+            <div>Refreshing: {isRefreshing ? 'Yes' : 'No'}</div>
             <div>Last update: {new Date().toLocaleTimeString()}</div>
           </div>
         )}
@@ -175,10 +179,11 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, onRefre
                 variant="outline"
                 size="sm"
                 onClick={onRefresh}
+                disabled={isRefreshing}
                 className="mt-4"
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Làm mới
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Đang làm mới...' : 'Làm mới'}
               </Button>
             )}
           </div>

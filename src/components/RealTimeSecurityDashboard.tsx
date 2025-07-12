@@ -8,7 +8,7 @@ import { SystemOverviewCards } from '@/components/security/SystemOverviewCards';
 import { SecurityAlerts } from '@/components/security/SecurityAlerts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Wifi, WifiOff } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 export function RealTimeSecurityDashboard() {
   const { user } = useSecureAuth();
@@ -17,13 +17,13 @@ export function RealTimeSecurityDashboard() {
     threatTrends,
     isSupabaseConnected,
     isLoading,
+    isRefreshing,
     error,
     activeUsers,
     systemStatus,
     securityAlerts,
+    refreshEvents,
   } = useRealTimeSecurityMonitoring(user);
-
-  const [refreshKey, setRefreshKey] = useState(0);
 
   // Debug log để kiểm tra dữ liệu từ hook
   useEffect(() => {
@@ -31,17 +31,10 @@ export function RealTimeSecurityDashboard() {
       eventsCount: recentEvents?.length || 0,
       isConnected: isSupabaseConnected,
       isLoading,
-      error,
-      refreshKey
+      isRefreshing,
+      error
     });
-  }, [recentEvents, isSupabaseConnected, isLoading, error, refreshKey]);
-
-  const handleRefresh = () => {
-    console.log('🔄 [RealTimeSecurityDashboard] Manual refresh triggered');
-    setRefreshKey(prev => prev + 1);
-    // Force a re-render by updating a state
-    window.location.reload();
-  };
+  }, [recentEvents, isSupabaseConnected, isLoading, isRefreshing, error]);
 
   if (!user) {
     return (
@@ -97,7 +90,8 @@ export function RealTimeSecurityDashboard() {
             events={recentEvents || []}
             isRealTimeEnabled={isSupabaseConnected}
             isLoading={isLoading}
-            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
+            onRefresh={refreshEvents}
           />
         </div>
 
@@ -144,8 +138,8 @@ export function RealTimeSecurityDashboard() {
             <div>Events Count: {recentEvents?.length || 0}</div>
             <div>Is Connected: {isSupabaseConnected ? 'Yes' : 'No'}</div>
             <div>Is Loading: {isLoading ? 'Yes' : 'No'}</div>
+            <div>Is Refreshing: {isRefreshing ? 'Yes' : 'No'}</div>
             <div>Error: {error || 'None'}</div>
-            <div>Refresh Key: {refreshKey}</div>
             <div>User Role: {user?.role}</div>
           </div>
         </div>

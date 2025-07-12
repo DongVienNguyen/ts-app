@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
   const [threatTrends, setThreatTrends] = useState<ThreatTrend[]>([]);
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeUsers, setActiveUsers] = useState<number>(0);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
@@ -38,18 +39,70 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
   });
   const [securityAlerts, setSecurityAlerts] = useState<SystemAlert[]>([]);
 
+  // Ref để theo dõi mounted state
+  const isMountedRef = useRef(true);
+
   const logEvent = async (type: string, data: any = {}, username?: string) => {
     console.log(`🔄 [SECURITY] Logging event: ${type}`, { data, username });
     await logSecurityEventRealTime(type, data, username);
   };
 
-  // Callback để xử lý sự kiện mới
+  // Function để refresh chỉ events
+  const refreshEvents = useCallback(async () => {
+    if (!user || user.role !== 'admin') return;
+    
+    setIsRefreshing(true);
+    console.log('🔄 [REFRESH] Refreshing events only...');
+    
+    try {
+      const { data: freshEvents, error: eventsError } = await supabase
+        .from('security_events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (eventsError) {
+        console.error('❌ [REFRESH] Error refreshing events:', eventsError);
+        toast.error('Lỗi làm mới dữ liệu');
+        return;
+      }
+
+      if (isMountedRef.current) {
+        console.log('✅ [REFRESH] Refreshed events:', freshEvents?.length || 0);
+        setRecentEvents(freshEvents || []);
+        toast.success('Đã làm mới dữ liệu');
+      }
+    } catch (err: any) {
+      console.error('❌ [REFRESH] Refresh failed:', err);
+      toast.error('Lỗi làm mới dữ liệu');
+    } finally {
+      if (isMountedRef.current) {
+        setIsRefreshing(false);
+      }
+    }
+  }, [user]);
+
+  // Callback để xử lý sự kiện mới - sử dụng ref để tránh stale closure
   const handleNewSecurityEvent = useCallback((payload: any) => {
     console.log('🎉 [REALTIME] New security event received:', payload);
     const newEvent = payload.new as SecurityEvent;
     
-    // Force update với functional update để đảm bảo state được cập nhật
+    if (!isMountedRef.current) {
+      console.log('⚠️ [REALTIME] Component unmounted, ignoring event');
+      return;
+    }
+    
+    // Force update với functional update
     setRecentEvents((prevEvents) => {
+      if (!isMountedRef.current) return prevEvents;
+      
+      // Kiểm tra xem event đã tồn tại chưa để tránh duplicate
+      const eventExists = prevEvents.some(event => event.id === newEvent.id);
+      if (eventExists) {
+        console.log('⚠️ [REALTIME] Event already exists, skipping');
+        return prevEvents;
+      }
+      
       const updated = [newEvent, ...prevEvents].slice(0, 50);
       console.log('📝 [REALTIME] Updated events list, total:', updated.length);
       console.log('📝 [REALTIME] New event added:', newEvent.event_type, newEvent.username);
@@ -68,7 +121,11 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     console.log('🚨 [REALTIME] New system alert received:', payload);
     const newAlert = payload.new as SystemAlert;
     
+    if (!isMountedRef.current) return;
+    
     setSecurityAlerts((prevAlerts) => {
+      if (!isMountedRef.current) return prevAlerts;
+      
       const updated = [newAlert, ...prevAlerts].slice(0, 10);
       console.log('🚨 [REALTIME] Updated alerts list, total:', updated.length);
       return updated;
@@ -80,6 +137,8 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    
     if (!user || user.role !== 'admin') {
       console.log('❌ [REALTIME] User not admin or not logged in', { user: user?.username, role: user?.role });
       setIsLoading(false);
@@ -113,6 +172,8 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
           throw eventsError;
         }
 
+        if (!isMountedRef.current) return;
+
         console.log('✅ [REALTIME] Loaded initial events:', initialEvents?.length || 0);
         setRecentEvents(initialEvents || []);
 
@@ -125,10 +186,12 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
 
         if (alertsError) {
           console.error('❌ [REALTIME] Error loading initial alerts:', alertsError);
-        } else {
+        } else if (isMountedRef.current) {
           console.log('✅ [REALTIME] Loaded initial alerts:', initialAlerts?.length || 0);
           setSecurityAlerts(initialAlerts || []);
         }
+
+        if (!isMountedRef.current) return;
 
         // Set system status
         setSystemStatus({
@@ -141,7 +204,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
         setIsSupabaseConnected(true);
 
         // Setup real-time subscription for security events
-        const securityChannelName = `security_events_${Date.now()}`;
+        const securityChannelName = `security_events_${Date.now()}_${Math.random()}`;
         console.log(`🔗 [REALTIME] Creating security events channel: ${securityChannelName}`);
         
         channel = supabase
@@ -162,12 +225,14 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
             }
             if (status === 'CHANNEL_ERROR') {
               console.error(`❌ [REALTIME] Channel error on ${securityChannelName}:`, err);
-              setError(`Lỗi kênh real-time: ${err?.message}`);
+              if (isMountedRef.current) {
+                setError(`Lỗi kênh real-time: ${err?.message}`);
+              }
             }
           });
 
         // Setup real-time subscription for system alerts
-        const alertsChannelName = `system_alerts_${Date.now()}`;
+        const alertsChannelName = `system_alerts_${Date.now()}_${Math.random()}`;
         console.log(`🔗 [REALTIME] Creating system alerts channel: ${alertsChannelName}`);
         
         alertsChannel = supabase
@@ -188,16 +253,22 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
             }
             if (status === 'CHANNEL_ERROR') {
               console.error(`❌ [REALTIME] Channel error on ${alertsChannelName}:`, err);
-              setError(`Lỗi kênh cảnh báo: ${err?.message}`);
+              if (isMountedRef.current) {
+                setError(`Lỗi kênh cảnh báo: ${err?.message}`);
+              }
             }
           });
 
       } catch (err: any) {
         console.error('❌ [REALTIME] Error setting up real-time monitoring:', err);
-        setError(`Lỗi tải dữ liệu: ${err.message}`);
-        setIsSupabaseConnected(false);
+        if (isMountedRef.current) {
+          setError(`Lỗi tải dữ liệu: ${err.message}`);
+          setIsSupabaseConnected(false);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -205,6 +276,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
 
     return () => {
       console.log('🧹 [REALTIME] Cleaning up security monitoring channels...');
+      isMountedRef.current = false;
       
       if (channel) {
         console.log('🧹 [REALTIME] Removing security events channel...');
@@ -254,8 +326,10 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     threatTrends,
     isSupabaseConnected,
     isLoading,
+    isRefreshing,
     error,
     logEvent,
+    refreshEvents,
     activeUsers,
     systemStatus,
     securityAlerts,

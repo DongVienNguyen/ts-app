@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bell, Activity, AlertCircle, UserCog, TestTube } from 'lucide-react';
+import { Bell, Activity, AlertCircle, UserCog, TestTube, Zap } from 'lucide-react';
 import { useRealTimeSecurityMonitoring } from '@/hooks/useRealTimeSecurityMonitoring';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,7 @@ export function SecurityActionsPanel() {
   const [message, setMessage] = useState('');
   const [eventType, setEventType] = useState<string>('ACCOUNT_LOCKED');
   const [isTestingRealtime, setIsTestingRealtime] = useState(false);
+  const [isTestingDirect, setIsTestingDirect] = useState(false);
 
   const handlePerformAction = async () => {
     if (!eventType) {
@@ -56,15 +57,16 @@ export function SecurityActionsPanel() {
   const handleTestRealtime = async () => {
     setIsTestingRealtime(true);
     try {
-      console.log('🧪 [TEST] Testing real-time functionality...');
+      console.log('🧪 [TEST] Testing real-time functionality via Edge Function...');
       
       // Test Edge Function directly
       const { data, error } = await supabase.functions.invoke('log-security-event', {
         body: {
           eventType: 'TEST_REALTIME',
           data: { 
-            message: 'Test real-time functionality',
-            timestamp: new Date().toISOString()
+            message: 'Test real-time functionality via Edge Function',
+            timestamp: new Date().toISOString(),
+            testId: Math.random().toString(36).substr(2, 9)
           },
           username: user?.username || 'test_admin',
           userAgent: navigator.userAgent,
@@ -84,6 +86,42 @@ export function SecurityActionsPanel() {
       toast.error('Test thất bại. Kiểm tra console để biết chi tiết.');
     } finally {
       setIsTestingRealtime(false);
+    }
+  };
+
+  const handleTestDirectInsert = async () => {
+    setIsTestingDirect(true);
+    try {
+      console.log('🧪 [TEST] Testing direct database insert...');
+      
+      // Insert directly into database
+      const { data, error } = await supabase
+        .from('security_events')
+        .insert({
+          event_type: 'TEST_REALTIME',
+          username: user?.username || 'test_admin',
+          event_data: {
+            message: 'Test real-time functionality via direct insert',
+            timestamp: new Date().toISOString(),
+            testId: Math.random().toString(36).substr(2, 9)
+          },
+          user_agent: navigator.userAgent,
+          ip_address: '127.0.0.1'
+        })
+        .select();
+
+      if (error) {
+        console.error('❌ [TEST] Direct insert error:', error);
+        toast.error(`Lỗi direct insert: ${error.message}`);
+      } else {
+        console.log('✅ [TEST] Direct insert success:', data);
+        toast.success('Direct insert thành công! Kiểm tra Dòng Hoạt động Trực tiếp.');
+      }
+    } catch (error) {
+      console.error('❌ [TEST] Direct insert failed:', error);
+      toast.error('Direct insert thất bại. Kiểm tra console để biết chi tiết.');
+    } finally {
+      setIsTestingDirect(false);
     }
   };
 
@@ -159,17 +197,35 @@ export function SecurityActionsPanel() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-gray-600">
-            Nhấn nút bên dưới để kiểm tra xem Edge Function và real-time có hoạt động không.
+            Nhấn các nút bên dưới để kiểm tra xem real-time có hoạt động không.
           </p>
-          <Button 
-            onClick={handleTestRealtime} 
-            className="w-full" 
-            variant="outline"
-            disabled={isTestingRealtime}
-          >
-            <TestTube className="w-4 h-4 mr-2" />
-            {isTestingRealtime ? 'Đang kiểm tra...' : 'Test Real-time'}
-          </Button>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button 
+              onClick={handleTestRealtime} 
+              variant="outline"
+              disabled={isTestingRealtime}
+              className="w-full"
+            >
+              <TestTube className="w-4 h-4 mr-2" />
+              {isTestingRealtime ? 'Đang test Edge Function...' : 'Test Edge Function'}
+            </Button>
+            
+            <Button 
+              onClick={handleTestDirectInsert} 
+              variant="outline"
+              disabled={isTestingDirect}
+              className="w-full"
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              {isTestingDirect ? 'Đang test Direct Insert...' : 'Test Direct Insert'}
+            </Button>
+          </div>
+          
+          <div className="text-xs text-gray-500 space-y-1">
+            <div>• <strong>Edge Function:</strong> Test qua Supabase Edge Function</div>
+            <div>• <strong>Direct Insert:</strong> Test trực tiếp vào database</div>
+          </div>
         </CardContent>
       </Card>
 
@@ -185,7 +241,7 @@ export function SecurityActionsPanel() {
             Nhấn nút bên dưới để kiểm tra xem hệ thống thông báo có hoạt động đúng không.
           </p>
           <Button onClick={handleTestNotification} className="w-full" variant="outline">
-            <AlertCircle className="w-4 h-4 mr-2" />
+            <AlertCircle className="w-4 w-4 mr-2" />
             Gửi Thông báo Kiểm tra
           </Button>
         </CardContent>
