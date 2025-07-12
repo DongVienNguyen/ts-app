@@ -110,7 +110,7 @@ export function ErrorMonitoringDashboard({
               </TabsContent>
 
               <TabsContent value="resources">
-                <ResourcesTab health={health} isLoading={isLoading} />
+                <ResourcesTab health={health} systemMetrics={systemMetrics} isLoading={isLoading} />
               </TabsContent>
               
               <TabsContent value="pwa_push" className="space-y-6">
