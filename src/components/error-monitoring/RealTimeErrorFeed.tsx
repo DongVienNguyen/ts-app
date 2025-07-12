@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { AlertTriangle, Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { SystemError } from '@/utils/errorTracking';
-import { supabase } from '@/integrations/supabase/client'; // Changed import
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { RealtimeChannel } from '@supabase/supabase-js'; // Import RealtimeChannel type
 
 interface RealTimeErrorFeedProps {
   onNewError?: (error: SystemError) => void;
@@ -19,21 +20,19 @@ export function RealTimeErrorFeed({ onNewError }: RealTimeErrorFeedProps) {
   const [errorCount, setErrorCount] = useState(0);
 
   useEffect(() => {
-    if (!isActive) return;
+    let subscription: RealtimeChannel | null = null;
 
-    // Use the directly imported supabase client
-    const client = supabase; 
-    
-    // Check if session exists before subscribing
-    const checkSessionAndSubscribe = async () => {
-      const { data: { session } } = await client.auth.getSession();
+    const setupRealtime = async () => {
+      if (!isActive) return;
+
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         console.warn('⚠️ Cannot start real-time error feed: not authenticated');
         setIsActive(false);
         return;
       }
 
-      const subscription = client
+      subscription = supabase
         .channel('system_errors')
         .on(
           'postgres_changes',
@@ -70,15 +69,17 @@ export function RealTimeErrorFeed({ onNewError }: RealTimeErrorFeedProps) {
           }
         )
         .subscribe();
-      
-      return () => {
-        subscription.unsubscribe();
-      };
     };
 
-    const cleanup = checkSessionAndSubscribe();
-    return () => { cleanup.then(unsub => unsub && unsub()); }; // Ensure cleanup is called
-  }, [isActive, soundEnabled, onNewError]);
+    setupRealtime();
+
+    return () => {
+      if (subscription) {
+        supabase.removeChannel(subscription);
+        subscription = null;
+      }
+    };
+  }, [isActive, soundEnabled, onNewError, supabase]); // Add supabase to dependencies
 
   const playNotificationSound = (severity: string) => {
     try {
