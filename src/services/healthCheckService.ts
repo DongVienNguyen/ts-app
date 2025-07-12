@@ -1,6 +1,5 @@
-import { safeDbOperation } from '@/utils/supabaseAuth';
+import { isAuthenticated, safeDbOperation } from '@/utils/supabaseAuth';
 import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
-import { supabase } from '@/integrations/supabase/client';
 
 export class HealthCheckService {
   private static instance: HealthCheckService;
@@ -39,8 +38,7 @@ export class HealthCheckService {
   }
 
   private async runHealthChecks() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    if (!isAuthenticated()) {
       console.warn('⚠️ Aborting health checks: not authenticated.');
       return;
     }

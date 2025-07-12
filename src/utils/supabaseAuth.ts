@@ -1,20 +1,28 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { validateSession } from '@/services/secureAuthService';
 
 // Get authenticated client - REUSE EXISTING CLIENT
-export function getAuthenticatedClient(): SupabaseClient | null {
-  // The AuthContext ensures the Authorization header is set via setSession.
-  // We just need to return the client.
+export function getAuthenticatedClient(): SupabaseClient {
+  // The AuthContext ensures the Authorization header is set.
   return supabase;
 }
 
-// Get current auth info
-export async function getCurrentAuth() {
-  const { data: { session } } = await supabase.auth.getSession();
+// Check if user is authenticated based on localStorage
+export function isAuthenticated(): boolean {
+  return validateSession();
+}
+
+// Get current auth info from localStorage
+export function getCurrentAuth() {
+  const token = localStorage.getItem('auth_token');
+  const userStr = localStorage.getItem('auth_user');
+  const user = userStr ? JSON.parse(userStr) : null;
+
   return {
-    isAuthenticated: !!session,
-    token: session?.access_token || null,
-    username: session?.user?.user_metadata?.username || null // Assuming username is in user_metadata
+    isAuthenticated: isAuthenticated(),
+    token: token,
+    username: user?.username || null
   };
 }
 
@@ -23,8 +31,7 @@ export async function safeDbOperation<T>(
   operation: (client: SupabaseClient) => Promise<T>,
   fallbackValue?: T,
 ): Promise<T | null> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
+  if (!isAuthenticated()) {
     console.warn('⚠️ Cannot perform database operation: not authenticated');
     return fallbackValue || null;
   }
@@ -34,12 +41,11 @@ export async function safeDbOperation<T>(
     return result;
   } catch (error: any) {
     // Handle specific error types
-    if (error?.code === '42501') {
-      console.warn('⚠️ RLS policy violation - operation not permitted');
+    if (error?.code === '42501' || error?.message?.includes('401') || error?.message?.includes('JWT expired')) {
+      console.warn('⚠️ Auth error during DB operation:', error.message);
+      // Optionally, trigger a logout here
     } else if (error?.code === 'PGRST301') {
       console.warn('⚠️ JWT token expired or invalid');
-    } else if (error?.message?.includes('401')) {
-      console.warn('⚠️ Unauthorized - authentication required');
     } else {
       console.error('❌ Database operation failed:', error);
     }
@@ -48,15 +54,9 @@ export async function safeDbOperation<T>(
   }
 }
 
-// Check if user is authenticated
-export async function isAuthenticated(): Promise<boolean> {
-  const { data: { session } } = await supabase.auth.getSession();
-  return !!session;
-}
-
-// Get current user info
-export async function getCurrentUser() {
-  const authInfo = await getCurrentAuth();
+// Get current user info from localStorage
+export function getCurrentUser() {
+  const authInfo = getCurrentAuth();
   return {
     token: authInfo.token,
     username: authInfo.username,
