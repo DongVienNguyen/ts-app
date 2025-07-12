@@ -1,5 +1,5 @@
 import { isAuthenticated, safeDbOperation } from '@/utils/supabaseAuth';
-import { updateSystemStatus, logSystemMetric, SystemStatus } from '@/utils/errorTracking'; // Removed 'as SystemStatusInterface'
+import { updateSystemStatus, logSystemMetric, SystemStatus } from '@/utils/errorTracking';
 
 export class HealthCheckService {
   private static instance: HealthCheckService;

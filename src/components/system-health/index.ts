@@ -10,17 +10,10 @@ export { SystemAlerts } from './SystemAlerts';
 export { PerformanceInsights } from './PerformanceInsights';
 export { SystemHealthHeader } from './SystemHealthHeader';
 export { SystemHealthFooter } from './SystemHealthFooter';
-export { RealTimeMonitor } from './RealTimeMonitor';
-export { PerformanceAnalytics } from './PerformanceAnalytics';
-export { SystemHealthDashboard } from './SystemHealthDashboard';
-
-// Performance Analytics
-export * from './performance';
+export { RealTimeMonitor } from './RealTimeMonitor'; // Thêm dòng này
 
 // Services and hooks
 export { SystemHealthService } from './systemHealthService';
-export { AdvancedSystemHealthService } from './AdvancedSystemHealthService';
-export { SystemHealthCache, systemHealthCache } from './SystemHealthCache';
 export { useSystemHealth } from './useSystemHealth';
 
 // Types and utilities
