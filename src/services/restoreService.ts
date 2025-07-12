@@ -20,12 +20,13 @@ export interface RestorePreview {
 }
 
 export const restoreService = {
-  async restoreDataFromZip(zipFile: File, user: any): Promise<RestoreResult> {
+  async restoreDataFromZip(zipFile: File, user: any, progressCallback?: (progress: number, step: string) => void): Promise<RestoreResult> {
     if (!user || user.role !== 'admin') {
       return { success: false, message: 'Unauthorized access', restoredTables: [], errors: [] };
     }
 
     toast.info('Đang bắt đầu quá trình khôi phục dữ liệu...');
+    progressCallback?.(0, 'Đang khởi tạo quá trình khôi phục...');
     let processedFiles = 0;
     const restoredTables: { tableName: string; count: number }[] = [];
     const errors: { tableName: string; message: string }[] = [];
@@ -41,6 +42,9 @@ export const restoreService = {
         const tableName = filename.replace('.csv', '');
 
         const configEntry = Object.values(entityConfig).find(config => config.entity === tableName);
+
+        const currentProgress = Math.round((processedFiles / totalFiles) * 100);
+        progressCallback?.(currentProgress, `Đang xử lý bảng: ${configEntry?.name || tableName}...`);
 
         if (configEntry) {
           toast.info(`Đang xử lý bảng: ${configEntry.name} (${tableName})...`);
@@ -68,6 +72,7 @@ export const restoreService = {
               });
 
               // --- Xóa dữ liệu hiện có trước khi chèn ---
+              progressCallback?.(currentProgress, `Đang xóa dữ liệu cũ trong bảng ${configEntry.name}...`);
               const { error: deleteError } = await supabase
                 .from(tableName)
                 .delete()
@@ -82,6 +87,7 @@ export const restoreService = {
               // --- Kết thúc xóa dữ liệu hiện có ---
 
               // Chèn dữ liệu mới
+              progressCallback?.(currentProgress, `Đang chèn ${mappedData.length} bản ghi vào bảng ${configEntry.name}...`);
               const { error: insertError } = await supabase.from(tableName).insert(mappedData);
 
               if (insertError) {
@@ -104,12 +110,14 @@ export const restoreService = {
           toast.warning(`Không tìm thấy cấu hình cho bảng: ${tableName}. Bỏ qua.`);
         }
         processedFiles++;
-        toast.info(`Tiến độ: ${processedFiles}/${totalFiles} tệp đã xử lý.`);
+        progressCallback?.(Math.round((processedFiles / totalFiles) * 100), `Đã xử lý ${processedFiles}/${totalFiles} tệp.`);
       }
+      progressCallback?.(100, 'Khôi phục hoàn tất thành công!');
       toast.success('Quá trình khôi phục dữ liệu hoàn tất!');
       return { success: true, message: 'Khôi phục dữ liệu thành công.', restoredTables, errors };
     } catch (error: any) {
       console.error('Lỗi trong quá trình khôi phục dữ liệu:', error);
+      progressCallback?.(0, 'Khôi phục thất bại.');
       toast.error(`Khôi phục dữ liệu thất bại: ${error.message || 'Lỗi không xác định'}`);
       return { success: false, message: `Khôi phục dữ liệu thất bại: ${error.message || 'Lỗi không xác định'}`, restoredTables, errors: [{ tableName: 'Tổng quan', message: error.message || 'Lỗi không xác định' }] };
     }

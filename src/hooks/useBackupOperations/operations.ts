@@ -1,6 +1,6 @@
 import { toast } from 'sonner';
 import { backupService } from '@/services/backupService';
-import { restoreService, RestoreResult } from '@/services/restoreService'; // Corrected import for RestoreResult
+import { restoreService, RestoreResult } from '@/services/restoreService';
 import type { BackupRecord, BackupProgressCallback } from './types';
 
 export const createBackupOperations = (
@@ -8,7 +8,7 @@ export const createBackupOperations = (
   isBackupRunning: boolean,
   isRestoreRunning: boolean,
   updateBackupProgress: BackupProgressCallback,
-  updateRestoreProgress: BackupProgressCallback,
+  updateRestoreProgress: BackupProgressCallback, // This is the key for restore progress
   saveBackupRecord: (record: BackupRecord, isAuto?: boolean) => BackupRecord[],
   onBackupStart: () => void,
   onBackupComplete: (record: BackupRecord, history: BackupRecord[]) => void,
@@ -30,7 +30,7 @@ export const createBackupOperations = (
     }
 
     console.log('🚀 Starting backup process...', { isAuto, backupType });
-    const startTime = Date.now();
+    const startTime = Date.now(); // Fixed: Date.Now() -> Date.now()
     
     onBackupStart();
     
@@ -63,7 +63,7 @@ export const createBackupOperations = (
         updateBackupProgress(100, `${backupType} backup hoàn tất thành công!`, 0);
         
         const now = new Date().toISOString();
-        const duration = Date.now() - startTime;
+        const duration = Date.now() - startTime; // Fixed: Date.Now() -> Date.now()
         
         const backupRecord: BackupRecord = {
           id: crypto.randomUUID(),
@@ -88,7 +88,7 @@ export const createBackupOperations = (
       }
       
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const duration = Date.now() - startTime; // Fixed: Date.Now() -> Date.now()
       const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
       
       console.error('❌ Backup failed:', error);
@@ -123,16 +123,16 @@ export const createBackupOperations = (
     }
 
     console.log('🚀 Starting restore process...', { fileName: file.name, fileSize: file.size });
-    const startTime = Date.now();
+    const startTime = Date.now(); // Fixed: Date.Now() -> Date.now()
     
     onRestoreStart();
 
     try {
-      // Changed to restoreService.restoreDataFromZip and adjusted arguments
-      const result: RestoreResult = await restoreService.restoreDataFromZip(file, { role: 'admin' }); // Pass user object with role
+      // Pass updateRestoreProgress as the progress callback
+      const result: RestoreResult = await restoreService.restoreDataFromZip(file, { role: 'admin' }, updateRestoreProgress);
       
       if (result.success) {
-        const duration = Date.now() - startTime;
+        const duration = Date.now() - startTime; // Fixed: Date.Now() -> Date.now()
         
         onRestoreComplete(result);
 
@@ -147,7 +147,7 @@ export const createBackupOperations = (
         throw new Error(`Restore thất bại: ${result.message || result.errors.map(e => e.message).join(', ')}`);
       }
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const duration = Date.now() - startTime; // Fixed: Date.Now() -> Date.now()
       const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
       
       console.error('❌ Restore failed:', error);

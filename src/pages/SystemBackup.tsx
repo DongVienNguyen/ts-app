@@ -23,7 +23,7 @@ import BackupPerformanceCard from '@/components/backup/BackupPerformanceCard';
 import BackupAnalyticsCard from '@/components/backup/BackupAnalyticsCard';
 import SystemHealthCard from '@/components/backup/SystemHealthCard';
 import RestoreActionsCard from '@/components/backup/RestoreActionsCard';
-import { RestorePreviewCard } from '@/components/backup/RestorePreviewCard'; // Changed to named import
+import { RestorePreviewCard } from '@/components/backup/RestorePreviewCard';
 import { useBackupOperations } from '@/hooks/useBackupOperations';
 import Layout from '@/components/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,7 +31,7 @@ import { supabase } from '@/integrations/supabase/client';
 const SystemBackup: React.FC = () => {
   const {
     backupStatus,
-    restoreStatus,
+    restoreStatus, // Get restoreStatus from the hook
     backupItems,
     backupHistory,
     canAccess,
@@ -139,11 +139,12 @@ const SystemBackup: React.FC = () => {
       case 'restore':
         return (
           <div className={contentClass}>
-            {restoreStatus.isRunning && (
+            {/* RestoreProgressCard is now redundant as RestoreActionsCard will show progress */}
+            {/* {restoreStatus.isRunning && (
               <BackupProgressCard isRunning={restoreStatus.isRunning} progress={restoreStatus.progress} currentStep={restoreStatus.currentStep} estimatedTimeRemaining={restoreStatus.estimatedTimeRemaining} />
-            )}
+            )} */}
             <RestorePreviewCard selectedFile={selectedRestoreFile} onFileSelected={setSelectedRestoreFile} />
-            <RestoreActionsCard onRestore={handlePerformRestore} />
+            <RestoreActionsCard onRestore={handlePerformRestore} restoreStatus={restoreStatus} /> {/* Pass restoreStatus */}
             {restoreStatus.lastRestore && (
               <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
                 <p className="text-sm text-green-800">

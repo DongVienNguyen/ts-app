@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,19 +18,14 @@ interface RestoreStatus {
 
 interface RestoreActionsCardProps {
   onRestore: (file: File) => Promise<void>;
+  restoreStatus: RestoreStatus; // Receive restoreStatus as a prop
 }
 
-const RestoreActionsCard: React.FC<RestoreActionsCardProps> = ({ onRestore }) => {
+const RestoreActionsCard: React.FC<RestoreActionsCardProps> = ({ onRestore, restoreStatus }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [dragOver, setDragOver] = useState(false);
-  const [restoreStatus, setRestoreStatus] = useState<RestoreStatus>({
-    isRunning: false,
-    progress: 0,
-    currentStep: '',
-    error: null,
-    success: false
-  });
+  const [selectedFile, setSelectedFile] = React.useState<File | null>(null); // Keep selectedFile state
+  const [dragOver, setDragOver] = React.useState(false);
+  // Removed internal restoreStatus state, now using prop
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -53,7 +48,7 @@ const RestoreActionsCard: React.FC<RestoreActionsCardProps> = ({ onRestore }) =>
     }
 
     setSelectedFile(file);
-    setRestoreStatus(prev => ({ ...prev, error: null, success: false }));
+    // setRestoreStatus(prev => ({ ...prev, error: null, success: false })); // No longer needed here
     toast.success('File backup đã được chọn');
   };
 
@@ -83,71 +78,28 @@ const RestoreActionsCard: React.FC<RestoreActionsCardProps> = ({ onRestore }) =>
 
   const handleRemoveFile = () => {
     setSelectedFile(null);
-    setRestoreStatus(prev => ({ ...prev, error: null, success: false }));
+    // setRestoreStatus(prev => ({ ...prev, error: null, success: false })); // No longer needed here
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleRestore = async () => {
+  const handleStartRestore = async () => { // Renamed to avoid conflict with prop
     if (!selectedFile) {
       toast.error('Vui lòng chọn file backup');
       return;
     }
 
     console.log('🚀 Starting restore with file:', selectedFile.name);
-    setRestoreStatus({
-      isRunning: true,
-      progress: 0,
-      currentStep: 'Đang khởi tạo quá trình restore...',
-      error: null,
-      success: false
-    });
-
+    // The restoreStatus is now managed by the parent component via useBackupOperations
+    // and passed as a prop. The onRestore function will trigger updates to that status.
+    
     try {
-      // Simulate progress updates
-      const progressSteps = [
-        { progress: 10, step: 'Đang đọc file backup...' },
-        { progress: 25, step: 'Đang xác thực dữ liệu...' },
-        { progress: 40, step: 'Đang tạo backup hiện tại...' },
-        { progress: 60, step: 'Đang restore dữ liệu...' },
-        { progress: 80, step: 'Đang cập nhật cấu hình...' },
-        { progress: 95, step: 'Đang hoàn tất...' }
-      ];
-
-      for (const step of progressSteps) {
-        setRestoreStatus(prev => ({
-          ...prev,
-          progress: step.progress,
-          currentStep: step.step
-        }));
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
       await onRestore(selectedFile);
-      
-      setRestoreStatus(prev => ({
-        ...prev,
-        isRunning: false,
-        progress: 100,
-        currentStep: 'Restore hoàn tất thành công!',
-        success: true
-      }));
-      
-      toast.success('Restore dữ liệu thành công! Trang sẽ tự động tải lại.');
+      // Status updates are handled by the parent component's restoreStatus prop
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
-      console.error('❌ Restore failed:', error);
-      
-      setRestoreStatus(prev => ({
-        ...prev,
-        isRunning: false,
-        error: errorMessage,
-        progress: 0,
-        currentStep: ''
-      }));
-      
-      toast.error('Restore thất bại: ' + errorMessage);
+      // Error handling is also managed by the parent component's restoreStatus prop
+      console.error('❌ Restore failed in RestoreActionsCard:', error);
     }
   };
 
@@ -284,7 +236,7 @@ const RestoreActionsCard: React.FC<RestoreActionsCardProps> = ({ onRestore }) =>
 
         {/* Action Button */}
         <Button
-          onClick={handleRestore}
+          onClick={handleStartRestore}
           disabled={!selectedFile || restoreStatus.isRunning}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           size="lg"

@@ -20,7 +20,8 @@ export const useBackupState = () => {
     currentStep: '',
     lastRestore: null,
     error: null,
-    estimatedTimeRemaining: null
+    estimatedTimeRemaining: null,
+    success: false // Fixed: Added success property
   });
 
   const [backupItems, setBackupItems] = useState<BackupItem[]>([

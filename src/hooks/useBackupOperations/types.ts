@@ -26,6 +26,7 @@ export interface RestoreStatus {
   lastRestore: string | null;
   error: string | null;
   estimatedTimeRemaining: number | null;
+  success: boolean; // Added 'success' property
 }
 
 export interface BackupRecord {
