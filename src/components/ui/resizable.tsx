@@ -2,10 +2,11 @@
 
 import * as React from "react"
 import {
-  PanelGroup, // Correct import name
-  Panel,      // Correct import name
-  PanelResizeHandle, // Correct import name
+  PanelGroup,
+  Panel,
+  PanelResizeHandle,
 } from "react-resizable-panels"
+import { GripVertical } from "lucide-react" // Import GripVertical
 
 import { cn } from "@/lib/utils"
 
@@ -50,18 +51,7 @@ const ResizableHandle = ({
   >
     {withHandle && (
       <div className="z-10 flex h-4 w-4 items-center justify-center rounded-sm border bg-border">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-2.5 w-2.5"
-        >
-          <path d="M9 18l6-6-6-6" />
-        </svg>
+        <GripVertical className="h-2.5 w-2.5" /> {/* Sử dụng GripVertical */}
       </div>
     )}
   </PanelResizeHandle>
