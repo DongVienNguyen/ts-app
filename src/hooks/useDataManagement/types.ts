@@ -79,7 +79,10 @@ export interface DataManagementReturn {
   onFilterChange: (key: string, value: any) => void;
   clearFilters: () => void;
   config: EntityConfig;
-  restoreFile: File | null; // Added restoreFile
+  restoreFile: File | null;
+  selectedRows: Record<string, boolean>;
+  filteredData: any[];
+  paginatedData: any[]; // Added paginatedData
 }
 
 export interface DataLoaderReturn {

@@ -25,7 +25,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthenticatedStaff | null>(null);
-  const [loading, setLoading] = true);
+  const [loading, setLoading] = useState(false); // Fixed: Changed to useState(false)
 
   useEffect(() => {
     const restoreSession = async () => {
