@@ -1,5 +1,5 @@
 import { isAuthenticated, safeDbOperation } from '@/utils/supabaseAuth';
-import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
+import { updateSystemStatus, logSystemMetric, SystemStatus as SystemStatusInterface } from '@/utils/errorTracking'; // Import SystemStatusInterface
 
 export class HealthCheckService {
   private static instance: HealthCheckService;
@@ -211,3 +211,58 @@ export class HealthCheckService {
 }
 
 export const healthCheckService = HealthCheckService.getInstance();
+
+// Check service health
+export async function checkServiceHealth(serviceName: string): Promise<SystemStatusInterface> {
+  const startTime = performance.now();
+  
+  try {
+    // Simple health check based on service name
+    let isHealthy = true;
+    let responseTime = Math.round(performance.now() - startTime);
+    
+    switch (serviceName) {
+      case 'database':
+        const dbResult = await safeDbOperation(async (client) => {
+          const { error } = await client.from('staff').select('count').limit(1);
+          return !error;
+        });
+        isHealthy = !!dbResult;
+        break;
+      
+      case 'email':
+      case 'push_notification':
+      case 'api':
+        // For other services, assume they're healthy for now
+        isHealthy = true;
+        break;
+    }
+    
+    responseTime = Math.round(performance.now() - startTime);
+    
+    return {
+      service_name: serviceName,
+      status: isHealthy ? 'online' : 'offline',
+      response_time_ms: responseTime,
+      uptime_percentage: isHealthy ? 100 : 0,
+      status_data: {
+        lastCheck: new Date().toISOString(),
+        result: isHealthy ? 'success' : 'failed'
+      }
+    };
+  } catch (error) {
+    const responseTime = Math.round(performance.now() - startTime);
+    
+    return {
+      service_name: serviceName,
+      status: 'offline',
+      response_time_ms: responseTime,
+      uptime_percentage: 0,
+      status_data: {
+        lastCheck: new Date().toISOString(),
+        result: 'failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    };
+  }
+}

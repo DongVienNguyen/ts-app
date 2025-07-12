@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getErrorStatistics, SystemError, SystemMetric, SystemStatus, checkServiceHealth } from '@/utils/errorTracking';
+import { getErrorStatistics, SystemError, SystemMetric, SystemStatus } from '@/utils/errorTracking';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, subDays, startOfDay } from 'date-fns';
 import { ServiceHealth } from '@/components/error-monitoring/ServiceStatusTab';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { parseUserAgent } from '@/utils/userAgentParser';
+import { checkServiceHealth } from '@/services/healthCheckService'; // Updated import path
 
 export function useErrorMonitoringData() {
   const { user, loading: authLoading } = useAuth();
