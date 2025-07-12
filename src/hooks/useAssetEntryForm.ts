@@ -54,7 +54,7 @@ export const useAssetEntryForm = () => {
 
   const disabledBeforeDate = useMemo(() => {
     const gmtPlus7Date = getGMTPlus7Date();
-    const morningTargetDate = getDateBasedOnTime();
+    const morningTargetDate = getDateBasedOnTime('00:00'); // Fixed: Pass '00:00' as argument
     return morningTargetDate < gmtPlus7Date ? morningTargetDate : gmtPlus7Date;
   }, []);
 

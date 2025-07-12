@@ -1,7 +1,8 @@
 import { Activity, Clock, Eye, CheckCircle, AlertTriangle, Lock, Unlock, Key } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { SecurityEvent } from '@/utils/secureAuthUtils';
+import { SecurityEvent } from '@/utils/realTimeSecurityUtils';
+import { formatRelativeTime } from '@/utils/dateUtils';
 
 interface LiveActivityFeedProps {
   events: SecurityEvent[];
@@ -77,7 +78,9 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading }: LiveA
                     <span className="font-medium">{getEventDescription(event)}</span>
                     <div className="flex items-center space-x-2 text-sm text-gray-500">
                       <Clock className="w-3 h-3" />
-                      <span>{new Date(event.timestamp).toLocaleString('vi-VN')}</span>
+                      <span title={new Date(event.timestamp).toLocaleString('vi-VN')}>
+                        {formatRelativeTime(event.timestamp)}
+                      </span>
                     </div>
                   </div>
                   {event.data?.username && (

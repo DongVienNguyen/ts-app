@@ -84,7 +84,7 @@ export function SecurityOverview() {
 
         <div className="space-y-6">
             {/* Thay thế thẻ giữ chỗ bằng ThreatAnalysisCard */}
-            <ThreatAnalysisCard data={threatData} />
+            <ThreatAnalysisCard data={threatData} isLoading={isLoading} />
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Cài đặt Bảo mật</CardTitle>

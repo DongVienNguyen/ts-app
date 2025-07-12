@@ -157,7 +157,7 @@ export function RealTimeSecurityDashboard() {
           />
         </div>
         <div className="lg:col-span-1">
-          <ThreatAnalysisCard data={dataToDisplay.threatTrends} />
+          <ThreatAnalysisCard data={dataToDisplay.threatTrends} isLoading={dataToDisplay.isLoading} />
         </div>
       </div>
     </div>

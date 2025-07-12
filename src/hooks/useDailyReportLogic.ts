@@ -29,7 +29,7 @@ export const useDailyReportLogic = () => {
   const ITEMS_PER_PAGE = 10;
 
   const [gmtPlus7Date] = useState(() => getGMTPlus7Date());
-  const [morningTargetDate] = useState(() => getDateBasedOnTime());
+  const [morningTargetDate] = useState(() => getDateBasedOnTime('00:00')); // Fixed: Pass '00:00' as argument
   const [nextWorkingDayDate] = useState(() => getNextWorkingDay(gmtPlus7Date));
   const [defaultEndDate] = useState(() => getDefaultEndDate());
 

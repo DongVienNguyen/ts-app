@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ThreatAnalysisCardProps {
   data: {
@@ -9,9 +10,10 @@ interface ThreatAnalysisCardProps {
     failedLogins: number;
     suspiciousActivities: number;
   }[];
+  isLoading: boolean;
 }
 
-export function ThreatAnalysisCard({ data }: ThreatAnalysisCardProps) {
+export function ThreatAnalysisCard({ data, isLoading }: ThreatAnalysisCardProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -19,7 +21,12 @@ export function ThreatAnalysisCard({ data }: ThreatAnalysisCardProps) {
         <BarChart3 className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        {data && data.length > 0 ? (
+        {isLoading ? (
+          <div className="space-y-2 py-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-[180px] w-full" />
+          </div>
+        ) : data && data.length > 0 ? (
           <ResponsiveContainer width="100%" height={200}>
             <LineChart
               data={data}
@@ -41,7 +48,7 @@ export function ThreatAnalysisCard({ data }: ThreatAnalysisCardProps) {
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="text-center py-8">
+          <div className="text-center py-8 h-[220px] flex items-center justify-center">
             <p className="text-gray-500">Không có đủ dữ liệu để phân tích.</p>
           </div>
         )}
