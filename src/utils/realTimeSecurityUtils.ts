@@ -55,43 +55,26 @@ export async function logSecurityEventRealTime(
     console.error('Error storing security log locally:', error);
   }
 
-  // --- Thêm đoạn log này để kiểm tra phiên người dùng trước khi insert ---
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError) {
-    console.error('[SECURITY REALTIME] Lỗi khi lấy phiên trước khi insert:', sessionError);
-  } else {
-    console.log('[SECURITY REALTIME] Phiên trước khi insert:', session ? 'Có mặt' : 'Không có');
-    if (session) {
-      console.log('[SECURITY REALTIME] User ID:', session.user?.id);
-      console.log('[SECURITY REALTIME] User Role:', session.user?.role);
-    }
-  }
-  // --- Kết thúc đoạn thêm ---
-
-  // Store in database for persistence and real-time updates
+  // Store in database via an Edge Function for persistence and real-time updates
   try {
-    const { error } = await supabase
-      .from('security_events')
-      .insert({
-        event_type: eventType,
-        username: username,
-        event_data: data,
-        user_agent: navigator.userAgent,
-        ip_address: await getClientIP()
-      });
+    const ipAddress = await getClientIP();
+    const { error } = await supabase.functions.invoke('log-security-event', {
+      body: {
+        eventType,
+        data,
+        username,
+        userAgent: navigator.userAgent,
+        ipAddress,
+      },
+    });
 
     if (error) {
-      console.error('Error storing security event in database:', error);
-      toast.error('Lỗi ghi sự kiện bảo mật', {
-        description: `Không thể ghi vào CSDL. Lỗi: ${error.message}`,
-      });
+      console.error('Error invoking log-security-event function:', error);
+      // Không hiển thị toast lỗi cho người dùng cuối vì đây là tác vụ nền
     }
   } catch (error) {
     console.error('Error logging security event:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
-    toast.error('Lỗi ghi sự kiện bảo mật', {
-      description: `Đã xảy ra lỗi: ${errorMessage}`,
-    });
+    // Không hiển thị toast lỗi cho người dùng cuối vì đây là tác vụ nền
   }
 }
 
