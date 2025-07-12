@@ -164,24 +164,23 @@ export const AdminEmailSettings = () => {
       } else {
         console.log('📝 Updating existing admin email...');
         
-        // Update existing admin
-        const { data: updatedAdmin, error: updateError } = await supabase
+        // Update existing admin - handles multiple admin accounts
+        const { data: updatedAdmins, error: updateError } = await supabase
           .from('staff')
           .update({ email: adminEmail.trim() })
           .eq('role', 'admin')
-          .select('id, username, email')
-          .single();
+          .select('id, username, email'); // Removed .single() to allow multiple updates
 
         if (updateError) {
           console.error('❌ Update admin error:', updateError);
           throw new Error(`Không thể cập nhật email: ${updateError.message}`);
         }
 
-        console.log('✅ Updated admin email:', updatedAdmin);
+        console.log('✅ Updated admin email(s):', updatedAdmins);
         setCurrentAdminEmail(adminEmail.trim());
         setMessage({ 
           type: 'success', 
-          text: `✅ Đã cập nhật email admin thành công: ${adminEmail.trim()}` 
+          text: `✅ Đã cập nhật email cho ${updatedAdmins?.length || 0} tài khoản admin thành công: ${adminEmail.trim()}` 
         });
         
         // Shorter delay for updates
