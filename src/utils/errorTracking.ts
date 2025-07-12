@@ -286,7 +286,7 @@ export async function captureError(
     request_url: window.location.href,
     user_agent: navigator.userAgent,
     severity: context?.severity || 'medium',
-    status: 'new', // Default to 'new' status
+    status: 'open', // Default to 'open' status
     error_data: context?.additionalData
   };
 
