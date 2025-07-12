@@ -84,6 +84,7 @@ const DataManagement = () => {
     // Computed values
     filteredData,
     paginatedData,
+    totalCount,
     totalPages,
     
     // Functions
@@ -187,6 +188,7 @@ const DataManagement = () => {
             onSearchChange={setSearchTerm}
             filteredData={filteredData}
             paginatedData={paginatedData}
+            totalCount={totalCount}
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}

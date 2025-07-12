@@ -1,6 +1,5 @@
 import { DataManagementTab } from './DataManagementTab';
 import { StatisticsTab } from './StatisticsTab';
-import { AdminEmailSettings } from './AdminEmailSettings';
 
 interface TabContentProps {
   activeTab: string;
@@ -12,6 +11,7 @@ interface TabContentProps {
   onSearchChange: (term: string) => void;
   filteredData: any[];
   paginatedData: any[];
+  totalCount: number;
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -41,6 +41,7 @@ export const TabContent = ({
   onSearchChange,
   filteredData,
   paginatedData,
+  totalCount,
   currentPage,
   totalPages,
   onPageChange,
@@ -72,6 +73,7 @@ export const TabContent = ({
             onSearchChange={onSearchChange}
             filteredData={filteredData}
             paginatedData={paginatedData}
+            totalCount={totalCount}
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={onPageChange}
@@ -94,13 +96,6 @@ export const TabContent = ({
         return (
           <div className="mt-6 space-y-6">
             <StatisticsTab runAsAdmin={runAsAdmin} setMessage={setMessage} onLoad={() => {}} />
-          </div>
-        );
-
-      case 'admin-settings':
-        return (
-          <div className="mt-6 space-y-6">
-            <AdminEmailSettings />
           </div>
         );
 

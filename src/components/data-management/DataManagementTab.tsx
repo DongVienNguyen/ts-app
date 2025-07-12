@@ -1,13 +1,14 @@
-import { Plus, Download, Upload, Trash2, Edit, Lock } from 'lucide-react';
+import { useMemo } from 'react';
+import { Plus, Download, Upload, Trash2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import DateInput from '@/components/DateInput';
 import TestDataButton from '@/components/TestDataButton';
 import { entityConfig } from '@/config/entityConfig';
+import OptimizedTable from '@/components/OptimizedTable';
 
 interface DataManagementTabProps {
   selectedEntity: string;
@@ -15,8 +16,9 @@ interface DataManagementTabProps {
   isLoading: boolean;
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  filteredData: any[];
+  filteredData: any[]; // Added this line
   paginatedData: any[];
+  totalCount: number;
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -40,8 +42,9 @@ export const DataManagementTab = ({
   isLoading,
   searchTerm,
   onSearchChange,
-  filteredData,
+  filteredData, // Added this line
   paginatedData,
+  totalCount,
   currentPage,
   totalPages,
   onPageChange,
@@ -58,6 +61,47 @@ export const DataManagementTab = ({
   onEndDateChange,
   onBulkDeleteTransactions
 }: DataManagementTabProps) => {
+  const columns = useMemo(() => {
+    const config = entityConfig[selectedEntity];
+    if (!config) return [];
+
+    const fieldColumns = config.fields.map(field => ({
+      key: field.key,
+      label: field.label,
+      width: 180,
+      render: (value: any) => {
+        if (field.type === 'date' && value) {
+          return new Date(value).toLocaleDateString('vi-VN');
+        }
+        if (field.type === 'boolean' && typeof value === 'boolean') {
+          return value ? 'Có' : 'Không';
+        }
+        if (selectedEntity === 'staff' && field.key === 'password') {
+          return '********';
+        }
+        return value?.toString() ?? '';
+      }
+    }));
+
+    const actionsColumn = {
+      key: 'actions',
+      label: 'Thao tác',
+      width: 120,
+      render: (_: any, row: any) => (
+        <div className="flex justify-end space-x-1">
+          <Button variant="ghost" size="icon" onClick={() => onEdit(row)} title="Chỉnh sửa">
+            <Edit className="h-4 w-4 text-blue-600" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onDelete(row)} title="Xóa">
+            <Trash2 className="h-4 w-4 text-red-600" />
+          </Button>
+        </div>
+      )
+    };
+
+    return [...fieldColumns, actionsColumn];
+  }, [selectedEntity, onEdit, onDelete]);
+
   return (
     <div className="mt-6 space-y-6">
       {/* Entity Selection Card */}
@@ -145,84 +189,35 @@ export const DataManagementTab = ({
       <Card>
         <CardHeader>
           <CardTitle>
-            {entityConfig[selectedEntity]?.name} (Tổng: {filteredData.length} bản ghi)
+            {entityConfig[selectedEntity]?.name} (Tổng: {totalCount} bản ghi)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-              <span className="ml-2">Đang tải dữ liệu...</span>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {entityConfig[selectedEntity]?.fields.map((field) => (
-                        <TableHead key={field.key}>{field.label}</TableHead>
-                      ))}
-                      <TableHead className="text-right">Thao tác</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedData.length > 0 ? (
-                      paginatedData.map((item) => (
-                        <TableRow key={item.id}>
-                          {entityConfig[selectedEntity]?.fields.map((field) => (
-                            <TableCell key={field.key} className="py-2 px-4 whitespace-nowrap">
-                              {field.type === 'date' && item[field.key]
-                                ? new Date(item[field.key]).toLocaleDateString('vi-VN')
-                                : field.type === 'boolean' && item[field.key] !== undefined
-                                  ? (item[field.key] ? 'Có' : 'Không')
-                                  : (selectedEntity === 'staff' && field.key === 'password')
-                                    ? '********'
-                                    : item[field.key]?.toString()}
-                            </TableCell>
-                          ))}
-                          <TableCell className="text-right py-2 px-4">
-                            <div className="flex justify-end space-x-1">
-                              {/* Removed staff lock/unlock button */}
-                              <Button variant="ghost" size="icon" onClick={() => onEdit(item)} title="Chỉnh sửa">
-                                <Edit className="h-4 w-4 text-blue-600" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => onDelete(item)} title="Xóa">
-                                <Trash2 className="h-4 w-4 text-red-600" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={(entityConfig[selectedEntity]?.fields.length || 0) + 1} className="text-center py-8">
-                          Không có dữ liệu
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="flex justify-between items-center mt-4">
-                <Button
-                  onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                >
-                  Trước
-                </Button>
-                <span>
-                  Trang {currentPage} / {totalPages}
-                </span>
-                <Button
-                  onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages || totalPages === 0}
-                >
-                  Tiếp
-                </Button>
-              </div>
-            </>
-          )}
+          <OptimizedTable
+            data={paginatedData}
+            columns={columns}
+            height={600}
+            itemHeight={52}
+            onRowClick={onEdit}
+            loading={isLoading}
+          />
+          <div className="flex justify-between items-center mt-4">
+            <Button
+              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+            >
+              Trước
+            </Button>
+            <span>
+              Trang {currentPage} / {totalPages}
+            </span>
+            <Button
+              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+            >
+              Tiếp
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -7,8 +7,9 @@ import { useSecureAuth } from '@/contexts/AuthContext';
 import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
 import { SystemStatus } from '@/utils/errorTracking';
 import { PWATestPanel } from '@/components/PWATestPanel';
-import PushNotificationTester from '@/components/PushNotificationTester'; // Corrected to default import
+import PushNotificationTester from '@/components/PushNotificationTester';
 import { VAPIDKeyTester } from '@/components/VAPIDKeyTester';
+import { AdminEmailSettings } from '@/components/admin/AdminEmailSettings'; // Đảm bảo đường dẫn này là chính xác
 
 const ErrorMonitoring = () => {
   const { user } = useSecureAuth();
@@ -134,11 +135,12 @@ const ErrorMonitoring = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="errors" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="errors">Recent Errors</TabsTrigger>
             <TabsTrigger value="services">Service Health</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="pwa">PWA & Push</TabsTrigger>
+            <TabsTrigger value="settings">Admin Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="errors" className="space-y-6">
@@ -261,6 +263,10 @@ const ErrorMonitoring = () => {
             <PWATestPanel />
             <PushNotificationTester />
             <VAPIDKeyTester />
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6">
+            <AdminEmailSettings />
           </TabsContent>
         </Tabs>
 
