@@ -12,4 +12,4 @@ export { default as BackupSettingsCard } from './BackupSettingsCard';
 export { default as BackupPerformanceCard } from './BackupPerformanceCard';
 export { default as SystemHealthCard } from './SystemHealthCard';
 export { default as RestoreActionsCard } from './RestoreActionsCard';
-export { default as RestorePreviewCard } from './RestorePreviewCard';
+export { RestorePreviewCard } from './RestorePreviewCard'; // Changed to named export

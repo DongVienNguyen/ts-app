@@ -1,6 +1,6 @@
 import { toast } from 'sonner';
 import { backupService } from '@/services/backupService';
-import { restoreService, RestoreResult } from '@/services/restoreService';
+import { restoreService, RestoreResult } from '@/services/restoreService'; // Corrected import for RestoreResult
 import type { BackupRecord, BackupProgressCallback } from './types';
 
 export const createBackupOperations = (
@@ -128,15 +128,9 @@ export const createBackupOperations = (
     onRestoreStart();
 
     try {
-      const result: RestoreResult = await restoreService.restoreFromFile(
-        file,
-        {
-          createBackupBeforeRestore: true,
-          validateData: true
-        },
-        (progress, step) => updateRestoreProgress(progress, step, Math.max(0, 60000 - (Date.now() - startTime)))
-      );
-
+      // Changed to restoreService.restoreDataFromZip and adjusted arguments
+      const result: RestoreResult = await restoreService.restoreDataFromZip(file, { role: 'admin' }); // Pass user object with role
+      
       if (result.success) {
         const duration = Date.now() - startTime;
         
@@ -150,7 +144,7 @@ export const createBackupOperations = (
           window.location.reload();
         }, 2000);
       } else {
-        throw new Error(`Restore thất bại: ${result.errors.join(', ')}`);
+        throw new Error(`Restore thất bại: ${result.message || result.errors.map(e => e.message).join(', ')}`);
       }
     } catch (error) {
       const duration = Date.now() - startTime;

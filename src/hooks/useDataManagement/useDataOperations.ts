@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { dataService } from './dataService';
-import { exportService } from './exportService'; // Corrected import
+import { exportService } from './exportService';
+import { restoreService } from '@/services/restoreService'; // Import restoreService
 import { toast } from 'sonner';
 
 interface UseDataOperationsProps {
@@ -153,7 +154,7 @@ export const useDataOperations = ({
           sortDirection,
           filters
         });
-        exportService.exportToCSV(allData, selectedEntity, currentPage); // Corrected usage
+        exportService.exportToCSV(allData, selectedEntity, currentPage);
         toast.success('Dữ liệu đã được xuất ra CSV.');
       } catch (error: any) {
         toast.error(`Lỗi xuất CSV: ${error.message}`);
@@ -171,11 +172,32 @@ export const useDataOperations = ({
     toast.info('Tệp đã được chọn. Nhấn "Import" để bắt đầu khôi phục.');
   }, [setRestoreFile]);
 
-  const handleImportClick = useCallback(() => {
+  const handleImportClick = useCallback(async () => { // Made async
     if (restoreInputRef.current) {
       restoreInputRef.current.click();
     }
-  }, []);
+    if (restoreFile) { // Only proceed if a file is selected
+      await runAsAdmin(async () => {
+        try {
+          const result = await restoreService.restoreDataFromZip(restoreFile, user);
+          if (result.success) {
+            toast.success(result.message);
+            clearCache();
+            loadData(currentPage, searchTerm, filters);
+          } else {
+            toast.error(result.message);
+          }
+        } catch (error: any) {
+          toast.error(`Lỗi trong quá trình import: ${error.message}`);
+        } finally {
+          setRestoreFile(null); // Clear the selected file after processing
+          if (restoreInputRef.current) {
+            restoreInputRef.current.value = ''; // Clear the input field
+          }
+        }
+      });
+    }
+  }, [restoreFile, user, runAsAdmin, clearCache, loadData, currentPage, searchTerm, filters]);
 
   const bulkDeleteTransactions = useCallback(async () => {
     if (!startDate || !endDate) {

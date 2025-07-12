@@ -2,24 +2,28 @@ import type { Database } from '@/integrations/supabase/types';
 
 export type TableName = keyof Database['public']['Tables'];
 
+export interface FieldConfig { // Exported FieldConfig
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'boolean';
+  options?: string[];
+  required?: boolean;
+  defaultValue?: any;
+  filterable?: boolean;
+}
+
 export interface EntityConfig {
   entity: TableName;
   name: string;
-  fields: Array<{
-    key: string;
-    label: string;
-    type: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'boolean';
-    options?: string[];
-    required?: boolean;
-    defaultValue?: any;
-    filterable?: boolean; // Added filterable property
-  }>;
+  fields: FieldConfig[]; // Use FieldConfig
+  primaryKey?: string; // Added primaryKey
 }
 
 export const entityConfig: Record<string, EntityConfig> = {
   asset_transactions: {
     entity: 'asset_transactions',
     name: 'Giao dịch tài sản',
+    primaryKey: 'id', // Assuming 'id' is the primary key
     fields: [
       { key: 'staff_code', label: 'Mã nhân viên', type: 'text', required: true, filterable: true },
       { key: 'transaction_date', label: 'Ngày giao dịch', type: 'date', required: true, filterable: true },
@@ -35,6 +39,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   notifications: {
     entity: 'notifications',
     name: 'Thông báo',
+    primaryKey: 'id',
     fields: [
       { key: 'recipient_username', label: 'Người nhận', type: 'text', required: true, filterable: true },
       { key: 'title', label: 'Tiêu đề', type: 'text', required: true, filterable: true },
@@ -47,6 +52,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   asset_reminders: {
     entity: 'asset_reminders',
     name: 'Nhắc nhở tài sản',
+    primaryKey: 'id',
     fields: [
       { key: 'ten_ts', label: 'Tên tài sản', type: 'text', required: true, filterable: true },
       { key: 'ngay_den_han', label: 'Ngày đến hạn', type: 'date', required: true, filterable: true },
@@ -59,6 +65,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   crc_reminders: {
     entity: 'crc_reminders',
     name: 'Nhắc nhở CRC',
+    primaryKey: 'id',
     fields: [
       { key: 'loai_bt_crc', label: 'Loại BT CRC', type: 'text', required: true, filterable: true },
       { key: 'ngay_thuc_hien', label: 'Ngày thực hiện', type: 'date', required: true, filterable: true },
@@ -72,6 +79,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   other_assets: {
     entity: 'other_assets',
     name: 'Tài sản khác',
+    primaryKey: 'id',
     fields: [
       { key: 'name', label: 'Tên tài sản', type: 'text', required: true, filterable: true },
       { key: 'deposit_date', label: 'Ngày gửi', type: 'date', filterable: true },
@@ -88,6 +96,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   cbqln: {
     entity: 'cbqln',
     name: 'CB QLN',
+    primaryKey: 'id',
     fields: [
       { key: 'ten_nv', label: 'Tên nhân viên', type: 'text', required: true, filterable: true },
       { key: 'email', label: 'Email', type: 'text', required: true, filterable: true },
@@ -96,6 +105,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   cbkh: {
     entity: 'cbkh',
     name: 'CB KH',
+    primaryKey: 'id',
     fields: [
       { key: 'ten_nv', label: 'Tên nhân viên', type: 'text', required: true, filterable: true },
       { key: 'email', label: 'Email', type: 'text', required: true, filterable: true },
@@ -104,6 +114,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   ldpcrc: {
     entity: 'ldpcrc',
     name: 'LDP CRC',
+    primaryKey: 'id',
     fields: [
       { key: 'ten_nv', label: 'Tên nhân viên', type: 'text', required: true, filterable: true },
       { key: 'email', label: 'Email', type: 'text', required: true, filterable: true },
@@ -112,6 +123,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   cbcrc: {
     entity: 'cbcrc',
     name: 'CB CRC',
+    primaryKey: 'id',
     fields: [
       { key: 'ten_nv', label: 'Tên nhân viên', type: 'text', required: true, filterable: true },
       { key: 'email', label: 'Email', type: 'text', required: true, filterable: true },
@@ -120,6 +132,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   quycrc: {
     entity: 'quycrc',
     name: 'Quy CRC',
+    primaryKey: 'id',
     fields: [
       { key: 'ten_nv', label: 'Tên nhân viên', type: 'text', required: true, filterable: true },
       { key: 'email', label: 'Email', type: 'text', required: true, filterable: true },
@@ -128,6 +141,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   sent_asset_reminders: {
     entity: 'sent_asset_reminders',
     name: 'Nhắc nhở tài sản đã gửi',
+    primaryKey: 'id',
     fields: [
       { key: 'ten_ts', label: 'Tên tài sản', type: 'text', required: true, filterable: true },
       { key: 'ngay_den_han', label: 'Ngày đến hạn', type: 'date', required: true, filterable: true },
@@ -141,6 +155,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   sent_crc_reminders: {
     entity: 'sent_crc_reminders',
     name: 'Nhắc nhở CRC đã gửi',
+    primaryKey: 'id',
     fields: [
       { key: 'loai_bt_crc', label: 'Loại BT CRC', type: 'text', required: true, filterable: true },
       { key: 'ngay_thuc_hien', label: 'Ngày thực hiện', type: 'date', required: true, filterable: true },
@@ -155,6 +170,7 @@ export const entityConfig: Record<string, EntityConfig> = {
   asset_history_archive: {
     entity: 'asset_history_archive',
     name: 'Lịch sử tài sản',
+    primaryKey: 'id',
     fields: [
       { key: 'original_asset_id', label: 'ID tài sản gốc', type: 'text', required: true },
       { key: 'asset_name', label: 'Tên tài sản', type: 'text', required: true, filterable: true },
@@ -162,6 +178,22 @@ export const entityConfig: Record<string, EntityConfig> = {
       { key: 'changed_by', label: 'Người thay đổi', type: 'text', required: true, filterable: true },
       { key: 'change_reason', label: 'Lý do thay đổi', type: 'textarea' },
       { key: 'created_at', label: 'Thời gian tạo', type: 'date', filterable: true },
+    ],
+  },
+  staff: {
+    entity: 'staff',
+    name: 'Nhân viên',
+    primaryKey: 'id',
+    fields: [
+      { key: 'username', label: 'Tên đăng nhập', type: 'text', required: true, filterable: true },
+      { key: 'password', label: 'Mật khẩu', type: 'text', required: true },
+      { key: 'staff_name', label: 'Tên nhân viên', type: 'text', filterable: true },
+      { key: 'role', label: 'Vai trò', type: 'text', filterable: true },
+      { key: 'department', label: 'Phòng ban', type: 'text', filterable: true },
+      { key: 'account_status', label: 'Trạng thái tài khoản', type: 'text', filterable: true },
+      { key: 'email', label: 'Email', type: 'text', filterable: true },
+      { key: 'created_at', label: 'Ngày tạo', type: 'date' },
+      { key: 'updated_at', label: 'Ngày cập nhật', type: 'date' },
     ],
   },
 };

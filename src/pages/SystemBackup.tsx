@@ -23,7 +23,7 @@ import BackupPerformanceCard from '@/components/backup/BackupPerformanceCard';
 import BackupAnalyticsCard from '@/components/backup/BackupAnalyticsCard';
 import SystemHealthCard from '@/components/backup/SystemHealthCard';
 import RestoreActionsCard from '@/components/backup/RestoreActionsCard';
-import RestorePreviewCard from '@/components/backup/RestorePreviewCard';
+import { RestorePreviewCard } from '@/components/backup/RestorePreviewCard'; // Changed to named import
 import { useBackupOperations } from '@/hooks/useBackupOperations';
 import Layout from '@/components/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -142,7 +142,7 @@ const SystemBackup: React.FC = () => {
             {restoreStatus.isRunning && (
               <BackupProgressCard isRunning={restoreStatus.isRunning} progress={restoreStatus.progress} currentStep={restoreStatus.currentStep} estimatedTimeRemaining={restoreStatus.estimatedTimeRemaining} />
             )}
-            <RestorePreviewCard selectedFile={selectedRestoreFile} />
+            <RestorePreviewCard selectedFile={selectedRestoreFile} onFileSelected={setSelectedRestoreFile} />
             <RestoreActionsCard onRestore={handlePerformRestore} />
             {restoreStatus.lastRestore && (
               <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">

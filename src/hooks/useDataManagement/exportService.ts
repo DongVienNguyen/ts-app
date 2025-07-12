@@ -42,7 +42,7 @@ export const exportService = {
       
       if (zipFile) {
         const content = await zipFile.async("text");
-        const dataToRestore = fromCSV(content, config.fields);
+        const dataToRestore = fromCSV(content, config.fields); // Pass config.fields here
         
         // Delete existing data
         const { error: deleteError } = await supabase

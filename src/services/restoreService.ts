@@ -1,262 +1,170 @@
-import { supabase } from '@/integrations/supabase/client';
 import JSZip from 'jszip';
-
-export interface RestoreOptions {
-  restoreTables?: string[];
-  skipTables?: string[];
-  validateData?: boolean;
-  createBackupBeforeRestore?: boolean;
-}
+import { supabase } from '@/integrations/supabase/client';
+import { entityConfig, EntityConfig } from '@/config/entityConfig'; // Import EntityConfig
+import { fromCSV } from '@/utils/csvUtils';
+import { toast } from 'sonner';
 
 export interface RestoreResult {
   success: boolean;
-  restoredTables: string[];
-  skippedTables: string[];
-  errors: string[];
-  timestamp: string;
+  message: string;
+  restoredTables: { tableName: string; count: number }[];
+  errors: { tableName: string; message: string }[];
 }
 
-export class RestoreService {
-  private static instance: RestoreService;
+export interface RestorePreview {
+  tableName: string;
+  name: string;
+  recordCount: number;
+  status: 'found' | 'not_found' | 'error';
+  errorMessage?: string;
+}
 
-  static getInstance(): RestoreService {
-    if (!RestoreService.instance) {
-      RestoreService.instance = new RestoreService();
-    }
-    return RestoreService.instance;
-  }
-
-  // Parse backup file
-  private async parseBackupFile(file: File): Promise<any> {
-    const zip = new JSZip();
-    const zipContent = await zip.loadAsync(file);
-    
-    // Check if it's a valid backup file
-    const backupInfo = zipContent.file('backup-info.json');
-    if (!backupInfo) {
-      throw new Error('File không phải là backup hợp lệ (thiếu backup-info.json)');
+export const restoreService = {
+  async restoreDataFromZip(zipFile: File, user: any): Promise<RestoreResult> {
+    if (!user || user.role !== 'admin') {
+      return { success: false, message: 'Unauthorized access', restoredTables: [], errors: [] };
     }
 
-    const backupInfoContent = await backupInfo.async('text');
-    const backupMetadata = JSON.parse(backupInfoContent);
+    toast.info('Đang bắt đầu quá trình khôi phục dữ liệu...');
+    let processedFiles = 0;
+    const restoredTables: { tableName: string; count: number }[] = [];
+    const errors: { tableName: string; message: string }[] = [];
 
-    // Get database backup
-    const databaseFile = zipContent.file('database/backup.json');
-    if (!databaseFile) {
-      throw new Error('Không tìm thấy dữ liệu database trong backup');
-    }
-
-    const databaseContent = await databaseFile.async('text');
-    const databaseData = JSON.parse(databaseContent);
-
-    // Get configuration
-    const configFile = zipContent.file('config/settings.json');
-    let configData = null;
-    if (configFile) {
-      const configContent = await configFile.async('text');
-      configData = JSON.parse(configContent);
-    }
-
-    return {
-      metadata: backupMetadata,
-      database: databaseData,
-      config: configData
-    };
-  }
-
-  // Validate backup data
-  private validateBackupData(backupData: any): void {
-    if (!backupData.database || !backupData.database.data) {
-      throw new Error('Dữ liệu backup không hợp lệ');
-    }
-
-    if (!backupData.metadata || !backupData.metadata.timestamp) {
-      throw new Error('Metadata backup không hợp lệ');
-    }
-
-    // Check if backup is too old (more than 30 days)
-    const backupDate = new Date(backupData.metadata.timestamp);
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    
-    if (backupDate < thirtyDaysAgo) {
-      console.warn('⚠️ Backup cũ hơn 30 ngày, có thể không tương thích');
-    }
-  }
-
-  // Restore single table
-  private async restoreTable(tableName: string, data: any[]): Promise<boolean> {
     try {
-      if (!data || data.length === 0) {
-        console.log(`Table ${tableName} is empty, skipping...`);
-        return true;
+      const zip = new JSZip();
+      const loadedZip = await zip.loadAsync(zipFile);
+      const csvFiles = Object.keys(loadedZip.files).filter(filename => filename.endsWith('.csv') && !loadedZip.files[filename].dir);
+      const totalFiles = csvFiles.length;
+
+      for (const filename of csvFiles) {
+        const csvContent = await loadedZip.files[filename].async('string');
+        const tableName = filename.replace('.csv', '');
+
+        const configEntry = Object.values(entityConfig).find(config => config.entity === tableName);
+
+        if (configEntry) {
+          toast.info(`Đang xử lý bảng: ${configEntry.name} (${tableName})...`);
+          try {
+            const dataToInsert = fromCSV(csvContent, configEntry.fields); // Pass fields for accurate mapping
+
+            if (dataToInsert.length > 0) {
+              const mappedData = dataToInsert.map(row => {
+                const newRow: { [key: string]: any } = {};
+                configEntry.fields.forEach(field => {
+                  const value = row[field.key]; // Use field.key as the key from fromCSV output
+                  if (value !== undefined) {
+                    if (field.type === 'number') {
+                      newRow[field.key] = value === '' ? null : Number(value);
+                    } else if (field.type === 'boolean') {
+                      newRow[field.key] = value.toLowerCase() === 'true';
+                    } else if (field.type === 'date') {
+                      newRow[field.key] = value === '' ? null : new Date(value).toISOString();
+                    } else {
+                      newRow[field.key] = value;
+                    }
+                  }
+                });
+                return newRow;
+              });
+
+              const { error } = await supabase.from(tableName).insert(mappedData);
+
+              if (error) {
+                if (error.code === '23505' && configEntry.primaryKey) {
+                  toast.warning(`Xung đột dữ liệu trong bảng ${configEntry.name}. Đang thử cập nhật các bản ghi hiện có...`); // Changed to toast.warning
+                  const updatePromises = mappedData.map(async (item) => {
+                    const { error: updateError } = await supabase
+                      .from(tableName)
+                      .update(item)
+                      .eq(configEntry.primaryKey!, item[configEntry.primaryKey!]);
+                    if (updateError) {
+                      console.error(`Lỗi cập nhật bản ghi trong ${tableName}:`, updateError.message);
+                      toast.error(`Lỗi cập nhật bản ghi trong ${configEntry.name}: ${updateError.message}`);
+                      errors.push({ tableName, message: `Cập nhật lỗi: ${updateError.message}` });
+                    }
+                  });
+                  await Promise.all(updatePromises);
+                  restoredTables.push({ tableName, count: mappedData.length });
+                } else {
+                  throw error;
+                }
+              } else {
+                restoredTables.push({ tableName, count: mappedData.length });
+                toast.success(`Đã khôi phục ${mappedData.length} bản ghi vào bảng ${configEntry.name}.`);
+              }
+            } else {
+              toast.info(`Không có dữ liệu để khôi phục cho bảng ${configEntry.name}.`);
+            }
+          } catch (tableError: any) {
+            console.error(`Lỗi xử lý bảng ${tableName}:`, tableError);
+            toast.error(`Lỗi khôi phục bảng ${configEntry.name}: ${tableError.message}`);
+            errors.push({ tableName, message: tableError.message });
+          }
+        } else {
+          toast.warning(`Không tìm thấy cấu hình cho bảng: ${tableName}. Bỏ qua.`); // Changed to toast.warning
+        }
+        processedFiles++;
+        toast.info(`Tiến độ: ${processedFiles}/${totalFiles} tệp đã xử lý.`);
       }
+      toast.success('Quá trình khôi phục dữ liệu hoàn tất!');
+      return { success: true, message: 'Khôi phục dữ liệu thành công.', restoredTables, errors };
+    } catch (error: any) {
+      console.error('Lỗi trong quá trình khôi phục dữ liệu:', error);
+      toast.error(`Khôi phục dữ liệu thất bại: ${error.message || 'Lỗi không xác định'}`);
+      return { success: false, message: `Khôi phục dữ liệu thất bại: ${error.message || 'Lỗi không xác định'}`, restoredTables, errors: [{ tableName: 'Tổng quan', message: error.message || 'Lỗi không xác định' }] };
+    }
+  },
 
-      // Delete existing data (be careful!)
-      const { error: deleteError } = await supabase
-        .from(tableName)
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+  async getRestorePreview(zipFile: File): Promise<RestorePreview[]> {
+    const preview: RestorePreview[] = [];
+    try {
+      const zip = new JSZip();
+      const loadedZip = await zip.loadAsync(zipFile);
+      const csvFiles = Object.keys(loadedZip.files).filter(filename => filename.endsWith('.csv') && !loadedZip.files[filename].dir);
 
-      if (deleteError) {
-        console.warn(`Warning deleting from ${tableName}:`, deleteError);
-      }
+      for (const filename of csvFiles) {
+        const tableName = filename.replace('.csv', '');
+        const configEntry = Object.values(entityConfig).find(config => config.entity === tableName);
 
-      // Insert new data in batches
-      const batchSize = 100;
-      for (let i = 0; i < data.length; i += batchSize) {
-        const batch = data.slice(i, i + batchSize);
-        
-        const { error: insertError } = await supabase
-          .from(tableName)
-          .insert(batch);
-
-        if (insertError) {
-          throw new Error(`Error inserting into ${tableName}: ${insertError.message}`);
+        if (configEntry) {
+          try {
+            const csvContent = await loadedZip.files[filename].async('string');
+            const data = fromCSV(csvContent, configEntry.fields); // Pass fields for accurate mapping
+            preview.push({
+              tableName: tableName,
+              name: configEntry.name,
+              recordCount: data.length,
+              status: 'found'
+            });
+          } catch (fileError: any) {
+            preview.push({
+              tableName: tableName,
+              name: configEntry.name,
+              recordCount: 0,
+              status: 'error',
+              errorMessage: `Lỗi đọc tệp: ${fileError.message}`
+            });
+          }
+        } else {
+          preview.push({
+            tableName: tableName,
+            name: tableName, // Use filename as name if config not found
+            recordCount: 0,
+            status: 'not_found',
+            errorMessage: 'Không tìm thấy cấu hình bảng'
+          });
         }
       }
-
-      return true;
-    } catch (error) {
-      console.error(`Failed to restore table ${tableName}:`, error);
-      throw error;
-    }
-  }
-
-  // Create backup before restore
-  private async createPreRestoreBackup(): Promise<void> {
-    try {
-      // Use the existing backup service
-      const { backupService } = await import('./backupService');
-      await backupService.createFullBackup({
-        compress: true
+    } catch (error: any) {
+      console.error('Lỗi tạo bản xem trước khôi phục:', error);
+      preview.push({
+        tableName: 'Tổng quan',
+        name: 'Lỗi',
+        recordCount: 0,
+        status: 'error',
+        errorMessage: `Lỗi đọc tệp ZIP: ${error.message}`
       });
-      console.log('✅ Pre-restore backup created');
-    } catch (error) {
-      console.warn('⚠️ Failed to create pre-restore backup:', error);
-      // Don't throw error, just warn
     }
+    return preview;
   }
-
-  // Restore configuration
-  private async restoreConfiguration(configData: any): Promise<void> {
-    if (!configData) return;
-
-    try {
-      // Restore auto backup setting
-      if (configData.settings?.autoBackup !== undefined) {
-        localStorage.setItem('autoBackupEnabled', configData.settings.autoBackup.toString());
-      }
-
-      // Restore other settings as needed
-      console.log('✅ Configuration restored');
-    } catch (error) {
-      console.warn('⚠️ Failed to restore configuration:', error);
-    }
-  }
-
-  // Main restore function
-  async restoreFromFile(
-    file: File, 
-    options: RestoreOptions = {},
-    onProgress?: (progress: number, step: string) => void
-  ): Promise<RestoreResult> {
-    const result: RestoreResult = {
-      success: false,
-      restoredTables: [],
-      skippedTables: [],
-      errors: [],
-      timestamp: new Date().toISOString()
-    };
-
-    try {
-      onProgress?.(5, 'Đang đọc file backup...');
-      
-      // Parse backup file
-      const backupData = await this.parseBackupFile(file);
-      
-      onProgress?.(10, 'Đang xác thực dữ liệu backup...');
-      
-      // Validate backup data
-      this.validateBackupData(backupData);
-
-      // Create pre-restore backup if requested
-      if (options.createBackupBeforeRestore) {
-        onProgress?.(15, 'Đang tạo backup trước khi restore...');
-        await this.createPreRestoreBackup();
-      }
-
-      onProgress?.(25, 'Bắt đầu restore dữ liệu...');
-
-      // Get tables to restore
-      const allTables = Object.keys(backupData.database.data);
-      const tablesToRestore = options.restoreTables || allTables;
-      const skipTables = options.skipTables || [];
-
-      // Restore tables
-      let completedTables = 0;
-      for (const tableName of tablesToRestore) {
-        if (skipTables.includes(tableName)) {
-          result.skippedTables.push(tableName);
-          continue;
-        }
-
-        try {
-          const progress = 25 + (completedTables / tablesToRestore.length) * 60;
-          onProgress?.(progress, `Đang restore bảng ${tableName}...`);
-
-          await this.restoreTable(tableName, backupData.database.data[tableName]);
-          result.restoredTables.push(tableName);
-        } catch (error) {
-          const errorMsg = `Table ${tableName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-          result.errors.push(errorMsg);
-          console.error('Restore table error:', errorMsg);
-        }
-
-        completedTables++;
-      }
-
-      onProgress?.(90, 'Đang restore cấu hình...');
-      
-      // Restore configuration
-      await this.restoreConfiguration(backupData.config);
-
-      onProgress?.(100, 'Restore hoàn tất!');
-
-      result.success = result.errors.length === 0;
-      
-      return result;
-
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      result.errors.push(errorMsg);
-      console.error('Restore failed:', error);
-      
-      return result;
-    }
-  }
-
-  // Get restore preview (what will be restored)
-  async getRestorePreview(file: File): Promise<any> {
-    try {
-      const backupData = await this.parseBackupFile(file);
-      
-      const preview = {
-        metadata: backupData.metadata,
-        tables: Object.keys(backupData.database.data).map(tableName => ({
-          name: tableName,
-          recordCount: backupData.database.data[tableName]?.length || 0
-        })),
-        hasConfiguration: !!backupData.config,
-        totalRecords: Object.values(backupData.database.data)
-          .reduce((total: number, tableData: any) => total + (tableData?.length || 0), 0)
-      };
-
-      return preview;
-    } catch (error) {
-      throw new Error(`Cannot preview backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-}
-
-// Export singleton instance
-export const restoreService = RestoreService.getInstance();
+};

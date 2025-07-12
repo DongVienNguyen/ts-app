@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
-import { toCSV, FieldConfig } from '@/utils/csvUtils';
+import { toCSV } from '@/utils/csvUtils';
+import { FieldConfig } from '@/config/entityConfig'; // Corrected import path for FieldConfig
 
 export const useAssetReminderOperations = (loadData: () => Promise<void>, showMessage: (params: { type: 'success' | 'error' | 'info'; text: string }) => void) => {
   const handleSubmit = async (
