@@ -27,7 +27,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthenticatedStaff | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Session management with Supabase client synchronization
   useEffect(() => {
     const restoreSession = async () => {
       console.log('🚀 [AUTH] AuthProvider mounted, checking for existing session');
@@ -38,10 +37,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const userStr = localStorage.getItem('auth_user');
           const storedUser: AuthenticatedStaff = JSON.parse(userStr!);
           
-          // IMPORTANT: Restore the session for the Supabase client
+          // Correctly set the session for the Supabase client
           await supabase.auth.setSession({
             access_token: token,
-            refresh_token: token, // Using the same token as refresh_token
+            refresh_token: token, // Using the same token as refresh_token for simplicity
           });
 
           setUser(storedUser);
@@ -49,7 +48,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log('✅ [AUTH] Session restored for user:', storedUser.username);
         } else {
           console.log('🔎 [AUTH] No valid session found. Clearing session.');
-          await supabase.auth.signOut();
+          await supabase.auth.signOut(); // Clear Supabase session
           localStorage.removeItem('auth_user');
           localStorage.removeItem('auth_token');
           localStorage.removeItem('auth_login_time');
@@ -58,7 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } catch (error) {
         console.error('❌ [AUTH] Error restoring session, clearing session.', error);
-        await supabase.auth.signOut();
+        await supabase.auth.signOut(); // Clear Supabase session
         localStorage.removeItem('auth_user');
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_login_time');
@@ -80,7 +79,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (result.success && result.user && result.token) {
         const authenticatedUser: AuthenticatedStaff = { ...result.user, token: result.token };
         
-        // IMPORTANT: Set the session for the Supabase client
+        // Correctly set the session for the Supabase client after successful login
         await supabase.auth.setSession({
           access_token: result.token,
           refresh_token: result.token, // Using the same token as refresh_token
@@ -113,8 +112,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('🚪 [AUTH] Logging out user');
     setLoading(true);
     
-    // IMPORTANT: Sign out from Supabase client
-    await supabase.auth.signOut();
+    await supabase.auth.signOut(); // Clear Supabase session
     
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_token');
@@ -133,7 +131,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const token = localStorage.getItem('auth_token');
       if (validateSession() && token) {
-        // Also re-sync with Supabase client
+        // Re-sync with Supabase client
         await supabase.auth.setSession({
           access_token: token,
           refresh_token: token,
@@ -141,11 +139,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const userStr = localStorage.getItem('auth_user');
         setUser(JSON.parse(userStr!));
       } else {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut(); // Clear Supabase session
         setUser(null);
       }
     } catch (e) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut(); // Clear Supabase session
       setUser(null);
     } finally {
       setLoading(false);

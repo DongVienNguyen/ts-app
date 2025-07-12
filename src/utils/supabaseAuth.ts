@@ -1,63 +1,36 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { supabase, getServiceRoleClient, getCurrentAuth } from '@/integrations/supabase/client';
-
-// Store current auth state
-let currentAuthToken: string | null = null;
-let currentUsername: string | null = null;
-
-// Set authentication - DON'T CREATE NEW CLIENT
-export function setAuthentication(token: string, username: string) {
-  currentAuthToken = token;
-  currentUsername = username;
-  console.log('🔐 Authentication set for user:', username);
-}
-
-// Clear authentication
-export function clearAuthentication() {
-  currentAuthToken = null;
-  currentUsername = null;
-  console.log('🔓 Authentication cleared');
-}
+import { supabase } from '@/integrations/supabase/client';
 
 // Get authenticated client - REUSE EXISTING CLIENT
 export function getAuthenticatedClient(): SupabaseClient | null {
-  if (!currentAuthToken) {
-    console.warn('⚠️ No authenticated client available');
-    return null;
-  }
-  // Return the same supabase client instance
+  // The AuthContext ensures the Authorization header is set via setSession.
+  // We just need to return the client.
   return supabase;
 }
 
 // Get current auth info
-export { getCurrentAuth };
+export async function getCurrentAuth() {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    isAuthenticated: !!session,
+    token: session?.access_token || null,
+    username: session?.user?.user_metadata?.username || null // Assuming username is in user_metadata
+  };
+}
 
 // Safe database operation wrapper with improved error handling
 export async function safeDbOperation<T>(
   operation: (client: SupabaseClient) => Promise<T>,
   fallbackValue?: T,
-  useServiceRole: boolean = false
 ): Promise<T | null> {
-  let client: SupabaseClient | null = null;
-  
-  if (useServiceRole) {
-    // Use service role client for system operations (bypasses RLS)
-    client = getServiceRoleClient();
-    console.log('🔧 Using service role client for system operation');
-  } else {
-    // Use authenticated client for user operations
-    client = getAuthenticatedClient();
-    if (!client) {
-      console.warn('⚠️ Cannot perform database operation: not authenticated');
-      return fallbackValue || null;
-    }
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    console.warn('⚠️ Cannot perform database operation: not authenticated');
+    return fallbackValue || null;
   }
 
   try {
-    const result = await operation(client);
-    if (useServiceRole) {
-      console.log('✅ System operation completed successfully');
-    }
+    const result = await operation(supabase); // Use the global supabase client
     return result;
   } catch (error: any) {
     // Handle specific error types
@@ -75,24 +48,18 @@ export async function safeDbOperation<T>(
   }
 }
 
-// System operation wrapper - always uses service role
-export async function systemDbOperation<T>(
-  operation: (client: SupabaseClient) => Promise<T>,
-  fallbackValue?: T
-): Promise<T | null> {
-  return safeDbOperation(operation, fallbackValue, true);
-}
-
 // Check if user is authenticated
-export function isAuthenticated(): boolean {
-  return !!(currentAuthToken && currentUsername);
+export async function isAuthenticated(): Promise<boolean> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return !!session;
 }
 
 // Get current user info
-export function getCurrentUser() {
+export async function getCurrentUser() {
+  const authInfo = await getCurrentAuth();
   return {
-    token: currentAuthToken,
-    username: currentUsername,
-    isAuthenticated: isAuthenticated()
+    token: authInfo.token,
+    username: authInfo.username,
+    isAuthenticated: authInfo.isAuthenticated
   };
 }

@@ -1,5 +1,4 @@
 import { supabase } from '@/integrations/supabase/client';
-import { getCurrentAuth } from '@/integrations/supabase/client';
 
 interface UserSession {
   id?: string;
@@ -77,15 +76,15 @@ async function getClientIP(): Promise<string | null> {
 }
 
 // Check if user is authenticated
-function isUserAuthenticated(): boolean {
-  const auth = getCurrentAuth();
-  return auth.isAuthenticated;
+async function isUserAuthenticated(): Promise<boolean> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return !!session;
 }
 
 // Get average session duration
 export async function getAverageSessionDuration(timeRange: 'day' | 'week' | 'month' | 'quarter' | 'year'): Promise<number> {
   try {
-    if (!isUserAuthenticated()) {
+    if (!(await isUserAuthenticated())) { // Await the async function
       console.warn('⚠️ Cannot get session duration: not authenticated');
       return 0;
     }
@@ -137,7 +136,7 @@ export async function startUserSession(username: string): Promise<void> {
     // Wait a bit for authentication to be fully set up
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    if (!isUserAuthenticated()) {
+    if (!(await isUserAuthenticated())) { // Await the async function
       console.warn('⚠️ Could not start user session - not authenticated');
       // Create a local session if database fails
       currentSession = {
@@ -200,7 +199,7 @@ export async function endUserSession(): Promise<void> {
   if (!currentSession) return;
 
   try {
-    if (!isUserAuthenticated() || !currentSession.id) {
+    if (!(await isUserAuthenticated()) || !currentSession.id) { // Await the async function
       console.warn('⚠️ Cannot end user session - not authenticated or no session ID');
       return;
     }
@@ -286,7 +285,7 @@ export async function updateSession(): Promise<void> {
   if (!currentSession?.id) return;
 
   try {
-    if (!isUserAuthenticated()) {
+    if (!(await isUserAuthenticated())) { // Await the async function
       console.warn('⚠️ Cannot update session - not authenticated');
       return;
     }

@@ -1,4 +1,4 @@
-import { systemDbOperation } from '@/utils/supabaseAuth';
+import { safeDbOperation } from '@/utils/supabaseAuth';
 
 export interface SystemError {
   id?: string;
@@ -80,7 +80,7 @@ export function measurePerformance<T extends (...args: any[]) => Promise<any>>(
 // Log system error with proper error handling
 export async function logSystemError(errorData: SystemError): Promise<void> {
   try {
-    const result = await systemDbOperation(async (client) => {
+    const result = await safeDbOperation(async (client) => {
       const { error } = await client
         .from('system_errors')
         .insert({
@@ -125,7 +125,7 @@ export async function logSystemError(errorData: SystemError): Promise<void> {
 // Log system metric with proper error handling
 export async function logSystemMetric(metricData: SystemMetric): Promise<void> {
   try {
-    const result = await systemDbOperation(async (client) => {
+    const result = await safeDbOperation(async (client) => {
       const { error } = await client
         .from('system_metrics')
         .insert({
@@ -149,7 +149,7 @@ export async function logSystemMetric(metricData: SystemMetric): Promise<void> {
 // Update system status with proper error handling
 export async function updateSystemStatus(statusData: SystemStatus): Promise<void> {
   try {
-    const result = await systemDbOperation(async (client) => {
+    const result = await safeDbOperation(async (client) => {
       const { error } = await client
         .from('system_status')
         .insert({
@@ -182,7 +182,7 @@ export async function checkServiceHealth(serviceName: string): Promise<SystemSta
     
     switch (serviceName) {
       case 'database':
-        const dbResult = await systemDbOperation(async (client) => {
+        const dbResult = await safeDbOperation(async (client) => {
           const { error } = await client.from('staff').select('count').limit(1);
           return !error;
         });
@@ -381,7 +381,7 @@ export async function getErrorStatistics(timeRange: 'day' | 'week' | 'month' = '
         break;
     }
 
-    const result = await systemDbOperation(async (client) => {
+    const result = await safeDbOperation(async (client) => {
       const { data, error } = await client
         .from('system_errors')
         .select('*')

@@ -1,4 +1,4 @@
-import { systemDbOperation } from '@/utils/supabaseAuth';
+import { safeDbOperation } from '@/utils/supabaseAuth';
 import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
 
 export class HealthCheckService {
@@ -62,7 +62,7 @@ export class HealthCheckService {
     
     try {
       // Simple query to test database connectivity
-      const result = await systemDbOperation(async (client) => {
+      const result = await safeDbOperation(async (client) => {
         const { data, error } = await client
           .from('staff')
           .select('count')
@@ -159,7 +159,7 @@ export class HealthCheckService {
   // Get current system health summary
   async getHealthSummary() {
     try {
-      const statuses = await systemDbOperation(async (client) => {
+      const statuses = await safeDbOperation(async (client) => {
         const { data, error } = await client
           .from('system_status')
           .select('*')

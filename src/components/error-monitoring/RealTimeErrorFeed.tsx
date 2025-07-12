@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { AlertTriangle, Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import { SystemError } from '@/utils/errorTracking';
-import { getAuthenticatedClient } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client'; // Changed import
 import { toast } from 'sonner';
 
 interface RealTimeErrorFeedProps {
@@ -21,56 +21,63 @@ export function RealTimeErrorFeed({ onNewError }: RealTimeErrorFeedProps) {
   useEffect(() => {
     if (!isActive) return;
 
-    const client = getAuthenticatedClient();
+    // Use the directly imported supabase client
+    const client = supabase; 
     
-    if (!client) {
-      console.warn('⚠️ Cannot start real-time error feed: not authenticated');
-      setIsActive(false);
-      return;
-    }
-    
-    // Subscribe to real-time changes
-    const subscription = client
-      .channel('system_errors')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'system_errors'
-        },
-        (payload) => {
-          const newError = payload.new as SystemError;
-          
-          // Add to recent errors list
-          setRecentErrors(prev => [newError, ...prev.slice(0, 9)]);
-          setErrorCount(prev => prev + 1);
-          
-          // Play sound notification
-          if (soundEnabled && newError.severity) {
-            playNotificationSound(newError.severity);
-          }
-          
-          // Show toast notification
-          toast(
-            `Lỗi ${newError.severity || 'unknown'}: ${newError.error_message}`,
-            {
-              description: `Loại: ${newError.error_type}`,
-              duration: 5000,
-            }
-          );
-          
-          // Call callback if provided
-          if (onNewError) {
-            onNewError(newError);
-          }
-        }
-      )
-      .subscribe();
+    // Check if session exists before subscribing
+    const checkSessionAndSubscribe = async () => {
+      const { data: { session } } = await client.auth.getSession();
+      if (!session) {
+        console.warn('⚠️ Cannot start real-time error feed: not authenticated');
+        setIsActive(false);
+        return;
+      }
 
-    return () => {
-      subscription.unsubscribe();
+      const subscription = client
+        .channel('system_errors')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'system_errors'
+          },
+          (payload) => {
+            const newError = payload.new as SystemError;
+            
+            // Add to recent errors list
+            setRecentErrors(prev => [newError, ...prev.slice(0, 9)]);
+            setErrorCount(prev => prev + 1);
+            
+            // Play sound notification
+            if (soundEnabled && newError.severity) {
+              playNotificationSound(newError.severity);
+            }
+            
+            // Show toast notification
+            toast(
+              `Lỗi ${newError.severity || 'unknown'}: ${newError.error_message}`,
+              {
+                description: `Loại: ${newError.error_type}`,
+                duration: 5000,
+              }
+            );
+            
+            // Call callback if provided
+            if (onNewError) {
+              onNewError(newError);
+            }
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        subscription.unsubscribe();
+      };
     };
+
+    const cleanup = checkSessionAndSubscribe();
+    return () => { cleanup.then(unsub => unsub && unsub()); }; // Ensure cleanup is called
   }, [isActive, soundEnabled, onNewError]);
 
   const playNotificationSound = (severity: string) => {
