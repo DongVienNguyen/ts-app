@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,9 @@ import { useAssetReminderOperations } from '@/hooks/useAssetReminderOperations';
 import { useAssetReminderEmail } from '@/hooks/useAssetReminderEmail';
 import { sendPushNotification } from '@/services/notificationService';
 import { supabase } from '@/integrations/supabase/client';
-import { AssetReminder } from '@/types/staff';
+import { Tables, TablesInsert } from '@/integrations/supabase/types';
+
+type AssetReminder = Tables<'asset_reminders'>;
 
 const AssetReminders = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -53,7 +55,7 @@ const AssetReminders = () => {
       title,
       message,
       notification_type: 'asset_reminder',
-    } as any); // Cast to any to resolve type mismatch
+    } as TablesInsert<'notifications'>);
   };
 
   const handleSendSingleReminder = async (reminder: AssetReminder) => {

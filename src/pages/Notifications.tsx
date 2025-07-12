@@ -5,7 +5,7 @@ import { NotificationCard } from '@/components/notifications/NotificationCard';
 import { ReplyDialog } from '@/components/notifications/ReplyDialog';
 import { EmptyNotifications } from '@/components/notifications/EmptyNotifications';
 import { LoadingSpinner } from '@/components/notifications/LoadingSpinner';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications, Notification } from '@/hooks/useNotifications';
 
 export default function Notifications() {
   const { user } = useSecureAuth();
@@ -61,7 +61,7 @@ export default function Notifications() {
           <EmptyNotifications />
         ) : (
           <div className="space-y-4">
-            {notifications.map((notification) => (
+            {(notifications as Notification[]).map((notification) => (
               <NotificationCard
                 key={notification.id}
                 notification={notification}

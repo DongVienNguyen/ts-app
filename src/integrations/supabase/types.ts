@@ -294,7 +294,7 @@ export type Database = {
         }
         Relationships: []
       }
-      push_subscriptions: { // Added push_subscriptions table definition
+      push_subscriptions: {
         Row: {
           id: number
           username: string
@@ -330,6 +330,36 @@ export type Database = {
           email?: string
           id?: string
           ten_nv?: string
+        }
+        Relationships: []
+      }
+      security_events: {
+        Row: {
+          id: string
+          event_type: string
+          username: string | null
+          event_data: Json | null
+          user_agent: string | null
+          ip_address: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          event_type: string
+          username?: string | null
+          event_data?: Json | null
+          user_agent?: string | null
+          ip_address?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          event_type?: string
+          username?: string | null
+          event_data?: Json | null
+          user_agent?: string | null
+          ip_address?: string | null
+          created_at?: string | null
         }
         Relationships: []
       }
@@ -407,6 +437,7 @@ export type Database = {
           account_status: string | null
           created_at: string | null
           department: string | null
+          email: string | null
           failed_login_attempts: number | null
           id: string
           last_failed_login: string | null
@@ -421,6 +452,7 @@ export type Database = {
           account_status?: string | null
           created_at?: string | null
           department?: string | null
+          email?: string | null
           failed_login_attempts?: number | null
           id?: string
           last_failed_login?: string | null
@@ -435,6 +467,7 @@ export type Database = {
           account_status?: string | null
           created_at?: string | null
           department?: string | null
+          email?: string | null
           failed_login_attempts?: number | null
           id?: string
           last_failed_login?: string | null
@@ -442,6 +475,228 @@ export type Database = {
           password?: string
           role?: string | null
           staff_name?: string | null
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
+      system_alerts: {
+        Row: {
+          id: string
+          alert_id: string
+          rule_id: string
+          rule_name: string
+          metric: string
+          current_value: number
+          threshold: number
+          severity: string
+          message: string
+          acknowledged: boolean | null
+          acknowledged_by: string | null
+          acknowledged_at: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          alert_id: string
+          rule_id: string
+          rule_name: string
+          metric: string
+          current_value: number
+          threshold: number
+          severity: string
+          message: string
+          acknowledged?: boolean | null
+          acknowledged_by?: string | null
+          acknowledged_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          alert_id?: string
+          rule_id?: string
+          rule_name?: string
+          metric?: string
+          current_value?: number
+          threshold?: number
+          severity?: string
+          message?: string
+          acknowledged?: boolean | null
+          acknowledged_by?: string | null
+          acknowledged_at?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      system_errors: {
+        Row: {
+          created_at: string | null
+          error_data: Json | null
+          error_message: string
+          error_stack: string | null
+          error_type: string
+          function_name: string | null
+          id: string
+          ip_address: string | null
+          request_url: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string | null
+          status: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_data?: Json | null
+          error_message: string
+          error_stack?: string | null
+          error_type: string
+          function_name?: string | null
+          id?: string
+          ip_address?: string | null
+          request_url?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          status?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_data?: Json | null
+          error_message?: string
+          error_stack?: string | null
+          error_type?: string
+          function_name?: string | null
+          id?: string
+          ip_address?: string | null
+          request_url?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string | null
+          status?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      system_metrics: {
+        Row: {
+          additional_data: Json | null
+          created_at: string | null
+          id: string
+          metric_name: string
+          metric_type: string
+          metric_unit: string | null
+          metric_value: number
+        }
+        Insert: {
+          additional_data?: Json | null
+          created_at?: string | null
+          id?: string
+          metric_name: string
+          metric_type: string
+          metric_unit?: string | null
+          metric_value: number
+        }
+        Update: {
+          additional_data?: Json | null
+          created_at?: string | null
+          id?: string
+          metric_name?: string
+          metric_type?: string
+          metric_unit?: string | null
+          metric_value?: number
+        }
+        Relationships: []
+      }
+      system_status: {
+        Row: {
+          created_at: string | null
+          error_rate: number | null
+          id: string
+          last_check: string | null
+          response_time_ms: number | null
+          service_name: string
+          status: string
+          status_data: Json | null
+          uptime_percentage: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_rate?: number | null
+          id?: string
+          last_check?: string | null
+          response_time_ms?: number | null
+          service_name: string
+          status: string
+          status_data?: Json | null
+          uptime_percentage?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          error_rate?: number | null
+          id?: string
+          last_check?: string | null
+          response_time_ms?: number | null
+          service_name?: string
+          status?: string
+          status_data?: Json | null
+          uptime_percentage?: number | null
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          actions_performed: number | null
+          browser_name: string | null
+          created_at: string | null
+          device_type: string | null
+          duration_minutes: number | null
+          id: string
+          ip_address: string | null
+          os_name: string | null
+          pages_visited: number | null
+          session_start: string | null
+          session_end: string | null
+          session_data: Json | null
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          actions_performed?: number | null
+          browser_name?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          duration_minutes?: number | null
+          id?: string
+          ip_address?: string | null
+          os_name?: string | null
+          pages_visited?: number | null
+          session_start?: string | null
+          session_end?: string | null
+          session_data?: Json | null
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          actions_performed?: number | null
+          browser_name?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          duration_minutes?: number | null
+          id?: string
+          ip_address?: string | null
+          os_name?: string | null
+          pages_visited?: number | null
+          session_start?: string | null
+          session_end?: string | null
+          session_data?: Json | null
           updated_at?: string | null
           username?: string
         }
@@ -487,6 +742,13 @@ export type Database = {
       update_updated_at: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      verify_password: {
+        Args: {
+          input_password: string
+          stored_hash: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

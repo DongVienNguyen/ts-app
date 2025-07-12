@@ -15,6 +15,10 @@ import CRCReminderTable from '@/components/CRCReminderTable';
 import SentCRCReminderTable from '@/components/SentCRCReminderTable';
 import { isDayMonthDueOrOverdue } from '@/utils/dateUtils';
 import { sendPushNotification } from '@/services/notificationService';
+import { Tables, TablesInsert } from '@/integrations/supabase/types';
+
+type CRCReminder = Tables<'crc_reminders'>;
+type StaffMember = Tables<'ldpcrc'>;
 
 const CRCReminders = () => {
   const {
@@ -34,7 +38,7 @@ const CRCReminders = () => {
   const [selectedLDPCRC, setSelectedLDPCRC] = useState('');
   const [selectedCBCRC, setSelectedCBCRC] = useState('');
   const [selectedQuyLCRC, setSelectedQuyLCRC] = useState('');
-  const [editingReminder, setEditingReminder] = useState<any>(null);
+  const [editingReminder, setEditingReminder] = useState<CRCReminder | null>(null);
   const [sentSearchTerm, setSentSearchTerm] = useState('');
 
   useEffect(() => {
@@ -53,7 +57,7 @@ const CRCReminders = () => {
     try {
       const extractName = (value: string) => value ? (value.match(/^(.+?)\s*\(/) || [null, value])[1]?.trim() : null;
 
-      const reminderData = {
+      const reminderData: Partial<CRCReminder> = {
         loai_bt_crc: loaiCRC,
         ngay_thuc_hien: ngayThucHien,
         ldpcrc: extractName(selectedLDPCRC),
@@ -63,11 +67,11 @@ const CRCReminders = () => {
       };
 
       if (editingReminder) {
-        const { error } = await supabase.from('crc_reminders').update(reminderData as any).eq('id', editingReminder.id);
+        const { error } = await supabase.from('crc_reminders').update(reminderData).eq('id', editingReminder.id);
         if (error) throw error;
         setMessage({ type: 'success', text: "Cập nhật nhắc nhở CRC thành công" });
       } else {
-        const { error } = await supabase.from('crc_reminders').insert([reminderData] as any);
+        const { error } = await supabase.from('crc_reminders').insert([reminderData as TablesInsert<'crc_reminders'>]);
         if (error) throw error;
         setMessage({ type: 'success', text: "Thêm nhắc nhở CRC thành công" });
       }
@@ -88,20 +92,20 @@ const CRCReminders = () => {
     setEditingReminder(null);
   };
 
-  const handleEdit = (reminder: any) => {
+  const handleEdit = (reminder: CRCReminder) => {
     setEditingReminder(reminder);
     setLoaiCRC(reminder.loai_bt_crc);
     setNgayThucHien(reminder.ngay_thuc_hien);
     
-    const formatStaffValue = (name: string, staffList: any[]) => {
+    const formatStaffValue = (name: string | null, staffList: StaffMember[]) => {
       if (!name) return '';
       const staffMember = staffList.find(s => s.ten_nv === name);
       return staffMember ? `${staffMember.ten_nv} (${staffMember.email})` : name;
     };
 
-    setSelectedLDPCRC(formatStaffValue(reminder.ldpcrc || '', staff.ldpcrc));
-    setSelectedCBCRC(formatStaffValue(reminder.cbcrc || '', staff.cbcrc));
-    setSelectedQuyLCRC(formatStaffValue(reminder.quycrc || '', staff.quycrc));
+    setSelectedLDPCRC(formatStaffValue(reminder.ldpcrc, staff.ldpcrc));
+    setSelectedCBCRC(formatStaffValue(reminder.cbcrc, staff.cbcrc));
+    setSelectedQuyLCRC(formatStaffValue(reminder.quycrc, staff.quycrc));
   };
 
   const handleDelete = async (id: string) => {
@@ -129,10 +133,10 @@ const CRCReminders = () => {
       title,
       message,
       notification_type: 'crc_reminder',
-    } as any);
+    } as TablesInsert<'notifications'>);
   };
 
-  const sendSingleReminder = async (reminder: any) => {
+  const sendSingleReminder = async (reminder: CRCReminder) => {
     setMessage({ type: '', text: '' });
     try {
       if (!isDayMonthDueOrOverdue(reminder.ngay_thuc_hien)) {
@@ -140,7 +144,7 @@ const CRCReminders = () => {
         return;
       }
 
-      const getRecipient = (name: string, staffList: any[]) => {
+      const getRecipient = (name: string | null, staffList: StaffMember[]) => {
         if (!name || name === 'Chưa chọn') return null;
         return staffList.find(m => m.ten_nv === name) || null;
       };
@@ -149,7 +153,7 @@ const CRCReminders = () => {
         getRecipient(reminder.ldpcrc, staff.ldpcrc),
         getRecipient(reminder.cbcrc, staff.cbcrc),
         getRecipient(reminder.quycrc, staff.quycrc)
-      ].filter(Boolean);
+      ].filter((r): r is StaffMember => r !== null);
 
       const recipientEmails = recipientsInfo.map(r => `${r.email}.hvu@vietcombank.com.vn`);
 
@@ -164,8 +168,8 @@ const CRCReminders = () => {
       
       if (emailResult.success) {
         const sentData = { ...reminder, is_sent: true, sent_date: new Date().toISOString().split('T')[0] };
-        delete sentData.id;
-        await supabase.from('sent_crc_reminders').insert([sentData]);
+        delete (sentData as Partial<CRCReminder>).id;
+        await supabase.from('sent_crc_reminders').insert([sentData as TablesInsert<'sent_crc_reminders'>]);
         await supabase.from('crc_reminders').delete().eq('id', reminder.id);
         
         const notifMessage = `Yêu cầu duyệt CRC loại "${reminder.loai_bt_crc}" cần thực hiện vào ngày ${reminder.ngay_thuc_hien}.`;
@@ -184,7 +188,7 @@ const CRCReminders = () => {
         setMessage({ type: 'success', text: "Đã gửi email và chuyển sang danh sách đã gửi" });
         refreshData();
       } else {
-        throw new Error(emailResult.error);
+        throw new Error(emailResult.error || 'Unknown email error');
       }
     } catch (error: any) {
       setMessage({ type: 'error', text: `Không thể gửi email: ${error.message}` });

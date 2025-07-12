@@ -3,14 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAssetHistory } from '@/hooks/useAssetHistory';
 import { setCurrentUserContext, createNotesWithTimestamp } from '@/utils/otherAssetUtils';
-import { Tables } from '@/integrations/supabase/types';
+import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
 type OtherAsset = Tables<'other_assets'>;
 
 export const useOtherAssetOperations = (user: any) => {
   const { saveHistory } = useAssetHistory(user);
 
-  const loadAssets = useCallback(async () => {
+  const loadAssets = useCallback(async (): Promise<OtherAsset[]> => {
     if (!user) return [];
     
     try {
@@ -29,7 +29,7 @@ export const useOtherAssetOperations = (user: any) => {
       }
       
       console.log('Assets loaded:', assetsData);
-      return assetsData || [];
+      return (assetsData as OtherAsset[]) || [];
 
     } catch (error) {
       console.error('Error loading data:', error);
@@ -41,13 +41,13 @@ export const useOtherAssetOperations = (user: any) => {
   }, [user]);
 
   const saveAsset = useCallback(async (
-    newAsset: any,
+    newAsset: Partial<OtherAsset>,
     editingAsset: OtherAsset | null,
     changeReason: string
   ) => {
     console.log('=== STARTING SAVE OPERATION ===');
     
-    if (!newAsset.name.trim()) {
+    if (!newAsset.name || !newAsset.name.trim()) {
       toast.error("Lỗi", { description: "Vui lòng nhập tên tài sản" });
       return false;
     }
@@ -67,12 +67,12 @@ export const useOtherAssetOperations = (user: any) => {
       
       const notesWithTimestamp = createNotesWithTimestamp(newAsset.notes, !!editingAsset);
 
-      const assetData = {
+      const assetData: TablesUpdate<'other_assets'> = {
         name: newAsset.name.trim(),
-        deposit_date: newAsset.deposit_date.trim() === '' ? null : newAsset.deposit_date,
+        deposit_date: newAsset.deposit_date?.trim() === '' ? null : newAsset.deposit_date,
         depositor: newAsset.depositor?.trim() || null,
         deposit_receiver: newAsset.deposit_receiver?.trim() || null,
-        withdrawal_date: newAsset.withdrawal_date.trim() === '' ? null : newAsset.withdrawal_date,
+        withdrawal_date: newAsset.withdrawal_date?.trim() === '' ? null : newAsset.withdrawal_date,
         withdrawal_deliverer: newAsset.withdrawal_deliverer?.trim() || null,
         withdrawal_receiver: newAsset.withdrawal_receiver?.trim() || null,
         notes: notesWithTimestamp
@@ -103,7 +103,7 @@ export const useOtherAssetOperations = (user: any) => {
       } else {
         const { data: newAssetData, error: insertError } = await supabase
           .from('other_assets')
-          .insert([assetData] as any) // Cast to any to resolve type mismatch
+          .insert([assetData as TablesInsert<'other_assets'>])
           .select();
 
         if (insertError) throw insertError;

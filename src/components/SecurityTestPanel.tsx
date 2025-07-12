@@ -23,7 +23,7 @@ export function SecurityTestPanel() {
     logEvent(
       eventType,
       { message: message || `Simulated ${eventType} event.` },
-      username || 'test_user'
+      username || 'test_user' // Pass username as the third argument
     );
     toast.success(`Đã mô phỏng sự kiện: ${eventType}`);
   };

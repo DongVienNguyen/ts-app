@@ -92,7 +92,7 @@ export const useDailyReportLogic = () => {
     });
   }, [gmtPlus7Date, defaultEndDate]);
 
-  const { data: transactions = [], isLoading } = useQuery<Transaction[], Error>({
+  const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['assetTransactions', currentQueryFilters],
     queryFn: async () => (await getAssetTransactions(currentQueryFilters)) as Transaction[],
     enabled: !!currentQueryFilters.startDate,
@@ -120,7 +120,7 @@ export const useDailyReportLogic = () => {
     }
   };
 
-  const groupedRows = useMemo(() => groupTransactions(transactions), [transactions]);
+  const groupedRows = useMemo(() => groupTransactions(transactions as Transaction[]), [transactions]);
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;

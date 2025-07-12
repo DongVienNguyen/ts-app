@@ -1,61 +1,59 @@
-import { Users, CheckCircle, Lock, AlertTriangle } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-
-interface SecurityStats {
-  totalUsers: number;
-  activeUsers: number;
-  lockedUsers: number;
-  recentFailedLogins: number;
-  onlineUsers: number;
-}
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Wifi, Database, Clock, Server } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface SystemOverviewCardsProps {
-  stats: SecurityStats;
+  systemStatus: {
+    apiConnected: boolean;
+    apiResponseTime: number;
+    dbConnected: boolean;
+    dbResponseTime: number;
+  };
+  isLoading: boolean;
 }
 
-export function SystemOverviewCards({ stats }: SystemOverviewCardsProps) {
-  const overviewItems = [
+export function SystemOverviewCards({ systemStatus, isLoading }: SystemOverviewCardsProps) {
+  const statusItems = [
     {
-      icon: <Users className="w-8 h-8 text-blue-500" />,
-      value: stats.totalUsers,
-      label: 'Tổng người dùng',
-      badge: `${stats.onlineUsers} online`
+      title: 'Trạng thái API',
+      value: systemStatus.apiConnected ? 'Đang hoạt động' : 'Mất kết nối',
+      icon: <Wifi className="h-4 w-4 text-muted-foreground" />,
+      color: systemStatus.apiConnected ? 'text-green-600' : 'text-red-600',
     },
     {
-      icon: <CheckCircle className="w-8 h-8 text-green-500" />,
-      value: stats.activeUsers,
-      label: 'Tài khoản hoạt động'
+      title: 'Thời gian phản hồi API',
+      value: isLoading ? '...' : `${systemStatus.apiResponseTime}ms`,
+      icon: <Clock className="h-4 w-4 text-muted-foreground" />,
+      color: systemStatus.apiResponseTime < 100 ? 'text-green-600' : 'text-orange-600',
     },
     {
-      icon: <Lock className="w-8 h-8 text-red-500" />,
-      value: stats.lockedUsers,
-      label: 'Tài khoản bị khóa'
+      title: 'Trạng thái DB',
+      value: systemStatus.dbConnected ? 'Đang hoạt động' : 'Mất kết nối',
+      icon: <Database className="h-4 w-4 text-muted-foreground" />,
+      color: systemStatus.dbConnected ? 'text-green-600' : 'text-red-600',
     },
     {
-      icon: <AlertTriangle className="w-8 h-8 text-orange-500" />,
-      value: stats.recentFailedLogins,
-      label: 'Thất bại 24h qua'
-    }
+      title: 'Thời gian phản hồi DB',
+      value: isLoading ? '...' : `${systemStatus.dbResponseTime}ms`,
+      icon: <Server className="h-4 w-4 text-muted-foreground" />,
+      color: systemStatus.dbResponseTime < 80 ? 'text-green-600' : 'text-orange-600',
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {overviewItems.map((item, index) => (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {statusItems.map((item, index) => (
         <Card key={index}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                {item.icon}
-                <div>
-                  <p className="text-2xl font-bold">{item.value}</p>
-                  <p className="text-sm text-gray-600">{item.label}</p>
-                </div>
-              </div>
-              {item.badge && (
-                <Badge variant="secondary">{item.badge}</Badge>
-              )}
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{item.title}</CardTitle>
+            {item.icon}
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-6 w-3/4" />
+            ) : (
+              <div className={`text-2xl font-bold ${item.color}`}>{item.value}</div>
+            )}
           </CardContent>
         </Card>
       ))}

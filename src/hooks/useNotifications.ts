@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Tables } from '@/integrations/supabase/types';
+import { Tables, TablesInsert } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { getCachedNotifications, invalidateNotifications } from '@/utils/databaseCache';
 
@@ -32,7 +32,7 @@ export function useNotifications() {
       const data = await getCachedNotifications(user.username);
       
       console.log(`✅ Retrieved ${data?.length || 0} notifications from cache`);
-      return data || [];
+      return (data as Notification[]) || [];
     },
     enabled: !!user,
     staleTime: 30 * 1000, // Consider data stale after 30 seconds
@@ -175,7 +175,7 @@ export function useNotifications() {
             original_sender: originalSender,
             original_recipients: originalRecipients
           }
-        })
+        } as TablesInsert<'notifications'>)
       );
 
       const results = await Promise.all(promises);
@@ -224,7 +224,7 @@ export function useNotifications() {
             action_type: action,
             original_sender: originalSender
           }
-        });
+        } as TablesInsert<'notifications'>);
       
       if (error) throw error;
     },
