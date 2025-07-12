@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SecurityEvent } from '@/utils/realTimeSecurityUtils';
 import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
-import { CONNECTION_STATE } from '@supabase/supabase-js'; // Import CONNECTION_STATE
 
 export interface RealTimeSecurityStats {
   activeUsers: number;
   recentEvents: SecurityEvent[];
   threatTrends: { date: string; successfulLogins: number; failedLogins: number; suspiciousActivities: number }[];
-  isSupabaseConnected: boolean; // Add this to the interface
+  isSupabaseConnected: boolean;
 }
 
 export function useRealTimeSecurityMonitoring() {
@@ -17,7 +16,7 @@ export function useRealTimeSecurityMonitoring() {
   const [threatTrends, setThreatTrends] = useState<{ date: string; successfulLogins: number; failedLogins: number; suspiciousActivities: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false); // New state for connection status
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState(true); // Default to true, will be updated based on data fetch success
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -42,27 +41,28 @@ export function useRealTimeSecurityMonitoring() {
           ip: event.ip_address,
           username: event.username
         }));
-        setRecentEvents(mappedEvents); // This now correctly receives an array
+        setRecentEvents(mappedEvents);
         updateThreatTrends(mappedEvents);
 
-        // For active users, we might need a more sophisticated method,
-        // for now, let's simulate or fetch from a 'user_sessions' table if available.
-        // Assuming 'user_sessions' table exists and tracks active sessions
+        // For active users, fetch from 'user_sessions' table if available
         const { data: sessions, error: sessionError } = await supabase
           .from('user_sessions')
           .select('id')
           .is('session_end', null);
 
         if (sessionError) {
-            // Log the warning, but don't throw an error that stops the dashboard
             console.warn("Could not fetch active sessions:", sessionError.message);
-            setActiveUsers(0); // Default to 0 if error
+            setActiveUsers(0);
         } else {
             setActiveUsers(sessions?.length || 0);
         }
 
+        // If we reach here, connection is working
+        setIsSupabaseConnected(true);
+
       } catch (err: any) {
         setError('Failed to fetch initial data: ' + err.message);
+        setIsSupabaseConnected(false);
       } finally {
         setIsLoading(false);
       }
@@ -88,20 +88,22 @@ export function useRealTimeSecurityMonitoring() {
             username: newEvent.username
           };
           setRecentEvents(prevEvents => {
-            const updatedEvents = [mappedNewEvent, ...prevEvents].slice(0, 20); // Keep only the latest 20
+            const updatedEvents = [mappedNewEvent, ...prevEvents].slice(0, 20);
             updateThreatTrends(updatedEvents);
             return updatedEvents;
           });
+          // Update connection status on successful real-time event
+          setIsSupabaseConnected(true);
         }
       )
       .subscribe();
 
-    // Set up real-time subscription for user_sessions (if applicable)
+    // Set up real-time subscription for user_sessions
     const userSessionsChannel = supabase
       .channel('user_sessions_channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'user_sessions' }, // Listen to all changes for active user count
+        { event: '*', schema: 'public', table: 'user_sessions' },
         async () => {
           const { data: sessions, error: sessionError } = await supabase
             .from('user_sessions')
@@ -117,23 +119,9 @@ export function useRealTimeSecurityMonitoring() {
       )
       .subscribe();
 
-    // --- Supabase Realtime Connection Status Monitoring ---
-    const handleConnect = () => setIsSupabaseConnected(true);
-    const handleDisconnect = () => setIsSupabaseConnected(false);
-
-    // Initial check
-    setIsSupabaseConnected(supabase.realtime.connectionState() === CONNECTION_STATE.CONNECTED);
-
-    // Listen for global real-time connection status changes
-    supabase.realtime.on(CONNECTION_STATE.CONNECTED, handleConnect);
-    supabase.realtime.on(CONNECTION_STATE.DISCONNECTED, handleDisconnect);
-
     return () => {
       supabase.removeChannel(securityEventsChannel);
       supabase.removeChannel(userSessionsChannel);
-      // Unsubscribe from global real-time connection status changes
-      supabase.realtime.off(CONNECTION_STATE.CONNECTED, handleConnect);
-      supabase.realtime.off(CONNECTION_STATE.DISCONNECTED, handleDisconnect);
     };
   }, []);
 
@@ -141,7 +129,7 @@ export function useRealTimeSecurityMonitoring() {
     const dailyData: { [date: string]: { successfulLogins: number; failedLogins: number; suspiciousActivities: number } } = {};
 
     events.forEach(event => {
-      const date = new Date(event.timestamp).toLocaleDateString('en-CA'); // Use 'en-CA' for YYYY-MM-DD format
+      const date = new Date(event.timestamp).toLocaleDateString('en-CA');
       if (!dailyData[date]) {
         dailyData[date] = { successfulLogins: 0, failedLogins: 0, suspiciousActivities: 0 };
       }
@@ -155,7 +143,6 @@ export function useRealTimeSecurityMonitoring() {
       }
     });
 
-    // Sort dates to ensure correct order in chart
     const sortedDates = Object.keys(dailyData).sort();
     const newTrends = sortedDates.map(date => ({ date, ...dailyData[date] }));
     setThreatTrends(newTrends);
@@ -172,6 +159,6 @@ export function useRealTimeSecurityMonitoring() {
     isLoading,
     error,
     logEvent,
-    isSupabaseConnected, // Export the new state
+    isSupabaseConnected,
   };
 }
