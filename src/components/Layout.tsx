@@ -75,7 +75,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       { name: 'Bảo mật', href: '/security-monitor', icon: Shield, show: userIsAdmin },
       { name: 'Lỗi hệ thống', href: '/error-monitoring', icon: Activity, show: userIsAdmin },
       { name: 'Sử dụng', href: '/usage-monitoring', icon: BarChart3, show: userIsAdmin },
-      { name: 'Backup & Restore', href: '/system-backup', icon: HardDrive, show: userIsAdmin }
+      { name: 'Backup & Restore', href: '/backup', icon: HardDrive, show: userIsAdmin } // Updated href
     ].filter(item => item.show);
 
     return (
@@ -193,11 +193,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div>
       <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         {/* SheetTrigger moved inside Sheet */}
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="lg:hidden">
-            <Menu className="h-6 w-6" />
-          </Button>
-        </SheetTrigger>
+        
         <SheetContent className="w-72 p-0" side="left">
           <SheetHeader className="sr-only">
             <SheetTitle>Main Menu</SheetTitle>
@@ -217,6 +213,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
           {/* The button that triggers the sheet is now inside the SheetTrigger */}
           {/* No need for onClick here as SheetTrigger handles it */}
+          <SheetTrigger asChild> {/* Moved SheetTrigger here */}
+            <Button variant="ghost" size="icon" className="lg:hidden">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
           
           <div className="h-6 w-px bg-gray-200 lg:hidden" aria-hidden="true" />
 

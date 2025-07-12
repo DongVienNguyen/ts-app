@@ -87,8 +87,8 @@ export function UserManagementTab() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tên nhân viên</TableHead>
-              <TableHead>Tên đăng nhập</TableHead>
+              <TableHead className="text-left">Tên nhân viên</TableHead>
+              <TableHead className="text-left">Tên đăng nhập</TableHead>
               <TableHead>Vai trò</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead>Cập nhật lần cuối</TableHead>
@@ -107,8 +107,8 @@ export function UserManagementTab() {
             ) : filteredStaff.length > 0 ? (
               filteredStaff.map(user => (
                 <TableRow key={user.id}>
-                  <TableCell>{user.staff_name || 'N/A'}</TableCell>
-                  <TableCell className="font-medium">{user.username}</TableCell>
+                  <TableCell className="text-left">{user.staff_name || 'N/A'}</TableCell>
+                  <TableCell className="font-medium text-left">{user.username}</TableCell>
                   <TableCell>{user.role}</TableCell>
                   <TableCell>
                     <Badge variant={user.account_status === 'active' ? 'default' : 'destructive'}>

@@ -152,7 +152,7 @@ export const NavigationHeader: React.FC = () => {
     { name: 'Bảo mật', href: '/security-monitor', icon: Shield, show: userIsAdmin },
     { name: 'Lỗi hệ thống', href: '/error-monitoring', icon: Activity, show: userIsAdmin },
     { name: 'Sử dụng', href: '/usage-monitoring', icon: BarChart3, show: userIsAdmin },
-    { name: 'Backup & Restore', href: '/system-backup', icon: HardDrive, show: userIsAdmin }
+    { name: 'Backup & Restore', href: '/backup', icon: HardDrive, show: userIsAdmin } // Updated href
   ].filter(item => item.show);
 
   // Check if any system menu item is currently active
