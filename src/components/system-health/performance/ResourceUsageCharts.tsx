@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { PerformanceMetric } from './types';
 import { SystemHealth } from '@/components/system-health/types'; // Import SystemHealth
 
@@ -30,6 +30,8 @@ export const ResourceUsageCharts: React.FC<ResourceUsageChartsProps> = ({ metric
     { name: 'Storage Usage', value: currentStorageUsage },
     { name: 'Available', value: availablePercentage }
   ].filter(item => item.value > 0 && Number.isFinite(item.value)); // Lọc bỏ các mục có giá trị 0 và không phải số hữu hạn để biểu đồ rõ ràng hơn
+
+  console.log('ResourceUsageCharts - Resource Distribution Data:', resourceDistribution);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -64,6 +66,7 @@ export const ResourceUsageCharts: React.FC<ResourceUsageChartsProps> = ({ metric
                   ))}
                 </Pie>
                 <Tooltip />
+                <Legend />
               </PieChart>
             </ResponsiveContainer>
           ) : (

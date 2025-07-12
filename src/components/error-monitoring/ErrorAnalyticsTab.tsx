@@ -44,6 +44,10 @@ export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabPr
     count: item.count,
   }));
 
+  console.log('ErrorAnalyticsTab - Severity Data:', severityData);
+  console.log('ErrorAnalyticsTab - Browser Data:', browserData);
+  console.log('ErrorAnalyticsTab - OS Data:', osData);
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
