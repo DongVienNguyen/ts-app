@@ -1,69 +1,63 @@
-import { AlertTriangle, XCircle, CheckCircle, TrendingUp } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-
-interface ErrorStats {
-  totalErrors: number;
-  criticalErrors: number;
-  resolvedErrors: number;
-  errorRate: number;
-}
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DollarSign, Users, CreditCard, Activity, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton component
 
 interface ErrorOverviewCardsProps {
-  errorStats: ErrorStats;
+  errorStats: {
+    totalErrors: number;
+    criticalErrors: number;
+    resolvedErrors: number;
+    errorRate: number;
+  };
+  isLoading: boolean; // Add isLoading prop
 }
 
-export function ErrorOverviewCards({ errorStats }: ErrorOverviewCardsProps) {
+export function ErrorOverviewCards({ errorStats, isLoading }: ErrorOverviewCardsProps) {
   const cards = [
     {
       title: 'Tổng số lỗi',
-      value: errorStats.totalErrors,
       icon: AlertTriangle,
-      color: 'text-red-600',
-      bgColor: 'text-red-500'
+      value: isLoading ? <Skeleton className="h-6 w-24" /> : errorStats.totalErrors,
+      description: 'Tổng số lỗi được ghi nhận trong 7 ngày qua',
     },
     {
       title: 'Lỗi nghiêm trọng',
-      value: errorStats.criticalErrors,
       icon: XCircle,
-      color: 'text-orange-600',
-      bgColor: 'text-orange-500'
+      value: isLoading ? <Skeleton className="h-6 w-20" /> : errorStats.criticalErrors,
+      description: 'Số lỗi có mức độ nghiêm trọng "critical"',
     },
     {
-      title: 'Đã giải quyết',
-      value: errorStats.resolvedErrors,
+      title: 'Lỗi đã giải quyết',
       icon: CheckCircle,
-      color: 'text-green-600',
-      bgColor: 'text-green-500'
+      value: isLoading ? <Skeleton className="h-6 w-20" /> : errorStats.resolvedErrors,
+      description: 'Số lỗi đã được đánh dấu là đã giải quyết',
     },
     {
-      title: 'Lỗi/giờ (24h)',
-      value: errorStats.errorRate.toFixed(1),
-      icon: TrendingUp,
-      color: 'text-blue-600',
-      bgColor: 'text-blue-500'
-    }
+      title: 'Tỷ lệ lỗi',
+      icon: Activity,
+      value: isLoading ? <Skeleton className="h-6 w-16" /> : `${errorStats.errorRate.toFixed(2)}/giờ`,
+      description: 'Tỷ lệ lỗi trung bình trong 7 ngày qua',
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((card, index) => {
-        const Icon = card.icon;
-        return (
-          <Card key={index}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-2xl font-bold ${card.color}`}>
-                    {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}
-                  </p>
-                  <p className="text-sm text-gray-600">{card.title}</p>
-                </div>
-                <Icon className={`w-8 h-8 ${card.bgColor}`} />
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {cards.map((card, index) => (
+        <Card key={index}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {card.title}
+            </CardTitle>
+            <card.icon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{card.value}</div>
+            <p className="text-xs text-muted-foreground">
+              {card.description}
+            </p>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
