@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { RealtimeChannel, PostgrestResponse } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { Tables } from '@/integrations/supabase/types';
 import { AuthenticatedStaff } from '@/contexts/AuthContext';
@@ -38,17 +38,29 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
   const [securityAlerts, setSecurityAlerts] = useState<SystemAlert[]>([]);
 
   const logEvent = async (type: string, data: any = {}, username?: string) => {
-    try {
-      const { error: insertError } = await supabase
-        .from('security_events')
-        .insert({ event_type: type, event_data: data, username: username });
+    const query = supabase
+      .from('security_events')
+      .insert({ event_type: type, event_data: data, username: username })
+      .select();
 
-      if (insertError) {
-        console.error('Error logging security event:', insertError);
-      }
-    } catch (err) {
-      console.error('Exception logging security event:', err);
-    }
+    // Ép kiểu hai bước để tương thích với toast.promise
+    const promise: Promise<PostgrestResponse<Tables<'security_events'>[]>> = query as unknown as Promise<PostgrestResponse<Tables<'security_events'>[]>>;
+
+    toast.promise(promise, {
+      loading: 'Đang ghi sự kiện bảo mật vào CSDL...',
+      success: (response) => {
+        if (response.error) {
+          // Ném lỗi để promise chuyển sang trạng thái error
+          throw response.error;
+        }
+        console.log('Sự kiện đã được ghi thành công:', response.data);
+        return 'Ghi sự kiện vào CSDL thành công!';
+      },
+      error: (err) => {
+        console.error('Lỗi ghi sự kiện bảo mật:', err);
+        return `Lỗi ghi sự kiện: ${err.message}`;
+      },
+    });
   };
 
   useEffect(() => {
