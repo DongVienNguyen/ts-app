@@ -7,7 +7,7 @@ import { useSecureAuth } from '@/contexts/AuthContext';
 import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
 import { SystemStatus } from '@/utils/errorTracking';
 import { PWATestPanel } from '@/components/PWATestPanel';
-import PushNotificationTester from '@/components/PushNotificationTester'; // Changed to default import
+import PushNotificationTester from '@/components/PushNotificationTester'; // Corrected to default import
 import { VAPIDKeyTester } from '@/components/VAPIDKeyTester';
 
 const ErrorMonitoring = () => {
