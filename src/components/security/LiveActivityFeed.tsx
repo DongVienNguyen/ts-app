@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SecurityEvent } from '@/hooks/useRealTimeSecurityMonitoring';
 import { formatRelativeTime } from '@/utils/dateUtils';
 import { Button } from '@/components/ui/button';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 interface LiveActivityFeedProps {
   events: SecurityEvent[];
@@ -25,6 +25,15 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, onRefre
       console.log('🔍 [LiveActivityFeed] Latest event:', events[0]);
     }
   }, [events, isRealTimeEnabled, isLoading]);
+
+  // Memoize events để tránh re-render không cần thiết
+  const sortedEvents = useMemo(() => {
+    if (!events || events.length === 0) return [];
+    
+    return [...events].sort((a, b) => 
+      new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime()
+    );
+  }, [events]);
 
   const getEventIcon = (eventType: string) => {
     switch (eventType) {
@@ -120,8 +129,9 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, onRefre
         {/* Debug info - chỉ hiển thị trong development */}
         {process.env.NODE_ENV === 'development' && (
           <div className="text-xs text-gray-400 space-y-1">
-            <div>Debug: {events?.length || 0} events, Loading: {isLoading ? 'Yes' : 'No'}</div>
+            <div>Debug: {sortedEvents?.length || 0} events, Loading: {isLoading ? 'Yes' : 'No'}</div>
             <div>Real-time: {isRealTimeEnabled ? 'Enabled' : 'Disabled'}</div>
+            <div>Last update: {new Date().toLocaleTimeString()}</div>
           </div>
         )}
       </CardHeader>
@@ -132,11 +142,14 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading, onRefre
               <Skeleton key={i} className="h-12 w-full" />
             ))}
           </div>
-        ) : events && events.length > 0 ? (
+        ) : sortedEvents && sortedEvents.length > 0 ? (
           <ScrollArea className="h-[300px] pr-4">
             <div className="space-y-3">
-              {events.map((event) => (
-                <div key={event.id} className="flex items-start space-x-3 p-2 rounded-md hover:bg-gray-50 transition-colors">
+              {sortedEvents.map((event, index) => (
+                <div 
+                  key={`${event.id}-${index}`} 
+                  className="flex items-start space-x-3 p-2 rounded-md hover:bg-gray-50 transition-colors border-l-2 border-l-blue-200"
+                >
                   <div className="flex-shrink-0 mt-1">
                     {getEventIcon(event.event_type)}
                   </div>
