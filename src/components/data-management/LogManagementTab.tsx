@@ -272,7 +272,7 @@ export function LogManagementTab() {
           </div>
           {data && data.count !== undefined && (
             <SmartPagination
-              totalItems={data.count}
+              totalCount={data.count}
               itemsPerPage={itemsPerPage}
               currentPage={currentPage}
               onPageChange={setCurrentPage}

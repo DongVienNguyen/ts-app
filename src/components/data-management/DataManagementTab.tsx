@@ -327,7 +327,7 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
           <SmartPagination
             currentPage={currentPage}
             totalCount={totalCount}
-            pageSize={ITEMS_PER_PAGE}
+            itemsPerPage={ITEMS_PER_PAGE}
             onPageChange={onPageChange}
           />
         )}

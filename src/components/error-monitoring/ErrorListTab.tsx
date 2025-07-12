@@ -352,7 +352,7 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter
                   <SmartPagination
                     currentPage={currentPage}
                     totalCount={filteredErrors.length}
-                    pageSize={ITEMS_PER_PAGE}
+                    itemsPerPage={ITEMS_PER_PAGE}
                     onPageChange={goToPage}
                   />
                 </div>
