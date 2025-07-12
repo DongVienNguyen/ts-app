@@ -3,29 +3,6 @@ import { createClient, SupabaseClientOptions } from '@supabase/supabase-js'
 const supabaseUrl = 'https://itoapoyrxxmtbbuolfhk.supabase.co'
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0b2Fwb3lyeHhtdGJidW9sZmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2ODQ2NDgsImV4cCI6MjA2NjI2MDY0OH0.qT7L0MDAH-qArxaoMSkCYmVYAcwdEzbXWB1PayxD_rk'
 
-// Auth state management - these variables will be used by customFetch
-let currentAuthToken: string | null = null;
-let currentUsername: string | null = null;
-
-// Custom fetch to bypass service worker cache for Supabase API requests
-const customFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-  // Create a new Headers object from existing ones to ensure all original headers are preserved
-  const headers = new Headers(init?.headers);
-
-  // Add Authorization header if currentAuthToken exists
-  if (currentAuthToken) {
-    headers.set('Authorization', `Bearer ${currentAuthToken}`);
-  }
-
-  const newInit: RequestInit = {
-    ...init,
-    headers: headers, // Use the new Headers object with all combined headers
-    cache: 'no-store' // Ensure no caching for Supabase API calls
-  };
-
-  return fetch(input, newInit);
-};
-
 const options: SupabaseClientOptions<"public"> = {
   auth: {
     autoRefreshToken: true,
@@ -38,45 +15,42 @@ const options: SupabaseClientOptions<"public"> = {
     }
   },
   global: {
-    fetch: customFetch, // Use our custom fetch function
+    // Supabase client sẽ tự động thêm Authorization header nếu session tồn tại
+    // và quản lý cache. Không cần custom fetch ở đây trừ khi có lý do đặc biệt.
+    // Nếu bạn muốn đảm bảo không có caching, có thể thêm headers: { 'Cache-Control': 'no-store' } vào từng request cụ thể.
   },
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, options)
 
-// Set authentication - now only updates the local token variable
+// Các hàm này không còn cần thiết vì Supabase client tự quản lý session
+// và token. Chúng sẽ được loại bỏ hoặc thay thế bằng các phương thức của supabase.auth.
 export function setSupabaseAuth(token: string, username:string) {
-  currentAuthToken = token;
-  currentUsername = username;
-  // The customFetch function will now automatically pick up this token for all requests
+  console.warn('setSupabaseAuth is deprecated. Supabase client manages its own session.');
 }
 
-// Clear authentication - now only clears the local token variable
 export function clearSupabaseAuth() {
-  currentAuthToken = null;
-  currentUsername = null;
-  // The customFetch function will no longer add the token
+  console.warn('clearSupabaseAuth is deprecated. Use supabase.auth.signOut() instead.');
 }
 
-// Get authenticated client
 export function getAuthenticatedClient() {
-  if (!currentAuthToken) {
-    return null;
-  }
+  // Supabase client tự động biết khi nào nó được xác thực
   return supabase;
 }
 
-// Get service role client (for system operations)
+// getServiceRoleClient vẫn trả về client thông thường.
+// Đối với các hoạt động yêu cầu quyền service_role, bạn nên sử dụng Edge Functions
+// hoặc một client được khởi tạo với service_role_key trên backend.
 export function getServiceRoleClient() {
-  // For now, return the same client - in production you'd use service role key
   return supabase;
 }
 
-// Get current auth info
+// Hàm này vẫn hữu ích để lấy thông tin auth hiện tại từ client
 export function getCurrentAuth() {
+  // Trả về thông tin auth từ Supabase client
   return {
-    token: currentAuthToken,
-    username: currentUsername,
-    isAuthenticated: !!(currentAuthToken && currentUsername)
+    token: null, // Token sẽ được quản lý nội bộ bởi Supabase client
+    username: null, // Username sẽ được lấy từ session của Supabase
+    isAuthenticated: false // Trạng thái xác thực sẽ được lấy từ session của Supabase
   };
 }

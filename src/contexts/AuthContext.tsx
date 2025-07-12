@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Staff } from '@/types/auth';
 import { secureLoginUser } from '@/services/secureAuthService';
-import { clearSupabaseAuth, setSupabaseAuth } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client'; // Import supabase client
 import { healthCheckService } from '@/services/healthCheckService';
 import { toast } from 'sonner';
 
-// Extend Staff type to include token
+// Extend Staff type to include token (if needed for client-side logic, though Supabase manages it internally)
 interface AuthenticatedStaff extends Staff {
   token?: string;
 }
@@ -27,192 +27,76 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthenticatedStaff | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Enhanced session validation with correct token format handling
-  const validateAndRestoreSession = async (): Promise<AuthenticatedStaff | null> => {
-    try {
-      console.log('🔍 [AUTH] Starting session validation...');
-      
-      const token = localStorage.getItem('auth_token');
-      const userStr = localStorage.getItem('auth_user');
-      const loginTime = localStorage.getItem('auth_login_time');
-      
-      // Check if all required data exists
-      if (!token || !userStr || !loginTime) {
-        console.log('❌ [AUTH] Missing session data:', { 
-          hasToken: !!token, 
-          hasUser: !!userStr, 
-          hasLoginTime: !!loginTime 
-        });
-        return null;
-      }
+  // Use Supabase's onAuthStateChange to manage session
+  useEffect(() => {
+    console.log('🚀 [AUTH] AuthProvider mounted, setting up auth state listener');
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 [AUTH] Auth state changed:', event, session);
+      if (session) {
+        // Fetch user details from 'staff' table using the session's user ID
+        const { data: staffData, error: staffError } = await supabase
+          .from('staff')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
 
-      // Validate login timestamp
-      const loginTimestamp = parseInt(loginTime);
-      if (isNaN(loginTimestamp) || loginTimestamp <= 0) {
-        console.log('❌ [AUTH] Invalid login timestamp:', loginTime);
-        return null;
-      }
-
-      // Check session age (7 days = 604800000 ms)
-      const now = Date.now();
-      const sessionAge = now - loginTimestamp;
-      const maxSessionAge = 7 * 24 * 60 * 60 * 1000; // 7 days
-      
-      if (sessionAge > maxSessionAge) {
-        console.log('❌ [AUTH] Session expired:', {
-          sessionAgeHours: Math.round(sessionAge / (60 * 60 * 1000)),
-          maxAgeHours: Math.round(maxSessionAge / (60 * 60 * 1000)),
-          loginDate: new Date(loginTimestamp).toISOString()
-        });
-        return null;
-      }
-
-      // Validate JWT token
-      try {
-        console.log('🔍 [AUTH] Validating JWT token...');
-        const parts = token.split('.');
-        if (parts.length !== 3) {
-          console.log('❌ [AUTH] Invalid JWT format: not 3 parts');
-          return null;
+        if (staffError) {
+          console.error('❌ [AUTH] Error fetching staff data:', staffError);
+          setUser(null);
+          healthCheckService.onUserLogout();
+        } else if (staffData) {
+          const authenticatedUser: AuthenticatedStaff = {
+            ...staffData,
+            token: session.access_token, // Store access token if needed for direct API calls
+            id: staffData.id, // Ensure ID is present
+            username: staffData.username, // Ensure username is present
+            role: staffData.role || 'user', // Default role
+            account_status: staffData.account_status || 'active', // Default status
+          };
+          setUser(authenticatedUser);
+          healthCheckService.onUserLogin();
         }
-
-        // Decode the payload (the middle part of the JWT)
-        const payloadStr = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
-        const payload = JSON.parse(payloadStr);
-
-        console.log('✅ [AUTH] JWT payload decoded successfully:', {
-          username: payload.username,
-          role: payload.role,
-          exp: payload.exp
-        });
-
-        // Check token expiration (exp is in seconds, Date.now() is in ms)
-        if (payload.exp && (payload.exp * 1000) < Date.now()) {
-          console.log('❌ [AUTH] JWT token has expired:', {
-            exp: new Date(payload.exp * 1000).toISOString(),
-            now: new Date().toISOString()
-          });
-          return null;
-        }
-        
-        console.log('✅ [AUTH] JWT token is valid and not expired.');
-
-      } catch (tokenError) {
-        console.log('❌ [AUTH] JWT token parsing or validation error:', tokenError);
-        return null;
-      }
-
-      // Parse and validate user data
-      let userData: Staff;
-      try {
-        userData = JSON.parse(userStr);
-        
-        // Validate required user fields
-        if (!userData.username || !userData.role) {
-          console.log('❌ [AUTH] Invalid user data structure:', {
-            hasUsername: !!userData.username,
-            hasRole: !!userData.role,
-            userData: userData
-          });
-          return null;
-        }
-      } catch (userError) {
-        console.log('❌ [AUTH] User data parsing error:', userError);
-        return null;
-      }
-
-      console.log('✅ [AUTH] Session validation successful:', {
-        username: userData.username,
-        role: userData.role,
-        department: userData.department,
-        sessionAgeHours: Math.round(sessionAge / (60 * 60 * 1000)),
-        loginDate: new Date(loginTimestamp).toLocaleString()
-      });
-
-      return { ...userData, token };
-    } catch (error) {
-      console.error('❌ [AUTH] Session validation error:', error);
-      return null;
-    }
-  };
-
-  // Clear invalid session data
-  const clearSessionData = () => {
-    console.log('🧹 [AUTH] Clearing session data...');
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('auth_login_time');
-    
-    // Clear legacy keys
-    localStorage.removeItem('secure_user');
-    localStorage.removeItem('secure_token');
-    localStorage.removeItem('loggedInStaff');
-    localStorage.removeItem('currentUser');
-  };
-
-  const checkAuth = async () => {
-    try {
-      console.log('🔄 [AUTH] Checking authentication state...');
-      
-      const currentUser = await validateAndRestoreSession();
-      
-      if (currentUser) {
-        console.log('✅ [AUTH] User authenticated successfully:', currentUser.username);
-        setUser(currentUser);
-        setSupabaseAuth(currentUser.token || '', currentUser.username);
-        healthCheckService.onUserLogin();
       } else {
-        console.log('❌ [AUTH] No valid session found, clearing data');
-        clearSessionData();
         setUser(null);
-        clearSupabaseAuth();
         healthCheckService.onUserLogout();
       }
-    } catch (error) {
-      console.error('❌ [AUTH] Auth check failed:', error);
-      clearSessionData();
-      setUser(null);
-      clearSupabaseAuth();
-      healthCheckService.onUserLogout();
-    } finally {
       setLoading(false);
-      setIsInitialized(true);
-      console.log('✅ [AUTH] Auth check completed, loading:', false);
-    }
-  };
+    });
+
+    // Initial session check
+    const getInitialSession = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('❌ [AUTH] Error getting initial session:', error);
+      }
+      // onAuthStateChange will handle setting the user state
+      setLoading(false);
+    };
+
+    getInitialSession();
+
+    return () => {
+      authListener.subscription.unsubscribe();
+      console.log('🧹 [AUTH] Auth state listener unsubscribed');
+    };
+  }, []);
 
   const login = async (username: string, password: string) => {
     try {
       console.log('🔐 [AUTH] Starting login process for:', username);
       setLoading(true);
       
+      // Call the secureLoginUser service which uses Edge Function
       const result = await secureLoginUser(username, password);
       
       if (result.success && result.user && result.token) {
-        const loginTime = Date.now().toString();
-        
-        // Store auth data
-        localStorage.setItem('auth_token', result.token);
-        localStorage.setItem('auth_user', JSON.stringify(result.user));
-        localStorage.setItem('auth_login_time', loginTime);
-        
-        console.log('✅ [AUTH] Login successful, data stored:', {
-          username: result.user.username,
-          role: result.user.role,
-          department: result.user.department,
-          loginTime: new Date(parseInt(loginTime)).toISOString(),
-          tokenLength: result.token.length
+        // Supabase's onAuthStateChange will pick up the new session
+        // after the Edge Function successfully authenticates and sets the cookie/session.
+        toast.success("Đăng nhập thành công!", {
+          id: 'login-success',
+          duration: 3000
         });
-        
-        const userWithToken: AuthenticatedStaff = { ...result.user, token: result.token };
-        setUser(userWithToken);
-        setSupabaseAuth(result.token, result.user.username);
-        healthCheckService.onUserLogin();
-        
-        // Remove duplicate toast - only show in Login component
-        // toast.success('Đăng nhập thành công!');
         return { success: true };
       } else {
         console.log('❌ [AUTH] Login failed:', result.error);
@@ -222,72 +106,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('❌ [AUTH] Login error:', error);
       return { success: false, error: error.message || 'Lỗi hệ thống' };
     } finally {
-      setLoading(false);
+      // setLoading(false); // onAuthStateChange will handle loading state
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     console.log('🚪 [AUTH] Logging out user');
-    clearSessionData();
-    setUser(null);
-    clearSupabaseAuth();
-    healthCheckService.onUserLogout();
-    toast.success('Đã đăng xuất');
+    setLoading(true);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('❌ [AUTH] Error signing out:', error);
+      toast.error('Lỗi khi đăng xuất');
+    } else {
+      toast.success('Đã đăng xuất');
+    }
+    // setLoading(false); // onAuthStateChange will handle loading state
   };
 
-  // Initial auth check on mount
-  useEffect(() => {
-    console.log('🚀 [AUTH] AuthProvider mounted, starting initial auth check');
-    checkAuth();
-  }, []);
-
-  // Periodic session validation (every 5 minutes)
-  useEffect(() => {
-    if (!isInitialized) return;
-
-    const interval = setInterval(async () => {
-      if (user) {
-        console.log('⏰ [AUTH] Periodic session validation...');
-        const validUser = await validateAndRestoreSession();
-        
-        if (!validUser) {
-          console.log('⚠️ [AUTH] Session invalid during periodic check, logging out');
-          logout();
-          toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-        } else {
-          console.log('✅ [AUTH] Periodic validation passed');
-        }
-      }
-    }, 5 * 60 * 1000); // 5 minutes
-
-    return () => {
-      console.log('🧹 [AUTH] Clearing periodic validation interval');
-      clearInterval(interval);
-    };
-  }, [isInitialized, user]);
-
-  // Handle page visibility change (when user returns to tab)
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (!document.hidden && isInitialized && user) {
-        console.log('👁️ [AUTH] Tab became visible, validating session...');
-        const validUser = await validateAndRestoreSession();
-        
-        if (!validUser) {
-          console.log('⚠️ [AUTH] Session invalid after tab focus, logging out');
-          logout();
-          toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-        } else {
-          console.log('✅ [AUTH] Session valid after tab focus');
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isInitialized, user]);
+  const checkAuth = async () => {
+    // This function is now primarily for re-triggering the auth state check if needed
+    // The useEffect already sets up a listener and initial check
+    console.log('🔄 [AUTH] Manual checkAuth triggered. Listener will handle updates.');
+    setLoading(true);
+    await supabase.auth.getSession(); // Force a session refresh
+    // setLoading(false); // onAuthStateChange will handle loading state
+  };
 
   const value: AuthContextType = {
     user,
@@ -313,5 +156,3 @@ export const useSecureAuth = (): AuthContextType => {
 };
 
 export const useAuth = useSecureAuth;
-
-export default AuthProvider;
