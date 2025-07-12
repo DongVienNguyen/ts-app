@@ -14,17 +14,17 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { startOfDay, endOfDay } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
 import { SmartPagination } from '@/components/SmartPagination';
+import { getSeverityColor } from '@/utils/errorTracking'; // Import directly
 
 interface ErrorListTabProps {
   recentErrors: SystemError[];
   isLoading: boolean;
-  getSeverityColor: (severity: string | undefined) => string;
   onRefresh: () => void;
 }
 
 const ITEMS_PER_PAGE = 10; // Define as a constant
 
-export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefresh }: ErrorListTabProps) {
+export function ErrorListTab({ recentErrors, isLoading, onRefresh }: ErrorListTabProps) {
   const { user } = useAuth();
   const [filters, setFilters] = useState<ErrorFilters>({});
   const [selectedError, setSelectedError] = useState<SystemError | null>(null);

@@ -12,6 +12,7 @@ import VAPIDKeyTester from '@/components/VAPIDKeyTester';
 import { SystemError, SystemMetric } from '@/utils/errorTracking';
 import { ServiceHealth } from './error-monitoring/ServiceStatusTab';
 import { AdminEmailSettings } from '@/components/admin/AdminEmailSettings';
+// getStatusColor và getSeverityColor không cần import ở đây nữa vì chúng được sử dụng trực tiếp trong các component con.
 
 interface ErrorMonitoringDashboardProps {
   errorStats: {
@@ -35,8 +36,6 @@ interface ErrorMonitoringDashboardProps {
   refreshAll: () => void;
   refreshRecentErrors: () => void;
   isRefreshingErrors: boolean;
-  getStatusColor: (status: string) => string;
-  getSeverityColor: (severity: string | undefined) => string;
 }
 
 export function ErrorMonitoringDashboard({
@@ -49,8 +48,6 @@ export function ErrorMonitoringDashboard({
   refreshAll,
   refreshRecentErrors,
   isRefreshingErrors,
-  getStatusColor,
-  getSeverityColor,
 }: ErrorMonitoringDashboardProps) {
   return (
     <div className="space-y-6">
@@ -81,7 +78,6 @@ export function ErrorMonitoringDashboard({
               <ErrorListTab
                 recentErrors={recentErrors}
                 isLoading={isLoading}
-                getSeverityColor={getSeverityColor}
                 onRefresh={refreshRecentErrors}
               />
             </TabsContent>
@@ -95,7 +91,6 @@ export function ErrorMonitoringDashboard({
             <TabsContent value="services">
               <ServiceStatusTab
                 serviceHealth={serviceHealth}
-                getStatusColor={getStatusColor}
               />
             </TabsContent>
 

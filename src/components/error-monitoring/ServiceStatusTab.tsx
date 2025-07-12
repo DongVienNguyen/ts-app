@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { SystemStatus } from '@/utils/errorTracking';
+import { getStatusColor } from '@/utils/errorTracking'; // Import directly
 
 export interface ServiceHealth { // Exported ServiceHealth
   database: SystemStatus;
@@ -13,10 +14,9 @@ export interface ServiceHealth { // Exported ServiceHealth
 
 interface ServiceStatusTabProps {
   serviceHealth: ServiceHealth;
-  getStatusColor: (status: string) => string;
 }
 
-export function ServiceStatusTab({ serviceHealth, getStatusColor }: ServiceStatusTabProps) {
+export function ServiceStatusTab({ serviceHealth }: ServiceStatusTabProps) {
   const getStatusIconComponent = (status: string) => {
     switch (status) {
       case 'online': return <CheckCircle className="w-4 h-4" />;

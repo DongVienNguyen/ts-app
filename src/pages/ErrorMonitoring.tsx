@@ -17,8 +17,6 @@ const ErrorMonitoring = () => {
     refreshAll,
     refreshRecentErrors,
     isRefreshingErrors,
-    getSeverityColor,
-    getStatusColor,
   } = useErrorMonitoringData();
 
   if (!user) {
@@ -62,8 +60,6 @@ const ErrorMonitoring = () => {
           refreshAll={refreshAll}
           refreshRecentErrors={refreshRecentErrors}
           isRefreshingErrors={isRefreshingErrors}
-          getStatusColor={getStatusColor}
-          getSeverityColor={getSeverityColor}
         />
       </div>
     </Layout>

@@ -255,22 +255,6 @@ export function useErrorMonitoringData() {
     }
   }, [user, authLoading, fetchAllData]);
 
-  const getStatusColor = (status: string) => {
-    if (status === 'online') return 'text-green-600 bg-green-100';
-    if (status === 'degraded') return 'text-yellow-600 bg-yellow-100';
-    return 'text-red-600 bg-red-100';
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical': return 'text-red-600 bg-red-100';
-      case 'high': return 'text-orange-600 bg-orange-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      case 'low': return 'text-blue-600 bg-blue-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
   return {
     errorStats,
     recentErrors,
@@ -281,7 +265,5 @@ export function useErrorMonitoringData() {
     lastUpdated,
     refreshAll: fetchAllData,
     refreshRecentErrors,
-    getStatusColor,
-    getSeverityColor,
   };
 }
