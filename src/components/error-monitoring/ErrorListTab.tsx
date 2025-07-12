@@ -22,6 +22,8 @@ interface ErrorListTabProps {
   onRefresh: () => void;
 }
 
+const ITEMS_PER_PAGE = 10; // Define as a constant
+
 export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefresh }: ErrorListTabProps) {
   const { user } = useAuth();
   const [filters, setFilters] = useState<ErrorFilters>({});
@@ -121,7 +123,7 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
     goToPage,
     canNextPage,
     canPrevPage,
-  } = usePagination({ data: filteredErrors, itemsPerPage: 10 });
+  } = usePagination({ data: filteredErrors, itemsPerPage: ITEMS_PER_PAGE }); // Use constant here
 
   const groupErrors = (errors: SystemError[]) => {
     const groups: { [key: string]: { count: number; latestError: SystemError } } = {};
@@ -247,7 +249,7 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
                 <SmartPagination
                   currentPage={currentPage}
                   totalCount={filteredErrors.length}
-                  pageSize={10} // itemsPerPage value
+                  pageSize={ITEMS_PER_PAGE} // Use constant here
                   onPageChange={goToPage}
                 />
               </div>
