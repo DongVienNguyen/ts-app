@@ -123,7 +123,7 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
       key: 'actions',
       label: 'Hành động',
       render: (_: any, item: any) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-start"> {/* Thêm justify-start ở đây */}
           <Button variant="outline" size="sm" onClick={() => onEdit(item)}>Sửa</Button>
           <Button variant="destructive" size="sm" onClick={() => onDelete(item)}>Xóa</Button>
           {selectedEntity === 'staff' && (
