@@ -2,7 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, LineChart, PieChart } from 'recharts';
 import { Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Pie, Cell, Line } from 'recharts';
 import { SystemError } from '@/utils/errorTracking';
-import { Filter } from 'lucide-react';
+import { Filter, Download } from 'lucide-react'; // Import Download icon
+import { Button } from '@/components/ui/button'; // Import Button component
+import { toast } from 'sonner'; // Import toast for notifications
+import { convertToCSV, downloadCSV } from '@/utils/csvUtils'; // Import CSV utilities
 
 interface ErrorAnalyticsTabProps {
   errorStats: {
@@ -18,7 +21,7 @@ interface ErrorAnalyticsTabProps {
     byOS: { [key: string]: number };
     recent: SystemError[];
   };
-  isLoading: boolean; // Add isLoading prop
+  isLoading: boolean;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF19B7'];
@@ -47,11 +50,29 @@ export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabPr
   const browserData = Object.entries(errorStats.byBrowser).map(([name, value]) => ({ name, value }));
   const osData = Object.entries(errorStats.byOS).map(([name, value]) => ({ name, value }));
 
+  const handleExport = (data: any[], headers: string[], filename: string) => {
+    if (data.length === 0) {
+      toast.info('Không có dữ liệu để xuất.');
+      return;
+    }
+    try {
+      const csv = convertToCSV(data, headers);
+      downloadCSV(csv, filename);
+      toast.success(`Đã xuất dữ liệu ${filename}.csv thành công!`);
+    } catch (error) {
+      console.error('Lỗi khi xuất CSV:', error);
+      toast.error('Không thể xuất dữ liệu CSV.');
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Xu hướng lỗi (7 ngày qua)</CardTitle>
+          <Button variant="ghost" size="sm" onClick={() => handleExport(errorStats.errorTrend, ['date', 'count'], 'error_trend')}>
+            <Download className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -68,8 +89,11 @@ export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabPr
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Lỗi theo mức độ nghiêm trọng</CardTitle>
+          <Button variant="ghost" size="sm" onClick={() => handleExport(severityData, ['name', 'value'], 'error_by_severity')}>
+            <Download className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -96,8 +120,11 @@ export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabPr
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Lỗi theo loại</CardTitle>
+          <Button variant="ghost" size="sm" onClick={() => handleExport(typeData, ['name', 'value'], 'error_by_type')}>
+            <Download className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -114,8 +141,11 @@ export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabPr
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Lỗi theo trình duyệt</CardTitle>
+          <Button variant="ghost" size="sm" onClick={() => handleExport(browserData, ['name', 'value'], 'error_by_browser')}>
+            <Download className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -132,8 +162,11 @@ export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabPr
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Lỗi theo hệ điều hành</CardTitle>
+          <Button variant="ghost" size="sm" onClick={() => handleExport(osData, ['name', 'value'], 'error_by_os')}>
+            <Download className="h-4 w-4" />
+          </Button>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
