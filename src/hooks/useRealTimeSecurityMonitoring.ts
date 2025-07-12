@@ -102,16 +102,17 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
             { event: '*', schema: 'public', table: 'security_events' },
             (payload) => {
               const newEvent = payload.new as SecurityEvent;
+              console.log('Dyad: Received new security event via real-time:', newEvent); // Added log for debugging
               setRecentEvents((prev) => [newEvent, ...prev].slice(0, 50));
               toast.info(`Sự kiện bảo mật mới: ${newEvent.event_type}`);
             }
           )
           .subscribe((status, err) => {
             if (status === 'SUBSCRIBED') {
-              console.log('✅ [REALTIME] Subscribed to security_events_channel!');
+              console.log('Dyad: ✅ [REALTIME] Subscribed to security_events_channel!'); // Added log for debugging
             }
             if (status === 'CHANNEL_ERROR') {
-              console.error('❌ [REALTIME] Channel error on security_events_channel:', err);
+              console.error('Dyad: ❌ [REALTIME] Channel error on security_events_channel:', err); // Added log for debugging
               setError(`Lỗi kênh real-time: ${err?.message}`);
             }
           });
@@ -123,16 +124,17 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
             { event: '*', schema: 'public', table: 'system_alerts' },
             (payload) => {
               const newAlert = payload.new as SystemAlert;
+              console.log('Dyad: Received new system alert via real-time:', newAlert); // Added log for debugging
               setSecurityAlerts((prev) => [newAlert, ...prev].slice(0, 10));
               toast.warning(`Cảnh báo hệ thống mới: ${newAlert.rule_name}`);
             }
           )
           .subscribe((status, err) => {
             if (status === 'SUBSCRIBED') {
-              console.log('✅ [REALTIME] Subscribed to system_alerts_channel!');
+              console.log('Dyad: ✅ [REALTIME] Subscribed to system_alerts_channel!'); // Added log for debugging
             }
             if (status === 'CHANNEL_ERROR') {
-              console.error('❌ [REALTIME] Channel error on system_alerts_channel:', err);
+              console.error('Dyad: ❌ [REALTIME] Channel error on system_alerts_channel:', err); // Added log for debugging
               setError(`Lỗi kênh real-time: ${err?.message}`);
             }
           });
