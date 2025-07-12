@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Activity, Users, Clock, Shield, BarChart3, Wifi } from 'lucide-react';
+import { Activity, Users, Clock, Shield, BarChart3, Wifi, WifiOff } from 'lucide-react'; // Import WifiOff
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRealTimeSecurityMonitoring } from '@/hooks/useRealTimeSecurityMonitoring';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
@@ -22,7 +22,7 @@ const StatCard = ({ title, value, icon, isLoading }: { title: string, value: num
 );
 
 export function RealTimeSecurityDashboard() {
-  const { activeUsers, recentEvents, threatTrends, isLoading, error } = useRealTimeSecurityMonitoring();
+  const { activeUsers, recentEvents, threatTrends, isLoading, error, isSupabaseConnected } = useRealTimeSecurityMonitoring(); // Destructure isSupabaseConnected
 
   if (error) {
     return (
@@ -34,12 +34,15 @@ export function RealTimeSecurityDashboard() {
     );
   }
 
+  const connectionStatusText = isSupabaseConnected ? "Đang hoạt động" : "Mất kết nối";
+  const connectionStatusIcon = isSupabaseConnected ? <Wifi className="h-4 w-4 text-green-500" /> : <WifiOff className="h-4 w-4 text-red-500" />;
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard title="Người dùng đang hoạt động" value={activeUsers} icon={<Users className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
         <StatCard title="Sự kiện gần đây" value={recentEvents.length} icon={<Activity className="h-4 w-4 text-muted-foreground" />} isLoading={isLoading} />
-        <StatCard title="Trạng thái kết nối" value="Đang hoạt động" icon={<Wifi className="h-4 w-4 text-green-500" />} isLoading={isLoading} />
+        <StatCard title="Trạng thái kết nối" value={connectionStatusText} icon={connectionStatusIcon} isLoading={isLoading} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

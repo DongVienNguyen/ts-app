@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SecurityEvent } from '@/utils/realTimeSecurityUtils';
-import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils'; // Import logSecurityEventRealTime
+import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
 
 export interface RealTimeSecurityStats {
   activeUsers: number;
   recentEvents: SecurityEvent[];
   threatTrends: { date: string; successfulLogins: number; failedLogins: number; suspiciousActivities: number }[];
+  isSupabaseConnected: boolean; // Add this to the interface
 }
 
 export function useRealTimeSecurityMonitoring() {
@@ -15,6 +16,7 @@ export function useRealTimeSecurityMonitoring() {
   const [threatTrends, setThreatTrends] = useState<{ date: string; successfulLogins: number; failedLogins: number; suspiciousActivities: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false); // New state for connection status
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -48,7 +50,7 @@ export function useRealTimeSecurityMonitoring() {
         const { data: sessions, error: sessionError } = await supabase
           .from('user_sessions')
           .select('id')
-          .is('session_end', null); // Changed from .eq('session_end', null)
+          .is('session_end', null);
 
         if (sessionError) {
           console.warn("Could not fetch active sessions:", sessionError.message);
@@ -102,7 +104,7 @@ export function useRealTimeSecurityMonitoring() {
           const { data: sessions, error: sessionError } = await supabase
             .from('user_sessions')
             .select('id')
-            .is('session_end', null); // Changed from .eq('session_end', null)
+            .is('session_end', null);
 
           if (sessionError) {
             console.warn("Could not update active sessions via real-time:", sessionError.message);
@@ -113,9 +115,22 @@ export function useRealTimeSecurityMonitoring() {
       )
       .subscribe();
 
+    // --- Supabase Realtime Connection Status Monitoring ---
+    const handleConnect = () => setIsSupabaseConnected(true);
+    const handleDisconnect = () => setIsSupabaseConnected(false);
+
+    // Initial check
+    setIsSupabaseConnected(supabase.realtime.status() === 'CONNECTED');
+
+    // Listen for global real-time connection status changes
+    supabase.realtime.on('CONNECT', handleConnect);
+    supabase.realtime.on('DISCONNECT', handleDisconnect);
+
     return () => {
       supabase.removeChannel(securityEventsChannel);
       supabase.removeChannel(userSessionsChannel);
+      supabase.realtime.off('CONNECT', handleConnect);
+      supabase.realtime.off('DISCONNECT', handleDisconnect);
     };
   }, []);
 
@@ -153,6 +168,7 @@ export function useRealTimeSecurityMonitoring() {
     threatTrends,
     isLoading,
     error,
-    logEvent, // Export the logEvent function
+    logEvent,
+    isSupabaseConnected, // Export the new state
   };
 }
