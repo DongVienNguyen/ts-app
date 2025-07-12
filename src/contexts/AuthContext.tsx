@@ -75,7 +75,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (result.success && result.user && result.token) {
         const authenticatedUser: AuthenticatedStaff = { ...result.user, token: result.token };
         
+        console.log('[AUTH] Login API success. Token received. Updating Supabase client...');
         await updateSupabaseAuthToken(result.token);
+        console.log('[AUTH] Supabase client update awaited and completed. Now setting user state.');
 
         localStorage.setItem('auth_user', JSON.stringify(authenticatedUser));
         localStorage.setItem('auth_token', result.token);
@@ -86,7 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         toast.success("Đăng nhập thành công!", { id: 'login-success', duration: 3000 });
         
-        console.log('✅ [AUTH] Login successful, session saved for user:', authenticatedUser.username);
+        console.log('✅ [AUTH] Set user state and finished login process for:', authenticatedUser.username);
         return { success: true };
       } else {
         console.log('❌ [AUTH] Login failed:', result.error);

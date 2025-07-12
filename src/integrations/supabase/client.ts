@@ -30,11 +30,27 @@ const getSupabaseOptions = (token: string | null): SupabaseClientOptions<"public
 export let supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, getSupabaseOptions(null));
 
 export const updateSupabaseAuthToken = async (token: string | null) => {
-  console.log('[AUTH] Disconnecting old Supabase realtime client...');
-  // Disconnect the realtime client of the OLD instance before creating a new one.
-  await supabase.realtime.disconnect();
-  console.log('[AUTH] Old client disconnected. Creating new client...');
+  const oldClient = supabase;
+  console.log('[AUTH] Starting Supabase client update...');
+  
+  console.log('[AUTH] Removing all channels from old client...');
+  try {
+    // This is a more robust way to clean up.
+    await oldClient.removeAllChannels();
+    console.log('[AUTH] All channels removed from old client.');
+  } catch (e) {
+    console.error('[AUTH] Error removing channels from old client:', e);
+  }
 
+  console.log('[AUTH] Disconnecting old Supabase realtime client...');
+  try {
+    await oldClient.realtime.disconnect();
+    console.log('[AUTH] Old client disconnected successfully.');
+  } catch (e) {
+    console.error('[AUTH] Error disconnecting old client:', e);
+  }
+  
+  console.log('[AUTH] Creating new Supabase client...');
   supabase = createClient(supabaseUrl, supabaseAnonKey, getSupabaseOptions(token));
-  console.log(`[AUTH] Supabase client updated.`);
+  console.log(`[AUTH] Supabase client update complete. New client is ready.`);
 };
