@@ -22,20 +22,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, ChevronDown } from 'lucide-react';
 import { EntityConfig, entityConfig } from '@/config/entityConfig';
 import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationPrevious,
-  PaginationNext,
-  PaginationLink,
-} from '@/components/ui/pagination';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { FilterOperator, FilterState } from '@/hooks/useDataManagement/types';
+import SmartPagination from '@/components/SmartPagination';
 
 interface DataManagementTabProps {
   activeTab: string;
@@ -325,40 +318,12 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() => {
-                    if (currentPage > 1) {
-                      onPageChange(currentPage - 1);
-                    }
-                  }}
-                  className={currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}
-                />
-              </PaginationItem>
-              {[...Array(totalPages)].map((_, index) => (
-                <PaginationItem key={index}>
-                  <PaginationLink
-                    onClick={() => onPageChange(index + 1)}
-                    isActive={currentPage === index + 1}
-                  >
-                    {index + 1}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() => {
-                    if (currentPage < totalPages) {
-                      onPageChange(currentPage + 1);
-                    }
-                  }}
-                  className={currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+          <SmartPagination
+            currentPage={currentPage}
+            totalCount={totalCount}
+            pageSize={ITEMS_PER_PAGE}
+            onPageChange={onPageChange}
+          />
         )}
 
         <div className="flex flex-wrap gap-4 justify-end">
