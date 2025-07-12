@@ -29,7 +29,7 @@ export const ResourceUsageCharts: React.FC<ResourceUsageChartsProps> = ({ metric
     { name: 'Memory Usage', value: currentMemoryUsage },
     { name: 'Storage Usage', value: currentStorageUsage },
     { name: 'Available', value: availablePercentage }
-  ].filter(item => item.value > 0); // Lọc bỏ các mục có giá trị 0 để biểu đồ rõ ràng hơn
+  ].filter(item => item.value > 0 && Number.isFinite(item.value)); // Lọc bỏ các mục có giá trị 0 và không phải số hữu hạn để biểu đồ rõ ràng hơn
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -42,7 +42,7 @@ export const ResourceUsageCharts: React.FC<ResourceUsageChartsProps> = ({ metric
             <AreaChart data={metrics}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="timestamp" tick={{ fontSize: 10 }} />
-              <YAxis domain={[0, 100]} />
+              <YAxis />
               <Tooltip />
               <Area type="monotone" dataKey="cpuUsage" stackId="1" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.6} name="CPU Usage (%)" />
               <Area type="monotone" dataKey="memoryUsage" stackId="2" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.6} name="Memory Usage (%)" />
