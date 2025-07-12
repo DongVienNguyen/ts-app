@@ -44,7 +44,7 @@ export function ErrorMonitoringDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Tabs defaultValue="errors" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="flex w-full justify-between">
               <TabsTrigger value="errors">Danh sách Lỗi</TabsTrigger>
               <TabsTrigger value="analytics">Phân tích</TabsTrigger>
               <TabsTrigger value="services">Dịch vụ</TabsTrigger>
