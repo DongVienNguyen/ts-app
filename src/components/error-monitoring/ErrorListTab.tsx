@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckCircle, Eye, Filter, List, Layers } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,17 +20,29 @@ interface ErrorListTabProps {
   recentErrors: SystemError[];
   isLoading: boolean;
   onRefresh: () => void;
+  initialFilter?: { type: 'severity' | 'status'; value: string } | null; // New prop
+  onFilterApplied?: () => void; // New prop
 }
 
-const ITEMS_PER_PAGE = 10; // Define as a constant
+const ITEMS_PER_PAGE = 10;
 
-export function ErrorListTab({ recentErrors, isLoading, onRefresh }: ErrorListTabProps) {
+export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter, onFilterApplied }: ErrorListTabProps) {
   const { user } = useAuth();
   const [filters, setFilters] = useState<ErrorFilters>({});
   const [selectedError, setSelectedError] = useState<SystemError | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list');
+
+  useEffect(() => {
+    if (initialFilter) {
+      setFilters(prevFilters => ({
+        ...prevFilters,
+        [initialFilter.type]: initialFilter.value,
+      }));
+      onFilterApplied?.(); // Notify parent that filter has been applied
+    }
+  }, [initialFilter, onFilterApplied]);
 
   const handleUpdateErrorStatus = async (errorId: string, status: string) => {
     if (!user) {
@@ -123,7 +135,7 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh }: ErrorListTa
     goToPage,
     canNextPage,
     canPrevPage,
-  } = usePagination({ data: filteredErrors, itemsPerPage: ITEMS_PER_PAGE }); // Use constant here
+  } = usePagination({ data: filteredErrors, itemsPerPage: ITEMS_PER_PAGE });
 
   const groupErrors = (errors: SystemError[]) => {
     const groups: { [key: string]: { count: number; latestError: SystemError } } = {};
@@ -176,6 +188,7 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh }: ErrorListTa
         onFiltersChange={setFilters}
         totalErrors={recentErrors.length}
         filteredErrors={filteredErrors.length}
+        currentFilters={filters} // Pass current filters to allow ErrorFilters to reset/display them
       />
 
       {viewMode === 'list' && selectedIds.length > 0 && (
@@ -249,7 +262,7 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh }: ErrorListTa
                 <SmartPagination
                   currentPage={currentPage}
                   totalCount={filteredErrors.length}
-                  pageSize={ITEMS_PER_PAGE} // Use constant here
+                  pageSize={ITEMS_PER_PAGE}
                   onPageChange={goToPage}
                 />
               </div>

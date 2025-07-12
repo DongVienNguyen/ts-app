@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ErrorMonitoringHeader } from './error-monitoring/ErrorMonitoringHeader';
 import { ErrorOverviewCards } from './error-monitoring/ErrorOverviewCards';
@@ -48,6 +49,14 @@ export function ErrorMonitoringDashboard({
   refreshRecentErrors,
   isRefreshingErrors,
 }: ErrorMonitoringDashboardProps) {
+  const [activeTab, setActiveTab] = useState('errors');
+  const [cardFilter, setCardFilter] = useState<{ type: 'severity' | 'status'; value: string } | null>(null);
+
+  const handleCardClick = (filterType: 'severity' | 'status', value: string) => {
+    setCardFilter({ type: filterType, value });
+    setActiveTab('errors'); // Switch to the errors tab
+  };
+
   return (
     <div className="space-y-6">
       <ErrorMonitoringHeader 
@@ -60,11 +69,12 @@ export function ErrorMonitoringDashboard({
       <ErrorOverviewCards 
         errorStats={errorStats}
         isLoading={isLoading}
+        onCardClick={handleCardClick} // Pass the new handler
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Tabs defaultValue="errors" className="space-y-4">
+          <Tabs defaultValue="errors" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList className="flex flex-wrap w-full justify-start gap-1 sm:gap-2">
               <TabsTrigger value="errors">Danh sách Lỗi</TabsTrigger>
               <TabsTrigger value="analytics">Phân tích</TabsTrigger>
@@ -79,6 +89,8 @@ export function ErrorMonitoringDashboard({
                 recentErrors={recentErrors}
                 isLoading={isLoading}
                 onRefresh={refreshRecentErrors}
+                initialFilter={cardFilter} // Pass the filter to ErrorListTab
+                onFilterApplied={() => setCardFilter(null)} // Reset filter after it's applied
               />
             </TabsContent>
 
@@ -92,7 +104,7 @@ export function ErrorMonitoringDashboard({
             <TabsContent value="services">
               <ServiceStatusTab
                 serviceHealth={serviceHealth}
-                isLoading={isLoading} // Pass isLoading prop
+                isLoading={isLoading}
               />
             </TabsContent>
 

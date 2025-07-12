@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Import useEffect
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ interface ErrorFiltersProps {
   onFiltersChange: (filters: ErrorFilters) => void;
   totalErrors: number;
   filteredErrors: number;
+  currentFilters: ErrorFilters;
 }
 
 export interface ErrorFilters {
@@ -25,8 +26,15 @@ export interface ErrorFilters {
   searchTerm?: string;
 }
 
-export function ErrorFilters({ onFiltersChange, totalErrors, filteredErrors }: ErrorFiltersProps) {
-  const [filters, setFilters] = useState<ErrorFilters>({});
+export function ErrorFilters({ onFiltersChange, totalErrors, filteredErrors, currentFilters }: ErrorFiltersProps) {
+  const [filters, setFilters] = useState<ErrorFilters>(currentFilters);
+
+  // Đồng bộ filters nội bộ với currentFilters từ props
+  // Điều này đảm bảo rằng khi initialFilter được áp dụng từ ErrorMonitoringDashboard,
+  // bộ lọc trong ErrorFilters cũng được cập nhật.
+  useEffect(() => { // Changed from useState to useEffect
+    setFilters(currentFilters);
+  }, [currentFilters]);
 
   const updateFilter = (key: keyof ErrorFilters, value: string | DateRange | undefined) => {
     const newFilters = { ...filters };
