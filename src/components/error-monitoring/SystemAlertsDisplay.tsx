@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import clsx from 'clsx'; // Import clsx
 
 interface SystemAlertsDisplayProps {
   alerts: SystemAlert[];
@@ -63,7 +64,10 @@ export const SystemAlertsDisplay = ({ alerts, onAcknowledge, isLoading }: System
       <CardContent>
         <div className="space-y-4">
           {alerts.map((alert) => (
-            <div key={alert.id} className="flex items-start justify-between p-3 rounded-lg border bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-500/30">
+            <div key={alert.id} className={clsx(
+              "flex items-start justify-between p-3 rounded-lg border bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-500/30",
+              { 'new-item-highlight': alert.isNew } // Apply highlight class
+            )}>
               <div className="flex items-start">
                 <AlertTriangle className="h-5 w-5 text-red-500 mr-3 mt-1 flex-shrink-0" />
                 <div>

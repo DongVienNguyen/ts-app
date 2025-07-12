@@ -129,7 +129,19 @@ export const useErrorMonitoringData = () => {
       console.log('🟢 Real-time: New system error received!', payload.new);
       const newError = { ...payload.new, isNew: true } as SystemError & { isNew?: boolean };
       
-      setRecentErrors(prev => [newError, ...prev.slice(0, 49)]);
+      setRecentErrors(prev => {
+        const updatedErrors = [newError, ...prev.slice(0, 49)]; // Keep max 50 recent errors
+        // Find the newly added error and set isNew to false after a delay
+        setTimeout(() => {
+          setRecentErrors(currentErrors => 
+            currentErrors.map(err => 
+              err.id === newError.id ? { ...err, isNew: false } : err
+            )
+          );
+        }, 3000); // Highlight for 3 seconds
+        return updatedErrors;
+      });
+
       setErrorStats(prev => {
         const updatedErrors = [newError, ...(prev.allErrors || [])];
         return { ...getErrorStatistics(updatedErrors), allErrors: updatedErrors };
@@ -143,7 +155,18 @@ export const useErrorMonitoringData = () => {
     const handleNewAlert = (payload: any) => {
       console.log('🟢 Real-time: New system alert received!', payload.new);
       const newAlert = { ...payload.new, isNew: true } as SystemAlert & { isNew?: boolean };
-      setSystemAlerts(prev => [newAlert, ...prev]);
+      setSystemAlerts(prev => {
+        const updatedAlerts = [newAlert, ...prev];
+        // Find the newly added alert and set isNew to false after a delay
+        setTimeout(() => {
+          setSystemAlerts(currentAlerts => 
+            currentAlerts.map(alert => 
+              alert.id === newAlert.id ? { ...alert, isNew: false } : alert
+            )
+          );
+        }, 3000); // Highlight for 3 seconds
+        return updatedAlerts;
+      });
       toast.error(`🚨 Cảnh báo hệ thống mới: ${newAlert.message}`, {
         description: `Mức độ: ${newAlert.severity}`,
         duration: 10000,

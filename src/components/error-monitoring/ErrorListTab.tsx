@@ -16,6 +16,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { SmartPagination } from '@/components/SmartPagination';
 import { getSeverityColor } from '@/utils/errorTracking';
 import { convertToCSV, downloadCSV } from '@/utils/csvUtils'; // Import CSV utilities
+import clsx from 'clsx'; // Import clsx
 
 interface ErrorListTabProps {
   recentErrors: SystemError[];
@@ -270,7 +271,10 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter
                   <label htmlFor="select-all" className="text-sm font-medium">Chọn tất cả</label>
                 </div>
                 {paginatedData.map((error) => (
-                  <div key={error.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                  <div key={error.id} className={clsx(
+                    "border rounded-lg p-4 hover:bg-gray-50 transition-colors",
+                    { 'new-item-highlight': error.isNew } // Apply highlight class
+                  )}>
                     <div className="flex items-start justify-between">
                       <div className="flex items-start flex-1"><Checkbox id={`select-${error.id}`} checked={selectedIds.includes(error.id!)} onCheckedChange={(checked) => handleSelect(error.id!, !!checked)} className="mr-4 mt-1" />
                         <div className="flex-1">

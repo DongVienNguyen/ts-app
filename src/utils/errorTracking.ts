@@ -16,7 +16,8 @@ export interface SystemError {
   created_at?: string;
   resolved_at?: string;
   resolved_by?: string;
-  resolution_notes?: string; // New field
+  resolution_notes?: string;
+  isNew?: boolean; // Added for real-time highlighting
 }
 
 export interface SystemMetric {
@@ -56,6 +57,7 @@ export interface SystemAlert {
   acknowledged_at?: string;
   created_at?: string;
   updated_at?: string;
+  isNew?: boolean; // Added for real-time highlighting
 }
 
 // Global error handler
