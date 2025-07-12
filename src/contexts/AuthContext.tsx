@@ -31,6 +31,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Use Supabase's onAuthStateChange to manage session
   useEffect(() => {
     console.log('🚀 [AUTH] AuthProvider mounted, setting up auth state listener');
+    
+    // The listener is triggered for the initial session as well.
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('🔄 [AUTH] Auth state changed:', event, session);
       if (session) {
@@ -61,20 +63,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null);
         healthCheckService.onUserLogout();
       }
+      // This is the crucial part. We are now done loading.
       setLoading(false);
     });
-
-    // Initial session check
-    const getInitialSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('❌ [AUTH] Error getting initial session:', error);
-      }
-      // onAuthStateChange will handle setting the user state
-      setLoading(false);
-    };
-
-    getInitialSession();
 
     return () => {
       authListener.subscription.unsubscribe();
