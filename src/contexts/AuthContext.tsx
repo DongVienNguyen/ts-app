@@ -1,11 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Staff } from '@/types/auth';
-import { secureLoginUser } from '@/services/secureAuthService';
-import { supabase } from '@/integrations/supabase/client'; // Import supabase client
+import { secureLoginUser, validateSession } from '@/services/secureAuthService';
 import { healthCheckService } from '@/services/healthCheckService';
 import { toast } from 'sonner';
 
-// Extend Staff type to include token (if needed for client-side logic, though Supabase manages it internally)
 interface AuthenticatedStaff extends Staff {
   token?: string;
 }
@@ -28,66 +26,55 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthenticatedStaff | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Use Supabase's onAuthStateChange to manage session
+  // Manual session management using localStorage
   useEffect(() => {
-    console.log('🚀 [AUTH] AuthProvider mounted, setting up auth state listener');
-    
-    // The listener is triggered for the initial session as well.
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔄 [AUTH] Auth state changed:', event, session);
-      if (session) {
-        // Fetch user details from 'staff' table using the session's user ID
-        const { data: staffData, error: staffError } = await supabase
-          .from('staff')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        if (staffError) {
-          console.error('❌ [AUTH] Error fetching staff data:', staffError);
-          setUser(null);
-          healthCheckService.onUserLogout();
-        } else if (staffData) {
-          const authenticatedUser: AuthenticatedStaff = {
-            ...staffData,
-            token: session.access_token, // Store access token if needed for direct API calls
-            id: staffData.id, // Ensure ID is present
-            username: staffData.username, // Ensure username is present
-            role: staffData.role || 'user', // Default role
-            account_status: staffData.account_status || 'active', // Default status
-          };
-          setUser(authenticatedUser);
-          healthCheckService.onUserLogin();
-        }
+    console.log('🚀 [AUTH] AuthProvider mounted, checking for existing session in localStorage');
+    setLoading(true);
+    try {
+      if (validateSession()) {
+        const userStr = localStorage.getItem('auth_user');
+        const storedUser: AuthenticatedStaff = JSON.parse(userStr!);
+        setUser(storedUser);
+        healthCheckService.onUserLogin();
+        console.log('✅ [AUTH] Session restored from localStorage for user:', storedUser.username);
       } else {
+        console.log('🔎 [AUTH] No valid session found in localStorage. Clearing session.');
+        localStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_login_time');
         setUser(null);
         healthCheckService.onUserLogout();
       }
-      // This is the crucial part. We are now done loading.
+    } catch (error) {
+      console.error('❌ [AUTH] Error reading auth from storage, clearing session.', error);
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_login_time');
+      setUser(null);
+    } finally {
       setLoading(false);
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-      console.log('🧹 [AUTH] Auth state listener unsubscribed');
-    };
+    }
   }, []);
 
   const login = async (username: string, password: string) => {
+    console.log('🔐 [AUTH] Starting login process for:', username);
+    setLoading(true);
     try {
-      console.log('🔐 [AUTH] Starting login process for:', username);
-      setLoading(true);
-      
-      // Call the secureLoginUser service which uses Edge Function
       const result = await secureLoginUser(username, password);
       
       if (result.success && result.user && result.token) {
-        // Supabase's onAuthStateChange will pick up the new session
-        // after the Edge Function successfully authenticates and sets the cookie/session.
-        toast.success("Đăng nhập thành công!", {
-          id: 'login-success',
-          duration: 3000
-        });
+        const authenticatedUser: AuthenticatedStaff = { ...result.user, token: result.token };
+        
+        localStorage.setItem('auth_user', JSON.stringify(authenticatedUser));
+        localStorage.setItem('auth_token', result.token);
+        localStorage.setItem('auth_login_time', Date.now().toString());
+        
+        setUser(authenticatedUser);
+        healthCheckService.onUserLogin();
+        
+        toast.success("Đăng nhập thành công!", { id: 'login-success', duration: 3000 });
+        
+        console.log('✅ [AUTH] Login successful, session saved for user:', authenticatedUser.username);
         return { success: true };
       } else {
         console.log('❌ [AUTH] Login failed:', result.error);
@@ -97,39 +84,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('❌ [AUTH] Login error:', error);
       return { success: false, error: error.message || 'Lỗi hệ thống' };
     } finally {
-      // setLoading(false); // onAuthStateChange will handle loading state
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     console.log('🚪 [AUTH] Logging out user');
     setLoading(true);
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('❌ [AUTH] Error signing out:', error);
-      toast.error('Lỗi khi đăng xuất');
-    } else {
-      toast.success('Đã đăng xuất');
-    }
-    // setLoading(false); // onAuthStateChange will handle loading state
+    
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_login_time');
+    
+    setUser(null);
+    healthCheckService.onUserLogout();
+    
+    toast.success('Đã đăng xuất');
+    setLoading(false);
   };
 
   const checkAuth = async () => {
-    // This function is now primarily for re-triggering the auth state check if needed
-    // The useEffect already sets up a listener and initial check
-    console.log('🔄 [AUTH] Manual checkAuth triggered. Listener will handle updates.');
+    // This function can now re-run the logic from useEffect
+    console.log('🔄 [AUTH] Manual checkAuth triggered.');
     setLoading(true);
-    await supabase.auth.getSession(); // Force a session refresh
-    // setLoading(false); // onAuthStateChange will handle loading state
+    try {
+      if (validateSession()) {
+        const userStr = localStorage.getItem('auth_user');
+        setUser(JSON.parse(userStr!));
+      } else {
+        setUser(null);
+      }
+    } catch (e) {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const value: AuthContextType = {
-    user,
-    loading,
-    login,
-    logout,
-    checkAuth,
-  };
+  const value: AuthContextType = { user, loading, login, logout, checkAuth };
 
   return (
     <AuthContext.Provider value={value}>
