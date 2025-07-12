@@ -148,10 +148,7 @@ export const TabContent = ({
       case 'system-health':
         return (
           <div className="mt-6 space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <SystemHealthWidget />
-              {/* SecurityDashboard was here, but its functionality is now in SecurityMonitor */}
-            </div>
+            <SystemHealthWidget />
           </div>
         );
 
