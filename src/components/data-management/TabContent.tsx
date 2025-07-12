@@ -41,7 +41,8 @@ export const TabContent = ({ activeTab, dm }: TabContentProps) => {
             sortColumn={dm.sortColumn}
             sortDirection={dm.sortDirection}
             filters={dm.filters}
-            onFilterChange={dm.handleFilterChange}
+            onFilterChange={dm.onFilterChange} // Changed from handleFilterChange to onFilterChange
+            clearFilters={dm.clearFilters}
             config={dm.config}
           />
         );

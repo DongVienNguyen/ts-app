@@ -6,14 +6,14 @@ import { useDataOperations } from './useDataOperations';
 import type { DataManagementReturn } from './types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toast } from 'sonner';
-import { entityConfig } from '@/config/entityConfig';
-import { dataService } from './dataService'; // Import dataService
+import { entityConfig, TableName } from '@/config/entityConfig'; // Import TableName
+import { dataService } from './dataService';
 
 const ITEMS_PER_PAGE = 20;
 
 export const useDataManagement = (): DataManagementReturn => {
   // State
-  const [selectedEntity, setSelectedEntityState] = useState<string>('asset_transactions');
+  const [selectedEntity, setSelectedEntityState] = useState<TableName>('asset_transactions'); // Changed type to TableName
   const [data, setData] = useState<any[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -124,7 +124,7 @@ export const useDataManagement = (): DataManagementReturn => {
         const result = await dataService.bulkDeleteData({
           selectedEntity,
           ids: idsToDelete,
-          user
+          user: user! // user is guaranteed to be AuthenticatedStaff here due to early return
         });
         toast.success(result.message);
         setSelectedRows({});
@@ -159,7 +159,7 @@ export const useDataManagement = (): DataManagementReturn => {
   }, []);
 
   // Entity change handler
-  const setSelectedEntity = useCallback((entity: string) => {
+  const setSelectedEntity = useCallback((entity: TableName) => { // Changed type to TableName
     clearEntityCache(selectedEntity);
     setSelectedEntityState(entity);
     setCurrentPage(1);
@@ -256,8 +256,8 @@ export const useDataManagement = (): DataManagementReturn => {
     bulkDeleteTransactions,
     refreshData,
     handleSort,
-    handleFilterChange,
-    handleClearFilters,
+    onFilterChange: handleFilterChange, // Renamed to onFilterChange to match interface
+    clearFilters: handleClearFilters, // Renamed to clearFilters to match interface
     handleRowSelect,
     handleSelectAll,
     handleBulkDelete,

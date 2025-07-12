@@ -49,7 +49,7 @@ const mapEntityConfigToEditDialogFields = (config: EntityConfig): EditDialogFiel
         editDialogType = 'password';
         schema = field.required ? z.string().min(1, `${field.label} không được để trống`) : z.string().nullable();
         break;
-      case 'email': // Handle email type
+      case 'email':
         editDialogType = 'email';
         schema = field.required ? z.string().email(`${field.label} phải là định dạng email hợp lệ`).min(1, `${field.label} không được để trống`) : z.string().email(`${field.label} phải là định dạng email hợp lệ`).nullable();
         break;

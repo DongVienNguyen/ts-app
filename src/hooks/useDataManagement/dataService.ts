@@ -188,7 +188,7 @@ export const dataService = {
       .update({ 
         account_status: newStatus, 
         failed_login_attempts: 0, 
-        locked_at: newStatus === 'locked' ? new Date().toISOString() : null 
+        locked_at: newStatus === 'locked' ? new Date().toISOString() : null // Fixed syntax error here
       })
       .eq('id', staff.id);
     

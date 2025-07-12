@@ -1,23 +1,7 @@
-import { EntityConfig } from "@/config/entityConfig";
-
-export interface DataManagementState {
-  selectedEntity: string;
-  data: any[];
-  totalCount: number;
-  isLoading: boolean;
-  searchTerm: string;
-  currentPage: number;
-  dialogOpen: boolean;
-  editingItem: any;
-  startDate: string;
-  endDate: string;
-  restoreFile: File | null;
-  activeTab: string;
-  sortColumn: string | null;
-  sortDirection: 'asc' | 'desc';
-  filters: Record<string, any>;
-  selectedRows: Record<string, boolean>;
-}
+import { TableName, EntityConfig, FieldConfig } from '@/config/entityConfig';
+import { User } from '@supabase/supabase-js';
+import React from 'react';
+import { AuthenticatedStaff } from '@/contexts/AuthContext'; // Import AuthenticatedStaff
 
 export interface CacheEntry {
   data: any[];
@@ -25,46 +9,9 @@ export interface CacheEntry {
   timestamp: number;
 }
 
-export interface DataManagementActions {
-  handleAdd: () => void;
-  handleEdit: (item: any) => void;
-  handleSave: (formData: any) => Promise<void>;
-  handleDelete: (item: any) => Promise<void>;
-  toggleStaffLock: (staff: any) => Promise<void>;
-  exportToCSV: () => void;
-  handleFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  startImportProcess: (file: File) => void;
-  handleImportClick: () => void;
-  bulkDeleteTransactions: () => Promise<void>;
-  refreshData: () => void;
-  handleSort: (columnKey: string) => void;
-  handleFilterChange: (key: string, value: any) => void;
-  handleClearFilters: () => void;
-  handleRowSelect: (rowId: string) => void;
-  handleSelectAll: () => void;
-  handleBulkDelete: () => Promise<void>;
-}
-
-export interface DataManagementReturn extends DataManagementState, DataManagementActions {
-  setSelectedEntity: (entity: string) => void;
-  setSearchTerm: (term: string) => void;
-  setCurrentPage: (page: number) => void;
-  setDialogOpen: (open: boolean) => void;
-  setStartDate: (date: string) => void;
-  setEndDate: (date: string) => void;
-  setActiveTab: (tab: string) => void;
-  restoreInputRef: React.RefObject<HTMLInputElement>;
-  filteredData: any[];
-  paginatedData: any[];
-  totalPages: number;
-  runAsAdmin: (callback: () => Promise<void>) => Promise<void>;
-  user: any;
-  config: EntityConfig;
-}
-
 export interface LoadDataParams {
-  selectedEntity: string;
-  user: any;
+  selectedEntity: TableName;
+  user: AuthenticatedStaff;
   page?: number;
   search?: string;
   sortColumn?: string | null;
@@ -73,20 +20,104 @@ export interface LoadDataParams {
 }
 
 export interface SaveDataParams {
-  selectedEntity: string;
+  selectedEntity: TableName;
   formData: any;
-  editingItem: any;
-  user: any;
+  editingItem: any | null;
+  user: AuthenticatedStaff;
 }
 
 export interface DeleteDataParams {
-  selectedEntity: string;
+  selectedEntity: TableName;
   item: any;
-  user: any;
+  user: AuthenticatedStaff;
 }
 
 export interface BulkDeleteDataParams {
-  selectedEntity: string;
+  selectedEntity: TableName;
   ids: string[];
-  user: any;
+  user: AuthenticatedStaff;
+}
+
+export interface DataManagementReturn {
+  user: AuthenticatedStaff | null | undefined;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  selectedEntity: TableName;
+  setSelectedEntity: (entity: TableName) => void;
+  isLoading: boolean;
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  data: any[];
+  totalCount: number;
+  currentPage: number;
+  setCurrentPage: (page: number) => void;
+  dialogOpen: boolean;
+  setDialogOpen: (open: boolean) => void;
+  editingItem: any | null;
+  setEditingItem: (item: any | null) => void;
+  handleAdd: () => void;
+  handleEdit: (item: any) => void;
+  handleDelete: (item: any) => Promise<void>;
+  handleSave: (formData: any) => Promise<void>;
+  refreshData: () => void;
+  exportToCSV: () => void;
+  handleImportClick: () => void;
+  restoreInputRef: React.RefObject<HTMLInputElement>;
+  handleFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  startImportProcess: (file: File) => void;
+  startDate: string;
+  setStartDate: (date: string) => void;
+  endDate: string;
+  setEndDate: (date: string) => void;
+  bulkDeleteTransactions: () => Promise<void>;
+  toggleStaffLock: (staff: any) => Promise<void>;
+  runAsAdmin: (action: () => Promise<void>) => Promise<void>;
+  handleSort: (columnKey: string) => void;
+  sortColumn: string | null;
+  sortDirection: 'asc' | 'desc';
+  filters: Record<string, any>;
+  onFilterChange: (key: string, value: any) => void;
+  clearFilters: () => void;
+  config: EntityConfig;
+  restoreFile: File | null; // Added restoreFile
+}
+
+export interface DataLoaderReturn {
+  isLoading: boolean;
+  data: any[];
+  totalCount: number;
+  currentPage: number;
+  setCurrentPage: (page: number) => void;
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  refreshData: () => void;
+  sortColumn: string | null;
+  sortDirection: 'asc' | 'desc';
+  handleSort: (columnKey: string) => void;
+  filters: Record<string, any>;
+  handleFilterChange: (key: string, value: any) => void;
+  clearFilters: () => void;
+}
+
+export interface DataActionsReturn {
+  dialogOpen: boolean;
+  setDialogOpen: (open: boolean) => void;
+  editingItem: any | null;
+  setEditingItem: (item: any | null) => void;
+  handleAdd: () => void;
+  handleEdit: (item: any) => void;
+  handleDelete: (item: any) => Promise<void>;
+  handleSave: (formData: any) => Promise<void>;
+  exportToCSV: () => void;
+  handleImportClick: () => void;
+  restoreInputRef: React.RefObject<HTMLInputElement>;
+  handleFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  startImportProcess: (file: File) => void;
+  startDate: string;
+  setStartDate: (date: string) => void;
+  endDate: string;
+  setEndDate: (date: string) => void;
+  bulkDeleteTransactions: () => Promise<void>;
+  toggleStaffLock: (staff: any) => Promise<void>;
+  runAsAdmin: (action: () => Promise<void>) => Promise<void>;
 }

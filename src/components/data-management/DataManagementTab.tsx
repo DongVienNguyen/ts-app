@@ -60,12 +60,8 @@ interface DataManagementTabProps {
   sortDirection: 'asc' | 'desc';
   filters: Record<string, any>;
   onFilterChange: (key: string, value: any) => void;
+  clearFilters: () => void; // Added clearFilters prop
   config: EntityConfig;
-  // Removed dialog-related props as they are now handled by the parent DataManagement component
-  // dialogOpen: boolean;
-  // setDialogOpen: (open: boolean) => void;
-  // editingItem: any;
-  // handleSave: (formData: any) => void;
 }
 
 const DataManagementTab: React.FC<DataManagementTabProps> = ({
@@ -98,12 +94,8 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
   sortDirection,
   filters,
   onFilterChange,
+  clearFilters, // Destructure clearFilters
   config,
-  // Removed dialog-related props from destructuring
-  // dialogOpen,
-  // setDialogOpen,
-  // editingItem,
-  // handleSave,
 }) => {
 
   if (!config) {
@@ -224,6 +216,13 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
               )}
             </div>
           ))}
+          {Object.keys(filters).length > 0 && (
+            <div className="flex items-end">
+              <Button variant="outline" onClick={clearFilters} className="w-full">
+                Xóa bộ lọc
+              </Button>
+            </div>
+          )}
         </div>
 
         {isLoading ? (

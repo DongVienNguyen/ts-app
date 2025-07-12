@@ -1,5 +1,5 @@
 import { useRef, useCallback } from 'react';
-import type { CacheEntry } from './types';
+import { CacheEntry } from './types'; // Import CacheEntry
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 

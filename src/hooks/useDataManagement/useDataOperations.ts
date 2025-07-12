@@ -3,10 +3,12 @@ import { dataService } from './dataService';
 import { exportService } from './exportService';
 import { restoreService } from '@/services/restoreService';
 import { toast } from 'sonner';
+import { TableName } from '@/config/entityConfig'; // Import TableName
+import { AuthenticatedStaff } from '@/contexts/AuthContext'; // Import AuthenticatedStaff
 
 interface UseDataOperationsProps {
-  selectedEntity: string;
-  user: any;
+  selectedEntity: TableName; // Changed type to TableName
+  user: AuthenticatedStaff; // Changed type to AuthenticatedStaff
   editingItem: any;
   currentPage: number;
   searchTerm: string;
@@ -225,8 +227,8 @@ export const useDataOperations = ({
     handleDelete,
     toggleStaffLock,
     exportToCSV,
-    handleFileSelectForImport, // Changed name
-    startImportProcess, // New function
+    handleFileSelectForImport,
+    startImportProcess,
     handleImportClick,
     bulkDeleteTransactions
   };

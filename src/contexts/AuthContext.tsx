@@ -5,7 +5,7 @@ import { healthCheckService } from '@/services/healthCheckService';
 import { toast } from 'sonner';
 import { updateSupabaseAuthToken } from '@/integrations/supabase/client';
 
-interface AuthenticatedStaff extends Staff {
+export interface AuthenticatedStaff extends Staff { // Added export keyword
   token?: string;
 }
 
@@ -25,7 +25,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthenticatedStaff | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = true);
 
   useEffect(() => {
     const restoreSession = async () => {
@@ -136,7 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+    };
 
   const value: AuthContextType = { user, loading, login, logout, checkAuth };
 
