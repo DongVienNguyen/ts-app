@@ -27,7 +27,7 @@ export const TabNavigation = ({ activeTab, onTabChange }: TabNavigationProps) =>
       tabs: [
         { value: 'management', label: 'Quản lý dữ liệu', icon: DatabaseIcon },
         { value: 'statistics', label: 'Thống kê', icon: BarChart2 },
-        { value: 'admin-settings', label: 'Cài đặt Admin', icon: Settings },
+        // { value: 'admin-settings', label: 'Cài đặt Admin', icon: Settings }, // Removed this line
       ]
     }
   ];
@@ -37,7 +37,7 @@ export const TabNavigation = ({ activeTab, onTabChange }: TabNavigationProps) =>
       {/* Desktop Tabs */}
       <div className="hidden lg:block">
         <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2"> {/* Changed grid-cols to 2 */}
             {tabGroups.flatMap(group => group.tabs).map((tab) => (
               <TabsTrigger key={tab.value} value={tab.value}>
                 <tab.icon className="mr-2 h-4 w-4" />
