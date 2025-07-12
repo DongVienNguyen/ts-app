@@ -4,7 +4,7 @@ import { AlertCircle, Shield, TestTube, BookOpen, CheckCircle, ArrowRight, Activ
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { SecurityOverview } from '@/components/SecurityOverview';
-import { SecurityTestPanel } from '@/components/SecurityTestPanel';
+import { SecurityActionsPanel } from '@/components/security/SecurityActionsPanel';
 import { SecurityDocumentation } from '@/components/SecurityDocumentation';
 import { SecurityImplementationSummary } from '@/components/SecurityImplementationSummary';
 import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
@@ -73,7 +73,7 @@ const SecurityMonitor = () => {
             <SecurityOverview />
           </TabsContent>
           <TabsContent value="actions" className="mt-6">
-            <SecurityTestPanel />
+            <SecurityActionsPanel />
           </TabsContent>
           <TabsContent value="logs" className="mt-6">
             <LogManagementTab />

@@ -35,7 +35,7 @@ export function SecurityDocumentation() {
           </AccordionTrigger>
           <AccordionContent>
             <p className="text-sm text-gray-700 leading-relaxed">
-              Tab "Test" đã được nâng cấp thành một bảng điều khiển tác vụ bảo mật. Ngoài việc mô phỏng các sự kiện để kiểm tra hệ thống, quản trị viên giờ đây có thể thực hiện các hành động quản trị thực sự.
+              Tab "Tác vụ" là một bảng điều khiển tác vụ bảo mật. Ngoài việc mô phỏng các sự kiện để kiểm tra hệ thống, quản trị viên giờ đây có thể thực hiện các hành động quản trị thực sự.
               <br/><br/>
               <strong>Khóa/Mở khóa Tài khoản:</strong> Quản trị viên có thể khóa hoặc mở khóa tài khoản người dùng ngay lập tức bằng cách nhập tên người dùng và chọn hành động tương ứng. Các hành động này được thực hiện thông qua một Supabase Edge Function an toàn, yêu cầu quyền admin để thực thi. Mọi hành động khóa/mở khóa đều được ghi lại trong bảng `security_events` để phục vụ cho việc kiểm tra và giám sát.
             </p>
@@ -76,7 +76,7 @@ export function SecurityDocumentation() {
           </AccordionTrigger>
           <AccordionContent>
             <p className="text-sm text-gray-700 leading-relaxed">
-              Hệ thống cảnh báo được thiết kế để thông báo ngay lập tức cho quản trị viên về các sự kiện quan trọng. Hiện tại, hệ thống sử dụng thông báo toast (pop-up) trên giao diện người dùng. Tab "Test" cho phép mô phỏng các sự kiện và gửi thông báo kiểm tra để đảm bảo hệ thống hoạt động chính xác. Trong tương lai, hệ thống này có thể được mở rộng để gửi cảnh báo qua email hoặc các kênh khác.
+              Hệ thống cảnh báo được thiết kế để thông báo ngay lập tức cho quản trị viên về các sự kiện quan trọng. Hiện tại, hệ thống sử dụng thông báo toast (pop-up) trên giao diện người dùng. Tab "Tác vụ" cho phép mô phỏng các sự kiện và gửi thông báo kiểm tra để đảm bảo hệ thống hoạt động chính xác. Trong tương lai, hệ thống này có thể được mở rộng để gửi cảnh báo qua email hoặc các kênh khác.
             </p>
           </AccordionContent>
         </AccordionItem>

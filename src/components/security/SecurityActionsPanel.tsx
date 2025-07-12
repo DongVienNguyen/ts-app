@@ -4,18 +4,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bell, ShieldCheck, Activity, AlertCircle, UserCog } from 'lucide-react';
+import { Bell, Activity, AlertCircle, UserCog } from 'lucide-react';
 import { useRealTimeSecurityMonitoring } from '@/hooks/useRealTimeSecurityMonitoring';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useSecureAuth } from '@/contexts/AuthContext';
 
-export function SecurityTestPanel() {
+export function SecurityActionsPanel() {
   const { logEvent } = useRealTimeSecurityMonitoring();
   const { user } = useSecureAuth();
   const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');
-  const [eventType, setEventType] = useState<string>('LOGIN_FAILED');
+  const [eventType, setEventType] = useState<string>('ACCOUNT_LOCKED');
 
   const handlePerformAction = async () => {
     if (!eventType) {
