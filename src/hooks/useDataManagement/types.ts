@@ -18,7 +18,6 @@ export interface CacheEntry {
 
 export interface LoadDataParams {
   selectedEntity: TableName;
-  user: AuthenticatedStaff;
   page?: number;
   search?: string;
   sortColumn?: string | null;

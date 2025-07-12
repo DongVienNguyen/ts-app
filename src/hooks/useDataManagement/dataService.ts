@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { entityConfig, TableName } from '@/config/entityConfig';
-import { FilterState } from './types'; // Import FilterState
+import { FilterState } from './types';
+import { AuthenticatedStaff } from '@/contexts/AuthContext';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -17,31 +18,31 @@ interface SaveDataParams {
   selectedEntity: TableName;
   formData: any;
   editingItem: any | null;
-  user: any; // AuthenticatedStaff
+  user: AuthenticatedStaff;
 }
 
 interface DeleteDataParams {
   selectedEntity: TableName;
   item: any;
-  user: any; // AuthenticatedStaff
+  user: AuthenticatedStaff;
 }
 
 interface BulkDeleteDataParams {
   selectedEntity: TableName;
   ids: string[];
-  user: any; // AuthenticatedStaff
+  user: AuthenticatedStaff;
 }
 
 interface ToggleStaffLockParams {
   staffId: string;
   currentStatus: string;
-  user: any; // AuthenticatedStaff
+  user: AuthenticatedStaff;
 }
 
 interface BulkDeleteTransactionsParams {
   startDate: string;
   endDate: string;
-  user: any; // AuthenticatedStaff
+  user: AuthenticatedStaff;
 }
 
 export const dataService = {
