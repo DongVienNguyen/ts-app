@@ -41,6 +41,23 @@ export interface SystemStatus {
   created_at?: string;
 }
 
+export interface SystemAlert {
+  id?: string;
+  alert_id: string; // Unique identifier for the alert type (e.g., 'critical_error_alert')
+  rule_id?: string; // ID of the rule that triggered the alert
+  rule_name?: string; // Name of the rule
+  metric?: string; // Metric that triggered the alert (e.g., 'error_count', 'database_response_time')
+  current_value?: number; // Current value of the metric
+  threshold?: number; // Threshold that was exceeded
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  message: string;
+  acknowledged?: boolean;
+  acknowledged_by?: string;
+  acknowledged_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Global error handler
 let globalErrorHandler: ((error: Error, context?: any) => void) | null = null;
 
@@ -172,6 +189,32 @@ export async function updateSystemStatus(statusData: SystemStatus): Promise<void
   }
 }
 
+// Log system alert with proper error handling
+export async function createSystemAlert(alertData: Omit<SystemAlert, 'id' | 'created_at' | 'updated_at'>): Promise<void> {
+  try {
+    const result = await safeDbOperation(async (client) => {
+      const { error } = await client
+        .from('system_alerts')
+        .insert({
+          ...alertData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+      return true;
+    });
+
+    if (result) {
+      console.log('🔔 System alert created successfully');
+    } else {
+      throw new Error('Failed to create system alert');
+    }
+  } catch (error) {
+    console.error('❌ Failed to create system alert:', error);
+  }
+}
+
 // Monitor system resources
 export async function monitorResources(): Promise<void> {
   try {
@@ -245,6 +288,20 @@ export async function captureError(
   };
 
   await logSystemError(errorData);
+
+  // If the error is critical, create a system alert
+  if (errorData.severity === 'critical') {
+    await createSystemAlert({
+      alert_id: 'critical_application_error',
+      rule_name: 'Critical Application Error Detected',
+      severity: 'critical',
+      message: `Lỗi nghiêm trọng: ${errorData.error_message} tại ${errorData.function_name || 'unknown function'}.`,
+      metric: 'error_count',
+      current_value: 1, // Assuming one critical error
+      threshold: 0, // Any critical error triggers an alert
+      acknowledged: false,
+    });
+  }
 
   // Also log performance metrics if it's a performance-related error
   if (error.message.includes('timeout') || error.message.includes('slow')) {
