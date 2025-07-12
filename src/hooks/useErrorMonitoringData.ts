@@ -5,6 +5,7 @@ import { format, subDays, startOfDay } from 'date-fns';
 import { ServiceHealth } from '@/components/error-monitoring/ServiceStatusTab';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { parseUserAgent } from '@/utils/userAgentParser';
 
 export function useErrorMonitoringData() {
   const { user, loading: authLoading } = useAuth();
@@ -18,6 +19,8 @@ export function useErrorMonitoringData() {
     errorTrend: [] as { date: string; count: number }[],
     byType: {} as { [key: string]: number },
     bySeverity: {} as { [key: string]: number },
+    byBrowser: {} as { [key: string]: number },
+    byOS: {} as { [key: string]: number },
     recent: [] as SystemError[],
   });
   const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
@@ -147,6 +150,15 @@ export function useErrorMonitoringData() {
         return acc;
       }, {}) || {};
 
+      const byBrowser: { [key: string]: number } = {};
+      const byOS: { [key: string]: number } = {};
+
+      errors?.forEach(error => {
+        const { browser, os } = parseUserAgent(error.user_agent);
+        byBrowser[browser] = (byBrowser[browser] || 0) + 1;
+        byOS[os] = (byOS[os] || 0) + 1;
+      });
+
       const topErrorTypes = Object.entries(byType)
         .sort(([, a], [, b]) => Number(b) - Number(a)) // Fix: Cast to Number
         .map(([type, count]) => ({ type, count: Number(count) })); // Fix: Cast count to Number
@@ -178,6 +190,8 @@ export function useErrorMonitoringData() {
         errorTrend,
         byType,
         bySeverity,
+        byBrowser,
+        byOS,
         recent: errors?.slice(0, 10) || [],
       });
 
@@ -254,7 +268,7 @@ export function useErrorMonitoringData() {
       // Reset data when user is not admin
       setErrorStats({
         totalErrors: 0, criticalErrors: 0, resolvedErrors: 0, errorRate: 0,
-        topErrorTypes: [], errorTrend: [], byType: {}, bySeverity: {}, recent: [],
+        topErrorTypes: [], errorTrend: [], byType: {}, bySeverity: {}, byBrowser: {}, byOS: {}, recent: [],
       });
       setRecentErrors([]);
       setSystemMetrics([]);

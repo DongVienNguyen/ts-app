@@ -9,6 +9,7 @@ import { ErrorDetailsModal } from './ErrorDetailsModal';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface ErrorListTabProps {
   recentErrors: SystemError[];
@@ -22,6 +23,7 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
   const [filters, setFilters] = useState<ErrorFilters>({});
   const [selectedError, setSelectedError] = useState<SystemError | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const handleResolveError = async (errorId: string) => {
     if (!user) {
@@ -41,6 +43,31 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
       toast.error('Đánh dấu lỗi là đã giải quyết thất bại.');
     } else {
       toast.success('Lỗi đã được đánh dấu là đã giải quyết.');
+      onRefresh();
+    }
+  };
+
+  const handleBulkResolve = async () => {
+    if (!user) {
+      toast.error('Bạn phải đăng nhập để thực hiện hành động này.');
+      return;
+    }
+    if (selectedIds.length === 0) return;
+
+    const { error } = await supabase
+      .from('system_errors')
+      .update({ 
+        status: 'resolved', 
+        resolved_at: new Date().toISOString(),
+        resolved_by: user.username,
+      })
+      .in('id', selectedIds);
+
+    if (error) {
+      toast.error(`Giải quyết ${selectedIds.length} lỗi thất bại.`);
+    } else {
+      toast.success(`${selectedIds.length} lỗi đã được đánh dấu là đã giải quyết.`);
+      setSelectedIds([]);
       onRefresh();
     }
   };
@@ -99,6 +126,20 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
     setIsModalOpen(false);
   };
 
+  const handleSelect = (id: string, checked: boolean) => {
+    setSelectedIds(prev => 
+      checked ? [...prev, id] : prev.filter(sid => sid !== id)
+    );
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(filteredErrors.map(e => e.id!));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -107,6 +148,19 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
         totalErrors={recentErrors.length}
         filteredErrors={filteredErrors.length}
       />
+
+      {/* Bulk Actions Bar */}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center justify-between p-2 bg-gray-100 rounded-md dark:bg-gray-800">
+          <span className="text-sm font-medium">
+            Đã chọn {selectedIds.length} / {filteredErrors.length} lỗi
+          </span>
+          <Button size="sm" onClick={handleBulkResolve}>
+            <CheckCircle className="w-4 h-4 mr-2" />
+            Giải quyết mục đã chọn
+          </Button>
+        </div>
+      )}
 
       {/* Error List */}
       <Card>
@@ -125,29 +179,46 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
             </div>
           ) : filteredErrors.length > 0 ? (
             <div className="space-y-3">
+              <div className="flex items-center p-2 border-b">
+                <Checkbox
+                  id="select-all"
+                  checked={selectedIds.length > 0 && selectedIds.length === filteredErrors.length}
+                  onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                  className="mr-4"
+                />
+                <label htmlFor="select-all" className="text-sm font-medium">Chọn tất cả</label>
+              </div>
               {filteredErrors.map((error) => (
                 <div key={error.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Badge className={getSeverityColor(error.severity)}>
-                          {error.severity?.toUpperCase() || 'UNKNOWN'}
-                        </Badge>
-                        <Badge variant="outline">{error.error_type}</Badge>
-                        <span className="text-sm text-gray-500">
-                          {new Date(error.created_at!).toLocaleString('vi-VN')}
-                        </span>
-                      </div>
-                      <h4 className="font-medium text-gray-900 mb-1 line-clamp-2">
-                        {error.error_message}
-                      </h4>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600">
-                        {error.function_name && (
-                          <span>Chức năng: {error.function_name}</span>
-                        )}
-                        {error.user_id && (
-                          <span>Người dùng: {error.user_id}</span>
-                        )}
+                    <div className="flex items-start flex-1">
+                      <Checkbox
+                        id={`select-${error.id}`}
+                        checked={selectedIds.includes(error.id!)}
+                        onCheckedChange={(checked) => handleSelect(error.id!, !!checked)}
+                        className="mr-4 mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Badge className={getSeverityColor(error.severity)}>
+                            {error.severity?.toUpperCase() || 'UNKNOWN'}
+                          </Badge>
+                          <Badge variant="outline">{error.error_type}</Badge>
+                          <span className="text-sm text-gray-500">
+                            {new Date(error.created_at!).toLocaleString('vi-VN')}
+                          </span>
+                        </div>
+                        <h4 className="font-medium text-gray-900 mb-1 line-clamp-2">
+                          {error.error_message}
+                        </h4>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          {error.function_name && (
+                            <span>Chức năng: {error.function_name}</span>
+                          )}
+                          {error.user_id && (
+                            <span>Người dùng: {error.user_id}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2 ml-4">
