@@ -1,6 +1,6 @@
 import Layout from '@/components/Layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Shield, TestTube, BookOpen, CheckCircle, ArrowRight } from 'lucide-react';
+import { AlertCircle, Shield, TestTube, BookOpen, CheckCircle, ArrowRight, Activity, BarChart3 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { SecurityOverview } from '@/components/SecurityOverview';
@@ -8,6 +8,7 @@ import { SecurityTestPanel } from '@/components/SecurityTestPanel';
 import { SecurityDocumentation } from '@/components/SecurityDocumentation';
 import { SecurityImplementationSummary } from '@/components/SecurityImplementationSummary';
 import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
+import { RealTimeSecurityDashboard } from '@/components/RealTimeSecurityDashboard';
 
 const SecurityMonitor = () => {
   const { user } = useSecureAuth();
@@ -53,15 +54,19 @@ const SecurityMonitor = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-            <TabsTrigger value="overview"><Shield className="w-4 h-4 mr-2" />Tổng quan</TabsTrigger>
+        <Tabs defaultValue="realtime" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 lg:grid-cols-6">
+            <TabsTrigger value="realtime"><Activity className="w-4 h-4 mr-2" />Thời gian thực</TabsTrigger>
+            <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-2" />Tổng hợp</TabsTrigger>
             <TabsTrigger value="test"><TestTube className="w-4 h-4 mr-2" />Test</TabsTrigger>
             <TabsTrigger value="docs"><BookOpen className="w-4 h-4 mr-2" />Tài liệu</TabsTrigger>
             <TabsTrigger value="summary"><CheckCircle className="w-4 h-4 mr-2" />Tổng kết</TabsTrigger>
             <TabsTrigger value="workflow"><ArrowRight className="w-4 h-4 mr-2" />Demo</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="realtime" className="mt-6">
+            <RealTimeSecurityDashboard />
+          </TabsContent>
           <TabsContent value="overview" className="mt-6">
             <SecurityOverview />
           </TabsContent>

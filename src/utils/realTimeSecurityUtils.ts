@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { isDevelopment } from '@/config';
 
 export interface SecurityEvent {
+  id: string; // Thêm id để phân biệt các sự kiện
   type: string;
   timestamp: string;
   data: any;
@@ -15,6 +16,13 @@ export interface RealTimeSecurityStats {
   recentEvents: SecurityEvent[];
   threatLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   systemHealth: 'HEALTHY' | 'WARNING' | 'CRITICAL';
+  // Thêm các số liệu chi tiết
+  loginAttempts: number;
+  failedLogins: number;
+  successfulLogins: number;
+  accountLocks: number;
+  passwordResets: number;
+  suspiciousActivities: number;
 }
 
 // Log security event to both database and localStorage
@@ -24,6 +32,7 @@ export async function logSecurityEventRealTime(
   username?: string
 ) {
   const event: SecurityEvent = {
+    id: crypto.randomUUID(), // Tạo ID duy nhất
     type: eventType,
     timestamp: new Date().toISOString(),
     data,
@@ -91,6 +100,7 @@ export function subscribeToSecurityEvents(
       },
       (payload) => {
         const event: SecurityEvent = {
+          id: payload.new.id, // Sử dụng ID từ payload
           type: payload.new.event_type,
           timestamp: payload.new.created_at,
           data: payload.new.event_data,
@@ -111,16 +121,19 @@ export function subscribeToSecurityEvents(
 // Get real-time security statistics
 export async function getRealTimeSecurityStats(): Promise<RealTimeSecurityStats> {
   try {
-    // Get recent events from database
+    // Get recent events from database (last 5 minutes for metrics)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const { data: events, error } = await supabase
       .from('security_events')
       .select('*')
+      .gte('created_at', fiveMinutesAgo) // Lọc sự kiện trong 5 phút gần nhất
       .order('created_at', { ascending: false })
       .limit(50);
 
     if (error) throw error;
 
     const recentEvents: SecurityEvent[] = events?.map(event => ({
+      id: event.id,
       type: event.event_type,
       timestamp: event.created_at,
       data: event.event_data,
@@ -128,6 +141,16 @@ export async function getRealTimeSecurityStats(): Promise<RealTimeSecurityStats>
       ip: event.ip_address,
       username: event.username
     })) || [];
+
+    // Calculate detailed metrics
+    const loginAttempts = recentEvents.filter(e => e.type === 'LOGIN_ATTEMPT').length;
+    const failedLogins = recentEvents.filter(e => e.type === 'LOGIN_FAILED').length;
+    const successfulLogins = recentEvents.filter(e => e.type === 'LOGIN_SUCCESS').length;
+    const accountLocks = recentEvents.filter(e => e.type === 'ACCOUNT_LOCKED').length;
+    const passwordResets = recentEvents.filter(e => e.type === 'PASSWORD_RESET').length;
+    const suspiciousActivities = recentEvents.filter(e => 
+      e.type === 'SUSPICIOUS_ACTIVITY' || e.type === 'RATE_LIMIT_EXCEEDED'
+    ).length;
 
     // Calculate threat level based on recent events
     const threatLevel = calculateThreatLevel(recentEvents);
@@ -142,7 +165,13 @@ export async function getRealTimeSecurityStats(): Promise<RealTimeSecurityStats>
       activeConnections,
       recentEvents,
       threatLevel,
-      systemHealth
+      systemHealth,
+      loginAttempts,
+      failedLogins,
+      successfulLogins,
+      accountLocks,
+      passwordResets,
+      suspiciousActivities
     };
   } catch (error) {
     console.error('Error getting real-time security stats:', error);
@@ -150,7 +179,13 @@ export async function getRealTimeSecurityStats(): Promise<RealTimeSecurityStats>
       activeConnections: 0,
       recentEvents: [],
       threatLevel: 'LOW',
-      systemHealth: 'HEALTHY'
+      systemHealth: 'HEALTHY',
+      loginAttempts: 0,
+      failedLogins: 0,
+      successfulLogins: 0,
+      accountLocks: 0,
+      passwordResets: 0,
+      suspiciousActivities: 0
     };
   }
 }
