@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { getErrorStatistics, SystemError, SystemMetric, SystemStatus, checkServiceHealth } from '@/utils/errorTracking';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, subDays, startOfDay } from 'date-fns';
-import { ServiceHealth } from '@/components/error-monitoring/ServiceStatusTab'; // Import ServiceHealth
+import { ServiceHealth } from '@/components/error-monitoring/ServiceStatusTab';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export function useErrorMonitoringData() {
   const { user, loading: authLoading } = useAuth();
@@ -20,7 +22,6 @@ export function useErrorMonitoringData() {
   });
   const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
   const [systemMetrics, setSystemMetrics] = useState<SystemMetric[]>([]);
-  // Corrected type for serviceHealth and initialized with default values
   const [serviceHealth, setServiceHealth] = useState<ServiceHealth>({
     database: { service_name: 'database', status: 'unknown', uptime_percentage: 0 },
     email: { service_name: 'email', status: 'unknown', uptime_percentage: 0 },
@@ -28,88 +29,212 @@ export function useErrorMonitoringData() {
     api: { service_name: 'api', status: 'unknown', uptime_percentage: 0 },
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshingErrors, setIsRefreshingErrors] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  // Function để refresh chỉ recent errors
+  const refreshRecentErrors = useCallback(async () => {
+    if (!user || user.role !== 'admin') return;
+    
+    setIsRefreshingErrors(true);
+    console.log('🔄 [ERROR_MONITORING] Refreshing recent errors only...');
+    
+    try {
+      const { data: freshErrors, error } = await supabase
+        .from('system_errors')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('❌ [ERROR_MONITORING] Error refreshing errors:', error);
+        toast.error('Lỗi làm mới dữ liệu lỗi');
+        return;
+      }
+
+      console.log('✅ [ERROR_MONITORING] Refreshed errors:', freshErrors?.length || 0);
+      setRecentErrors(freshErrors || []);
+      
+      // Cập nhật stats từ fresh errors
+      const totalErrors = freshErrors?.length || 0;
+      const criticalErrors = freshErrors?.filter(e => e.severity === 'critical').length || 0;
+      const resolvedErrors = freshErrors?.filter(e => e.status === 'resolved').length || 0;
+      const errorRate = totalErrors / (7 * 24); // errors per hour over last week
+
+      const topErrorTypes = Object.entries(
+        freshErrors?.reduce((acc: { [key: string]: number }, error) => {
+          acc[error.error_type] = (acc[error.error_type] || 0) + 1;
+          return acc;
+        }, {}) || {}
+      )
+        .sort(([, a], [, b]) => b - a)
+        .map(([type, count]) => ({ type, count }));
+
+      // Generate error trend for last 7 days
+      const trendData: { [key: string]: number } = {};
+      for (let i = 6; i >= 0; i--) {
+        const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
+        trendData[date] = 0;
+      }
+      
+      freshErrors?.forEach(error => {
+        if (error.created_at) {
+          const date = format(startOfDay(new Date(error.created_at)), 'yyyy-MM-dd');
+          if (trendData[date] !== undefined) {
+            trendData[date]++;
+          }
+        }
+      });
+      
+      const errorTrend = Object.entries(trendData).map(([date, count]) => ({ date, count }));
+
+      setErrorStats(prev => ({
+        ...prev,
+        totalErrors,
+        criticalErrors,
+        resolvedErrors,
+        errorRate,
+        topErrorTypes,
+        errorTrend,
+        recent: freshErrors || [],
+      }));
+
+      toast.success('Đã làm mới dữ liệu lỗi');
+    } catch (err: any) {
+      console.error('❌ [ERROR_MONITORING] Refresh failed:', err);
+      toast.error('Lỗi làm mới dữ liệu');
+    } finally {
+      setIsRefreshingErrors(false);
+    }
+  }, [user]);
+
   const fetchAllData = useCallback(async () => {
-    if (!user) return;
+    if (!user || user.role !== 'admin') return;
 
     setIsLoading(true);
-    console.log('🔄 Loading error statistics...');
+    console.log('🔄 [ERROR_MONITORING] Loading error monitoring data...');
+    
     try {
-      const [statsResult, healthResult] = await Promise.allSettled([
-        getErrorStatistics('week'),
-        Promise.all([
+      // Load errors directly from database
+      const { data: errors, error: errorsError } = await supabase
+        .from('system_errors')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (errorsError) {
+        console.error('❌ [ERROR_MONITORING] Error loading errors:', errorsError);
+        throw errorsError;
+      }
+
+      console.log('✅ [ERROR_MONITORING] Loaded errors:', errors?.length || 0);
+
+      const totalErrors = errors?.length || 0;
+      const criticalErrors = errors?.filter(e => e.severity === 'critical').length || 0;
+      const resolvedErrors = errors?.filter(e => e.status === 'resolved').length || 0;
+      const errorRate = totalErrors / (7 * 24);
+
+      // Group by type
+      const byType = errors?.reduce((acc: { [key: string]: number }, error) => {
+        acc[error.error_type] = (acc[error.error_type] || 0) + 1;
+        return acc;
+      }, {}) || {};
+
+      // Group by severity
+      const bySeverity = errors?.reduce((acc: { [key: string]: number }, error) => {
+        const severity = error.severity || 'medium';
+        acc[severity] = (acc[severity] || 0) + 1;
+        return acc;
+      }, {}) || {};
+
+      const topErrorTypes = Object.entries(byType)
+        .sort(([, a], [, b]) => b - a)
+        .map(([type, count]) => ({ type, count }));
+
+      // Generate error trend for last 7 days
+      const trendData: { [key: string]: number } = {};
+      for (let i = 6; i >= 0; i--) {
+        const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
+        trendData[date] = 0;
+      }
+      
+      errors?.forEach(error => {
+        if (error.created_at) {
+          const date = format(startOfDay(new Date(error.created_at)), 'yyyy-MM-dd');
+          if (trendData[date] !== undefined) {
+            trendData[date]++;
+          }
+        }
+      });
+      
+      const errorTrend = Object.entries(trendData).map(([date, count]) => ({ date, count }));
+
+      setErrorStats({
+        totalErrors,
+        criticalErrors,
+        resolvedErrors,
+        errorRate,
+        topErrorTypes,
+        errorTrend,
+        byType,
+        bySeverity,
+        recent: errors?.slice(0, 10) || [],
+      });
+
+      setRecentErrors(errors || []);
+
+      // Load service health
+      try {
+        const healthResults = await Promise.allSettled([
           checkServiceHealth('database'),
           checkServiceHealth('api'),
           checkServiceHealth('email'),
           checkServiceHealth('push_notification'),
-        ]),
-      ]);
+        ]);
 
-      if (statsResult.status === 'fulfilled' && statsResult.value) {
-        const stats = statsResult.value;
-        const totalErrors = stats.total;
-        const criticalErrors = stats.bySeverity.critical || 0;
-        const resolvedErrors = stats.recent.filter(e => e.status === 'resolved').length;
-        const errorRate = totalErrors / (7 * 24);
-
-        const topErrorTypes = Object.entries(stats.byType)
-          .sort(([, a], [, b]) => b - a)
-          .map(([type, count]) => ({ type, count }));
-
-        const trendData: { [key: string]: number } = {};
-        for (let i = 6; i >= 0; i--) {
-          const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
-          trendData[date] = 0;
-        }
-        stats.recent.forEach(error => {
-          if (error.created_at) {
-            const date = format(startOfDay(new Date(error.created_at)), 'yyyy-MM-dd');
-            if (trendData[date] !== undefined) {
-              trendData[date]++;
-            }
-          }
-        });
-        const errorTrend = Object.entries(trendData).map(([date, count]) => ({ date, count }));
-
-        setErrorStats({
-          ...stats,
-          totalErrors,
-          criticalErrors,
-          resolvedErrors,
-          errorRate,
-          topErrorTypes,
-          errorTrend,
-        });
-        setRecentErrors(stats.recent);
-        console.log('✅ Error stats loaded:', { totalErrors, criticalErrors });
-      } else if (statsResult.status === 'rejected') {
-        console.error('❌ Failed to load error statistics:', statsResult.reason);
-      }
-
-      if (healthResult.status === 'fulfilled' && healthResult.value) {
-        const healthObject: ServiceHealth = healthResult.value.reduce((acc, status) => {
-          let key = status.service_name;
-          if (key === 'push_notification') key = 'pushNotification';
-          // Ensure all expected keys are present, even if a service check fails
-          if (key === 'database' || key === 'email' || key === 'pushNotification' || key === 'api') {
-            acc[key] = status;
-          }
-          return acc;
-        }, { // Provide default values for all properties to ensure type safety
+        const healthObject: ServiceHealth = {
           database: { service_name: 'database', status: 'unknown', uptime_percentage: 0 },
           email: { service_name: 'email', status: 'unknown', uptime_percentage: 0 },
           pushNotification: { service_name: 'pushNotification', status: 'unknown', uptime_percentage: 0 },
           api: { service_name: 'api', status: 'unknown', uptime_percentage: 0 },
-        } as ServiceHealth); // Explicitly cast to ServiceHealth
+        };
+
+        healthResults.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            const status = result.value;
+            let key = status.service_name;
+            if (key === 'push_notification') key = 'pushNotification';
+            if (key === 'database' || key === 'email' || key === 'pushNotification' || key === 'api') {
+              healthObject[key] = status;
+            }
+          }
+        });
+
         setServiceHealth(healthObject);
-        console.log('✅ Service health loaded:', healthObject);
-      } else if (healthResult.status === 'rejected') {
-        console.error('❌ Failed to load service health:', healthResult.reason);
+        console.log('✅ [ERROR_MONITORING] Service health loaded');
+      } catch (healthError) {
+        console.error('❌ [ERROR_MONITORING] Failed to load service health:', healthError);
+      }
+
+      // Load system metrics
+      try {
+        const { data: metrics, error: metricsError } = await supabase
+          .from('system_metrics')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (!metricsError && metrics) {
+          setSystemMetrics(metrics);
+          console.log('✅ [ERROR_MONITORING] System metrics loaded:', metrics.length);
+        }
+      } catch (metricsError) {
+        console.error('❌ [ERROR_MONITORING] Failed to load metrics:', metricsError);
       }
 
     } catch (error) {
-      console.error('❌ Failed to fetch error monitoring data:', error);
+      console.error('❌ [ERROR_MONITORING] Failed to fetch error monitoring data:', error);
+      toast.error('Lỗi tải dữ liệu giám sát lỗi');
     } finally {
       setIsLoading(false);
       setLastUpdated(new Date());
@@ -121,16 +246,18 @@ export function useErrorMonitoringData() {
       setIsLoading(true);
       return;
     }
-    if (user) {
+    
+    if (user && user.role === 'admin') {
       fetchAllData();
     } else {
       setIsLoading(false);
+      // Reset data when user is not admin
       setErrorStats({
         totalErrors: 0, criticalErrors: 0, resolvedErrors: 0, errorRate: 0,
         topErrorTypes: [], errorTrend: [], byType: {}, bySeverity: {}, recent: [],
       });
       setRecentErrors([]);
-      // Reset serviceHealth to its initial state when user logs out
+      setSystemMetrics([]);
       setServiceHealth({
         database: { service_name: 'database', status: 'unknown', uptime_percentage: 0 },
         email: { service_name: 'email', status: 'unknown', uptime_percentage: 0 },
@@ -162,8 +289,10 @@ export function useErrorMonitoringData() {
     systemMetrics,
     serviceHealth,
     isLoading: authLoading || isLoading,
+    isRefreshingErrors,
     lastUpdated,
     refreshAll: fetchAllData,
+    refreshRecentErrors,
     getStatusColor,
     getSeverityColor,
   };

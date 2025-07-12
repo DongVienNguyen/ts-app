@@ -17,7 +17,7 @@ const UsageMonitoring = () => {
     isLoading,
     lastUpdated,
     setSelectedTimeRange,
-    loadUsageData,
+    refreshData,
     formatDuration
   } = useUsageData();
 
@@ -72,7 +72,7 @@ const UsageMonitoring = () => {
               <option value="year">Last Year</option>
             </select>
             <Button
-              onClick={loadUsageData}
+              onClick={refreshData}
               disabled={isLoading}
               variant="outline"
               size="sm"
@@ -197,14 +197,23 @@ const UsageMonitoring = () => {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                   <span className="ml-2">Loading device stats...</span>
                 </div>
-              ) : (
+              ) : Object.keys(deviceStats).length > 0 && Object.values(deviceStats).some(v => v > 0) ? (
                 <div className="space-y-4">
-                  {Object.entries(deviceStats).map(([device, count]) => (
+                  {Object.entries(deviceStats)
+                    .filter(([, count]) => count > 0)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([device, count]) => (
                     <div key={device} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <span className="text-sm font-medium text-gray-900 capitalize">{device}</span>
                       <span className="text-sm text-gray-600">{count} sessions</span>
                     </div>
                   ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Activity className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                  <p>No device data available</p>
+                  <p className="text-sm">Device information will appear here when users access the system.</p>
                 </div>
               )}
             </div>
@@ -234,6 +243,7 @@ const UsageMonitoring = () => {
                 <div className="text-center py-8 text-gray-500">
                   <Activity className="mx-auto h-12 w-12 text-gray-300 mb-4" />
                   <p>No browser data available</p>
+                  <p className="text-sm">Browser information will appear here when users access the system.</p>
                 </div>
               )}
             </div>
@@ -250,7 +260,7 @@ const UsageMonitoring = () => {
               ) : timeRangeData.daily.length > 0 ? (
                 <div className="space-y-4">
                   <h4 className="text-md font-medium text-gray-700">Daily Usage</h4>
-                  {timeRangeData.daily.slice(-7).map((day) => (
+                  {timeRangeData.daily.slice(-14).map((day) => (
                     <div key={day.date} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <span className="text-sm font-medium text-gray-900">
                         {new Date(day.date).toLocaleDateString('vi-VN')}
@@ -266,6 +276,7 @@ const UsageMonitoring = () => {
                 <div className="text-center py-8 text-gray-500">
                   <Activity className="mx-auto h-12 w-12 text-gray-300 mb-4" />
                   <p>No trend data available</p>
+                  <p className="text-sm">Usage trends will appear here as users interact with the system.</p>
                 </div>
               )}
             </div>
@@ -276,6 +287,23 @@ const UsageMonitoring = () => {
         <div className="text-center text-sm text-gray-500">
           Last updated: {lastUpdated.toLocaleString('vi-VN')}
         </div>
+
+        {/* Debug Info (Development Only) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-8 p-4 bg-gray-100 rounded-lg">
+            <h3 className="font-semibold mb-2">Debug Information</h3>
+            <div className="text-sm space-y-1">
+              <div>Total Sessions: {usageOverview.totalSessions}</div>
+              <div>Unique Users: {usageOverview.uniqueUsers}</div>
+              <div>Device Stats: {JSON.stringify(deviceStats)}</div>
+              <div>Browser Stats Count: {Object.keys(browserStats).length}</div>
+              <div>Daily Trends Count: {timeRangeData.daily.length}</div>
+              <div>Is Loading: {isLoading ? 'Yes' : 'No'}</div>
+              <div>Selected Time Range: {selectedTimeRange}</div>
+              <div>User Role: {user?.role}</div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
