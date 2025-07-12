@@ -16,29 +16,42 @@ export function RealTimeSecurityDashboard() {
   const [isPaused, setIsPaused] = useState(false);
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(new Date());
+  // Initialize snapshotData with the current realTimeData on first render
   const [snapshotData, setSnapshotData] = useState(realTimeData);
 
+  // This useEffect will now only update lastUpdated when realTimeData changes
+  // AND the dashboard is in active real-time mode.
+  // It no longer sets snapshotData, preventing the infinite loop.
   useEffect(() => {
     if (!isPaused && isRealTimeEnabled) {
-      setSnapshotData(realTimeData);
       setLastUpdated(new Date());
     }
   }, [realTimeData, isPaused, isRealTimeEnabled]);
+
 
   const dataToDisplay = isRealTimeEnabled ? (isPaused ? snapshotData : realTimeData) : snapshotData;
 
   const handleRealTimeToggle = (enabled: boolean) => {
     setIsRealTimeEnabled(enabled);
     if (!enabled) {
-      setIsPaused(true);
+      setIsPaused(true); // If real-time is off, it's effectively paused
+      setSnapshotData(realTimeData); // Capture snapshot when real-time is turned off
+      setLastUpdated(new Date()); // Update last updated time to snapshot time
     } else {
-      setIsPaused(false);
+      setIsPaused(false); // Allow live updates
     }
   };
 
   const handlePauseToggle = () => {
-    if (isRealTimeEnabled) {
-      setIsPaused(prev => !prev);
+    if (isRealTimeEnabled) { // Only pause if real-time is enabled
+      setIsPaused(prev => {
+        const newPausedState = !prev;
+        if (newPausedState) { // If transitioning to paused
+          setSnapshotData(realTimeData); // Capture snapshot
+          setLastUpdated(new Date()); // Update last updated time to snapshot time
+        }
+        return newPausedState;
+      });
     }
   };
 
