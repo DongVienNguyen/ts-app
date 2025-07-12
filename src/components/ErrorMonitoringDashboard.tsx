@@ -5,7 +5,6 @@ import { ErrorOverviewCards } from './error-monitoring/ErrorOverviewCards';
 import { ErrorListTab } from './error-monitoring/ErrorListTab';
 import { ServiceStatusTab, ServiceHealth } from './error-monitoring/ServiceStatusTab';
 import { ErrorAnalyticsTab } from './error-monitoring/ErrorAnalyticsTab';
-import { RealTimeErrorFeed } from './error-monitoring/RealTimeErrorFeed';
 import { PWATestPanel } from '@/components/PWATestPanel';
 import PushNotificationTester from '@/components/PushNotificationTester';
 import VAPIDKeyTester from '@/components/VAPIDKeyTester';
@@ -31,6 +30,7 @@ interface ErrorMonitoringDashboardProps {
   lastUpdated: Date | null;
   isRefreshing: boolean;
   timeRange: TimeRange;
+  realtimeStatus: 'connecting' | 'connected' | 'error';
   refreshAll: () => void;
   acknowledgeAlert: (alertId: string) => Promise<void>;
   setTimeRange: (range: TimeRange) => void;
@@ -40,7 +40,7 @@ interface ErrorMonitoringDashboardProps {
 export function ErrorMonitoringDashboard({
   errorStats, recentErrors, systemMetrics, serviceHealth, systemAlerts, health,
   performanceMetrics, performanceInsights, isLoading, lastUpdated, isRefreshing,
-  timeRange, refreshAll, acknowledgeAlert, setTimeRange, exportPerformanceData,
+  timeRange, realtimeStatus, refreshAll, acknowledgeAlert, setTimeRange, exportPerformanceData,
 }: ErrorMonitoringDashboardProps) {
   const [activeTab, setActiveTab] = useState('errors');
   const [cardFilter, setCardFilter] = useState<{ type: 'severity' | 'status'; value: string } | null>(null);
@@ -57,6 +57,7 @@ export function ErrorMonitoringDashboard({
         isRefreshing={isRefreshing}
         lastUpdated={lastUpdated}
         onRefresh={refreshAll}
+        realtimeStatus={realtimeStatus}
       />
 
       <div className="space-y-4">
@@ -125,10 +126,6 @@ export function ErrorMonitoringDashboard({
             </Tabs>
           </CardHeader>
         </Card>
-      </div>
-
-      <div className="space-y-6">
-        <RealTimeErrorFeed onNewError={refreshAll} />
       </div>
     </div>
   );

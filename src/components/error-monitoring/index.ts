@@ -6,4 +6,5 @@ export { ServiceStatusTab } from './ServiceStatusTab';
 export { ResourcesTab } from './ResourcesTab';
 export { ErrorFilters } from './ErrorFilters';
 export { ErrorDetailsModal } from './ErrorDetailsModal';
-export { RealTimeErrorFeed } from './RealTimeErrorFeed';
+export { PerformanceTab } from './PerformanceTab';
+export { SystemAlertsDisplay } from './SystemAlertsDisplay';

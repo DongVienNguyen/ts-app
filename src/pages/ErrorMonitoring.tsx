@@ -20,6 +20,7 @@ const ErrorMonitoring = () => {
     lastUpdated,
     isRefreshing,
     timeRange,
+    realtimeStatus,
     refreshAll,
     acknowledgeAlert,
     setTimeRange,
@@ -70,6 +71,7 @@ const ErrorMonitoring = () => {
           lastUpdated={lastUpdated}
           isRefreshing={isRefreshing}
           timeRange={timeRange}
+          realtimeStatus={realtimeStatus}
           refreshAll={refreshAll}
           acknowledgeAlert={acknowledgeAlert}
           setTimeRange={setTimeRange}

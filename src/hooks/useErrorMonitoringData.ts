@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getErrorStatistics, SystemError, SystemMetric, SystemStatus, SystemAlert } from '@/utils/errorTracking';
+import { getErrorStatistics, SystemError, SystemMetric, SystemAlert } from '@/utils/errorTracking';
 import { useAuth } from '@/contexts/AuthContext';
 import { subDays } from 'date-fns';
 import { ServiceHealth } from '@/components/error-monitoring/ServiceStatusTab';
@@ -28,6 +28,7 @@ export const useErrorMonitoringData = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   // Performance State
   const [health, setHealth] = useState<SystemHealth | null>(null);
@@ -78,8 +79,9 @@ export const useErrorMonitoringData = () => {
       ]);
 
       if (errorsRes.error) throw errorsRes.error;
-      const stats = getErrorStatistics(errorsRes.data || []);
-      setErrorStats(stats);
+      const allErrors = errorsRes.data || [];
+      const stats = getErrorStatistics(allErrors);
+      setErrorStats({ ...stats, allErrors });
       setRecentErrors(stats.recent);
 
       if (metricsRes.data) setSystemMetrics(metricsRes.data);
@@ -90,18 +92,11 @@ export const useErrorMonitoringData = () => {
         if (result.status === 'fulfilled') {
           const status = result.value;
           let key: keyof ServiceHealth;
-          if (status.service_name === 'push_notification') {
-            key = 'pushNotification';
-          } else if (status.service_name === 'database') {
-            key = 'database';
-          } else if (status.service_name === 'email') {
-            key = 'email';
-          } else if (status.service_name === 'api') {
-            key = 'api';
-          } else {
-            console.warn(`Unexpected service name: ${status.service_name}`);
-            return; // Skip if service name is not recognized
-          }
+          if (status.service_name === 'push_notification') key = 'pushNotification';
+          else if (status.service_name === 'database') key = 'database';
+          else if (status.service_name === 'email') key = 'email';
+          else if (status.service_name === 'api') key = 'api';
+          else return;
           healthObject[key] = status;
         }
       });
@@ -125,6 +120,57 @@ export const useErrorMonitoringData = () => {
       fetchAllData();
     }
   }, [user, fetchAllData]);
+
+  // REAL-TIME SUBSCRIPTIONS
+  useEffect(() => {
+    if (user?.role !== 'admin') return;
+
+    const handleNewError = (payload: any) => {
+      console.log('🟢 Real-time: New system error received!', payload.new);
+      const newError = { ...payload.new, isNew: true } as SystemError & { isNew?: boolean };
+      
+      setRecentErrors(prev => [newError, ...prev.slice(0, 49)]);
+      setErrorStats(prev => {
+        const updatedErrors = [newError, ...(prev.allErrors || [])];
+        return { ...getErrorStatistics(updatedErrors), allErrors: updatedErrors };
+      });
+
+      toast.warning(`Lỗi mới: ${newError.error_message}`, {
+        description: `Loại: ${newError.error_type}`,
+      });
+    };
+
+    const handleNewAlert = (payload: any) => {
+      console.log('🟢 Real-time: New system alert received!', payload.new);
+      const newAlert = { ...payload.new, isNew: true } as SystemAlert & { isNew?: boolean };
+      setSystemAlerts(prev => [newAlert, ...prev]);
+      toast.error(`🚨 Cảnh báo hệ thống mới: ${newAlert.message}`, {
+        description: `Mức độ: ${newAlert.severity}`,
+        duration: 10000,
+      });
+    };
+
+    const errorChannel = supabase
+      .channel('system-errors-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'system_errors' }, handleNewError)
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') setRealtimeStatus('connected');
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setRealtimeStatus('error');
+          console.error('Real-time error channel issue:', err);
+        }
+      });
+
+    const alertChannel = supabase
+      .channel('system-alerts-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'system_alerts' }, handleNewAlert)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(errorChannel);
+      supabase.removeChannel(alertChannel);
+    };
+  }, [user]);
   
   useEffect(() => {
     if (health) {
@@ -142,7 +188,7 @@ export const useErrorMonitoringData = () => {
   const acknowledgeAlert = async (alertId: string) => {
     if (!user) {
       toast.error('Yêu cầu đăng nhập để thực hiện.');
-      return; // Explicitly return void
+      return;
     }
     const success = await systemAlertService.acknowledgeAlert(alertId, user.username);
     if (success) {
@@ -159,7 +205,7 @@ export const useErrorMonitoringData = () => {
 
   return {
     errorStats, recentErrors, systemMetrics, serviceHealth, systemAlerts, health, performanceMetrics, performanceInsights,
-    isLoading, lastUpdated, isRefreshing, timeRange,
+    isLoading, lastUpdated, isRefreshing, timeRange, realtimeStatus,
     refreshAll, acknowledgeAlert, setTimeRange, exportPerformanceData,
   };
 };
