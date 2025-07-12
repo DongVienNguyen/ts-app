@@ -55,6 +55,19 @@ export async function logSecurityEventRealTime(
     console.error('Error storing security log locally:', error);
   }
 
+  // --- Thêm đoạn log này để kiểm tra phiên người dùng trước khi insert ---
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) {
+    console.error('[SECURITY REALTIME] Lỗi khi lấy phiên trước khi insert:', sessionError);
+  } else {
+    console.log('[SECURITY REALTIME] Phiên trước khi insert:', session ? 'Có mặt' : 'Không có');
+    if (session) {
+      console.log('[SECURITY REALTIME] User ID:', session.user?.id);
+      console.log('[SECURITY REALTIME] User Role:', session.user?.role);
+    }
+  }
+  // --- Kết thúc đoạn thêm ---
+
   // Store in database for persistence and real-time updates
   try {
     const { error } = await supabase
