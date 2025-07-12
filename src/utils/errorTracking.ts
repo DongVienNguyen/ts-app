@@ -16,6 +16,7 @@ export interface SystemError {
   created_at?: string;
   resolved_at?: string;
   resolved_by?: string;
+  resolution_notes?: string; // New field
 }
 
 export interface SystemMetric {
@@ -294,7 +295,7 @@ export async function captureError(
     request_url: window.location.href,
     user_agent: navigator.userAgent,
     severity: context?.severity || 'medium',
-    status: 'open',
+    status: 'new', // Default to 'new' status
     error_data: context?.additionalData
   };
 

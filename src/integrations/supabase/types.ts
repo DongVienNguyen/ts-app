@@ -544,6 +544,7 @@ export type Database = {
           request_url: string | null
           resolved_at: string | null
           resolved_by: string | null
+          resolution_notes: string | null
           severity: string | null
           status: string | null
           user_agent: string | null
@@ -561,6 +562,7 @@ export type Database = {
           request_url?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          resolution_notes?: string | null
           severity?: string | null
           status?: string | null
           user_agent?: string | null
@@ -578,6 +580,7 @@ export type Database = {
           request_url?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          resolution_notes?: string | null
           severity?: string | null
           status?: string | null
           user_agent?: string | null

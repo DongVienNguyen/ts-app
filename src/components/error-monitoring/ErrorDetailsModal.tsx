@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -11,20 +11,33 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Copy, CheckCircle, AlertTriangle, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { SystemError } from '@/utils/errorTracking';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface ErrorDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  error: any; // Use a more specific type if available, e.g., SystemError
+  error: SystemError | null; // Use a more specific type
   onErrorUpdated?: () => void;
 }
 
 export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, onClose, error, onErrorUpdated }) => {
   const { user } = useAuth();
+  const [currentStatus, setCurrentStatus] = useState(error?.status || 'new');
+  const [resolutionNotes, setResolutionNotes] = useState(error?.resolution_notes || '');
+
+  React.useEffect(() => {
+    if (error) {
+      setCurrentStatus(error.status || 'new');
+      setResolutionNotes(error.resolution_notes || '');
+    }
+  }, [error]);
 
   if (!error) return null;
 
@@ -33,26 +46,35 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
     toast.success('Đã sao chép vào clipboard!');
   };
 
-  const handleUpdateStatus = async (status: 'resolved' | 'open') => {
+  const handleUpdateError = async () => {
     if (!user) {
       toast.error('Bạn phải đăng nhập để thực hiện hành động này.');
       return;
     }
     
+    const updateData: Partial<SystemError> = {
+      status: currentStatus,
+      resolution_notes: resolutionNotes,
+    };
+
+    if (currentStatus === 'resolved' && !error.resolved_at) {
+      updateData.resolved_at = new Date().toISOString();
+      updateData.resolved_by = user.username;
+    } else if (currentStatus !== 'resolved' && error.resolved_at) {
+      updateData.resolved_at = null;
+      updateData.resolved_by = null;
+    }
+
     const { error: updateError } = await supabase
       .from('system_errors')
-      .update({ 
-        status,
-        resolved_at: status === 'resolved' ? new Date().toISOString() : null,
-        resolved_by: status === 'resolved' ? user.username : null,
-      })
+      .update(updateData)
       .eq('id', error.id);
 
     if (updateError) {
       toast.error('Cập nhật trạng thái lỗi thất bại.');
       console.error(updateError);
     } else {
-      toast.success(`Lỗi đã được đánh dấu là ${status === 'resolved' ? 'đã giải quyết' : 'mở'}.`);
+      toast.success('Lỗi đã được cập nhật thành công.');
       if (onErrorUpdated) {
         onErrorUpdated();
       }
@@ -76,9 +98,8 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <p><strong>ID Lỗi:</strong> {error.id}</p>
                 <p><strong>Loại Lỗi:</strong> <Badge variant="destructive">{error.error_type}</Badge></p>
-                <p><strong>Thời gian:</strong> {format(new Date(error.created_at), 'dd/MM/yyyy HH:mm:ss')}</p>
-                <p><strong>Mức độ:</strong> <Badge variant={error.severity === 'high' ? 'destructive' : error.severity === 'medium' ? 'secondary' : 'outline'}>{error.severity}</Badge></p>
-                <p><strong>Trạng thái:</strong> <Badge variant={error.status === 'open' ? 'destructive' : 'default'}>{error.status}</Badge></p>
+                <p><strong>Thời gian:</strong> {format(new Date(error.created_at!), 'dd/MM/yyyy HH:mm:ss')}</p>
+                <p><strong>Mức độ:</strong> <Badge variant={error.severity === 'high' || error.severity === 'critical' ? 'destructive' : error.severity === 'medium' ? 'secondary' : 'outline'}>{error.severity}</Badge></p>
                 <p><strong>Người dùng:</strong> {error.user_id || 'N/A'}</p>
                 <p><strong>Chức năng:</strong> {error.function_name || 'N/A'}</p>
                 <p><strong>URL Yêu cầu:</strong> {error.request_url || 'N/A'}</p>
@@ -134,20 +155,39 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
                 </pre>
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="status">Trạng thái</Label>
+              <Select value={currentStatus} onValueChange={setCurrentStatus}>
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Chọn trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">Mới</SelectItem>
+                  <SelectItem value="in_progress">Đang xử lý</SelectItem>
+                  <SelectItem value="resolved">Đã giải quyết</SelectItem>
+                  <SelectItem value="archived">Đã lưu trữ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="resolution-notes">Ghi chú giải quyết</Label>
+              <Textarea
+                id="resolution-notes"
+                placeholder="Thêm ghi chú về cách lỗi này đã được giải quyết hoặc các bước đã thực hiện..."
+                value={resolutionNotes}
+                onChange={(e) => setResolutionNotes(e.target.value)}
+                rows={4}
+              />
+            </div>
           </div>
         </ScrollArea>
         <DialogFooter className="pt-4">
-          {error.status !== 'resolved' ? (
-            <Button onClick={() => handleUpdateStatus('resolved')}>
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Đánh dấu là đã giải quyết
-            </Button>
-          ) : (
-            <Button variant="secondary" onClick={() => handleUpdateStatus('open')}>
-              <AlertTriangle className="mr-2 h-4 w-4" />
-              Mở lại lỗi này
-            </Button>
-          )}
+          <Button onClick={handleUpdateError}>
+            <Save className="mr-2 h-4 w-4" />
+            Lưu thay đổi
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

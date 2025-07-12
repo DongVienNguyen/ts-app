@@ -97,10 +97,10 @@ export function ErrorFilters({ onFiltersChange, totalErrors, filteredErrors }: E
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả trạng thái</SelectItem>
-                <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="investigating">Investigating</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-                <SelectItem value="ignored">Ignored</SelectItem>
+                <SelectItem value="new">Mới</SelectItem>
+                <SelectItem value="in_progress">Đang xử lý</SelectItem>
+                <SelectItem value="resolved">Đã giải quyết</SelectItem>
+                <SelectItem value="archived">Đã lưu trữ</SelectItem>
               </SelectContent>
             </Select>
           </div>

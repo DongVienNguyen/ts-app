@@ -28,24 +28,30 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'list' | 'grouped'>('list');
 
-  const handleResolveError = async (errorId: string) => {
+  const handleUpdateErrorStatus = async (errorId: string, status: string) => {
     if (!user) {
       toast.error('Bạn phải đăng nhập để thực hiện hành động này.');
       return;
     }
+    
+    const updateData: Partial<SystemError> = { status };
+    if (status === 'resolved') {
+      updateData.resolved_at = new Date().toISOString();
+      updateData.resolved_by = user.username;
+    } else {
+      updateData.resolved_at = null;
+      updateData.resolved_by = null;
+    }
+
     const { error } = await supabase
       .from('system_errors')
-      .update({ 
-        status: 'resolved', 
-        resolved_at: new Date().toISOString(),
-        resolved_by: user.username,
-      })
+      .update(updateData)
       .eq('id', errorId);
 
     if (error) {
-      toast.error('Đánh dấu lỗi là đã giải quyết thất bại.');
+      toast.error(`Cập nhật trạng thái lỗi thất bại.`);
     } else {
-      toast.success('Lỗi đã được đánh dấu là đã giải quyết.');
+      toast.success(`Lỗi đã được đánh dấu là ${status}.`);
       onRefresh();
     }
   };
@@ -139,6 +145,16 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
     setSelectedIds(checked ? filteredErrors.map(e => e.id!) : []);
   };
 
+  const getStatusBadgeVariant = (status: string | undefined) => {
+    switch (status) {
+      case 'new': return 'destructive';
+      case 'in_progress': return 'secondary';
+      case 'resolved': return 'default';
+      case 'archived': return 'outline';
+      default: return 'outline';
+    }
+  };
+
   return (
     <div className="space-y-4">
       <ErrorFiltersComponent
@@ -196,7 +212,22 @@ export function ErrorListTab({ recentErrors, isLoading, getSeverityColor, onRefr
                           <div className="flex items-center space-x-4 text-sm text-gray-600">{error.function_name && (<span>Chức năng: {error.function_name}</span>)}{error.user_id && (<span>Người dùng: {error.user_id}</span>)}</div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2 ml-4"><Badge variant={error.status === 'resolved' ? 'default' : 'destructive'}>{error.status}</Badge>{error.status !== 'resolved' && (<Button variant="outline" size="sm" onClick={() => handleResolveError(error.id!)}><CheckCircle className="w-4 h-4 mr-1" />Giải quyết</Button>)}<Button variant="ghost" size="sm" onClick={() => handleViewDetails(error)}><Eye className="w-4 h-4" /></Button></div>
+                      <div className="flex items-center space-x-2 ml-4">
+                        <Badge variant={getStatusBadgeVariant(error.status)}>
+                          {error.status?.toUpperCase() || 'UNKNOWN'}
+                        </Badge>
+                        {error.status !== 'resolved' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUpdateErrorStatus(error.id!, 'resolved')}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Giải quyết
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={() => handleViewDetails(error)}><Eye className="w-4 h-4" /></Button>
+                      </div>
                     </div>
                   </div>
                 ))}
