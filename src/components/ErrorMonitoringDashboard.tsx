@@ -16,6 +16,7 @@ import { ResourcesTab } from './error-monitoring/ResourcesTab';
 import { PerformanceTab } from './error-monitoring/PerformanceTab';
 import { PerformanceMetric, PerformanceInsights, TimeRange } from '@/components/system-health/performance/types';
 import { SystemHealth } from '@/components/system-health/types';
+import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
 
 interface ErrorMonitoringDashboardProps {
   errorStats: any;
@@ -42,90 +43,83 @@ export function ErrorMonitoringDashboard({
   performanceMetrics, performanceInsights, isLoading, lastUpdated, isRefreshing,
   timeRange, realtimeStatus, refreshAll, acknowledgeAlert, setTimeRange, exportPerformanceData,
 }: ErrorMonitoringDashboardProps) {
-  const [activeTab, setActiveTab] = useState('errors');
-  const [cardFilter, setCardFilter] = useState<{ type: 'severity' | 'status'; value: string } | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [initialFilter, setInitialFilter] = useState<any>(null);
 
   const handleCardClick = (type: 'severity' | 'status', value: string) => {
-    setCardFilter({ type, value });
+    setInitialFilter({ type, value });
     setActiveTab('errors');
   };
 
   return (
-    <div className="space-y-6">
-      <ErrorMonitoringHeader 
-        isLoading={isLoading}
-        isRefreshing={isRefreshing}
+    <div className="h-full flex flex-col">
+      <ErrorMonitoringHeader
         lastUpdated={lastUpdated}
+        isRefreshing={isRefreshing}
         onRefresh={refreshAll}
         realtimeStatus={realtimeStatus}
       />
+      <div className="flex-grow">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <TabsList className="flex flex-wrap w-full justify-start gap-1 sm:gap-2">
+            <TabsTrigger value="overview">Tổng quan</TabsTrigger>
+            <TabsTrigger value="errors">Danh sách Lỗi</TabsTrigger>
+            <TabsTrigger value="analytics">Phân tích Lỗi</TabsTrigger>
+            <TabsTrigger value="performance">Hiệu suất</TabsTrigger>
+            <TabsTrigger value="services">Dịch vụ</TabsTrigger>
+            <TabsTrigger value="resources">Tài nguyên</TabsTrigger>
+            <TabsTrigger value="pwa_push">PWA & Push</TabsTrigger>
+            <TabsTrigger value="settings">Cài đặt</TabsTrigger>
+          </TabsList>
 
-      <div className="space-y-4">
-        <SystemAlertsDisplay
-          alerts={systemAlerts}
-          onAcknowledge={acknowledgeAlert}
-          isLoading={isLoading}
-        />
-        <ErrorOverviewCards errorStats={errorStats} isLoading={isLoading} onCardClick={handleCardClick} />
-        <Card>
-          <CardHeader>
-            <Tabs defaultValue="errors" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-              <TabsList className="flex flex-wrap w-full justify-start gap-1 sm:gap-2">
-                <TabsTrigger value="errors">Danh sách Lỗi</TabsTrigger>
-                <TabsTrigger value="analytics">Phân tích Lỗi</TabsTrigger>
-                <TabsTrigger value="performance">Hiệu suất</TabsTrigger>
-                <TabsTrigger value="services">Dịch vụ</TabsTrigger>
-                <TabsTrigger value="resources">Tài nguyên</TabsTrigger>
-                <TabsTrigger value="pwa_push">PWA & Push</TabsTrigger>
-                <TabsTrigger value="settings">Cài đặt</TabsTrigger>
-              </TabsList>
+          <TabsContent value="overview">
+            <ErrorOverviewCards errorStats={errorStats} isLoading={isLoading} onCardClick={handleCardClick} />
+          </TabsContent>
 
-              <TabsContent value="errors">
-                <ErrorListTab
-                  recentErrors={recentErrors}
-                  isLoading={isLoading}
-                  onRefresh={refreshAll}
-                  initialFilter={cardFilter}
-                  onFilterApplied={() => setCardFilter(null)}
-                />
-              </TabsContent>
+          <TabsContent value="errors">
+            <ErrorListTab
+              recentErrors={recentErrors}
+              isLoading={isLoading}
+              onRefresh={refreshAll}
+              initialFilter={initialFilter}
+              onFilterApplied={() => setInitialFilter(null)}
+            />
+          </TabsContent>
 
-              <TabsContent value="analytics">
-                <ErrorAnalyticsTab errorStats={errorStats} isLoading={isLoading} />
-              </TabsContent>
+          <TabsContent value="analytics">
+            <ErrorAnalyticsTab errorStats={errorStats} isLoading={isLoading} />
+          </TabsContent>
 
-              <TabsContent value="performance">
-                <PerformanceTab
-                  metrics={performanceMetrics}
-                  insights={performanceInsights}
-                  health={health}
-                  timeRange={timeRange}
-                  onTimeRangeChange={setTimeRange}
-                  onExportData={exportPerformanceData}
-                  isLoading={isLoading}
-                />
-              </TabsContent>
+          <TabsContent value="performance">
+            <PerformanceTab
+              metrics={performanceMetrics}
+              insights={performanceInsights}
+              health={health}
+              timeRange={timeRange}
+              onTimeRangeChange={setTimeRange}
+              onExportData={exportPerformanceData}
+              isLoading={isLoading}
+            />
+          </TabsContent>
 
-              <TabsContent value="services">
-                <ServiceStatusTab serviceHealth={serviceHealth} isLoading={isLoading} />
-              </TabsContent>
+          <TabsContent value="services">
+            <ServiceStatusTab serviceHealth={serviceHealth} isLoading={isLoading} />
+          </TabsContent>
 
-              <TabsContent value="resources">
-                <ResourcesTab health={health} systemMetrics={systemMetrics} isLoading={isLoading} />
-              </TabsContent>
-              
-              <TabsContent value="pwa_push" className="space-y-6">
-                <PWATestPanel />
-                <PushNotificationTester />
-                <VAPIDKeyTester />
-              </TabsContent>
+          <TabsContent value="resources">
+            <ResourcesTab health={health} systemMetrics={systemMetrics} isLoading={isLoading} />
+          </TabsContent>
+          
+          <TabsContent value="pwa_push" className="space-y-6">
+            <PWATestPanel />
+            <PushNotificationTester />
+            <VAPIDKeyTester />
+          </TabsContent>
 
-              <TabsContent value="settings" className="space-y-6">
-                <AdminEmailSettings />
-              </TabsContent>
-            </Tabs>
-          </CardHeader>
-        </Card>
+          <TabsContent value="settings" className="space-y-6">
+            <AdminEmailSettings />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

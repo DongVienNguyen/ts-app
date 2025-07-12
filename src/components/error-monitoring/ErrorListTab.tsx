@@ -136,6 +136,13 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter
     if (filters.severity && error.severity !== filters.severity) return false;
     if (filters.status && error.status !== filters.status) return false;
     if (filters.errorType && error.error_type !== filters.errorType) return false;
+    if (filters.assignedTo) {
+      if (filters.assignedTo === 'unassigned') {
+        if (error.assigned_to) return false;
+      } else if (error.assigned_to !== filters.assignedTo) {
+        return false;
+      }
+    }
     
     if (filters.dateRange?.from) {
       const errorDate = new Date(error.created_at!);

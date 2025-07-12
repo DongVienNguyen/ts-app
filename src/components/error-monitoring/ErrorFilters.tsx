@@ -7,9 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { X, Filter, Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { DateRange } from 'react-day-picker';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker'; // Import DateRange
+import { Label } from '@/components/ui/label'; // Import Label
 
 interface ErrorFiltersProps {
   onFiltersChange: (filters: ErrorFilters) => void;
@@ -22,12 +24,26 @@ export interface ErrorFilters {
   severity?: string;
   status?: string;
   errorType?: string;
-  dateRange?: DateRange;
+  dateRange?: DateRange; // Use DateRange type
   searchTerm?: string;
+  assignedTo?: string;
 }
 
 export function ErrorFilters({ onFiltersChange, totalErrors, filteredErrors, currentFilters }: ErrorFiltersProps) {
   const [filters, setFilters] = useState<ErrorFilters>(currentFilters);
+  const [staffList, setStaffList] = useState<{ username: string; staff_name: string | null }[]>([]);
+
+  useEffect(() => {
+    const fetchStaff = async () => {
+      const { data, error } = await supabase.from('staff').select('username, staff_name');
+      if (error) {
+        console.error('Failed to fetch staff list', error);
+      } else {
+        setStaffList(data || []);
+      }
+    };
+    fetchStaff();
+  }, []);
 
   // Đồng bộ filters nội bộ với currentFilters từ props
   // Điều này đảm bảo rằng khi initialFilter được áp dụng từ ErrorMonitoringDashboard,
@@ -47,8 +63,7 @@ export function ErrorFilters({ onFiltersChange, totalErrors, filteredErrors, cur
     onFiltersChange(newFilters);
   };
 
-  const clearFilters = () => {
-    setFilters({});
+  const handleResetFilters = () => {
     onFiltersChange({});
   };
 
@@ -98,17 +113,18 @@ export function ErrorFilters({ onFiltersChange, totalErrors, filteredErrors, cur
           </div>
 
           {/* Status Filter */}
-          <div>
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="status-filter">Trạng thái</Label>
             <Select value={filters.status || 'all'} onValueChange={(value) => updateFilter('status', value === 'all' ? undefined : value)}>
-              <SelectTrigger>
+              <SelectTrigger id="status-filter" className="w-[150px]">
                 <SelectValue placeholder="Trạng thái" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="new">Mới</SelectItem>
                 <SelectItem value="in_progress">Đang xử lý</SelectItem>
                 <SelectItem value="resolved">Đã giải quyết</SelectItem>
-                <SelectItem value="archived">Đã lưu trữ</SelectItem>
+                <SelectItem value="archived">Lưu trữ</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -150,7 +166,30 @@ export function ErrorFilters({ onFiltersChange, totalErrors, filteredErrors, cur
               </PopoverContent>
             </Popover>
           </div>
+
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="assigned-to-filter">Gán cho</Label>
+            <Select value={filters.assignedTo || 'all'} onValueChange={(value) => updateFilter('assignedTo', value === 'all' ? undefined : value)}>
+              <SelectTrigger id="assigned-to-filter" className="w-[180px]">
+                <SelectValue placeholder="Người được gán" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                <SelectItem value="unassigned">Chưa được gán</SelectItem>
+                {staffList.map(staff => (
+                  <SelectItem key={staff.username} value={staff.username}>
+                    {staff.staff_name || staff.username}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+
+        <Button onClick={handleResetFilters} variant="ghost">
+          <X className="mr-2 h-4 w-4" />
+          Xóa bộ lọc
+        </Button>
 
         {/* Active Filters */}
         {activeFiltersCount > 0 && (
@@ -175,7 +214,7 @@ export function ErrorFilters({ onFiltersChange, totalErrors, filteredErrors, cur
                 </Badge>
               );
             })}
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <Button variant="ghost" size="sm" onClick={handleResetFilters}>
               Xóa tất cả
             </Button>
           </div>
