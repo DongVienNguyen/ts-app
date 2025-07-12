@@ -1,15 +1,6 @@
 import { DataManagementTab } from './DataManagementTab';
 import { StatisticsTab } from './StatisticsTab';
-import { AccountManagementTab } from './AccountManagementTab';
-import { LogManagementTab } from './LogManagementTab';
 import { AdminEmailSettings } from './AdminEmailSettings';
-import { VAPIDKeyTester } from '@/components/VAPIDKeyTester';
-import PushNotificationTester from '@/components/PushNotificationTester';
-import { PWATestPanel } from '@/components/PWATestPanel';
-import { ErrorMonitoringDashboard } from '@/components/ErrorMonitoringDashboard';
-import { UsageMonitoringDashboard } from '@/components/UsageMonitoringDashboard';
-import { SystemHealthWidget } from '@/components/SystemHealthWidget';
-// Removed as security features are now in SecurityMonitor
 
 interface TabContentProps {
   activeTab: string;
@@ -109,62 +100,10 @@ export const TabContent = ({
           </div>
         );
 
-      case 'accounts':
-        return (
-          <div className="mt-6 space-y-6">
-            <AccountManagementTab />
-          </div>
-        );
-
-      case 'log-management':
-        return (
-          <div className="mt-6 space-y-6">
-            <LogManagementTab />
-          </div>
-        );
-
       case 'admin-settings':
         return (
           <div className="mt-6 space-y-6">
             <AdminEmailSettings />
-          </div>
-        );
-
-      // Dashboard & Giám sát
-      case 'error-monitoring':
-        return (
-          <div className="mt-6 space-y-6">
-            <ErrorMonitoringDashboard />
-          </div>
-        );
-
-      case 'usage-monitoring':
-        return (
-          <div className="mt-6 space-y-6">
-            <UsageMonitoringDashboard />
-          </div>
-        );
-
-      case 'system-health':
-        return (
-          <div className="mt-6 space-y-6">
-            <SystemHealthWidget />
-          </div>
-        );
-
-      // Thông báo & PWA
-      case 'push-notifications':
-        return (
-          <div className="mt-6 space-y-6">
-            <VAPIDKeyTester />
-            <PushNotificationTester />
-          </div>
-        );
-
-      case 'pwa-test':
-        return (
-          <div className="mt-6 space-y-6">
-            <PWATestPanel />
           </div>
         );
 

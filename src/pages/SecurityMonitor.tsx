@@ -1,6 +1,6 @@
 import Layout from '@/components/Layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Shield, TestTube, BookOpen, CheckCircle, ArrowRight, Activity, BarChart3 } from 'lucide-react';
+import { AlertCircle, Shield, TestTube, BookOpen, CheckCircle, ArrowRight, Activity, BarChart3, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { SecurityOverview } from '@/components/SecurityOverview';
@@ -9,6 +9,7 @@ import { SecurityDocumentation } from '@/components/SecurityDocumentation';
 import { SecurityImplementationSummary } from '@/components/SecurityImplementationSummary';
 import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
 import { RealTimeSecurityDashboard } from '@/components/RealTimeSecurityDashboard';
+import { LogManagementTab } from '@/components/data-management/LogManagementTab';
 
 const SecurityMonitor = () => {
   const { user } = useSecureAuth();
@@ -55,10 +56,11 @@ const SecurityMonitor = () => {
         </div>
 
         <Tabs defaultValue="realtime" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 lg:grid-cols-6">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 lg:grid-cols-7">
             <TabsTrigger value="realtime"><Activity className="w-4 h-4 mr-2" />Thời gian thực</TabsTrigger>
             <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-2" />Tổng hợp</TabsTrigger>
-            <TabsTrigger value="test"><TestTube className="w-4 h-4 mr-2" />Test</TabsTrigger>
+            <TabsTrigger value="actions"><TestTube className="w-4 h-4 mr-2" />Tác vụ</TabsTrigger>
+            <TabsTrigger value="logs"><Trash2 className="w-4 h-4 mr-2" />Quản lý Logs</TabsTrigger>
             <TabsTrigger value="docs"><BookOpen className="w-4 h-4 mr-2" />Tài liệu</TabsTrigger>
             <TabsTrigger value="summary"><CheckCircle className="w-4 h-4 mr-2" />Tổng kết</TabsTrigger>
             <TabsTrigger value="workflow"><ArrowRight className="w-4 h-4 mr-2" />Demo</TabsTrigger>
@@ -70,8 +72,11 @@ const SecurityMonitor = () => {
           <TabsContent value="overview" className="mt-6">
             <SecurityOverview />
           </TabsContent>
-          <TabsContent value="test" className="mt-6">
+          <TabsContent value="actions" className="mt-6">
             <SecurityTestPanel />
+          </TabsContent>
+          <TabsContent value="logs" className="mt-6">
+            <LogManagementTab />
           </TabsContent>
           <TabsContent value="docs" className="mt-6">
             <SecurityDocumentation />

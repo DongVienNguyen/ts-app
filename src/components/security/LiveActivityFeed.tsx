@@ -60,7 +60,8 @@ export function LiveActivityFeed({ events, isRealTimeEnabled, isLoading }: LiveA
         description = `Vượt quá giới hạn tốc độ bởi ${event.username || 'người dùng không xác định'}.`;
         break;
       case 'METRICS_RESET':
-        description = `Số liệu đã được đặt lại bởi ${event.event_data?.resetBy || 'hệ thống'}.`;
+        // Cast event.event_data to Record<string, any> to access resetBy
+        description = `Số liệu đã được đặt lại bởi ${(event.event_data as Record<string, any>)?.resetBy || 'hệ thống'}.`;
         break;
       default:
         description = `Sự kiện không xác định: ${event.event_type}.`;

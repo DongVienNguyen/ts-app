@@ -1,4 +1,4 @@
-import { DatabaseIcon, BarChart2, Users, Shield, BookOpen, CheckCircle, ArrowRight, BellRing, Smartphone, Settings, ChevronDown, Activity, TrendingUp, Trash2 } from 'lucide-react';
+import { DatabaseIcon, BarChart2, Settings, ChevronDown } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
@@ -27,26 +27,7 @@ export const TabNavigation = ({ activeTab, onTabChange }: TabNavigationProps) =>
       tabs: [
         { value: 'management', label: 'Quản lý dữ liệu', icon: DatabaseIcon },
         { value: 'statistics', label: 'Thống kê', icon: BarChart2 },
-        { value: 'accounts', label: 'Tài khoản', icon: Users },
-        { value: 'log-management', label: 'Quản lý Logs', icon: Trash2 },
         { value: 'admin-settings', label: 'Cài đặt Admin', icon: Settings },
-      ]
-    },
-    {
-      label: 'Dashboard & Giám sát',
-      icon: TrendingUp,
-      tabs: [
-        { value: 'error-monitoring', label: 'Giám sát Lỗi', icon: Activity },
-        { value: 'usage-monitoring', label: 'Giám sát Sử dụng', icon: BarChart2 },
-        { value: 'system-health', label: 'Sức khỏe Hệ thống', icon: TrendingUp },
-      ]
-    },
-    {
-      label: 'Thông báo & PWA',
-      icon: BellRing,
-      tabs: [
-        { value: 'push-notifications', label: 'Thông báo đẩy', icon: BellRing },
-        { value: 'pwa-test', label: 'PWA Test', icon: Smartphone },
       ]
     }
   ];
@@ -56,11 +37,11 @@ export const TabNavigation = ({ activeTab, onTabChange }: TabNavigationProps) =>
       {/* Desktop Tabs */}
       <div className="hidden lg:block">
         <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 xl:grid-cols-10">
+          <TabsList className="grid w-full grid-cols-3">
             {tabGroups.flatMap(group => group.tabs).map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value} className="text-xs">
-                <tab.icon className="mr-1 h-3 w-3" />
-                <span className="hidden sm:inline">{tab.label}</span>
+              <TabsTrigger key={tab.value} value={tab.value}>
+                <tab.icon className="mr-2 h-4 w-4" />
+                <span>{tab.label}</span>
               </TabsTrigger>
             ))}
           </TabsList>
