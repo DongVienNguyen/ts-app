@@ -1,96 +1,59 @@
 import DataManagementTab from './DataManagementTab';
 import { StatisticsTab } from './StatisticsTab';
-import { useDataManagement } from '@/hooks/useDataManagement';
-import { entityConfig } from '@/config/entityConfig';
+import { DataManagementReturn } from '@/hooks/useDataManagement/types';
 
 interface TabContentProps {
   activeTab: string;
+  dm: DataManagementReturn;
 }
 
-export const TabContent = ({ activeTab }: TabContentProps) => {
-  const {
-    selectedEntity,
-    setSelectedEntity,
-    isLoading,
-    searchTerm,
-    setSearchTerm,
-    data,
-    totalCount,
-    currentPage,
-    setCurrentPage,
-    handleAdd,
-    handleEdit,
-    handleDelete,
-    exportToCSV,
-    handleImportClick,
-    restoreInputRef,
-    handleFileSelectForImport,
-    startImportProcess,
-    startDate,
-    endDate,
-    setStartDate,
-    setEndDate,
-    bulkDeleteTransactions,
-    runAsAdmin,
-    sortColumn,
-    sortDirection,
-    handleSort,
-    filters,
-    handleFilterChange,
-    toggleStaffLock,
-    dialogOpen,
-    setDialogOpen,
-    editingItem,
-    handleSave,
-    config,
-  } = useDataManagement();
-
+export const TabContent = ({ activeTab, dm }: TabContentProps) => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'management':
         return (
           <DataManagementTab
-            activeTab={activeTab}
-            selectedEntity={selectedEntity}
-            onEntityChange={setSelectedEntity}
-            isLoading={isLoading}
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            data={data}
-            totalCount={totalCount}
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-            onAdd={handleAdd}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onExportCSV={exportToCSV}
-            onImportClick={handleImportClick}
-            restoreInputRef={restoreInputRef}
-            onFileSelectForImport={handleFileSelectForImport}
-            startImportProcess={startImportProcess}
-            startDate={startDate}
-            endDate={endDate}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
-            onBulkDeleteTransactions={bulkDeleteTransactions}
-            onToggleStaffLock={toggleStaffLock}
-            onSort={handleSort}
-            sortColumn={sortColumn}
-            sortDirection={sortDirection}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            config={config}
-            dialogOpen={dialogOpen}
-            setDialogOpen={setDialogOpen}
-            editingItem={editingItem}
-            handleSave={handleSave}
+            activeTab={dm.activeTab}
+            selectedEntity={dm.selectedEntity}
+            onEntityChange={dm.setSelectedEntity}
+            isLoading={dm.isLoading}
+            searchTerm={dm.searchTerm}
+            onSearchChange={dm.setSearchTerm}
+            data={dm.data}
+            totalCount={dm.totalCount}
+            currentPage={dm.currentPage}
+            onPageChange={dm.setCurrentPage}
+            onAdd={dm.handleAdd}
+            onEdit={dm.handleEdit}
+            onDelete={dm.handleDelete}
+            onExportCSV={dm.exportToCSV}
+            onImportClick={dm.handleImportClick}
+            restoreInputRef={dm.restoreInputRef}
+            onFileSelectForImport={dm.handleFileSelectForImport}
+            startImportProcess={dm.startImportProcess}
+            startDate={dm.startDate}
+            endDate={dm.endDate}
+            onStartDateChange={dm.setStartDate}
+            onEndDateChange={dm.setEndDate}
+            onBulkDeleteTransactions={dm.bulkDeleteTransactions}
+            onToggleStaffLock={dm.toggleStaffLock}
+            onSort={dm.handleSort}
+            sortColumn={dm.sortColumn}
+            sortDirection={dm.sortDirection}
+            filters={dm.filters}
+            onFilterChange={dm.handleFilterChange}
+            config={dm.config}
+            dialogOpen={dm.dialogOpen}
+            setDialogOpen={dm.setDialogOpen}
+            editingItem={dm.editingItem}
+            handleSave={dm.handleSave}
           />
         );
 
       case 'statistics':
         return (
           <div className="mt-6 space-y-6">
-            <StatisticsTab runAsAdmin={runAsAdmin} onLoad={() => {}} />
+            <StatisticsTab runAsAdmin={dm.runAsAdmin} onLoad={() => {}} />
           </div>
         );
 

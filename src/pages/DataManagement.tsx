@@ -56,20 +56,9 @@ const mapEntityConfigToEditDialogFields = (config: typeof entityConfig[keyof typ
 };
 
 const DataManagement = () => {
-  const {
-    selectedEntity,
-    isLoading,
-    dialogOpen,
-    setDialogOpen,
-    editingItem,
-    handleSave,
-    activeTab,
-    setActiveTab,
-    refreshData,
-    user
-  } = useDataManagement();
+  const dm = useDataManagement();
 
-  if (user === undefined) {
+  if (dm.user === undefined) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-64">
@@ -82,7 +71,7 @@ const DataManagement = () => {
     );
   }
 
-  if (!user || user.role !== 'admin') {
+  if (!dm.user || dm.user.role !== 'admin') {
     return (
       <Layout>
         <div className="p-6">
@@ -97,7 +86,7 @@ const DataManagement = () => {
     );
   }
 
-  const currentEntityConfig = entityConfig[selectedEntity];
+  const currentEntityConfig = entityConfig[dm.selectedEntity];
   const editDialogFields = mapEntityConfigToEditDialogFields(currentEntityConfig);
 
   return (
@@ -115,31 +104,31 @@ const DataManagement = () => {
           </div>
           
           <Button
-            onClick={refreshData}
-            disabled={isLoading}
+            onClick={dm.refreshData}
+            disabled={dm.isLoading}
             variant="outline"
             size="sm"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            {isLoading ? 'Loading...' : 'Refresh'}
+            <RefreshCw className={`w-4 h-4 mr-2 ${dm.isLoading ? 'animate-spin' : ''}`} />
+            {dm.isLoading ? 'Loading...' : 'Refresh'}
           </Button>
         </div>
 
-        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+        <TabNavigation activeTab={dm.activeTab} onTabChange={dm.setActiveTab} />
 
         <div className="mt-6">
-          <TabContent activeTab={activeTab} />
+          <TabContent activeTab={dm.activeTab} dm={dm} />
         </div>
 
         <EditDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
+          open={dm.dialogOpen}
+          onOpenChange={dm.setDialogOpen}
           title={`Chỉnh sửa ${currentEntityConfig.name}`}
           description={`Chỉnh sửa thông tin cho ${currentEntityConfig.name}.`}
           fields={editDialogFields}
-          initialData={editingItem}
-          onSave={handleSave}
-          isLoading={isLoading}
+          initialData={dm.editingItem}
+          onSave={dm.handleSave}
+          isLoading={dm.isLoading}
         />
       </div>
     </Layout>

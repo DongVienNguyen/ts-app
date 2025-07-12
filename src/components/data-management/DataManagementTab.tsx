@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import {
   Card,
   CardContent,
@@ -16,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import OptimisedTable from '@/components/OptimizedTable';
 import DateInput from '@/components/DateInput';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -76,7 +75,7 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
   searchTerm,
   onSearchChange,
   data,
-  totalCount = 0, // Added default value here
+  totalCount = 0,
   currentPage,
   onPageChange,
   onAdd,
@@ -99,10 +98,6 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
   filters,
   onFilterChange,
   config,
-  dialogOpen,
-  setDialogOpen,
-  editingItem,
-  handleSave,
 }) => {
 
   if (!config) {
@@ -321,23 +316,6 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
             </CardContent>
           </Card>
         )}
-
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>{editingItem ? 'Chỉnh sửa' : 'Thêm mới'} {config.name}</DialogTitle>
-              <DialogDescription>
-                {editingItem ? 'Chỉnh sửa thông tin' : 'Thêm một bản ghi mới'} cho {config.name}.
-              </DialogDescription>
-            </DialogHeader>
-            {/* Form content will go here, dynamically rendered based on config.fields */}
-            {/* For now, a placeholder */}
-            <div className="py-4">
-              <p>Form chỉnh sửa/thêm mới sẽ được hiển thị tại đây.</p>
-              <Button onClick={() => handleSave({})}>Lưu (Placeholder)</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </CardContent>
     </Card>
   );
