@@ -19,6 +19,7 @@ const BorrowReport = lazy(() => import('@/pages/BorrowReport'));
 const AssetReminders = lazy(() => import('@/pages/AssetReminders'));
 const CRCReminders = lazy(() => import('@/pages/CRCReminders'));
 const OtherAssets = lazy(() => import('@/pages/OtherAssets'));
+const ResetPassword = lazy(() => import('@/pages/ResetPassword')); // Added lazy import for ResetPassword
 
 // Heavy admin pages - lazy load with higher priority
 const DataManagement = lazy(() => import('@/pages/DataManagement'));
@@ -26,9 +27,6 @@ const SecurityMonitor = lazy(() => import('@/pages/SecurityMonitor'));
 const ErrorMonitoring = lazy(() => import('@/pages/ErrorMonitoring'));
 const UsageMonitoring = lazy(() => import('@/pages/UsageMonitoring'));
 const SystemBackup = lazy(() => import('@/pages/SystemBackup'));
-
-const Notifications = lazy(() => import('@/pages/Notifications'));
-const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 
 // Loading component
@@ -157,33 +155,9 @@ function AppContent() {
                 </Suspense>
               </ProtectedRoute>
             } />
-            <Route path="/error-monitoring" element={
-              <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                  <ErrorMonitoring />
-                </Suspense>
-              </ProtectedRoute>
-            } />
-            <Route path="/usage-monitoring" element={
-              <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                  <UsageMonitoring />
-                </Suspense>
-              </ProtectedRoute>
-            } />
-            <Route path="/system-backup" element={
-              <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                  <SystemBackup />
-                </Suspense>
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/notifications" element={
-              <ProtectedRoute>
-                <Notifications />
-              </ProtectedRoute>
-            } />
+            <Route path="/error-monitoring" element={<ProtectedRoute><ErrorMonitoring /></ProtectedRoute>} />
+            <Route path="/usage-monitoring" element={<ProtectedRoute><UsageMonitoring /></ProtectedRoute>}/>
+            <Route path="/backup" element={<ProtectedRoute><SystemBackup /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

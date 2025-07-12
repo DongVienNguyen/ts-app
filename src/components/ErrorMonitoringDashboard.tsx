@@ -7,6 +7,9 @@ import { ServiceStatusTab } from './error-monitoring/ServiceStatusTab';
 import { ResourcesTab } from './error-monitoring/ResourcesTab';
 import { RealTimeErrorFeed } from './error-monitoring/RealTimeErrorFeed';
 import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
+import { PWATestPanel } from '@/components/PWATestPanel';
+import PushNotificationTester from '@/components/PushNotificationTester'; // Changed to default import
+import VAPIDKeyTester from '@/components/VAPIDKeyTester'; // Changed to default import
 
 export function ErrorMonitoringDashboard() {
   const {
@@ -41,11 +44,12 @@ export function ErrorMonitoringDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Tabs defaultValue="errors" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="errors">Danh sách Lỗi</TabsTrigger>
               <TabsTrigger value="analytics">Phân tích</TabsTrigger>
               <TabsTrigger value="services">Dịch vụ</TabsTrigger>
               <TabsTrigger value="resources">Tài nguyên</TabsTrigger>
+              <TabsTrigger value="pwa_push">PWA & Push</TabsTrigger>
             </TabsList>
 
             <TabsContent value="errors">
@@ -74,6 +78,12 @@ export function ErrorMonitoringDashboard() {
               <ResourcesTab
                 systemMetrics={systemMetrics}
               />
+            </TabsContent>
+            
+            <TabsContent value="pwa_push" className="space-y-6">
+              <PWATestPanel />
+              <PushNotificationTester />
+              <VAPIDKeyTester />
             </TabsContent>
           </Tabs>
         </div>
