@@ -109,7 +109,7 @@ export function useRealTimeSecurityMonitoring() {
             .is('session_end', null);
 
           if (sessionError) {
-            console.warn("Could could not update active sessions via real-time:", sessionError.message);
+            console.warn("Could not update active sessions via real-time:", sessionError.message);
           } else {
             setActiveUsers(sessions?.length || 0);
           }
@@ -125,15 +125,15 @@ export function useRealTimeSecurityMonitoring() {
     setIsSupabaseConnected(supabase.realtime.connectionState() === 'CONNECTED');
 
     // Listen for global real-time connection status changes
-    supabase.realtime.on('CONNECT', handleConnect);
-    supabase.realtime.on('DISCONNECT', handleDisconnect);
+    supabase.realtime.connection.on('CONNECT', handleConnect);
+    supabase.realtime.connection.on('DISCONNECT', handleDisconnect);
 
     return () => {
       supabase.removeChannel(securityEventsChannel);
       supabase.removeChannel(userSessionsChannel);
       // Unsubscribe from global real-time connection status changes
-      supabase.realtime.off('CONNECT', handleConnect);
-      supabase.realtime.off('DISCONNECT', handleDisconnect);
+      supabase.realtime.connection.off('CONNECT', handleConnect);
+      supabase.realtime.connection.off('DISCONNECT', handleDisconnect);
     };
   }, []);
 
