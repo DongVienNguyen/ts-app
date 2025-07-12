@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SecurityEvent } from '@/utils/realTimeSecurityUtils';
 import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
-import { CONNECTION_STATE } from '@supabase/supabase-js'; // Import CONNECTION_STATE
+// Removed: import { CONNECTION_STATE } from '@supabase/supabase-js';
 
 export interface RealTimeSecurityStats {
   activeUsers: number;
@@ -42,7 +42,7 @@ export function useRealTimeSecurityMonitoring() {
           ip: event.ip_address,
           username: event.username
         }));
-        setRecentEvents(mappedEvents);
+        setRecentEvents(mappedEvents); // This now correctly receives an array
         updateThreatTrends(mappedEvents);
 
         // For active users, we might need a more sophisticated method,
@@ -109,7 +109,7 @@ export function useRealTimeSecurityMonitoring() {
             .is('session_end', null);
 
           if (sessionError) {
-            console.warn("Could not update active sessions via real-time:", sessionError.message);
+            console.warn("Could could not update active sessions via real-time:", sessionError.message);
           } else {
             setActiveUsers(sessions?.length || 0);
           }
@@ -122,7 +122,7 @@ export function useRealTimeSecurityMonitoring() {
     const handleDisconnect = () => setIsSupabaseConnected(false);
 
     // Initial check
-    setIsSupabaseConnected(supabase.realtime.connectionState() === CONNECTION_STATE.CONNECTED);
+    setIsSupabaseConnected(supabase.realtime.connectionState() === 'CONNECTED');
 
     // Listen for global real-time connection status changes
     supabase.realtime.on('CONNECT', handleConnect);
