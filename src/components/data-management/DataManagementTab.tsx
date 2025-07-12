@@ -1,26 +1,38 @@
-import React, { useMemo } from 'react';
-import { Plus, Download, Upload, Trash2, Edit, FilterX } from 'lucide-react';
+import React, { useRef } from 'react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import OptimisedTable from '@/components/OptimizedTable';
 import DateInput from '@/components/DateInput';
-import TestDataButton from '@/components/TestDataButton';
-import { entityConfig } from '@/config/entityConfig';
-import OptimizedTable from '@/components/OptimizedTable';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
+import { EntityConfig, entityConfig } from '@/config/entityConfig';
 
 interface DataManagementTabProps {
+  activeTab: string;
   selectedEntity: string;
   onEntityChange: (entity: string) => void;
   isLoading: boolean;
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  paginatedData: any[];
+  data: any[];
   totalCount: number;
   currentPage: number;
-  totalPages: number;
   onPageChange: (page: number) => void;
   onAdd: () => void;
   onEdit: (item: any) => void;
@@ -28,34 +40,36 @@ interface DataManagementTabProps {
   onExportCSV: () => void;
   onImportClick: () => void;
   restoreInputRef: React.RefObject<HTMLInputElement>;
-  onRestoreData: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  startImportProcess: (file: File) => void;
   startDate: string;
   endDate: string;
   onStartDateChange: (date: string) => void;
   onEndDateChange: (date: string) => void;
   onBulkDeleteTransactions: () => void;
+  onToggleStaffLock: (staff: any) => void;
+  onSort: (columnKey: string) => void;
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
-  onSort: (columnKey: string) => void;
   filters: Record<string, any>;
   onFilterChange: (key: string, value: any) => void;
-  onClearFilters: () => void;
-  selectedRows: Record<string, boolean>;
-  onRowSelect: (rowId: string) => void;
-  onSelectAll: () => void;
-  onBulkDelete: () => void;
+  config: EntityConfig;
+  dialogOpen: boolean;
+  setDialogOpen: (open: boolean) => void;
+  editingItem: any;
+  handleSave: (formData: any) => void;
 }
 
-export const DataManagementTab = ({
+const DataManagementTab: React.FC<DataManagementTabProps> = ({
+  activeTab,
   selectedEntity,
   onEntityChange,
   isLoading,
   searchTerm,
   onSearchChange,
-  paginatedData,
+  data,
   totalCount,
   currentPage,
-  totalPages,
   onPageChange,
   onAdd,
   onEdit,
@@ -63,257 +77,221 @@ export const DataManagementTab = ({
   onExportCSV,
   onImportClick,
   restoreInputRef,
-  onRestoreData,
+  onFileSelectForImport,
+  startImportProcess,
   startDate,
   endDate,
   onStartDateChange,
   onEndDateChange,
   onBulkDeleteTransactions,
+  onToggleStaffLock,
+  onSort,
   sortColumn,
   sortDirection,
-  onSort,
   filters,
   onFilterChange,
-  onClearFilters,
-  selectedRows,
-  onRowSelect,
-  onSelectAll,
-  onBulkDelete
-}: DataManagementTabProps) => {
-  const columns = useMemo(() => {
-    const config = entityConfig[selectedEntity];
-    if (!config) return [];
+  config,
+  dialogOpen,
+  setDialogOpen,
+  editingItem,
+  handleSave,
+}) => {
 
-    const fieldColumns = config.fields.map(field => ({
-      key: field.key,
-      label: field.label,
-      width: 180,
-      render: (value: any) => {
-        if (field.type === 'date' && value) {
-          return new Date(value).toLocaleDateString('vi-VN');
-        }
-        if (field.type === 'boolean' && typeof value === 'boolean') {
-          return value ? 'Có' : 'Không';
-        }
-        if (selectedEntity === 'staff' && field.key === 'password') {
-          return '********';
-        }
-        return value?.toString() ?? '';
-      }
-    }));
+  if (!config) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Không tìm thấy cấu hình cho thực thể đã chọn.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
-    const actionsColumn = {
+  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    onFileSelectForImport(event);
+    const file = event.target.files?.[0];
+    if (file) {
+      startImportProcess(file);
+    }
+  };
+
+  const columnsWithActions = [
+    ...config.fields,
+    {
       key: 'actions',
-      label: 'Thao tác',
-      width: 120,
-      render: (_: any, row: any) => (
-        <div className="flex justify-end space-x-1">
-          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(row); }} title="Chỉnh sửa">
-            <Edit className="h-4 w-4 text-blue-600" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(row); }} title="Xóa">
-            <Trash2 className="h-4 w-4 text-red-600" />
-          </Button>
-        </div>
-      )
-    };
-
-    return [...fieldColumns, actionsColumn];
-  }, [selectedEntity, onEdit, onDelete]);
-
-  const filterableFields = useMemo(() => {
-    return entityConfig[selectedEntity]?.fields.filter(f => f.filterable) || [];
-  }, [selectedEntity]);
-
-  const numSelected = Object.keys(selectedRows).length;
-
-  return (
-    <div className="mt-6 space-y-6">
-      {/* Entity Selection Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Chọn bảng dữ liệu</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-4">
-          <Select value={selectedEntity} onValueChange={onEntityChange}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Chọn bảng" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.keys(entityConfig).map((key) => (
-                <SelectItem key={key} value={key}>
-                  {entityConfig[key].name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={onAdd} className="bg-green-600 hover:bg-green-700 text-white">
-            <Plus className="mr-2 h-4 w-4" /> New
-          </Button>
-          {numSelected > 0 && (
-            <Button onClick={onBulkDelete} variant="destructive">
-              <Trash2 className="mr-2 h-4 w-4" /> Xóa ({numSelected})
+      label: 'Hành động',
+      render: (_: any, item: any) => (
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => onEdit(item)}>Sửa</Button>
+          <Button variant="destructive" size="sm" onClick={() => onDelete(item)}>Xóa</Button>
+          {selectedEntity === 'staff' && (
+            <Button
+              variant={item.account_status === 'locked' ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => onToggleStaffLock(item)}
+            >
+              {item.account_status === 'locked' ? 'Mở khóa' : 'Khóa'}
             </Button>
           )}
-          <div className="flex-grow" />
-          <Button variant="outline" onClick={onExportCSV}>
-            <Download className="mr-2 h-4 w-4" /> Export
-          </Button>
-          <Button variant="outline" onClick={onImportClick}>
-            <Upload className="mr-2 h-4 w-4" /> Import
-          </Button>
-          <input
-            type="file"
-            ref={restoreInputRef}
-            onChange={onRestoreData}
-            accept=".zip"
-            className="hidden"
-          />
-          <TestDataButton />
-        </CardContent>
-      </Card>
+        </div>
+      ),
+    },
+  ];
 
-      {/* Search & Filter Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Tìm kiếm & Lọc</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Input
-            placeholder={`Tìm kiếm chung trong ${entityConfig[selectedEntity]?.name}...`}
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-          <Accordion type="single" collapsible className="w-full mt-4">
-            <AccordionItem value="advanced-filters">
-              <AccordionTrigger>Bộ lọc nâng cao</AccordionTrigger>
-              <AccordionContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border-t">
-                  {filterableFields.map(field => {
-                    if (field.type === 'date') {
-                      return (
-                        <React.Fragment key={field.key}>
-                          <div>
-                            <Label>{field.label} (Từ)</Label>
-                            <DateInput value={filters[`${field.key}_start`] || ''} onChange={date => onFilterChange(`${field.key}_start`, date)} />
-                          </div>
-                          <div>
-                            <Label>{field.label} (Đến)</Label>
-                            <DateInput value={filters[`${field.key}_end`] || ''} onChange={date => onFilterChange(`${field.key}_end`, date)} />
-                          </div>
-                        </React.Fragment>
-                      );
-                    }
-                    if (field.type === 'boolean' || field.options) {
-                      return (
-                        <div key={field.key}>
-                          <Label>{field.label}</Label>
-                          <Select value={filters[field.key] || ''} onValueChange={value => onFilterChange(field.key, value === 'all' ? '' : value)}>
-                            <SelectTrigger><SelectValue placeholder={`Lọc theo ${field.label}`} /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">Tất cả</SelectItem>
-                              {(field.options || ['true', 'false']).map(option => (
-                                <SelectItem key={option} value={option}>{option === 'true' ? 'Có' : option === 'false' ? 'Không' : option}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div key={field.key}>
-                        <Label>{field.label}</Label>
-                        <Input
-                          placeholder={`Lọc theo ${field.label}`}
-                          value={filters[field.key] || ''}
-                          onChange={e => onFilterChange(field.key, e.target.value)}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="p-4 pt-2 flex justify-end">
-                  <Button variant="ghost" onClick={onClearFilters}>
-                    <FilterX className="mr-2 h-4 w-4" /> Xóa bộ lọc
-                  </Button>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </CardContent>
-      </Card>
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Quản lý dữ liệu</CardTitle>
+        <CardDescription>Xem và quản lý dữ liệu cho các thực thể khác nhau.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex flex-col md:flex-row gap-4 items-center">
+          <div className="flex-grow w-full md:w-auto">
+            <Label htmlFor="entity-select">Chọn thực thể</Label>
+            <Select value={selectedEntity} onValueChange={onEntityChange}>
+              <SelectTrigger id="entity-select" className="w-full">
+                <SelectValue placeholder="Chọn một thực thể" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(entityConfig).map((key) => (
+                  <SelectItem key={key} value={key}>
+                    {entityConfig[key].name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-grow w-full md:w-auto">
+            <Label htmlFor="search-input">Tìm kiếm</Label>
+            <Input
+              id="search-input"
+              placeholder="Tìm kiếm..."
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+            />
+          </div>
+          <div className="flex-shrink-0 mt-auto">
+            <Button onClick={onAdd}>Thêm mới</Button>
+          </div>
+        </div>
 
-      {/* Bulk Delete for Asset Transactions */}
-      {selectedEntity === 'asset_transactions' && (
-        <Card className="bg-red-50 border-red-200">
-          <CardHeader>
-            <CardTitle>Xóa hàng loạt theo ngày (Admin)</CardTitle>
-            <p className="text-sm text-gray-600">
-              Chọn khoảng thời gian để xóa tất cả các giao dịch trong khoảng đó. Hành động này không thể hoàn tác.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="startDate">Ngày bắt đầu</Label>
-                <DateInput value={startDate} onChange={onStartDateChange} />
-              </div>
-              <div>
-                <Label htmlFor="endDate">Ngày kết thúc</Label>
-                <DateInput value={endDate} onChange={onEndDateChange} />
-              </div>
+        {/* Dynamic Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {config.fields.filter(f => f.filterable).map(field => (
+            <div key={field.key}>
+              <Label htmlFor={`filter-${field.key}`}>{field.label}</Label>
+              {field.type === 'select' && field.options ? (
+                <Select
+                  value={filters[field.key] || ''}
+                  onValueChange={(value) => onFilterChange(field.key, value === '' ? undefined : value)}
+                >
+                  <SelectTrigger id={`filter-${field.key}`}>
+                    <SelectValue placeholder={`Lọc theo ${field.label}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Tất cả</SelectItem>
+                    {field.options.map(option => (
+                      <SelectItem key={option} value={option}>{option}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : field.type === 'date' ? (
+                <DateInput
+                  value={filters[field.key] || ''}
+                  onChange={(date) => onFilterChange(field.key, date)}
+                  placeholder={`Lọc theo ${field.label}`}
+                />
+              ) : (
+                <Input
+                  id={`filter-${field.key}`}
+                  placeholder={`Lọc theo ${field.label}`}
+                  value={filters[field.key] || ''}
+                  onChange={(e) => onFilterChange(field.key, e.target.value)}
+                />
+              )}
             </div>
-            <div className="flex justify-end">
-              <Button onClick={onBulkDeleteTransactions} variant="destructive">
-                <Trash2 className="mr-2 h-4 w-4" /> Xóa theo ngày
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          ))}
+        </div>
 
-      {/* Data Table Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {entityConfig[selectedEntity]?.name} (Tổng: {totalCount} bản ghi)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <OptimizedTable
-            data={paginatedData}
-            columns={columns}
-            height={600}
-            itemHeight={52}
-            onRowClick={onEdit}
-            loading={isLoading}
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+            <span className="ml-4 text-gray-600">Đang tải dữ liệu...</span>
+          </div>
+        ) : (
+          <OptimisedTable
+            data={data}
+            columns={columnsWithActions}
+            onSort={onSort}
             sortColumn={sortColumn}
             sortDirection={sortDirection}
-            onSort={onSort}
-            selectable
-            selectedRows={selectedRows}
-            onRowSelect={onRowSelect}
-            onSelectAll={onSelectAll}
           />
-          <div className="flex justify-between items-center mt-4">
-            <Button
-              onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-            >
-              Trước
-            </Button>
-            <span>
-              Trang {currentPage} / {totalPages}
-            </span>
-            <Button
-              onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages || totalPages === 0}
-            >
-              Tiếp
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+
+        <div className="flex flex-wrap gap-4 justify-end">
+          <Button onClick={onExportCSV}>Xuất CSV</Button>
+          <Button onClick={onImportClick}>Nhập dữ liệu</Button>
+          <Input
+            type="file"
+            ref={restoreInputRef}
+            onChange={handleImportFileChange}
+            style={{ display: 'none' }}
+            accept=".zip"
+          />
+        </div>
+
+        {selectedEntity === 'asset_transactions' && (
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Xóa giao dịch hàng loạt</CardTitle>
+              <CardDescription>Xóa tất cả giao dịch trong một khoảng thời gian nhất định.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="flex-grow">
+                <Label htmlFor="start-date">Ngày bắt đầu</Label>
+                <DateInput
+                  id="start-date"
+                  value={startDate}
+                  onChange={onStartDateChange}
+                  placeholder="Chọn ngày bắt đầu"
+                />
+              </div>
+              <div className="flex-grow">
+                <Label htmlFor="end-date">Ngày kết thúc</Label>
+                <DateInput
+                  id="end-date"
+                  value={endDate}
+                  onChange={onEndDateChange}
+                  placeholder="Chọn ngày kết thúc"
+                />
+              </div>
+              <Button onClick={onBulkDeleteTransactions} variant="destructive" className="flex-shrink-0">
+                Xóa hàng loạt
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>{editingItem ? 'Chỉnh sửa' : 'Thêm mới'} {config.name}</DialogTitle>
+              <DialogDescription>
+                {editingItem ? 'Chỉnh sửa thông tin' : 'Thêm một bản ghi mới'} cho {config.name}.
+              </DialogDescription>
+            </DialogHeader>
+            {/* Form content will go here, dynamically rendered based on config.fields */}
+            {/* For now, a placeholder */}
+            <div className="py-4">
+              <p>Form chỉnh sửa/thêm mới sẽ được hiển thị tại đây.</p>
+              <Button onClick={() => handleSave({})}>Lưu (Placeholder)</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
   );
 };
+
+export default DataManagementTab;

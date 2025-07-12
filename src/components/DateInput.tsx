@@ -14,6 +14,7 @@ interface DateInputProps {
   className?: string;
   disabledBefore?: Date; // Prop to disable past dates
   label?: string; // Label prop
+  id?: string; // Add optional id prop
 }
 
 const DateInput: React.FC<DateInputProps> = ({ value, onChange, placeholder, className, disabledBefore, label }) => {

@@ -1,130 +1,95 @@
-import { DataManagementTab } from './DataManagementTab';
+import DataManagementTab from './DataManagementTab';
 import { StatisticsTab } from './StatisticsTab';
+import { useDataManagement } from '@/hooks/useDataManagement';
+import { entityConfig } from '@/config/entityConfig';
 
 interface TabContentProps {
   activeTab: string;
-  // Data Management props
-  selectedEntity: string;
-  onEntityChange: (entity: string) => void;
-  isLoading: boolean;
-  searchTerm: string;
-  onSearchChange: (term: string) => void;
-  paginatedData: any[];
-  totalCount: number;
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-  onAdd: () => void;
-  onEdit: (item: any) => void;
-  onDelete: (item: any) => void;
-  onExportCSV: () => void;
-  onImportClick: () => void;
-  restoreInputRef: React.RefObject<HTMLInputElement>;
-  onRestoreData: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  startDate: string;
-  endDate: string;
-  onStartDateChange: (date: string) => void;
-  onEndDateChange: (date: string) => void;
-  onBulkDeleteTransactions: () => void;
-  // Statistics props
-  runAsAdmin: (callback: () => Promise<void>) => Promise<void>;
-  // setMessage: (message: { type: string; text: string }) => void; // Removed
-  // Sorting props
-  sortColumn: string | null;
-  sortDirection: 'asc' | 'desc';
-  onSort: (columnKey: string) => void;
-  // Filter props
-  filters: Record<string, any>;
-  onFilterChange: (key: string, value: any) => void;
-  onClearFilters: () => void;
-  // Selection props
-  selectedRows: Record<string, boolean>;
-  onRowSelect: (rowId: string) => void;
-  onSelectAll: () => void;
-  onBulkDelete: () => void;
 }
 
-export const TabContent = ({
-  activeTab,
-  selectedEntity,
-  onEntityChange,
-  isLoading,
-  searchTerm,
-  onSearchChange,
-  paginatedData,
-  totalCount,
-  currentPage,
-  totalPages,
-  onPageChange,
-  onAdd,
-  onEdit,
-  onDelete,
-  onExportCSV,
-  onImportClick,
-  restoreInputRef,
-  onRestoreData,
-  startDate,
-  endDate,
-  onStartDateChange,
-  onEndDateChange,
-  onBulkDeleteTransactions,
-  runAsAdmin,
-  // setMessage, // Removed
-  sortColumn,
-  sortDirection,
-  onSort,
-  filters,
-  onFilterChange,
-  onClearFilters,
-  selectedRows,
-  onRowSelect,
-  onSelectAll,
-  onBulkDelete
-}: TabContentProps) => {
+export const TabContent = ({ activeTab }: TabContentProps) => {
+  const {
+    selectedEntity,
+    setSelectedEntity,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    data,
+    totalCount,
+    currentPage,
+    setCurrentPage,
+    handleAdd,
+    handleEdit,
+    handleDelete,
+    exportToCSV,
+    handleImportClick,
+    restoreInputRef,
+    handleFileSelectForImport,
+    startImportProcess,
+    startDate,
+    endDate,
+    setStartDate,
+    setEndDate,
+    bulkDeleteTransactions,
+    runAsAdmin,
+    sortColumn,
+    sortDirection,
+    handleSort,
+    filters,
+    handleFilterChange,
+    toggleStaffLock,
+    dialogOpen,
+    setDialogOpen,
+    editingItem,
+    handleSave,
+    config,
+  } = useDataManagement();
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'management':
         return (
           <DataManagementTab
+            activeTab={activeTab}
             selectedEntity={selectedEntity}
-            onEntityChange={onEntityChange}
+            onEntityChange={setSelectedEntity}
             isLoading={isLoading}
             searchTerm={searchTerm}
-            onSearchChange={onSearchChange}
-            paginatedData={paginatedData}
+            onSearchChange={setSearchTerm}
+            data={data}
             totalCount={totalCount}
             currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={onPageChange}
-            onAdd={onAdd}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onExportCSV={onExportCSV}
-            onImportClick={onImportClick}
+            onPageChange={setCurrentPage}
+            onAdd={handleAdd}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onExportCSV={exportToCSV}
+            onImportClick={handleImportClick}
             restoreInputRef={restoreInputRef}
-            onRestoreData={onRestoreData}
+            onFileSelectForImport={handleFileSelectForImport}
+            startImportProcess={startImportProcess}
             startDate={startDate}
             endDate={endDate}
-            onStartDateChange={onStartDateChange}
-            onEndDateChange={onEndDateChange}
-            onBulkDeleteTransactions={onBulkDeleteTransactions}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            onBulkDeleteTransactions={bulkDeleteTransactions}
+            onToggleStaffLock={toggleStaffLock}
+            onSort={handleSort}
             sortColumn={sortColumn}
             sortDirection={sortDirection}
-            onSort={onSort}
             filters={filters}
-            onFilterChange={onFilterChange}
-            onClearFilters={onClearFilters}
-            selectedRows={selectedRows}
-            onRowSelect={onRowSelect}
-            onSelectAll={onSelectAll}
-            onBulkDelete={onBulkDelete}
+            onFilterChange={handleFilterChange}
+            config={config}
+            dialogOpen={dialogOpen}
+            setDialogOpen={setDialogOpen}
+            editingItem={editingItem}
+            handleSave={handleSave}
           />
         );
 
       case 'statistics':
         return (
           <div className="mt-6 space-y-6">
-            {/* setMessage prop is not used in StatisticsTab, so it's safe to remove */}
             <StatisticsTab runAsAdmin={runAsAdmin} onLoad={() => {}} />
           </div>
         );

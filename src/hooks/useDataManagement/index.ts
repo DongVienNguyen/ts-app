@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { createDataCache } from './cache';
 import { useDataOperations } from './useDataOperations';
-import { dataService } from './dataService';
 import type { DataManagementReturn } from './types';
 import { useDebounce } from '@/hooks/useDebounce';
-import { toast } from 'sonner'; // Import toast from sonner
+import { toast } from 'sonner';
+import { entityConfig } from '@/config/entityConfig';
+import { dataService } from './dataService'; // Import dataService
 
 const ITEMS_PER_PAGE = 20;
 
@@ -22,7 +23,6 @@ export const useDataManagement = (): DataManagementReturn => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  // const [message, setMessage] = useState({ type: '', text: '' }); // Removed
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState('management');
   const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -51,7 +51,8 @@ export const useDataManagement = (): DataManagementReturn => {
     handleDelete,
     toggleStaffLock,
     exportToCSV,
-    handleRestoreData,
+    handleFileSelectForImport,
+    startImportProcess,
     handleImportClick,
     bulkDeleteTransactions
   } = useDataOperations({
@@ -73,7 +74,6 @@ export const useDataManagement = (): DataManagementReturn => {
     setData,
     setTotalCount,
     setIsLoading,
-    // setMessage, // Removed
     setDialogOpen,
     setEditingItem,
     setRestoreFile,
@@ -196,7 +196,7 @@ export const useDataManagement = (): DataManagementReturn => {
     } else if (user) {
       setData([]);
       setTotalCount(0);
-      toast.error('Chỉ admin mới có thể truy cập module này.'); // Changed to toast
+      toast.error('Chỉ admin mới có thể truy cập module này.');
     }
   }, [user, selectedEntity, navigate, loadData, currentPage, debouncedSearchTerm, debouncedFilters, sortColumn, sortDirection]);
   
@@ -204,6 +204,8 @@ export const useDataManagement = (): DataManagementReturn => {
   useEffect(() => {
     setSelectedRows({});
   }, [currentPage, debouncedSearchTerm, debouncedFilters, sortColumn, sortDirection]);
+
+  const currentEntityConfig = entityConfig[selectedEntity];
 
   return {
     // State
@@ -217,7 +219,6 @@ export const useDataManagement = (): DataManagementReturn => {
     editingItem,
     startDate,
     endDate,
-    // message, // Removed
     restoreFile,
     activeTab,
     sortColumn,
@@ -232,7 +233,6 @@ export const useDataManagement = (): DataManagementReturn => {
     setDialogOpen,
     setStartDate,
     setEndDate,
-    // setMessage, // Removed
     setActiveTab,
     restoreInputRef,
     
@@ -240,6 +240,7 @@ export const useDataManagement = (): DataManagementReturn => {
     filteredData: data,
     paginatedData,
     totalPages,
+    config: currentEntityConfig,
     
     // Actions
     runAsAdmin,
@@ -249,7 +250,8 @@ export const useDataManagement = (): DataManagementReturn => {
     handleDelete,
     toggleStaffLock,
     exportToCSV,
-    handleRestoreData,
+    handleFileSelectForImport,
+    startImportProcess,
     handleImportClick,
     bulkDeleteTransactions,
     refreshData,

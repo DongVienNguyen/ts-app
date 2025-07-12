@@ -1,5 +1,5 @@
 import { Settings, AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert'; // Keep Alert for admin access check
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import Layout from '@/components/Layout';
@@ -57,55 +57,15 @@ const mapEntityConfigToEditDialogFields = (config: typeof entityConfig[keyof typ
 
 const DataManagement = () => {
   const {
-    // State
     selectedEntity,
-    setSelectedEntity,
     isLoading,
-    searchTerm,
-    setSearchTerm,
-    currentPage,
-    setCurrentPage,
     dialogOpen,
     setDialogOpen,
     editingItem,
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    // message, // Removed
-    // setMessage, // Removed
+    handleSave,
     activeTab,
     setActiveTab,
-    restoreInputRef,
-    filters,
-    selectedRows,
-    
-    // Computed values
-    paginatedData,
-    totalCount,
-    totalPages,
-    
-    // Functions
-    runAsAdmin,
     refreshData,
-    handleAdd,
-    handleEdit,
-    handleSave,
-    handleDelete,
-    exportToCSV,
-    handleRestoreData,
-    handleImportClick,
-    bulkDeleteTransactions,
-    sortColumn,
-    sortDirection,
-    handleSort,
-    handleFilterChange,
-    handleClearFilters,
-    handleRowSelect,
-    handleSelectAll,
-    handleBulkDelete,
-    
-    // User
     user
   } = useDataManagement();
 
@@ -165,57 +125,10 @@ const DataManagement = () => {
           </Button>
         </div>
 
-        {/* Message Alert - Removed, now using toast */}
-        {/* {message.text && (
-          <Alert 
-            variant={message.type === 'error' ? 'destructive' : 'default'} 
-            className={message.type === 'success' ? 'bg-green-100 border-green-400 text-green-800' : ''}
-          >
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{message.text}</AlertDescription>
-          </Alert>
-        )} */}
-
         <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
         <div className="mt-6">
-          <TabContent
-            activeTab={activeTab}
-            selectedEntity={selectedEntity}
-            onEntityChange={setSelectedEntity}
-            isLoading={isLoading}
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            paginatedData={paginatedData}
-            totalCount={totalCount}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            onAdd={handleAdd}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onExportCSV={exportToCSV}
-            onImportClick={handleImportClick}
-            restoreInputRef={restoreInputRef}
-            onRestoreData={handleRestoreData}
-            startDate={startDate}
-            endDate={endDate}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
-            onBulkDeleteTransactions={bulkDeleteTransactions}
-            runAsAdmin={runAsAdmin}
-            // setMessage={setMessage} // Removed
-            sortColumn={sortColumn}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            onClearFilters={handleClearFilters}
-            selectedRows={selectedRows}
-            onRowSelect={handleRowSelect}
-            onSelectAll={handleSelectAll}
-            onBulkDelete={handleBulkDelete}
-          />
+          <TabContent activeTab={activeTab} />
         </div>
 
         <EditDialog

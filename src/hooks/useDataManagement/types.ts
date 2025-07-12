@@ -1,3 +1,5 @@
+import { EntityConfig } from "@/config/entityConfig";
+
 export interface DataManagementState {
   selectedEntity: string;
   data: any[];
@@ -9,7 +11,6 @@ export interface DataManagementState {
   editingItem: any;
   startDate: string;
   endDate: string;
-  // message: { type: string; text: string }; // Removed
   restoreFile: File | null;
   activeTab: string;
   sortColumn: string | null;
@@ -31,7 +32,8 @@ export interface DataManagementActions {
   handleDelete: (item: any) => Promise<void>;
   toggleStaffLock: (staff: any) => Promise<void>;
   exportToCSV: () => void;
-  handleRestoreData: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  handleFileSelectForImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  startImportProcess: (file: File) => void;
   handleImportClick: () => void;
   bulkDeleteTransactions: () => Promise<void>;
   refreshData: () => void;
@@ -50,7 +52,6 @@ export interface DataManagementReturn extends DataManagementState, DataManagemen
   setDialogOpen: (open: boolean) => void;
   setStartDate: (date: string) => void;
   setEndDate: (date: string) => void;
-  // setMessage: (message: { type: string; text: string }) => void; // Removed
   setActiveTab: (tab: string) => void;
   restoreInputRef: React.RefObject<HTMLInputElement>;
   filteredData: any[];
@@ -58,6 +59,7 @@ export interface DataManagementReturn extends DataManagementState, DataManagemen
   totalPages: number;
   runAsAdmin: (callback: () => Promise<void>) => Promise<void>;
   user: any;
+  config: EntityConfig;
 }
 
 export interface LoadDataParams {
