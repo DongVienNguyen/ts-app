@@ -3,6 +3,7 @@ import { Staff } from '@/types/auth';
 import { secureLoginUser, validateSession } from '@/services/secureAuthService';
 import { healthCheckService } from '@/services/healthCheckService';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthenticatedStaff extends Staff {
   token?: string;
@@ -26,34 +27,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthenticatedStaff | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Manual session management using localStorage
+  // Session management with Supabase client synchronization
   useEffect(() => {
-    console.log('🚀 [AUTH] AuthProvider mounted, checking for existing session in localStorage');
-    setLoading(true);
-    try {
-      if (validateSession()) {
-        const userStr = localStorage.getItem('auth_user');
-        const storedUser: AuthenticatedStaff = JSON.parse(userStr!);
-        setUser(storedUser);
-        healthCheckService.onUserLogin();
-        console.log('✅ [AUTH] Session restored from localStorage for user:', storedUser.username);
-      } else {
-        console.log('🔎 [AUTH] No valid session found in localStorage. Clearing session.');
+    const restoreSession = async () => {
+      console.log('🚀 [AUTH] AuthProvider mounted, checking for existing session');
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (validateSession() && token) {
+          const userStr = localStorage.getItem('auth_user');
+          const storedUser: AuthenticatedStaff = JSON.parse(userStr!);
+          
+          // IMPORTANT: Restore the session for the Supabase client
+          await supabase.auth.setSession({
+            access_token: token,
+            refresh_token: token, // Using the same token as refresh_token
+          });
+
+          setUser(storedUser);
+          healthCheckService.onUserLogin();
+          console.log('✅ [AUTH] Session restored for user:', storedUser.username);
+        } else {
+          console.log('🔎 [AUTH] No valid session found. Clearing session.');
+          await supabase.auth.signOut();
+          localStorage.removeItem('auth_user');
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_login_time');
+          setUser(null);
+          healthCheckService.onUserLogout();
+        }
+      } catch (error) {
+        console.error('❌ [AUTH] Error restoring session, clearing session.', error);
+        await supabase.auth.signOut();
         localStorage.removeItem('auth_user');
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_login_time');
         setUser(null);
-        healthCheckService.onUserLogout();
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('❌ [AUTH] Error reading auth from storage, clearing session.', error);
-      localStorage.removeItem('auth_user');
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_login_time');
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+    };
+    
+    restoreSession();
   }, []);
 
   const login = async (username: string, password: string) => {
@@ -65,6 +80,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (result.success && result.user && result.token) {
         const authenticatedUser: AuthenticatedStaff = { ...result.user, token: result.token };
         
+        // IMPORTANT: Set the session for the Supabase client
+        await supabase.auth.setSession({
+          access_token: result.token,
+          refresh_token: result.token, // Using the same token as refresh_token
+        });
+
         localStorage.setItem('auth_user', JSON.stringify(authenticatedUser));
         localStorage.setItem('auth_token', result.token);
         localStorage.setItem('auth_login_time', Date.now().toString());
@@ -92,6 +113,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('🚪 [AUTH] Logging out user');
     setLoading(true);
     
+    // IMPORTANT: Sign out from Supabase client
+    await supabase.auth.signOut();
+    
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_login_time');
@@ -104,17 +128,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const checkAuth = async () => {
-    // This function can now re-run the logic from useEffect
     console.log('🔄 [AUTH] Manual checkAuth triggered.');
     setLoading(true);
     try {
-      if (validateSession()) {
+      const token = localStorage.getItem('auth_token');
+      if (validateSession() && token) {
+        // Also re-sync with Supabase client
+        await supabase.auth.setSession({
+          access_token: token,
+          refresh_token: token,
+        });
         const userStr = localStorage.getItem('auth_user');
         setUser(JSON.parse(userStr!));
       } else {
+        await supabase.auth.signOut();
         setUser(null);
       }
     } catch (e) {
+      await supabase.auth.signOut();
       setUser(null);
     } finally {
       setLoading(false);
