@@ -15,26 +15,23 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import DateInput from '@/components/DateInput';
 import { format, parseISO } from 'date-fns';
-
-// Define a generic schema for editing, allowing dynamic fields
-// const editSchema = z.object({ // Removed as it's not used
-//   id: z.string().optional(),
-//   field: z.string().min(1, 'Trường không được để trống'),
-//   value: z.any(),
-// });
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 
 interface EditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (data: any) => void;
   title: string;
-  description?: string; // Optional description for the dialog
+  description?: string;
   fields: {
     name: string;
     label: string;
-    type: 'text' | 'number' | 'date' | 'email' | 'password';
+    type: 'text' | 'number' | 'date' | 'email' | 'password' | 'select' | 'textarea' | 'boolean';
+    options?: string[];
     defaultValue?: any;
-    schema: z.ZodTypeAny; // Zod schema for individual field validation
+    schema: z.ZodTypeAny;
   }[];
   initialData?: Record<string, any>;
   isLoading: boolean;
@@ -50,7 +47,6 @@ export const EditDialog: React.FC<EditDialogProps> = ({
   initialData,
   isLoading,
 }) => {
-  // Dynamically create a Zod schema based on the 'fields' prop
   const dynamicSchema = z.object(
     fields.reduce((acc, field) => {
       acc[field.name] = field.schema;
@@ -65,11 +61,9 @@ export const EditDialog: React.FC<EditDialogProps> = ({
 
   React.useEffect(() => {
     if (initialData) {
-      // Reset form with initial data when it changes
       form.reset(initialData);
     } else {
-      // Reset form to empty if no initial data (e.g., for new entry)
-      form.reset(fields.reduce((acc, field) => ({ ...acc, [field.name]: field.defaultValue || '' }), {}));
+      form.reset(fields.reduce((acc, field) => ({ ...acc, [field.name]: field.defaultValue || undefined }), {}));
     }
   }, [initialData, form, fields]);
 
@@ -82,7 +76,6 @@ export const EditDialog: React.FC<EditDialogProps> = ({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          {/* Always render DialogDescription, provide a default if description is not given */}
           <DialogDescription>
             {description || "Vui lòng điền thông tin chi tiết."}
           </DialogDescription>
@@ -98,19 +91,48 @@ export const EditDialog: React.FC<EditDialogProps> = ({
                   <FormItem>
                     <FormLabel>{field.label}</FormLabel>
                     <FormControl>
-                      {field.type === 'date' ? (
-                        <DateInput
-                          value={formField.value ? format(formField.value, 'yyyy-MM-dd') : ''}
-                          onChange={(dateString) => formField.onChange(dateString ? parseISO(dateString) : null)}
-                          label={field.label}
-                        />
-                      ) : (
-                        <Input
-                          type={field.type}
-                          {...formField}
-                          value={formField.value || ''}
-                        />
-                      )}
+                      {(() => {
+                        switch (field.type) {
+                          case 'date':
+                            return (
+                              <DateInput
+                                value={formField.value ? format(new Date(formField.value), 'yyyy-MM-dd') : ''}
+                                onChange={(dateString) => formField.onChange(dateString ? parseISO(dateString) : null)}
+                                label={field.label}
+                              />
+                            );
+                          case 'select':
+                            return (
+                              <Select onValueChange={formField.onChange} defaultValue={formField.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={`Chọn ${field.label}`} />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {field.options?.map(option => (
+                                    <SelectItem key={option} value={option}>
+                                      {option}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            );
+                          case 'textarea':
+                            return <Textarea {...formField} value={formField.value || ''} />;
+                          case 'boolean':
+                            return (
+                              <div className="flex items-center h-9">
+                                <Switch
+                                  checked={!!formField.value}
+                                  onCheckedChange={formField.onChange}
+                                />
+                              </div>
+                            );
+                          default:
+                            return <Input type={field.type} {...formField} value={formField.value || ''} />;
+                        }
+                      })()}
                     </FormControl>
                     <FormMessage />
                   </FormItem>

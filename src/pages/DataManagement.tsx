@@ -6,42 +6,49 @@ import Layout from '@/components/Layout';
 import { TabNavigation } from '@/components/data-management/TabNavigation';
 import { TabContent } from '@/components/data-management/TabContent';
 import { EditDialog } from '@/components/data-management/EditDialog';
-import { entityConfig } from '@/config/entityConfig';
+import { entityConfig, EntityConfig } from '@/config/entityConfig';
 import { useDataManagement } from '@/hooks/useDataManagement';
 import { z } from 'zod';
 
 type EditDialogField = {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'date' | 'email' | 'password';
+  type: 'text' | 'number' | 'date' | 'email' | 'password' | 'select' | 'textarea' | 'boolean';
+  options?: string[];
   defaultValue?: any;
   schema: z.ZodTypeAny;
 };
 
-const mapEntityConfigToEditDialogFields = (config: typeof entityConfig[keyof typeof entityConfig]): EditDialogField[] => {
+const mapEntityConfigToEditDialogFields = (config: EntityConfig): EditDialogField[] => {
   return config.fields.map(field => {
     let editDialogType: EditDialogField['type'];
     let schema: z.ZodTypeAny;
 
     switch (field.type) {
-      case 'text':
       case 'select':
-      case 'textarea':
-      case 'boolean':
-        editDialogType = 'text';
+        editDialogType = 'select';
         schema = field.required ? z.string().min(1, `${field.label} không được để trống`) : z.string().nullable();
+        break;
+      case 'textarea':
+        editDialogType = 'textarea';
+        schema = field.required ? z.string().min(1, `${field.label} không được để trống`) : z.string().nullable();
+        break;
+      case 'boolean':
+        editDialogType = 'boolean';
+        schema = z.boolean().default(field.defaultValue || false);
         break;
       case 'number':
         editDialogType = 'number';
-        schema = field.required ? z.number({ invalid_type_error: `${field.label} phải là số` }).min(1, `${field.label} không được để trống`) : z.number().nullable();
+        schema = field.required ? z.number({ invalid_type_error: `${field.label} phải là số` }) : z.number().nullable();
         break;
       case 'date':
         editDialogType = 'date';
         schema = field.required ? z.date({ invalid_type_error: `${field.label} phải là ngày hợp lệ` }) : z.date().nullable();
         break;
+      case 'text':
       default:
         editDialogType = 'text';
-        schema = z.string().nullable();
+        schema = field.required ? z.string().min(1, `${field.label} không được để trống`) : z.string().nullable();
         break;
     }
 
@@ -49,6 +56,7 @@ const mapEntityConfigToEditDialogFields = (config: typeof entityConfig[keyof typ
       name: field.key,
       label: field.label,
       type: editDialogType,
+      options: field.options,
       defaultValue: field.defaultValue,
       schema: schema,
     };
@@ -123,8 +131,8 @@ const DataManagement = () => {
         <EditDialog
           open={dm.dialogOpen}
           onOpenChange={dm.setDialogOpen}
-          title={`Chỉnh sửa ${currentEntityConfig.name}`}
-          description={`Chỉnh sửa thông tin cho ${currentEntityConfig.name}.`}
+          title={dm.editingItem ? `Chỉnh sửa ${currentEntityConfig.name}` : `Thêm mới ${currentEntityConfig.name}`}
+          description={`Cung cấp thông tin chi tiết cho ${currentEntityConfig.name}.`}
           fields={editDialogFields}
           initialData={dm.editingItem}
           onSave={dm.handleSave}

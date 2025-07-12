@@ -43,10 +43,6 @@ export const TabContent = ({ activeTab, dm }: TabContentProps) => {
             filters={dm.filters}
             onFilterChange={dm.handleFilterChange}
             config={dm.config}
-            dialogOpen={dm.dialogOpen}
-            setDialogOpen={dm.setDialogOpen}
-            editingItem={dm.editingItem}
-            handleSave={dm.handleSave}
           />
         );
 

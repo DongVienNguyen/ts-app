@@ -61,10 +61,11 @@ interface DataManagementTabProps {
   filters: Record<string, any>;
   onFilterChange: (key: string, value: any) => void;
   config: EntityConfig;
-  dialogOpen: boolean;
-  setDialogOpen: (open: boolean) => void;
-  editingItem: any;
-  handleSave: (formData: any) => void;
+  // Removed dialog-related props as they are now handled by the parent DataManagement component
+  // dialogOpen: boolean;
+  // setDialogOpen: (open: boolean) => void;
+  // editingItem: any;
+  // handleSave: (formData: any) => void;
 }
 
 const DataManagementTab: React.FC<DataManagementTabProps> = ({
@@ -98,6 +99,11 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
   filters,
   onFilterChange,
   config,
+  // Removed dialog-related props from destructuring
+  // dialogOpen,
+  // setDialogOpen,
+  // editingItem,
+  // handleSave,
 }) => {
 
   if (!config) {
