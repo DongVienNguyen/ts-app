@@ -120,17 +120,17 @@ export function useRealTimeSecurityMonitoring() {
     const handleDisconnect = () => setIsSupabaseConnected(false);
 
     // Initial check
-    setIsSupabaseConnected(supabase.realtime.status() === 'CONNECTED');
+    setIsSupabaseConnected(supabase.realtime.connectionState === 'open');
 
     // Listen for global real-time connection status changes
-    supabase.realtime.on('CONNECT', handleConnect);
-    supabase.realtime.on('DISCONNECT', handleDisconnect);
+    supabase.realtime.on('open', handleConnect);
+    supabase.realtime.on('close', handleDisconnect);
 
     return () => {
       supabase.removeChannel(securityEventsChannel);
       supabase.removeChannel(userSessionsChannel);
-      supabase.realtime.off('CONNECT', handleConnect);
-      supabase.realtime.off('DISCONNECT', handleDisconnect);
+      supabase.realtime.off('open', handleConnect);
+      supabase.realtime.off('close', handleDisconnect);
     };
   }, []);
 
