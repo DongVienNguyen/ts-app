@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
-import { entityConfig } from '@/config/entityConfig';
+import { entityConfig, FieldConfig } from '@/config/entityConfig';
 import { toCSV } from '@/utils/csvUtils';
 import JSZip from 'jszip';
 import { toast } from 'sonner';
@@ -186,6 +186,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
   };
 
   const loadAllStats = useCallback(async (start: string, end: string) => {
+    if (!start || !end) return;
     setIsLoading(true);
     onLoad();
     try {
@@ -215,7 +216,6 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
         currentTrends, 
         currentRecordStats,
         previousStaffStats,
-        previousTypeStats
       ] = await Promise.all([...currentPeriodPromises, ...previousPeriodPromises]);
 
       setStaffTransactionStats(currentStaffStats);
@@ -249,7 +249,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
 
   useEffect(() => {
     loadAllStats(startDate, endDate);
-  }, []);
+  }, [loadAllStats, startDate, endDate, comparisonEnabled]);
 
   const backupAllData = async () => {
     setIsBackingUp(true);
@@ -278,12 +278,24 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
     setIsBackingUp(false);
   };
 
-  const handleFilter = () => {
-    if (!startDate || !endDate) {
-      toast.error("Vui lòng chọn cả ngày bắt đầu và ngày kết thúc.");
+  const handleExportChartData = (data: any[], fields: FieldConfig[], filename: string) => {
+    if (!data || data.length === 0) {
+      toast.info("Không có dữ liệu để xuất.");
       return;
     }
-    loadAllStats(startDate, endDate);
+    try {
+      const csvContent = toCSV(data, fields);
+      const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', `${filename}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Đã xuất dữ liệu ${filename}.`);
+    } catch (error: any) {
+      toast.error(`Lỗi khi xuất dữ liệu: ${error.message}`);
+    }
   };
 
   const renderLoading = () => (
@@ -316,7 +328,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
             <Label htmlFor="stats-end-date">Đến ngày</Label>
             <DateInput id="stats-end-date" value={endDate} onChange={setEndDate} />
           </div>
-          <Button onClick={handleFilter} disabled={isLoading}>
+          <Button onClick={() => loadAllStats(startDate, endDate)} disabled={isLoading}>
             {isLoading ? 'Đang tải...' : 'Áp dụng'}
           </Button>
         </div>
@@ -357,11 +369,14 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
       
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <Card className="lg:col-span-5">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center">
               <LineChartIcon className="mr-2 h-5 w-5 text-indigo-600" />
               Xu hướng giao dịch theo thời gian
             </CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => handleExportChartData(transactionTrends, [{key: 'date', label: 'Ngày', type: 'text'}, {key: 'count', label: 'Số giao dịch', type: 'number'}], 'xu_huong_giao_dich')}>
+              <Download className="h-4 w-4" />
+            </Button>
           </CardHeader>
           <CardContent className="relative">
             {isLoading && renderLoading()}
@@ -383,11 +398,14 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
         </Card>
 
         <Card className="lg:col-span-3">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center">
               <DatabaseIcon className="mr-2 h-5 w-5 text-blue-600" />
               Thống kê số lượng bản ghi
             </CardTitle>
+             <Button variant="ghost" size="sm" onClick={() => handleExportChartData(statistics, [{key: 'name', label: 'Bảng', type: 'text'}, {key: 'count', label: 'Số bản ghi', type: 'number'}], 'thong_ke_so_luong_ban_ghi')}>
+              <Download className="h-4 w-4" />
+            </Button>
           </CardHeader>
           <CardContent className="relative">
             {isLoading && renderLoading()}
@@ -409,11 +427,14 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center">
               <PieChartIcon className="mr-2 h-5 w-5 text-amber-600" />
               Phân bổ loại giao dịch
             </CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => handleExportChartData(transactionTypeStats, [{key: 'name', label: 'Loại giao dịch', type: 'text'}, {key: 'value', label: 'Số lượng', type: 'number'}], 'phan_bo_loai_giao_dich')}>
+              <Download className="h-4 w-4" />
+            </Button>
           </CardHeader>
           <CardContent className="relative">
             {isLoading && renderLoading()}
@@ -446,11 +467,14 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = ({ runAsAdmin, onLoad
         </Card>
 
         <Card className="lg:col-span-5">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center">
               <BarChartIcon className="mr-2 h-5 w-5 text-green-600" />
               Thống kê giao dịch theo nhân viên
             </CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => handleExportChartData(staffTransactionStats, [{key: 'name', label: 'Nhân viên', type: 'text'}, {key: 'count', label: 'Số giao dịch', type: 'number'}], 'thong_ke_giao_dich_nhan_vien')}>
+              <Download className="h-4 w-4" />
+            </Button>
           </CardHeader>
           <CardContent className="relative">
             {isLoading && renderLoading()}
