@@ -390,6 +390,8 @@ export function getErrorStatistics(errors: SystemError[]) {
     bySeverity[error.severity || 'medium'] = (bySeverity[error.severity || 'medium'] || 0) + 1;
 
     // Parse user agent for browser and OS
+    console.log(`[DEBUG] Processing error ID: ${error.id}, Type: ${error.error_type}, Raw User Agent: "${error.user_agent}"`); // Debug log
+
     if (error.user_agent) {
       const userAgent = error.user_agent.toLowerCase();
       let browser = 'Unknown';
@@ -409,6 +411,10 @@ export function getErrorStatistics(errors: SystemError[]) {
 
       byBrowser[browser] = (byBrowser[browser] || 0) + 1;
       byOS[os] = (byOS[os] || 0) + 1;
+    } else {
+      // Explicitly handle cases where user_agent is null or empty
+      byBrowser['Unknown'] = (byBrowser['Unknown'] || 0) + 1;
+      byOS['Unknown'] = (byOS['Unknown'] || 0) + 1;
     }
 
     // Update error trend
