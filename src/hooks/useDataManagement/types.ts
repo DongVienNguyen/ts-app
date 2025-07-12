@@ -98,23 +98,6 @@ export interface DataManagementReturn {
   handleBulkDelete: () => Promise<void>;
 }
 
-export interface DataLoaderReturn {
-  isLoading: boolean;
-  data: any[];
-  totalCount: number;
-  currentPage: number;
-  setCurrentPage: (page: number) => void;
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  refreshData: () => void;
-  sortColumn: string | null;
-  sortDirection: 'asc' | 'desc';
-  handleSort: (columnKey: string) => void;
-  filters: Record<string, FilterState>;
-  handleFilterChange: (key: string, value: any, operator?: FilterOperator) => void;
-  clearFilters: () => void;
-}
-
 export interface DataActionsReturn {
   dialogOpen: boolean;
   setDialogOpen: (open: boolean) => void;
