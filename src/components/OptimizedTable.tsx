@@ -1,6 +1,5 @@
 import React, { memo, useMemo, useCallback } from 'react';
 import { FixedSizeList as List } from 'react-window';
-import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 
@@ -56,25 +55,20 @@ const TableRowComponent = memo<ListChildComponentProps>(({ index, style, data })
   }, [row.id, onRowSelect]);
 
   return (
-    <div style={style}>
-      <TableRow 
-        className="cursor-pointer hover:bg-gray-50" 
-        onClick={handleRowClick}
-      >
-        {selectable && (
-          <TableCell style={{ width: 50 }} onClick={handleCheckboxClick}>
-            <Checkbox
-              checked={!!selectedRows?.[row.id]}
-              aria-label={`Select row ${index + 1}`}
-            />
-          </TableCell>
-        )}
-        {columns.map((column) => (
-          <TableCell key={column.key} style={{ width: column.width }}>
-            {column.render ? column.render(row[column.key], row) : row[column.key]}
-          </TableCell>
-        ))}
-      </TableRow>
+    <div style={style} className="flex items-center border-b cursor-pointer transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted" onClick={handleRowClick}>
+      {selectable && (
+        <div className="flex-shrink-0 flex items-center justify-center p-4" style={{ width: 50 }} onClick={handleCheckboxClick}>
+          <Checkbox
+            checked={!!selectedRows?.[row.id]}
+            aria-label={`Select row ${index + 1}`}
+          />
+        </div>
+      )}
+      {columns.map((column) => (
+        <div key={column.key} className="flex-grow p-4 truncate" style={{ width: column.width, flexBasis: column.width }}>
+          {column.render ? column.render(row[column.key], row) : row[column.key]}
+        </div>
+      ))}
     </div>
   );
 });
@@ -127,38 +121,34 @@ const OptimizedTable: React.FC<OptimizedTableProps> = memo(({
 
   return (
     <div className="border rounded-md">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {selectable && (
-              <TableHead style={{ width: 50 }}>
-                <Checkbox
-                  checked={isAllSelected}
-                  onCheckedChange={onSelectAll}
-                  aria-label="Select all"
-                />
-              </TableHead>
-            )}
-            {columns.map((column) => (
-              <TableHead 
-                key={column.key} 
-                style={{ width: column.width }}
-                className={onSort && column.key !== 'actions' ? 'cursor-pointer hover:bg-gray-100' : ''}
-                onClick={() => onSort && column.key !== 'actions' && onSort(column.key)}
-              >
-                <div className="flex items-center">
-                  {column.label}
-                  {sortColumn === column.key && (
-                    <span className="ml-2">
-                      {sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-                    </span>
-                  )}
-                </div>
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-      </Table>
+      <div className="flex items-center font-medium border-b bg-muted/50">
+        {selectable && (
+          <div className="flex-shrink-0 flex items-center justify-center p-4" style={{ width: 50 }}>
+            <Checkbox
+              checked={isAllSelected}
+              onCheckedChange={onSelectAll}
+              aria-label="Select all"
+            />
+          </div>
+        )}
+        {columns.map((column) => (
+          <div 
+            key={column.key} 
+            className={`flex-grow p-4 ${onSort && column.key !== 'actions' ? 'cursor-pointer hover:bg-muted' : ''}`}
+            style={{ width: column.width, flexBasis: column.width }}
+            onClick={() => onSort && column.key !== 'actions' && onSort(column.key)}
+          >
+            <div className="flex items-center">
+              {column.label}
+              {sortColumn === column.key && (
+                <span className="ml-2">
+                  {sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
       
       <List
         height={height}
