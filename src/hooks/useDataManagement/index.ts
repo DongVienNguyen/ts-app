@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { createDataCache } from './cache';
 import { useDataOperations } from './useDataOperations';
+import { dataService } from './dataService';
 import type { DataManagementReturn } from './types';
 import { useDebounce } from '@/hooks/useDebounce';
 
@@ -26,6 +27,7 @@ export const useDataManagement = (): DataManagementReturn => {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filters, setFilters] = useState<Record<string, any>>({});
+  const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const { user } = useSecureAuth();
@@ -77,6 +79,62 @@ export const useDataManagement = (): DataManagementReturn => {
     restoreInputRef
   });
 
+  // Selection Handlers
+  const handleRowSelect = useCallback((rowId: string) => {
+    setSelectedRows(prev => {
+      const newSelection = { ...prev };
+      if (newSelection[rowId]) {
+        delete newSelection[rowId];
+      } else {
+        newSelection[rowId] = true;
+      }
+      return newSelection;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    const allVisibleIds = data.map(row => row.id);
+    const allSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedRows[id]);
+
+    if (allSelected) {
+      setSelectedRows({});
+    } else {
+      const newSelection = allVisibleIds.reduce((acc, id) => {
+        acc[id] = true;
+        return acc;
+      }, {} as Record<string, boolean>);
+      setSelectedRows(newSelection);
+    }
+  }, [data, selectedRows]);
+
+  const handleBulkDelete = useCallback(async () => {
+    const idsToDelete = Object.keys(selectedRows).filter(id => selectedRows[id]);
+    if (idsToDelete.length === 0) {
+      setMessage({ type: 'error', text: 'Vui lòng chọn ít nhất một bản ghi để xóa.' });
+      return;
+    }
+
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${idsToDelete.length} bản ghi đã chọn?`)) {
+      return;
+    }
+
+    await runAsAdmin(async () => {
+      try {
+        const result = await dataService.bulkDeleteData({
+          selectedEntity,
+          ids: idsToDelete,
+          user
+        });
+        setMessage({ type: 'success', text: result.message });
+        setSelectedRows({});
+        clearCache();
+        loadData(currentPage, debouncedSearchTerm, debouncedFilters);
+      } catch (error: any) {
+        setMessage({ type: 'error', text: `Lỗi xóa hàng loạt: ${error.message}` });
+      }
+    });
+  }, [selectedRows, runAsAdmin, selectedEntity, user, loadData, currentPage, debouncedSearchTerm, debouncedFilters, clearCache, setMessage]);
+
   // Sort handler
   const handleSort = useCallback((columnKey: string) => {
     if (sortColumn === columnKey) {
@@ -110,6 +168,7 @@ export const useDataManagement = (): DataManagementReturn => {
     setFilters({});
     setData([]);
     setTotalCount(0);
+    setSelectedRows({});
   }, [selectedEntity, clearEntityCache]);
 
   // Computed values
@@ -139,6 +198,11 @@ export const useDataManagement = (): DataManagementReturn => {
       setMessage({ type: 'error', text: 'Chỉ admin mới có thể truy cập module này.' });
     }
   }, [user, selectedEntity, navigate, loadData, currentPage, debouncedSearchTerm, debouncedFilters, sortColumn, sortDirection]);
+  
+  // Effect to clear selection on page change
+  useEffect(() => {
+    setSelectedRows({});
+  }, [currentPage, debouncedSearchTerm, debouncedFilters, sortColumn, sortDirection]);
 
   return {
     // State
@@ -158,6 +222,7 @@ export const useDataManagement = (): DataManagementReturn => {
     sortColumn,
     sortDirection,
     filters,
+    selectedRows,
     
     // Setters
     setSelectedEntity,
@@ -171,7 +236,7 @@ export const useDataManagement = (): DataManagementReturn => {
     restoreInputRef,
     
     // Computed values
-    filteredData: data, // Keep for compatibility, though paginatedData is used
+    filteredData: data,
     paginatedData,
     totalPages,
     
@@ -190,6 +255,9 @@ export const useDataManagement = (): DataManagementReturn => {
     handleSort,
     handleFilterChange,
     handleClearFilters,
+    handleRowSelect,
+    handleSelectAll,
+    handleBulkDelete,
     
     // User
     user

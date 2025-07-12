@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { entityConfig } from '@/config/entityConfig';
-import type { LoadDataParams, SaveDataParams, DeleteDataParams } from './types';
+import type { LoadDataParams, SaveDataParams, DeleteDataParams, BulkDeleteDataParams } from './types';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -34,7 +34,7 @@ export const dataService = {
           if (fieldConfig.type === 'boolean') {
             query = query.eq(key, value === 'true');
           } else {
-            query = query = query.ilike(key, `%${value}%`);
+            query = query.ilike(key, `%${value}%`);
           }
         }
       }
@@ -157,6 +157,24 @@ export const dataService = {
     
     if (error) throw error;
     return { success: true, message: "Xóa thành công" };
+  },
+
+  async bulkDeleteData({ selectedEntity, ids, user }: BulkDeleteDataParams) {
+    if (!user || user.role !== 'admin') {
+      throw new Error('Unauthorized access');
+    }
+    if (!ids || ids.length === 0) {
+      throw new Error('No items selected for deletion.');
+    }
+
+    const config = entityConfig[selectedEntity];
+    const { error } = await supabase
+      .from(config.entity as any)
+      .delete()
+      .in('id', ids);
+    
+    if (error) throw error;
+    return { success: true, message: `Đã xóa thành công ${ids.length} bản ghi.` };
   },
 
   async toggleStaffLock(staff: any, user: any) {

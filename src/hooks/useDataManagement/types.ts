@@ -14,7 +14,8 @@ export interface DataManagementState {
   activeTab: string;
   sortColumn: string | null;
   sortDirection: 'asc' | 'desc';
-  filters: Record<string, any>; // Added
+  filters: Record<string, any>;
+  selectedRows: Record<string, boolean>; // Added
 }
 
 export interface CacheEntry {
@@ -35,8 +36,11 @@ export interface DataManagementActions {
   bulkDeleteTransactions: () => Promise<void>;
   refreshData: () => void;
   handleSort: (columnKey: string) => void;
-  handleFilterChange: (key: string, value: any) => void; // Added
-  handleClearFilters: () => void; // Added
+  handleFilterChange: (key: string, value: any) => void;
+  handleClearFilters: () => void;
+  handleRowSelect: (rowId: string) => void; // Added
+  handleSelectAll: () => void; // Added
+  handleBulkDelete: () => Promise<void>; // Added
 }
 
 export interface DataManagementReturn extends DataManagementState, DataManagementActions {
@@ -63,7 +67,7 @@ export interface LoadDataParams {
   search?: string;
   sortColumn?: string | null;
   sortDirection?: 'asc' | 'desc';
-  filters?: Record<string, any>; // Added
+  filters?: Record<string, any>;
 }
 
 export interface SaveDataParams {
@@ -76,5 +80,11 @@ export interface SaveDataParams {
 export interface DeleteDataParams {
   selectedEntity: string;
   item: any;
+  user: any;
+}
+
+export interface BulkDeleteDataParams { // Added
+  selectedEntity: string;
+  ids: string[];
   user: any;
 }

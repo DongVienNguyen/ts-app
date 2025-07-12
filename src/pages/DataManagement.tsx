@@ -8,9 +8,8 @@ import { TabContent } from '@/components/data-management/TabContent';
 import { EditDialog } from '@/components/data-management/EditDialog';
 import { entityConfig } from '@/config/entityConfig';
 import { useDataManagement } from '@/hooks/useDataManagement';
-import { z } from 'zod'; // Import Zod
+import { z } from 'zod';
 
-// Define the expected field type for EditDialog
 type EditDialogField = {
   name: string;
   label: string;
@@ -19,18 +18,16 @@ type EditDialogField = {
   schema: z.ZodTypeAny;
 };
 
-// Helper function to map entityConfig fields to EditDialog fields
 const mapEntityConfigToEditDialogFields = (config: typeof entityConfig[keyof typeof entityConfig]): EditDialogField[] => {
   return config.fields.map(field => {
     let editDialogType: EditDialogField['type'];
     let schema: z.ZodTypeAny;
 
-    // Map entityConfig types to EditDialog types and create Zod schemas
     switch (field.type) {
       case 'text':
-      case 'select': // Map select to text for now
-      case 'textarea': // Map textarea to text for now
-      case 'boolean': // Map boolean to text for now
+      case 'select':
+      case 'textarea':
+      case 'boolean':
         editDialogType = 'text';
         schema = field.required ? z.string().min(1, `${field.label} không được để trống`) : z.string().nullable();
         break;
@@ -80,17 +77,17 @@ const DataManagement = () => {
     activeTab,
     setActiveTab,
     restoreInputRef,
-    filters, 
+    filters,
+    selectedRows,
     
     // Computed values
-    filteredData,
     paginatedData,
     totalCount,
     totalPages,
     
     // Functions
     runAsAdmin,
-    refreshData, // Use this instead of loadData for button clicks
+    refreshData,
     handleAdd,
     handleEdit,
     handleSave,
@@ -102,14 +99,16 @@ const DataManagement = () => {
     sortColumn,
     sortDirection,
     handleSort,
-    handleFilterChange, 
-    handleClearFilters, 
+    handleFilterChange,
+    handleClearFilters,
+    handleRowSelect,
+    handleSelectAll,
+    handleBulkDelete,
     
     // User
     user
   } = useDataManagement();
 
-  // Show loading state
   if (user === undefined) {
     return (
       <Layout>
@@ -123,7 +122,6 @@ const DataManagement = () => {
     );
   }
 
-  // Show access denied for non-admin users
   if (!user || user.role !== 'admin') {
     return (
       <Layout>
@@ -145,7 +143,6 @@ const DataManagement = () => {
   return (
     <Layout>
       <div className="space-y-6 p-4 md:p-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-lg">
@@ -157,7 +154,6 @@ const DataManagement = () => {
             </div>
           </div>
           
-          {/* Refresh Button */}
           <Button
             onClick={refreshData}
             disabled={isLoading}
@@ -169,7 +165,6 @@ const DataManagement = () => {
           </Button>
         </div>
 
-        {/* Message Alert */}
         {message.text && (
           <Alert 
             variant={message.type === 'error' ? 'destructive' : 'default'} 
@@ -180,10 +175,8 @@ const DataManagement = () => {
           </Alert>
         )}
 
-        {/* Tab Navigation */}
         <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {/* Tab Content */}
         <div className="mt-6">
           <TabContent
             activeTab={activeTab}
@@ -192,7 +185,6 @@ const DataManagement = () => {
             isLoading={isLoading}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
-            filteredData={filteredData}
             paginatedData={paginatedData}
             totalCount={totalCount}
             currentPage={currentPage}
@@ -215,19 +207,22 @@ const DataManagement = () => {
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={handleSort}
-            filters={filters} 
-            onFilterChange={handleFilterChange} 
-            onClearFilters={handleClearFilters} 
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onClearFilters={handleClearFilters}
+            selectedRows={selectedRows}
+            onRowSelect={handleRowSelect}
+            onSelectAll={handleSelectAll}
+            onBulkDelete={handleBulkDelete}
           />
         </div>
 
-        {/* Edit Dialog */}
         <EditDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           title={`Chỉnh sửa ${currentEntityConfig.name}`}
           description={`Chỉnh sửa thông tin cho ${currentEntityConfig.name}.`}
-          fields={editDialogFields} // Pass the mapped fields
+          fields={editDialogFields}
           initialData={editingItem}
           onSave={handleSave}
           isLoading={isLoading}

@@ -17,7 +17,6 @@ interface DataManagementTabProps {
   isLoading: boolean;
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  filteredData: any[];
   paginatedData: any[];
   totalCount: number;
   currentPage: number;
@@ -41,6 +40,10 @@ interface DataManagementTabProps {
   filters: Record<string, any>;
   onFilterChange: (key: string, value: any) => void;
   onClearFilters: () => void;
+  selectedRows: Record<string, boolean>;
+  onRowSelect: (rowId: string) => void;
+  onSelectAll: () => void;
+  onBulkDelete: () => void;
 }
 
 export const DataManagementTab = ({
@@ -71,7 +74,11 @@ export const DataManagementTab = ({
   onSort,
   filters,
   onFilterChange,
-  onClearFilters
+  onClearFilters,
+  selectedRows,
+  onRowSelect,
+  onSelectAll,
+  onBulkDelete
 }: DataManagementTabProps) => {
   const columns = useMemo(() => {
     const config = entityConfig[selectedEntity];
@@ -101,10 +108,10 @@ export const DataManagementTab = ({
       width: 120,
       render: (_: any, row: any) => (
         <div className="flex justify-end space-x-1">
-          <Button variant="ghost" size="icon" onClick={() => onEdit(row)} title="Chỉnh sửa">
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(row); }} title="Chỉnh sửa">
             <Edit className="h-4 w-4 text-blue-600" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => onDelete(row)} title="Xóa">
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(row); }} title="Xóa">
             <Trash2 className="h-4 w-4 text-red-600" />
           </Button>
         </div>
@@ -117,6 +124,8 @@ export const DataManagementTab = ({
   const filterableFields = useMemo(() => {
     return entityConfig[selectedEntity]?.fields.filter(f => f.filterable) || [];
   }, [selectedEntity]);
+
+  const numSelected = Object.keys(selectedRows).length;
 
   return (
     <div className="mt-6 space-y-6">
@@ -141,6 +150,12 @@ export const DataManagementTab = ({
           <Button onClick={onAdd} className="bg-green-600 hover:bg-green-700 text-white">
             <Plus className="mr-2 h-4 w-4" /> New
           </Button>
+          {numSelected > 0 && (
+            <Button onClick={onBulkDelete} variant="destructive">
+              <Trash2 className="mr-2 h-4 w-4" /> Xóa ({numSelected})
+            </Button>
+          )}
+          <div className="flex-grow" />
           <Button variant="outline" onClick={onExportCSV}>
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
@@ -232,7 +247,7 @@ export const DataManagementTab = ({
       {selectedEntity === 'asset_transactions' && (
         <Card className="bg-red-50 border-red-200">
           <CardHeader>
-            <CardTitle>Xóa hàng loạt (Admin)</CardTitle>
+            <CardTitle>Xóa hàng loạt theo ngày (Admin)</CardTitle>
             <p className="text-sm text-gray-600">
               Chọn khoảng thời gian để xóa tất cả các giao dịch trong khoảng đó. Hành động này không thể hoàn tác.
             </p>
@@ -275,6 +290,10 @@ export const DataManagementTab = ({
             sortColumn={sortColumn}
             sortDirection={sortDirection}
             onSort={onSort}
+            selectable
+            selectedRows={selectedRows}
+            onRowSelect={onRowSelect}
+            onSelectAll={onSelectAll}
           />
           <div className="flex justify-between items-center mt-4">
             <Button

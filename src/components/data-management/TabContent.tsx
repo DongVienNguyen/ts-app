@@ -9,7 +9,6 @@ interface TabContentProps {
   isLoading: boolean;
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  filteredData: any[];
   paginatedData: any[];
   totalCount: number;
   currentPage: number;
@@ -38,6 +37,11 @@ interface TabContentProps {
   filters: Record<string, any>;
   onFilterChange: (key: string, value: any) => void;
   onClearFilters: () => void;
+  // Selection props
+  selectedRows: Record<string, boolean>;
+  onRowSelect: (rowId: string) => void;
+  onSelectAll: () => void;
+  onBulkDelete: () => void;
 }
 
 export const TabContent = ({
@@ -47,7 +51,6 @@ export const TabContent = ({
   isLoading,
   searchTerm,
   onSearchChange,
-  filteredData,
   paginatedData,
   totalCount,
   currentPage,
@@ -72,11 +75,14 @@ export const TabContent = ({
   onSort,
   filters,
   onFilterChange,
-  onClearFilters
+  onClearFilters,
+  selectedRows,
+  onRowSelect,
+  onSelectAll,
+  onBulkDelete
 }: TabContentProps) => {
   const renderTabContent = () => {
     switch (activeTab) {
-      // Quản lý chính
       case 'management':
         return (
           <DataManagementTab
@@ -85,7 +91,6 @@ export const TabContent = ({
             isLoading={isLoading}
             searchTerm={searchTerm}
             onSearchChange={onSearchChange}
-            filteredData={filteredData}
             paginatedData={paginatedData}
             totalCount={totalCount}
             currentPage={currentPage}
@@ -109,6 +114,10 @@ export const TabContent = ({
             filters={filters}
             onFilterChange={onFilterChange}
             onClearFilters={onClearFilters}
+            selectedRows={selectedRows}
+            onRowSelect={onRowSelect}
+            onSelectAll={onSelectAll}
+            onBulkDelete={onBulkDelete}
           />
         );
 
