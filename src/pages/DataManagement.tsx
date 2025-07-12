@@ -98,6 +98,9 @@ const DataManagement = () => {
     handleRestoreData,
     handleImportClick,
     bulkDeleteTransactions,
+    sortColumn,
+    sortDirection,
+    handleSort,
     
     // User
     user
@@ -206,6 +209,9 @@ const DataManagement = () => {
             onBulkDeleteTransactions={bulkDeleteTransactions}
             runAsAdmin={runAsAdmin}
             setMessage={setMessage}
+            sortColumn={sortColumn}
+            sortDirection={sortDirection}
+            onSort={handleSort}
           />
         </div>
 

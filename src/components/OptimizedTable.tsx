@@ -1,6 +1,7 @@
 import React, { memo, useMemo, useCallback } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import { Table, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 interface OptimizedTableProps {
   data: any[];
@@ -14,6 +15,9 @@ interface OptimizedTableProps {
   itemHeight?: number;
   onRowClick?: (row: any) => void;
   loading?: boolean;
+  sortColumn?: string | null;
+  sortDirection?: 'asc' | 'desc';
+  onSort?: (columnKey: string) => void;
 }
 
 interface ListChildComponentProps {
@@ -60,7 +64,10 @@ const OptimizedTable: React.FC<OptimizedTableProps> = memo(({
   height = 400,
   itemHeight = 50,
   onRowClick,
-  loading = false
+  loading = false,
+  sortColumn,
+  sortDirection,
+  onSort
 }) => {
   const itemData = useMemo(() => ({
     items: data,
@@ -90,8 +97,20 @@ const OptimizedTable: React.FC<OptimizedTableProps> = memo(({
         <TableHeader>
           <TableRow>
             {columns.map((column) => (
-              <TableHead key={column.key} style={{ width: column.width }}>
-                {column.label}
+              <TableHead 
+                key={column.key} 
+                style={{ width: column.width }}
+                className={onSort && column.key !== 'actions' ? 'cursor-pointer hover:bg-gray-100' : ''}
+                onClick={() => onSort && column.key !== 'actions' && onSort(column.key)}
+              >
+                <div className="flex items-center">
+                  {column.label}
+                  {sortColumn === column.key && (
+                    <span className="ml-2">
+                      {sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                    </span>
+                  )}
+                </div>
               </TableHead>
             ))}
           </TableRow>

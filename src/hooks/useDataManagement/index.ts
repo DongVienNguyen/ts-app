@@ -22,6 +22,8 @@ export const useDataManagement = (): DataManagementReturn => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState('management');
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const restoreInputRef = useRef<HTMLInputElement>(null);
 
   const { user } = useSecureAuth();
@@ -53,6 +55,8 @@ export const useDataManagement = (): DataManagementReturn => {
     endDate,
     restoreFile,
     data,
+    sortColumn,
+    sortDirection,
     getCachedData,
     setCachedData,
     clearCache,
@@ -66,12 +70,25 @@ export const useDataManagement = (): DataManagementReturn => {
     restoreInputRef
   });
 
+  // Sort handler
+  const handleSort = useCallback((columnKey: string) => {
+    if (sortColumn === columnKey) {
+      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(columnKey);
+      setSortDirection('desc');
+    }
+    setCurrentPage(1);
+  }, [sortColumn]);
+
   // Entity change handler with cache clearing
   const setSelectedEntity = useCallback((entity: string) => {
     clearEntityCache(selectedEntity);
     setSelectedEntityState(entity);
     setCurrentPage(1);
     setSearchTerm('');
+    setSortColumn(null);
+    setSortDirection('desc');
     setData([]);
     setTotalCount(0);
   }, [selectedEntity, clearEntityCache]);
@@ -95,35 +112,27 @@ export const useDataManagement = (): DataManagementReturn => {
     
     if (user && user.role === 'admin') {
       if (selectedEntity) {
-        setCurrentPage(1);
-        loadData(1, searchTerm);
+        loadData(currentPage, searchTerm);
       }
     } else if (user) {
       setData([]);
       setTotalCount(0);
       setMessage({ type: 'error', text: 'Chỉ admin mới có thể truy cập module này.' });
     }
-  }, [user, selectedEntity, navigate, loadData, searchTerm]);
-
-  // Load data when page changes
-  useEffect(() => {
-    if (user?.role === 'admin' && selectedEntity) {
-      loadData(currentPage, searchTerm);
-    }
-  }, [currentPage, user, selectedEntity, loadData, searchTerm]);
+  }, [user, selectedEntity, navigate, loadData, currentPage, searchTerm, sortColumn, sortDirection]);
 
   // Debounced search effect
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (currentPage === 1) {
-        loadData(1, searchTerm);
+      if (currentPage !== 1) {
+        setCurrentPage(1);
       } else {
-        setCurrentPage(1); // Reset to page 1 when searching
+        loadData(1, searchTerm);
       }
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, currentPage, loadData]);
+  }, [searchTerm, loadData]);
 
   return {
     // State
@@ -140,6 +149,8 @@ export const useDataManagement = (): DataManagementReturn => {
     message,
     restoreFile,
     activeTab,
+    sortColumn,
+    sortDirection,
     
     // Setters
     setSelectedEntity,
@@ -169,6 +180,7 @@ export const useDataManagement = (): DataManagementReturn => {
     handleImportClick,
     bulkDeleteTransactions,
     refreshData,
+    handleSort,
     
     // User
     user

@@ -13,6 +13,8 @@ interface UseDataOperationsProps {
   endDate: string;
   restoreFile: File | null;
   data: any[];
+  sortColumn: string | null; // Added
+  sortDirection: 'asc' | 'desc'; // Added
   getCachedData: (key: string) => CacheEntry | null;
   setCachedData: (key: string, data: any[], count: number) => void;
   clearCache: () => void;
@@ -36,6 +38,8 @@ export const useDataOperations = ({
   endDate,
   restoreFile,
   data,
+  sortColumn, // Added
+  sortDirection, // Added
   getCachedData,
   setCachedData,
   clearCache,
@@ -64,7 +68,7 @@ export const useDataOperations = ({
   const loadData = useCallback(async (page: number = 1, search: string = '') => {
     if (!selectedEntity || !user || user.role !== 'admin') return;
     
-    const cacheKey = `${selectedEntity}-${page}-${search}`;
+    const cacheKey = `${selectedEntity}-${page}-${search}-${sortColumn}-${sortDirection}`; // Updated cache key
     const cached = getCachedData(cacheKey);
     
     if (cached) {
@@ -81,7 +85,9 @@ export const useDataOperations = ({
         selectedEntity,
         user,
         page,
-        search
+        search,
+        sortColumn, // Passed to dataService
+        sortDirection // Passed to dataService
       });
 
       setCachedData(cacheKey, result.data, result.count);
@@ -98,7 +104,7 @@ export const useDataOperations = ({
     } finally {
       setIsLoading(false);
     }
-  }, [selectedEntity, user, getCachedData, setCachedData, setData, setTotalCount, setIsLoading, setMessage]);
+  }, [selectedEntity, user, sortColumn, sortDirection, getCachedData, setCachedData, setData, setTotalCount, setIsLoading, setMessage]);
 
   const handleAdd = useCallback(() => {
     setEditingItem(null);

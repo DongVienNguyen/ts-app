@@ -16,7 +16,7 @@ interface DataManagementTabProps {
   isLoading: boolean;
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  filteredData: any[]; // Added this line
+  filteredData: any[];
   paginatedData: any[];
   totalCount: number;
   currentPage: number;
@@ -34,6 +34,9 @@ interface DataManagementTabProps {
   onStartDateChange: (date: string) => void;
   onEndDateChange: (date: string) => void;
   onBulkDeleteTransactions: () => void;
+  sortColumn: string | null;
+  sortDirection: 'asc' | 'desc';
+  onSort: (columnKey: string) => void;
 }
 
 export const DataManagementTab = ({
@@ -42,7 +45,7 @@ export const DataManagementTab = ({
   isLoading,
   searchTerm,
   onSearchChange,
-  filteredData, // Added this line
+  filteredData,
   paginatedData,
   totalCount,
   currentPage,
@@ -59,7 +62,10 @@ export const DataManagementTab = ({
   endDate,
   onStartDateChange,
   onEndDateChange,
-  onBulkDeleteTransactions
+  onBulkDeleteTransactions,
+  sortColumn,
+  sortDirection,
+  onSort
 }: DataManagementTabProps) => {
   const columns = useMemo(() => {
     const config = entityConfig[selectedEntity];
@@ -200,6 +206,9 @@ export const DataManagementTab = ({
             itemHeight={52}
             onRowClick={onEdit}
             loading={isLoading}
+            sortColumn={sortColumn}
+            sortDirection={sortDirection}
+            onSort={onSort}
           />
           <div className="flex justify-between items-center mt-4">
             <Button

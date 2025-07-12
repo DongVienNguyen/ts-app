@@ -12,6 +12,8 @@ export interface DataManagementState {
   message: { type: string; text: string };
   restoreFile: File | null;
   activeTab: string;
+  sortColumn: string | null;
+  sortDirection: 'asc' | 'desc';
 }
 
 export interface CacheEntry {
@@ -31,6 +33,7 @@ export interface DataManagementActions {
   handleImportClick: () => void;
   bulkDeleteTransactions: () => Promise<void>;
   refreshData: () => void;
+  handleSort: (columnKey: string) => void;
 }
 
 export interface DataManagementReturn extends DataManagementState, DataManagementActions {
@@ -55,6 +58,8 @@ export interface LoadDataParams {
   user: any;
   page?: number;
   search?: string;
+  sortColumn?: string | null;
+  sortDirection?: 'asc' | 'desc';
 }
 
 export interface SaveDataParams {

@@ -30,6 +30,10 @@ interface TabContentProps {
   // Statistics props
   runAsAdmin: (callback: () => Promise<void>) => Promise<void>;
   setMessage: (message: { type: string; text: string }) => void;
+  // Sorting props
+  sortColumn: string | null;
+  sortDirection: 'asc' | 'desc';
+  onSort: (columnKey: string) => void;
 }
 
 export const TabContent = ({
@@ -58,7 +62,10 @@ export const TabContent = ({
   onEndDateChange,
   onBulkDeleteTransactions,
   runAsAdmin,
-  setMessage
+  setMessage,
+  sortColumn,
+  sortDirection,
+  onSort
 }: TabContentProps) => {
   const renderTabContent = () => {
     switch (activeTab) {
@@ -89,6 +96,9 @@ export const TabContent = ({
             onStartDateChange={onStartDateChange}
             onEndDateChange={onEndDateChange}
             onBulkDeleteTransactions={onBulkDeleteTransactions}
+            sortColumn={sortColumn}
+            sortDirection={sortDirection}
+            onSort={onSort}
           />
         );
 

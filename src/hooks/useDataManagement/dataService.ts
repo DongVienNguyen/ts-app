@@ -5,7 +5,7 @@ import type { LoadDataParams, SaveDataParams, DeleteDataParams } from './types';
 const ITEMS_PER_PAGE = 20;
 
 export const dataService = {
-  async loadData({ selectedEntity, user, page = 1, search = '' }: LoadDataParams) {
+  async loadData({ selectedEntity, user, page = 1, search = '', sortColumn, sortDirection }: LoadDataParams) {
     if (!selectedEntity || !user || user.role !== 'admin') {
       throw new Error('Unauthorized access');
     }
@@ -15,7 +15,6 @@ export const dataService = {
       throw new Error(`Entity config not found for: ${selectedEntity}`);
     }
 
-    const hasCreatedAt = config.fields.some(f => f.key === 'created_at');
     let query = supabase.from(config.entity as any).select('*', { count: 'exact' });
     
     // Add search filter
@@ -33,10 +32,18 @@ export const dataService = {
     }
     
     // Add sorting
-    if (hasCreatedAt) {
-      query = query.order('created_at', { ascending: false });
+    if (sortColumn && sortDirection) {
+      const isValidColumn = config.fields.some(f => f.key === sortColumn);
+      if (isValidColumn) {
+        query = query.order(sortColumn, { ascending: sortDirection === 'asc' });
+      }
     } else {
-      query = query.order('id', { ascending: false });
+      const hasCreatedAt = config.fields.some(f => f.key === 'created_at');
+      if (hasCreatedAt) {
+        query = query.order('created_at', { ascending: false });
+      } else {
+        query = query.order('id', { ascending: false });
+      }
     }
 
     // Add pagination
