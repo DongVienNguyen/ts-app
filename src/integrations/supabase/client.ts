@@ -29,9 +29,11 @@ const getSupabaseOptions = (token: string | null): SupabaseClientOptions<"public
 // Export supabase with `let` to allow re-assignment
 export let supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, getSupabaseOptions(null));
 
-export const updateSupabaseAuthToken = (token: string | null) => {
+export const updateSupabaseAuthToken = async (token: string | null) => {
+  console.log('[AUTH] Disconnecting old Supabase realtime client...');
   // Disconnect the realtime client of the OLD instance before creating a new one.
-  supabase.realtime.disconnect();
+  await supabase.realtime.disconnect();
+  console.log('[AUTH] Old client disconnected. Creating new client...');
 
   supabase = createClient(supabaseUrl, supabaseAnonKey, getSupabaseOptions(token));
   console.log(`[AUTH] Supabase client updated.`);

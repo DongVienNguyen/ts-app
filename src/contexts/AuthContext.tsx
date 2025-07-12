@@ -25,7 +25,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthenticatedStaff | null>(null);
-  const [loading, setLoading] = useState(false); // Fixed: Changed to useState(false)
+  const [loading, setLoading] = useState(true); // Start with loading true
 
   useEffect(() => {
     const restoreSession = async () => {
@@ -37,14 +37,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const userStr = localStorage.getItem('auth_user');
           const storedUser: AuthenticatedStaff = JSON.parse(userStr!);
           
-          updateSupabaseAuthToken(token);
+          await updateSupabaseAuthToken(token);
 
           setUser(storedUser);
           healthCheckService.onUserLogin();
           console.log('✅ [AUTH] Session restored for user:', storedUser.username);
         } else {
           console.log('🔎 [AUTH] No valid session found. Clearing session.');
-          updateSupabaseAuthToken(null);
+          await updateSupabaseAuthToken(null);
           localStorage.removeItem('auth_user');
           localStorage.removeItem('auth_token');
           localStorage.removeItem('auth_login_time');
@@ -53,7 +53,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } catch (error) {
         console.error('❌ [AUTH] Error restoring session, clearing session.', error);
-        updateSupabaseAuthToken(null);
+        await updateSupabaseAuthToken(null);
         localStorage.removeItem('auth_user');
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_login_time');
@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (result.success && result.user && result.token) {
         const authenticatedUser: AuthenticatedStaff = { ...result.user, token: result.token };
         
-        updateSupabaseAuthToken(result.token);
+        await updateSupabaseAuthToken(result.token);
 
         localStorage.setItem('auth_user', JSON.stringify(authenticatedUser));
         localStorage.setItem('auth_token', result.token);
@@ -104,7 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('🚪 [AUTH] Logging out user');
     setLoading(true);
     
-    updateSupabaseAuthToken(null);
+    await updateSupabaseAuthToken(null);
     
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_token');
@@ -123,15 +123,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const token = localStorage.getItem('auth_token');
       if (validateSession() && token) {
-        updateSupabaseAuthToken(token);
+        await updateSupabaseAuthToken(token);
         const userStr = localStorage.getItem('auth_user');
         setUser(JSON.parse(userStr!));
       } else {
-        updateSupabaseAuthToken(null);
+        await updateSupabaseAuthToken(null);
         setUser(null);
       }
     } catch (e) {
-      updateSupabaseAuthToken(null);
+      await updateSupabaseAuthToken(null);
       setUser(null);
     } finally {
       setLoading(false);
