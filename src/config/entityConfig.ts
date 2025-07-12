@@ -16,20 +16,6 @@ export interface EntityConfig {
 }
 
 export const entityConfig: Record<string, EntityConfig> = {
-  staff: {
-    entity: 'staff',
-    name: 'Nhân viên',
-    fields: [
-      { key: 'username', label: 'Tên đăng nhập', type: 'text', required: true },
-      { key: 'password', label: 'Mật khẩu', type: 'text' },
-      { key: 'staff_name', label: 'Tên nhân viên', type: 'text' },
-      { key: 'role', label: 'Vai trò', type: 'select', options: ['admin', 'user'], required: true },
-      { key: 'department', label: 'Phòng ban', type: 'text' },
-      { key: 'account_status', label: 'Trạng thái tài khoản', type: 'select', options: ['active', 'locked'], required: true },
-      { key: 'created_at', label: 'Ngày tạo', type: 'date' },
-      { key: 'updated_at', label: 'Ngày cập nhật', type: 'date' },
-    ],
-  },
   asset_transactions: {
     entity: 'asset_transactions',
     name: 'Giao dịch tài sản',

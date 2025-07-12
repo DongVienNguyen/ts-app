@@ -1,6 +1,6 @@
 import Layout from '@/components/Layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Shield, TestTube, BookOpen, CheckCircle, ArrowRight, Activity, BarChart3, Trash2 } from 'lucide-react';
+import { AlertCircle, Shield, TestTube, BookOpen, CheckCircle, ArrowRight, Activity, BarChart3, Trash2, Users } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { SecurityOverview } from '@/components/SecurityOverview';
@@ -10,6 +10,7 @@ import { SecurityImplementationSummary } from '@/components/SecurityImplementati
 import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
 import { RealTimeSecurityDashboard } from '@/components/RealTimeSecurityDashboard';
 import { LogManagementTab } from '@/components/data-management/LogManagementTab';
+import { UserManagementTab } from '@/components/security/UserManagementTab';
 
 const SecurityMonitor = () => {
   const { user } = useSecureAuth();
@@ -56,9 +57,10 @@ const SecurityMonitor = () => {
         </div>
 
         <Tabs defaultValue="realtime" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 lg:grid-cols-7">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 lg:grid-cols-8">
             <TabsTrigger value="realtime"><Activity className="w-4 h-4 mr-2" />Thời gian thực</TabsTrigger>
             <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-2" />Tổng hợp</TabsTrigger>
+            <TabsTrigger value="users"><Users className="w-4 h-4 mr-2" />Người dùng</TabsTrigger>
             <TabsTrigger value="actions"><TestTube className="w-4 h-4 mr-2" />Tác vụ</TabsTrigger>
             <TabsTrigger value="logs"><Trash2 className="w-4 h-4 mr-2" />Quản lý Logs</TabsTrigger>
             <TabsTrigger value="docs"><BookOpen className="w-4 h-4 mr-2" />Tài liệu</TabsTrigger>
@@ -71,6 +73,9 @@ const SecurityMonitor = () => {
           </TabsContent>
           <TabsContent value="overview" className="mt-6">
             <SecurityOverview />
+          </TabsContent>
+          <TabsContent value="users" className="mt-6">
+            <UserManagementTab />
           </TabsContent>
           <TabsContent value="actions" className="mt-6">
             <SecurityActionsPanel />

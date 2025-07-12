@@ -93,7 +93,6 @@ const DataManagement = () => {
     handleEdit,
     handleSave,
     handleDelete,
-    toggleStaffLock,
     exportToCSV,
     handleRestoreData,
     handleImportClick,
@@ -194,7 +193,6 @@ const DataManagement = () => {
             onAdd={handleAdd}
             onEdit={handleEdit}
             onDelete={handleDelete}
-            onToggleStaffLock={toggleStaffLock}
             onExportCSV={exportToCSV}
             onImportClick={handleImportClick}
             restoreInputRef={restoreInputRef}

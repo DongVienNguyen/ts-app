@@ -23,7 +23,6 @@ interface DataManagementTabProps {
   onAdd: () => void;
   onEdit: (item: any) => void;
   onDelete: (item: any) => void;
-  onToggleStaffLock: (staff: any) => void;
   onExportCSV: () => void;
   onImportClick: () => void;
   restoreInputRef: React.RefObject<HTMLInputElement>;
@@ -49,7 +48,6 @@ export const DataManagementTab = ({
   onAdd,
   onEdit,
   onDelete,
-  onToggleStaffLock,
   onExportCSV,
   onImportClick,
   restoreInputRef,
@@ -185,16 +183,7 @@ export const DataManagementTab = ({
                           ))}
                           <TableCell className="text-right py-2 px-4">
                             <div className="flex justify-end space-x-1">
-                              {selectedEntity === 'staff' && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => onToggleStaffLock(item)}
-                                  title={item.account_status === 'active' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-                                >
-                                  <Lock className="h-4 w-4" />
-                                </Button>
-                              )}
+                              {/* Removed staff lock/unlock button */}
                               <Button variant="ghost" size="icon" onClick={() => onEdit(item)} title="Chỉnh sửa">
                                 <Edit className="h-4 w-4 text-blue-600" />
                               </Button>

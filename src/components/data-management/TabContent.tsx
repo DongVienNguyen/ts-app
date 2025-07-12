@@ -18,7 +18,6 @@ interface TabContentProps {
   onAdd: () => void;
   onEdit: (item: any) => void;
   onDelete: (item: any) => void;
-  onToggleStaffLock: (staff: any) => void;
   onExportCSV: () => void;
   onImportClick: () => void;
   restoreInputRef: React.RefObject<HTMLInputElement>;
@@ -48,7 +47,6 @@ export const TabContent = ({
   onAdd,
   onEdit,
   onDelete,
-  onToggleStaffLock,
   onExportCSV,
   onImportClick,
   restoreInputRef,
@@ -80,7 +78,6 @@ export const TabContent = ({
             onAdd={onAdd}
             onEdit={onEdit}
             onDelete={onDelete}
-            onToggleStaffLock={onToggleStaffLock}
             onExportCSV={onExportCSV}
             onImportClick={onImportClick}
             restoreInputRef={restoreInputRef}
