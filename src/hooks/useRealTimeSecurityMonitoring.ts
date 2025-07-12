@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   subscribeToSecurityEvents,
   getRealTimeSecurityStats,
-  logSecurityEventRealTime, // Đảm bảo import đúng tên
+  logSecurityEventRealTime,
   RealTimeSecurityStats,
   SecurityEvent
 } from '@/utils/realTimeSecurityUtils';
@@ -13,7 +13,7 @@ export function useRealTimeSecurityMonitoring() {
     recentEvents: [],
     threatLevel: 'LOW',
     systemHealth: 'HEALTHY',
-    loginAttempts: 0, // Khởi tạo các giá trị mới
+    loginAttempts: 0,
     failedLogins: 0,
     successfulLogins: 0,
     accountLocks: 0,
@@ -23,44 +23,44 @@ export function useRealTimeSecurityMonitoring() {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true); // Trạng thái mới
-  const [isPaused, setIsPaused] = useState(false); // Trạng thái mới
-  const [lastUpdated, setLastUpdated] = useState<string>(''); // Trạng thái mới
+  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null); // Thay đổi từ string sang Date | null
 
   // Tải số liệu thống kê ban đầu
   const loadStats = useCallback(async () => {
-    if (isPaused) return; // Không tải nếu đang tạm dừng
+    if (isPaused) return;
     try {
       setIsLoading(true);
       setError(null);
       const newStats = await getRealTimeSecurityStats();
       setStats(newStats);
       setIsConnected(true);
-      setLastUpdated(new Date().toLocaleString('vi-VN')); // Cập nhật thời gian cập nhật cuối cùng
+      setLastUpdated(new Date()); // Lưu trữ đối tượng Date
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi không xác định');
       setIsConnected(false);
     } finally {
       setIsLoading(false);
     }
-  }, [isPaused]); // Phụ thuộc vào isPaused
+  }, [isPaused]);
 
   // Xử lý sự kiện thời gian thực
   const handleRealTimeEvent = useCallback((event: SecurityEvent) => {
-    if (!isRealTimeEnabled || isPaused) return; // Không xử lý nếu thời gian thực bị tắt hoặc tạm dừng
+    if (!isRealTimeEnabled || isPaused) return;
     setStats(prevStats => ({
       ...prevStats,
       recentEvents: [event, ...prevStats.recentEvents].slice(0, 50)
     }));
-    setLastUpdated(new Date().toLocaleString('vi-VN')); // Cập nhật thời gian cập nhật cuối cùng khi có sự kiện mới
-  }, [isRealTimeEnabled, isPaused]); // Phụ thuộc vào isRealTimeEnabled và isPaused
+    setLastUpdated(new Date()); // Lưu trữ đối tượng Date
+  }, [isRealTimeEnabled, isPaused]);
 
   // Đăng ký sự kiện thời gian thực
   useEffect(() => {
-    loadStats(); // Tải ban đầu
+    loadStats();
 
     let unsubscribe: () => void;
-    if (isRealTimeEnabled) { // Chỉ đăng ký nếu thời gian thực được bật
+    if (isRealTimeEnabled) {
       unsubscribe = subscribeToSecurityEvents(handleRealTimeEvent);
     }
 
@@ -69,7 +69,7 @@ export function useRealTimeSecurityMonitoring() {
       if (!isPaused) {
         loadStats();
       }
-    }, 30000); // Mỗi 30 giây
+    }, 30000);
 
     return () => {
       if (unsubscribe) {
@@ -77,12 +77,12 @@ export function useRealTimeSecurityMonitoring() {
       }
       clearInterval(interval);
     };
-  }, [loadStats, handleRealTimeEvent, isRealTimeEnabled, isPaused]); // Thêm các phụ thuộc mới
+  }, [loadStats, handleRealTimeEvent, isRealTimeEnabled, isPaused]);
 
   // Hàm bật/tắt thời gian thực
   const handleRealTimeToggle = useCallback(() => {
     setIsRealTimeEnabled(prev => !prev);
-    setIsPaused(false); // Bỏ tạm dừng nếu thời gian thực được bật/tắt
+    setIsPaused(false);
   }, []);
 
   // Hàm bật/tắt tạm dừng
@@ -109,13 +109,13 @@ export function useRealTimeSecurityMonitoring() {
     setError(null);
     setIsRealTimeEnabled(true);
     setIsPaused(false);
-    setLastUpdated('');
-    loadStats(); // Tải lại số liệu thống kê ban đầu
+    setLastUpdated(null); // Đặt lại thành null
+    loadStats();
   }, [loadStats]);
 
   return {
-    events: stats.recentEvents, // Ánh xạ từ stats
-    metrics: stats, // Truyền toàn bộ đối tượng stats làm metrics
+    events: stats.recentEvents,
+    metrics: stats,
     lastUpdated,
     isConnected,
     isRealTimeEnabled,
@@ -125,8 +125,7 @@ export function useRealTimeSecurityMonitoring() {
     handleRealTimeToggle,
     handlePauseToggle,
     handleReset,
-    // Giữ lại logSecurityEventRealTime và refreshStats cho các mục đích sử dụng tiềm năng khác
-    logEvent: logSecurityEventRealTime, // Sửa lỗi chính tả ở đây
+    logEvent: logSecurityEventRealTime,
     refreshStats: loadStats
   };
 }

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 
 interface SecurityHeaderProps {
-  lastUpdated: Date;
+  lastUpdated: Date | null; // Cho phép null
   isConnected: boolean;
   isRealTimeEnabled: boolean;
   isPaused: boolean;
@@ -28,7 +28,7 @@ export function SecurityHeader({
         <div>
           <h1 className="text-3xl font-bold">Theo dõi Bảo mật Thời gian Thực</h1>
           <p className="text-gray-600">
-            Giám sát hoạt động bảo mật trực tiếp - Cập nhật lần cuối: {lastUpdated.toLocaleTimeString('vi-VN')}
+            Giám sát hoạt động bảo mật trực tiếp - Cập nhật lần cuối: {lastUpdated ? lastUpdated.toLocaleTimeString('vi-VN') : 'Đang cập nhật...'}
           </p>
         </div>
       </div>
