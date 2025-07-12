@@ -25,7 +25,7 @@ export function useRealTimeSecurityMonitoring() {
   const [error, setError] = useState<string | null>(null);
   const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null); // Thay đổi từ string sang Date | null
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Tải số liệu thống kê ban đầu
   const loadStats = useCallback(async () => {
@@ -36,7 +36,7 @@ export function useRealTimeSecurityMonitoring() {
       const newStats = await getRealTimeSecurityStats();
       setStats(newStats);
       setIsConnected(true);
-      setLastUpdated(new Date()); // Lưu trữ đối tượng Date
+      setLastUpdated(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Lỗi không xác định');
       setIsConnected(false);
@@ -52,8 +52,37 @@ export function useRealTimeSecurityMonitoring() {
       ...prevStats,
       recentEvents: [event, ...prevStats.recentEvents].slice(0, 50)
     }));
-    setLastUpdated(new Date()); // Lưu trữ đối tượng Date
+    setLastUpdated(new Date());
   }, [isRealTimeEnabled, isPaused]);
+
+  // Hàm để xử lý dữ liệu sự kiện thành định dạng xu hướng cho biểu đồ
+  const getEventTrends = useCallback(() => {
+    const trends: { date: string; successfulLogins: number; failedLogins: number; suspiciousActivities: number }[] = [];
+    const dailyData: { [date: string]: { successfulLogins: number; failedLogins: number; suspiciousActivities: number } } = {};
+
+    stats.recentEvents.forEach(event => {
+      // Sử dụng toLocaleDateString với 'en-CA' để đảm bảo định dạng YYYY-MM-DD nhất quán
+      const date = new Date(event.timestamp).toLocaleDateString('en-CA');
+      if (!dailyData[date]) {
+        dailyData[date] = { successfulLogins: 0, failedLogins: 0, suspiciousActivities: 0 };
+      }
+
+      if (event.type === 'LOGIN_SUCCESS') {
+        dailyData[date].successfulLogins++;
+      } else if (event.type === 'LOGIN_FAILED') {
+        dailyData[date].failedLogins++;
+      } else if (event.type === 'SUSPICIOUS_ACTIVITY' || event.type === 'RATE_LIMIT_EXCEEDED') {
+        dailyData[date].suspiciousActivities++;
+      }
+    });
+
+    // Sắp xếp theo ngày và chuyển đổi thành mảng
+    Object.keys(dailyData).sort().forEach(date => {
+      trends.push({ date, ...dailyData[date] });
+    });
+
+    return trends;
+  }, [stats.recentEvents]);
 
   // Đăng ký sự kiện thời gian thực
   useEffect(() => {
@@ -109,7 +138,7 @@ export function useRealTimeSecurityMonitoring() {
     setError(null);
     setIsRealTimeEnabled(true);
     setIsPaused(false);
-    setLastUpdated(null); // Đặt lại thành null
+    setLastUpdated(null);
     loadStats();
   }, [loadStats]);
 
@@ -126,6 +155,7 @@ export function useRealTimeSecurityMonitoring() {
     handlePauseToggle,
     handleReset,
     logEvent: logSecurityEventRealTime,
-    refreshStats: loadStats
+    refreshStats: loadStats,
+    getEventTrends // Thêm hàm này vào giá trị trả về
   };
 }

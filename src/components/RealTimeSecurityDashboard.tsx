@@ -5,6 +5,7 @@ import { LiveActivityFeed } from '@/components/security/LiveActivityFeed';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Users } from 'lucide-react';
 import { ActiveUsersCard } from './security/ActiveUsersCard';
+import { ThreatAnalysisCard } from './security/ThreatAnalysisCard'; // Import the new component
 
 export function RealTimeSecurityDashboard() {
   const {
@@ -19,7 +20,10 @@ export function RealTimeSecurityDashboard() {
     handleRealTimeToggle,
     handlePauseToggle,
     handleReset,
+    getEventTrends // Get the new function from the hook
   } = useRealTimeSecurityMonitoring();
+
+  const threatData = getEventTrends(); // Get the processed data for the chart
 
   if (error) {
     return <div className="text-red-500">Lỗi: {error}</div>;
@@ -42,19 +46,8 @@ export function RealTimeSecurityDashboard() {
           <LiveActivityFeed events={events} isRealTimeEnabled={isRealTimeEnabled} isLoading={isLoading} />
         </div>
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <BarChart className="w-5 h-5" />
-                <span>Phân tích Mối đe dọa</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-500 text-center py-8">
-                Biểu đồ phân tích mối đe dọa sẽ được hiển thị ở đây trong các phiên bản tương lai.
-              </p>
-            </CardContent>
-          </Card>
+          {/* Replace the placeholder Card with ThreatAnalysisCard */}
+          <ThreatAnalysisCard data={threatData} />
           <ActiveUsersCard events={events} />
         </div>
       </div>
