@@ -92,7 +92,7 @@ export function ErrorMonitoringDashboard() {
         </div>
 
         <div className="space-y-6">
-          <RealTimeErrorFeed onNewError={refreshAll} />
+          <RealTimeErrorFeed onNewError={refreshRecentErrors} />
         </div>
       </div>
     </div>
