@@ -1,19 +1,19 @@
 import { supabase } from '@/integrations/supabase/client';
 import { LoginResponse, Staff } from '@/types/auth';
-import { sanitizeInput, isValidUsername, rateLimit, logSecurityEvent } from '@/utils/secureAuthUtils';
+import { sanitizeInput, isValidUsername, rateLimit } from '@/utils/secureAuthUtils';
+import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
 
 export async function secureLoginUser(username: string, password: string): Promise<LoginResponse> {
+  const cleanUsername = sanitizeInput(username);
   try {
     // Input validation and sanitization
-    const cleanUsername = sanitizeInput(username);
-    
     if (!isValidUsername(cleanUsername)) {
-      logSecurityEvent('INVALID_USERNAME_FORMAT', { username: cleanUsername });
+      await logSecurityEventRealTime('INVALID_USERNAME_FORMAT', { username: cleanUsername }, cleanUsername);
       return { success: false, error: 'Tên đăng nhập không hợp lệ' };
     }
 
     if (!password || password.length < 6) {
-      logSecurityEvent('INVALID_PASSWORD_FORMAT', { username: cleanUsername });
+      await logSecurityEventRealTime('INVALID_PASSWORD_FORMAT', { username: cleanUsername }, cleanUsername);
       return { success: false, error: 'Mật khẩu phải có ít nhất 6 ký tự' };
     }
 
@@ -31,10 +31,7 @@ export async function secureLoginUser(username: string, password: string): Promi
     });
 
     if (error) {
-      logSecurityEvent('LOGIN_FUNCTION_ERROR', { 
-        username: cleanUsername, 
-        error: error.message 
-      });
+      await logSecurityEventRealTime('LOGIN_FUNCTION_ERROR', { error: error.message }, cleanUsername);
       return { success: false, error: 'Lỗi hệ thống. Vui lòng thử lại sau.' };
     }
 
@@ -42,7 +39,7 @@ export async function secureLoginUser(username: string, password: string): Promi
       // Clear rate limiting on successful login
       localStorage.removeItem(`rate_limit_login_${cleanUsername}`);
       
-      logSecurityEvent('LOGIN_SUCCESS', { username: cleanUsername });
+      await logSecurityEventRealTime('LOGIN_SUCCESS', {}, cleanUsername);
       
       return {
         success: true,
@@ -50,10 +47,7 @@ export async function secureLoginUser(username: string, password: string): Promi
         token: data.token
       };
     } else {
-      logSecurityEvent('LOGIN_FAILED', { 
-        username: cleanUsername, 
-        error: data.error 
-      });
+      await logSecurityEventRealTime('LOGIN_FAILED', { error: data.error }, cleanUsername);
       
       return { 
         success: false, 
@@ -62,10 +56,7 @@ export async function secureLoginUser(username: string, password: string): Promi
     }
   } catch (error) {
     console.error('Secure login error:', error);
-    logSecurityEvent('LOGIN_EXCEPTION', { 
-      username: sanitizeInput(username), 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    });
+    await logSecurityEventRealTime('LOGIN_EXCEPTION', { error: error instanceof Error ? error.message : 'Unknown error' }, cleanUsername);
     
     return { 
       success: false, 
@@ -124,9 +115,8 @@ export async function resetPassword(
   currentPassword: string, 
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
+  const cleanUsername = sanitizeInput(username);
   try {
-    const cleanUsername = sanitizeInput(username);
-    
     // Validate inputs
     if (!isValidUsername(cleanUsername)) {
       return { success: false, error: 'Tên đăng nhập không hợp lệ' };
@@ -159,25 +149,19 @@ export async function resetPassword(
     });
 
     if (error) {
-      logSecurityEvent('PASSWORD_RESET_FUNCTION_ERROR', { 
-        username: cleanUsername, 
-        error: error.message 
-      });
+      await logSecurityEventRealTime('PASSWORD_RESET_FUNCTION_ERROR', { error: error.message }, cleanUsername);
       return { success: false, error: 'Lỗi hệ thống. Vui lòng thử lại sau.' };
     }
 
     if (data.success) {
-      logSecurityEvent('PASSWORD_RESET_SUCCESS', { username: cleanUsername });
+      await logSecurityEventRealTime('PASSWORD_RESET_SUCCESS', {}, cleanUsername);
       
       // Clear rate limiting on successful reset
       localStorage.removeItem(`rate_limit_reset_${cleanUsername}`);
       
       return { success: true };
     } else {
-      logSecurityEvent('PASSWORD_RESET_FAILED', { 
-        username: cleanUsername, 
-        error: data.error 
-      });
+      await logSecurityEventRealTime('PASSWORD_RESET_FAILED', { error: data.error }, cleanUsername);
       
       return { 
         success: false, 
@@ -186,10 +170,7 @@ export async function resetPassword(
     }
   } catch (error) {
     console.error('Password reset error:', error);
-    logSecurityEvent('PASSWORD_RESET_EXCEPTION', { 
-      username: sanitizeInput(username), 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    });
+    await logSecurityEventRealTime('PASSWORD_RESET_EXCEPTION', { error: error instanceof Error ? error.message : 'Unknown error' }, cleanUsername);
     
     return { 
       success: false, 
@@ -199,9 +180,8 @@ export async function resetPassword(
 }
 
 export async function unlockAccount(username: string): Promise<{ success: boolean; error?: string }> {
+  const cleanUsername = sanitizeInput(username);
   try {
-    const cleanUsername = sanitizeInput(username);
-    
     if (!isValidUsername(cleanUsername)) {
       return { success: false, error: 'Tên đăng nhập không hợp lệ' };
     }
@@ -217,14 +197,11 @@ export async function unlockAccount(username: string): Promise<{ success: boolea
       .eq('username', cleanUsername);
 
     if (error) {
-      logSecurityEvent('ACCOUNT_UNLOCK_ERROR', { 
-        username: cleanUsername, 
-        error: error.message 
-      });
+      await logSecurityEventRealTime('ACCOUNT_UNLOCK_ERROR', { error: error.message }, cleanUsername);
       return { success: false, error: 'Lỗi mở khóa tài khoản' };
     }
 
-    logSecurityEvent('ACCOUNT_UNLOCKED', { username: cleanUsername });
+    await logSecurityEventRealTime('ACCOUNT_UNLOCKED', {}, cleanUsername);
     
     // Clear rate limiting
     localStorage.removeItem(`rate_limit_login_${cleanUsername}`);
@@ -237,12 +214,17 @@ export async function unlockAccount(username: string): Promise<{ success: boolea
 }
 
 export function validateSession(): boolean {
+  let username: string | undefined;
   try {
     const token = localStorage.getItem('auth_token');
-    const user = localStorage.getItem('auth_user');
+    const userStr = localStorage.getItem('auth_user');
     const loginTime = localStorage.getItem('auth_login_time');
     
-    if (!token || !user || !loginTime) {
+    if (userStr) {
+      username = JSON.parse(userStr).username;
+    }
+
+    if (!token || !userStr || !loginTime) {
       console.log('Session validation failed: missing data');
       return false;
     }
@@ -259,10 +241,10 @@ export function validateSession(): boolean {
     
     if (now - loginTimestamp > sevenDaysInMs) {
       console.log('Session validation failed: session older than 7 days');
-      logSecurityEvent('SESSION_EXPIRED', { 
+      logSecurityEventRealTime('SESSION_EXPIRED', { 
         loginTime: new Date(loginTimestamp).toISOString(),
         expiredAt: new Date(now).toISOString()
-      });
+      }, username);
       return false;
     }
 
@@ -273,14 +255,14 @@ export function validateSession(): boolean {
       // Check token expiration if present
       if (payload.exp && payload.exp < Date.now()) {
         console.log('Session validation failed: token expired');
-        logSecurityEvent('TOKEN_EXPIRED', { exp: payload.exp });
+        logSecurityEventRealTime('TOKEN_EXPIRED', { exp: payload.exp }, username);
         return false;
       }
     } catch (tokenError) {
       console.log('Session validation failed: token parsing error', tokenError);
-      logSecurityEvent('TOKEN_PARSING_ERROR', { 
+      logSecurityEventRealTime('TOKEN_PARSING_ERROR', { 
         error: tokenError instanceof Error ? tokenError.message : 'Unknown error' 
-      });
+      }, username);
       return false;
     }
 
@@ -288,9 +270,9 @@ export function validateSession(): boolean {
     return true;
   } catch (error) {
     console.log('Session validation failed: exception', error);
-    logSecurityEvent('SESSION_VALIDATION_ERROR', { 
+    logSecurityEventRealTime('SESSION_VALIDATION_ERROR', { 
       error: error instanceof Error ? error.message : 'Unknown error' 
-    });
+    }, username);
     return false;
   }
 }
