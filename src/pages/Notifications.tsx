@@ -61,7 +61,8 @@ export default function Notifications() {
       const originalSender = (notification.related_data as any)?.sender;
       const recipient = user?.username;
 
-      if (!originalSender || !recipient || !['reply', 'quick_reply'].includes(notification.notification_type)) {
+      // Không gửi thông báo "đã xem" cho hệ thống hoặc nếu không có người gửi
+      if (!originalSender || !recipient || !['reply', 'quick_reply', 'direct_message'].includes(notification.notification_type)) {
         return null;
       }
       const { error } = await supabase.from('notifications').insert({
@@ -84,14 +85,18 @@ export default function Notifications() {
         'acknowledged': '👍 Đã biết.',
         'processed': '✅ Đã xử lý.'
       };
-      const { error: replyError } = await supabase.from('notifications').insert({
-        recipient_username: originalSender,
-        title: `Phản hồi nhanh: ${notification.title}`,
-        message: actionMessages[action] || action,
-        notification_type: 'quick_reply',
-        related_data: { original_notification_id: notification.id, replied_by: user.username, sender: user.username, action }
-      });
-      if (replyError) throw replyError;
+      
+      // Chỉ gửi phản hồi nếu có người gửi thực sự (không phải hệ thống)
+      if ((notification.related_data as any)?.sender) {
+        const { error: replyError } = await supabase.from('notifications').insert({
+          recipient_username: originalSender,
+          title: `Phản hồi nhanh: ${notification.title}`,
+          message: actionMessages[action] || action,
+          notification_type: 'quick_reply',
+          related_data: { original_notification_id: notification.id, replied_by: user.username, sender: user.username, action }
+        });
+        if (replyError) throw replyError;
+      }
 
       if (action === 'processed') {
         const currentRelatedData = (notification.related_data || {}) as Record<string, any>;
@@ -214,9 +219,19 @@ export default function Notifications() {
         ) : (
           <Accordion type="single" collapsible className="w-full space-y-2" value={activeAccordionItem} onValueChange={handleAccordionChange}>
             {conversationKeys.map((correspondent) => {
-              const conversation = groupedConversations[correspondent];
+              const originalConversation = groupedConversations[correspondent];
+              let conversation = originalConversation;
+
+              if (correspondent === 'Hệ thống') {
+                conversation = originalConversation.filter(n => (n.related_data as any)?.user_action !== 'processed');
+              }
+
+              if (correspondent === 'Hệ thống' && conversation.length === 0) {
+                return null;
+              }
+
               const unreadInConv = conversation.filter(n => !n.is_read && n.recipient_username === user.username).length;
-              const lastMessage = conversation[conversation.length - 1];
+              const lastMessage = originalConversation[originalConversation.length - 1];
               const isLastMessageSentByMe = (lastMessage.related_data as any)?.sender === user.username;
               const messagesToShow = visibleMessages[correspondent] || 4;
               const displayedMessages = conversation.slice(-messagesToShow);
@@ -285,7 +300,9 @@ export default function Notifications() {
                         />
                       ))}
                     </div>
-                    <ConversationReply onSendReply={(data) => sendReply({ message: data.message, correspondent })} isReplying={isReplying} />
+                    {correspondent !== 'Hệ thống' && (
+                      <ConversationReply onSendReply={(data) => sendReply({ message: data.message, correspondent })} isReplying={isReplying} />
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               );

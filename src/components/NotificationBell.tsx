@@ -54,7 +54,8 @@ export function NotificationBell() {
       const originalSender = relatedData?.sender;
       const recipient = user?.username;
 
-      if (!originalSender || !recipient || !['reply', 'quick_reply'].includes(notification.notification_type)) {
+      // Không gửi thông báo "đã xem" cho hệ thống hoặc nếu không có người gửi
+      if (!originalSender || !recipient || !['reply', 'quick_reply', 'direct_message'].includes(notification.notification_type)) {
         return null;
       }
       const { error } = await supabase.from('notifications').insert({
@@ -123,14 +124,15 @@ export function NotificationBell() {
   }, [user]);
 
   useEffect(() => {
-    if (!user || !isVisible) return;
+    // Dừng tự động làm mới khi popup đang mở để tránh mất vị trí cuộn
+    if (!user || !isVisible || isOpen) return;
 
     const interval = setInterval(() => {
       loadNotifications();
     }, 5000); // Refresh every 5 seconds
 
     return () => clearInterval(interval);
-  }, [user, isVisible]);
+  }, [user, isVisible, isOpen]);
 
   useEffect(() => {
     if (!user) return;
@@ -169,6 +171,11 @@ export function NotificationBell() {
     navigate('/notifications');
   };
 
+  const handleSystemBadgeClick = () => {
+    setIsOpen(false);
+    navigate('/notifications?conversation=Hệ thống');
+  };
+
   const getNotificationIcon = (type: string) => {
     const iconProps = { className: "h-5 w-5" };
     switch (type) {
@@ -202,9 +209,11 @@ export function NotificationBell() {
             <h3 className="font-semibold text-gray-900">Thông báo</h3>
             <div className="flex items-center gap-2">
               {unprocessedSystemCount > 0 && (
-                <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600" title={`${unprocessedSystemCount} tin nhắn hệ thống chưa xử lý`}>
-                  {unprocessedSystemCount} Cần xử lý
-                </Badge>
+                <div onClick={handleSystemBadgeClick} className="cursor-pointer" title="Xem tin nhắn hệ thống cần xử lý">
+                  <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600">
+                    {unprocessedSystemCount} Cần xử lý
+                  </Badge>
+                </div>
               )}
               <Button onClick={handleViewAllNotifications} variant="ghost" size="sm" className="text-xs text-green-600 hover:text-green-700 hover:bg-green-50">
                 Xem tất cả
