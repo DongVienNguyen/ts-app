@@ -78,6 +78,11 @@ const DataManagement = () => {
   const [activeTab, setActiveTab] = useState('management');
   const dm = useDataManagement();
 
+  const handleNavigateToTable = (table: any) => {
+    dm.setSelectedEntity(table);
+    setActiveTab('management');
+  };
+
   if (dm.user === undefined) {
     return (
       <Layout>
@@ -188,7 +193,7 @@ const DataManagement = () => {
             <StatisticsTab runAsAdmin={dm.runAsAdmin} onLoad={() => {}} />
           </TabsContent>
           <TabsContent value="logs" className="mt-6">
-            <LogManagementTab />
+            <LogManagementTab onNavigateToTable={handleNavigateToTable} />
           </TabsContent>
         </Tabs>
 
