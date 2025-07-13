@@ -98,32 +98,32 @@ export function useNotifications() {
   };
 
   const markAsReadMutation = createMutation<string>(
-    (notificationId) => supabase.from('notifications').update({ is_read: true }).eq('id', notificationId),
+    async (notificationId) => await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId),
     { successMessage: 'Đã đánh dấu đã đọc' }
   );
 
   const markAllAsReadMutation = createMutation(
-    () => supabase.from('notifications').update({ is_read: true }).eq('recipient_username', user!.username).eq('is_read', false),
+    async () => await supabase.from('notifications').update({ is_read: true }).eq('recipient_username', user!.username).eq('is_read', false),
     { successMessage: 'Đã đánh dấu tất cả đã đọc' }
   );
 
   const deleteNotificationMutation = createMutation<string>(
-    (notificationId) => supabase.from('notifications').delete().eq('id', notificationId),
+    async (notificationId) => await supabase.from('notifications').delete().eq('id', notificationId),
     { successMessage: 'Đã xóa thông báo' }
   );
 
   const deleteAllNotificationsMutation = createMutation(
-    () => supabase.from('notifications').delete().eq('recipient_username', user!.username),
+    async () => await supabase.from('notifications').delete().eq('recipient_username', user!.username),
     { successMessage: 'Đã xóa tất cả thông báo' }
   );
 
   const markSelectedAsReadMutation = createMutation<string[]>(
-    (ids) => supabase.from('notifications').update({ is_read: true }).in('id', ids),
+    async (ids) => await supabase.from('notifications').update({ is_read: true }).in('id', ids),
     { successMessage: 'Đã đánh dấu các mục đã chọn là đã đọc', onSuccess: () => setSelectedIds({}) }
   );
 
   const deleteSelectedMutation = createMutation<string[]>(
-    (ids) => supabase.from('notifications').delete().in('id', ids),
+    async (ids) => await supabase.from('notifications').delete().in('id', ids),
     { successMessage: 'Đã xóa các thông báo đã chọn', onSuccess: () => setSelectedIds({}) }
   );
 
