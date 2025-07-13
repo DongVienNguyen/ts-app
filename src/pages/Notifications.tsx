@@ -94,14 +94,28 @@ export default function Notifications() {
                       <h2 className="text-lg font-semibold text-gray-800">{correspondent}</h2>
                     </div>
                     <div className="flex items-center gap-2 pr-2">
-                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); refetch(); }} className="h-8 w-8">
+                      {/* Thay thế Button bằng span để tránh lỗi lồng nút */}
+                      <span
+                        className="h-8 w-8 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={(e) => { e.stopPropagation(); refetch(); }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Làm mới cuộc trò chuyện"
+                      >
                         <RefreshCw className="h-4 w-4" />
-                      </Button>
+                      </span>
                       <AlertDialog onOpenChange={(open) => { if (open) { event?.stopPropagation(); } }}>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600">
+                          {/* Thay thế Button bằng span để tránh lỗi lồng nút */}
+                          <span
+                            className="h-8 w-8 flex items-center justify-center rounded-md cursor-pointer text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                            role="button"
+                            tabIndex={0}
+                            aria-label="Xóa cuộc trò chuyện"
+                          >
                             <Trash2 className="h-4 w-4" />
-                          </Button>
+                          </span>
                         </AlertDialogTrigger>
                         <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                           <AlertDialogHeader>
