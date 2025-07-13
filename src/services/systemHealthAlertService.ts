@@ -295,15 +295,9 @@ class SystemHealthAlertService {
     }
   }
 
-  async acknowledgeAlert(alertId: string, acknowledgedBy: string): Promise<boolean> {
+  async acknowledgeAlert(alertDbId: string, acknowledgedBy: string): Promise<boolean> {
     try {
-      const alertIndex = this.activeAlerts.findIndex(a => a.id === alertId);
-      if (alertIndex === -1) return false;
-
-      const alert = this.activeAlerts[alertIndex];
-      alert.acknowledged = true;
-      alert.acknowledgedBy = acknowledgedBy;
-      alert.acknowledgedAt = new Date().toISOString();
+      const acknowledgedAt = new Date().toISOString();
 
       // Update in database
       const { error } = await supabase
@@ -311,16 +305,18 @@ class SystemHealthAlertService {
         .update({
           acknowledged: true,
           acknowledged_by: acknowledgedBy,
-          acknowledged_at: alert.acknowledgedAt
+          acknowledged_at: acknowledgedAt
         })
-        .eq('alert_id', alertId);
+        .eq('id', alertDbId); // Use the database row's UUID
 
       if (error) {
         console.error('Failed to acknowledge alert in database:', error);
         return false;
       }
 
-      console.log(`✅ Alert ${alertId} acknowledged by ${acknowledgedBy}`);
+      // Since we don't have a reliable way to map db id to internal alert id,
+      // we will just log success and let the UI refetch.
+      console.log(`✅ Alert ${alertDbId} acknowledged by ${acknowledgedBy}`);
       return true;
     } catch (error) {
       console.error('Error acknowledging alert:', error);

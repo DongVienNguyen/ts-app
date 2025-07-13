@@ -1,7 +1,7 @@
-import { useRealtimeActivity, Activity } from '@/hooks/useRealtimeActivity';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { Activity } from '@/hooks/useRealtimeActivity';
 
 const ActivityIcon = ({ activity }: { activity: Activity }) => {
   if (activity.activity_type === 'error') {
@@ -31,9 +31,7 @@ const ActivityMessage = ({ activity }: { activity: Activity }) => {
   return "Hoạt động không xác định";
 };
 
-export const RealtimeActivityFeed = () => {
-  const { activities, isLoading } = useRealtimeActivity(5);
-
+export const RealtimeActivityFeed = ({ activities, isLoading }: { activities: Activity[], isLoading: boolean }) => {
   if (isLoading) {
     return (
       <div className="space-y-3">

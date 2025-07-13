@@ -34,11 +34,12 @@ interface ErrorListTabProps {
   onRefresh: () => void;
   initialFilter?: { type: 'severity' | 'status'; value: string } | null;
   onFilterApplied?: () => void;
+  isPaginated?: boolean; // Added isPaginated prop
 }
 
 const ITEMS_PER_PAGE = 10;
 
-export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter, onFilterApplied }: ErrorListTabProps) {
+export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter, onFilterApplied, isPaginated = true }: ErrorListTabProps) {
   const { user } = useAuth();
   const [filters, setFilters] = useState<ErrorFilters>({});
   const [selectedError, setSelectedError] = useState<SystemError | null>(null);
@@ -258,6 +259,8 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter
     toast.success('Dữ liệu lỗi đã được xuất thành công!');
   };
 
+  const errorsToDisplay = isPaginated ? paginatedData : filteredErrors;
+
   return (
     <>
       <div className="space-y-4">
@@ -311,13 +314,13 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter
             {isLoading ? (
               <div className="flex items-center justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>
             ) : viewMode === 'list' ? (
-              filteredErrors.length > 0 ? (
+              errorsToDisplay.length > 0 ? (
                 <div className="space-y-3">
                   <div className="flex items-center p-2 border-b">
                     <Checkbox id="select-all" checked={selectedIds.length > 0 && selectedIds.length === filteredErrors.length} onCheckedChange={(checked) => handleSelectAll(!!checked)} className="mr-4" />
                     <label htmlFor="select-all" className="text-sm font-medium">Chọn tất cả</label>
                   </div>
-                  {paginatedData.map((error) => (
+                  {errorsToDisplay.map((error) => (
                     <div key={error.id} className={clsx(
                       "border rounded-lg p-4 hover:bg-gray-50 transition-colors",
                       { 'new-item-highlight': error.isNew }
@@ -349,12 +352,14 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter
                       </div>
                     </div>
                   ))}
-                  <SmartPagination
-                    currentPage={currentPage}
-                    totalCount={filteredErrors.length}
-                    itemsPerPage={ITEMS_PER_PAGE}
-                    onPageChange={goToPage}
-                  />
+                  {isPaginated && (
+                    <SmartPagination
+                      currentPage={currentPage}
+                      totalCount={filteredErrors.length}
+                      itemsPerPage={ITEMS_PER_PAGE}
+                      onPageChange={goToPage}
+                    />
+                  )}
                 </div>
               ) : ( 
                 <div className="text-center py-8 text-gray-500">

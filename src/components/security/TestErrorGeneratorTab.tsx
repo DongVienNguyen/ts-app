@@ -128,17 +128,23 @@ export function TestErrorGeneratorTab() {
   };
 
   const handleDeleteAllErrors = async () => {
-    toast.loading('Đang xóa tất cả lỗi...');
-    try {
-      const { error } = await supabase.from('system_errors').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+    const promise = async () => {
+      const { error } = await supabase.from('system_errors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (error) throw error;
-      toast.success('Đã xóa tất cả lỗi thành công!');
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ['error_monitoring_data'] }); // Invalidate error monitoring data to refresh charts
-    } catch (error) {
-      console.error('Error deleting all errors:', error);
-      toast.error('Không thể xóa tất cả lỗi.');
-    }
+    };
+
+    toast.promise(promise(), {
+      loading: 'Đang xóa tất cả lỗi...',
+      success: () => {
+        refetch();
+        queryClient.invalidateQueries({ queryKey: ['error_monitoring_data'] });
+        return 'Đã xóa tất cả lỗi thành công!';
+      },
+      error: (err: any) => {
+        console.error('Error deleting all errors:', err);
+        return 'Không thể xóa tất cả lỗi.';
+      },
+    });
   };
 
   const handleRowClick = (error: SystemError) => {

@@ -112,6 +112,7 @@ export function RealTimeSecurityDashboard() {
       <SecurityAlerts 
         alerts={securityAlerts || []}
         isLoading={isLoading}
+        onAcknowledge={acknowledgeSystemAlert}
       />
     </div>
   );

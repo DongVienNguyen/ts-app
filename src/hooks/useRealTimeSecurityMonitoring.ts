@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Tables } from '@/integrations/supabase/types';
 import { AuthenticatedStaff } from '@/contexts/AuthContext';
 import { logSecurityEventRealTime } from '@/utils/realTimeSecurityUtils';
+import { systemHealthAlertService } from '@/services/systemHealthAlertService';
 
 export type SecurityEvent = Tables<'security_events'>;
 export type SystemAlert = Tables<'system_alerts'>;
@@ -134,6 +135,17 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     });
   }, []);
 
+  const acknowledgeSystemAlert = useCallback(async (alertId: string) => {
+    if (!user) return;
+    const success = await systemHealthAlertService.acknowledgeAlert(alertId, user.username);
+    if (success) {
+      toast.success('Đã giải quyết cảnh báo thành công.');
+      setSecurityAlerts(prev => prev.filter(a => a.id !== alertId));
+    } else {
+      toast.error('Không thể giải quyết cảnh báo.');
+    }
+  }, [user]);
+
   useEffect(() => {
     isMountedRef.current = true;
     
@@ -259,5 +271,6 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     systemStatus,
     securityAlerts,
     forceUpdateCounter,
+    acknowledgeSystemAlert,
   };
 };

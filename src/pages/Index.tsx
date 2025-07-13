@@ -11,7 +11,8 @@ import {
   Users,
   List,
   ShieldCheck,
-  BarChart3
+  BarChart3,
+  RefreshCw,
 } from 'lucide-react';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -19,10 +20,13 @@ import { UnresolvedErrorsBanner } from '@/components/UnresolvedErrorsBanner';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RealtimeActivityFeed } from '@/components/RealtimeActivityFeed';
+import { useRealtimeActivity } from '@/hooks/useRealtimeActivity';
+import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const { user } = useSecureAuth();
   const { stats, systemStatusInfo, isLoading } = useDashboardStats();
+  const { activities, isLoading: isActivityLoading, refetch: refetchActivities } = useRealtimeActivity(5);
 
   const quickActions = [
     {
@@ -206,11 +210,14 @@ const Index = () => {
         </div>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Hoạt Động Gần Đây</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => refetchActivities()}>
+              <RefreshCw className={`h-4 w-4 ${isActivityLoading ? 'animate-spin' : ''}`} />
+            </Button>
           </CardHeader>
           <CardContent>
-            <RealtimeActivityFeed />
+            <RealtimeActivityFeed activities={activities} isLoading={isActivityLoading} />
           </CardContent>
         </Card>
       </div>

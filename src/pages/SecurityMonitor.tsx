@@ -27,6 +27,7 @@ const SecurityMonitor = () => {
     refreshEvents,
     forceUpdateCounter,
     securityAlerts,
+    acknowledgeSystemAlert,
   } = useRealTimeSecurityMonitoring(user);
 
   if (!user) {
@@ -127,6 +128,7 @@ const SecurityMonitor = () => {
             <SecurityAlerts
               alerts={securityAlerts}
               isLoading={isSecurityDataLoading}
+              onAcknowledge={acknowledgeSystemAlert}
             />
           </TabsContent>
           <TabsContent value="users" className="mt-6">
