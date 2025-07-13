@@ -60,23 +60,12 @@ export const DEFAULT_VALUES = {
   transactionType: ''
 };
 
-// Email configuration
+// Email configuration - Simplified to use only Resend
 export const EMAIL_CONFIG = {
-  defaultProvider: 'outlook', // Vietcombank email as default
-  providers: {
-    outlook: {
-      name: 'Vietcombank Outlook SMTP',
-      description: 'Email doanh nghiệp Vietcombank',
-      from: 'dongnv.hvu@vietcombank.com.vn',
-      isDefault: true
-    },
-    resend: {
-      name: 'Resend API',
-      description: 'Dịch vụ email API dự phòng',
-      from: 'taisan@caremylife.me',
-      isDefault: false
-    }
-  }
+  provider: 'resend',
+  from: 'Vietcombank Tài sản <taisan@caremylife.me>',
+  replyTo: 'dongnv.hvu@vietcombank.com.vn',
+  name: 'Hệ thống Quản lý Tài sản Vietcombank'
 };
 
 export default {

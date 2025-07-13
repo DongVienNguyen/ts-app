@@ -1,8 +1,9 @@
 import { safeDbOperation } from '@/utils/supabaseAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { notificationService } from '@/services/notificationService';
-import { emailService } from '@/services/emailService';
+import emailService from '@/services/emailService';
 
+// ... rest of the file remains the same ...
 export interface SystemError {
   id?: string;
   error_type: string;
@@ -367,7 +368,11 @@ export async function captureError(
       // Send emails
       const emails = admins.map(admin => admin.email!).filter(Boolean);
       if (emails.length > 0) {
-        await emailService.sendBulkEmails(emails.map(email => ({ to: email, subject: emailSubject, html: emailHtml })));
+        await emailService.sendEmail({
+          to: emails.map(email => `${email}.hvu@vietcombank.com.vn`),
+          subject: emailSubject,
+          html: emailHtml
+        });
       }
       // Send push notifications
       for (const admin of admins) {

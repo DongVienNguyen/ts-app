@@ -3,13 +3,13 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { emailService, getAdminEmail } from '@/services/emailService';
+import emailService, { getAdminEmail } from '@/services/emailService';
 import { Loader2, Send, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { useSecureAuth } from '@/contexts/AuthContext';
 
 export const ProviderTester = () => {
   const [to, setTo] = useState('');
-  const [isLoading, setIsLoading] = useState<'resend' | 'outlook' | false>(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '', details: '' });
   const { user } = useSecureAuth();
 
@@ -23,7 +23,7 @@ export const ProviderTester = () => {
     }
   };
 
-  const handleSend = async (provider: 'resend' | 'outlook') => {
+  const handleSend = async () => {
     if (!to) {
       setMessage({ type: 'error', text: 'Vui lòng nhập email người nhận.', details: '' });
       return;
@@ -34,36 +34,24 @@ export const ProviderTester = () => {
       return;
     }
 
-    setIsLoading(provider);
-    setMessage({ type: 'info', text: `Đang gửi email qua ${provider.toUpperCase()}...`, details: '' });
+    setIsLoading(true);
+    setMessage({ type: 'info', text: 'Đang gửi email qua Resend API...', details: '' });
 
     try {
-      console.log(`🧪 Testing ${provider} provider...`);
+      console.log('🧪 Testing Resend provider...');
       
-      const result = await emailService.sendEmail({
-        to,
-        subject: `Test Email Trực tiếp qua ${provider.toUpperCase()} - ${new Date().toLocaleString('vi-VN')}`,
-        type: 'test',
-        provider: provider,
-        data: {
-          username: user?.username || 'N/A',
-        }
-      });
+      const result = await emailService.sendTestEmail(to, user?.username || 'N/A');
 
-      console.log(`📧 ${provider} result:`, result);
+      console.log('📧 Test result:', result);
 
       if (result.success) {
-        const actualProvider = result.data?.actualProvider || result.provider || provider;
-        const fromEmail = result.data?.from || (provider === 'outlook' ? 'dongnv.hvu@vietcombank.com.vn' : 'taisan@caremylife.me');
+        const fromEmail = result.from || 'Vietcombank Tài sản <taisan@caremylife.me>';
         
         let successMessage = `✅ Email đã được gửi thành công đến ${to}`;
-        let details = '';
+        let details = `Provider: ${result.provider}, From: ${fromEmail}`;
 
-        if (result.data?.fallback) {
-          successMessage += ` (Fallback)`;
-          details = `Provider gốc: ${result.data.originalProvider}, Thực tế: ${actualProvider}. Lý do fallback: ${result.data.error}`;
-        } else {
-          details = `Provider: ${actualProvider}, From: ${fromEmail}`;
+        if (result.reply_to) {
+          details += `\nReply-to: ${result.reply_to}`;
         }
 
         if (result.message) {
@@ -78,15 +66,15 @@ export const ProviderTester = () => {
       } else {
         setMessage({ 
           type: 'error', 
-          text: `❌ Gửi email qua ${provider.toUpperCase()} thất bại`,
+          text: '❌ Gửi email thất bại',
           details: result.error || 'Lỗi không xác định'
         });
       }
     } catch (error: any) {
-      console.error(`❌ ${provider} test error:`, error);
+      console.error('❌ Test error:', error);
       setMessage({ 
         type: 'error', 
-        text: `❌ Lỗi khi test ${provider.toUpperCase()}`,
+        text: '❌ Lỗi khi test email',
         details: error.message || 'Lỗi không xác định'
       });
     } finally {
@@ -105,12 +93,12 @@ export const ProviderTester = () => {
             placeholder="recipient@example.com" 
             value={to} 
             onChange={(e) => setTo(e.target.value)}
-            disabled={!!isLoading}
+            disabled={isLoading}
           />
           <Button 
             variant="outline" 
             onClick={handlePrefillAdminEmail}
-            disabled={!!isLoading}
+            disabled={isLoading}
           >
             Dùng email Admin
           </Button>
@@ -119,28 +107,16 @@ export const ProviderTester = () => {
       
       <div className="flex space-x-2">
         <Button 
-          onClick={() => handleSend('resend')} 
-          disabled={!!isLoading || !to} 
+          onClick={handleSend} 
+          disabled={isLoading || !to} 
           className="flex-1 bg-blue-600 hover:bg-blue-700"
         >
-          {isLoading === 'resend' ? (
+          {isLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <Send className="mr-2 h-4 w-4" />
           )}
-          Test với Resend
-        </Button>
-        <Button 
-          onClick={() => handleSend('outlook')} 
-          disabled={!!isLoading || !to} 
-          className="flex-1 bg-green-600 hover:bg-green-700"
-        >
-          {isLoading === 'outlook' ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="mr-2 h-4 w-4" />
-          )}
-          Test với Outlook
+          Test với Resend API
         </Button>
       </div>
 
@@ -173,11 +149,12 @@ export const ProviderTester = () => {
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <h4 className="font-semibold text-gray-800 mb-2">📧 Thông tin Test</h4>
         <ul className="text-sm text-gray-700 space-y-1">
-          <li>• <strong>Resend:</strong> Gửi qua API Resend với domain caremylife.me</li>
-          <li>• <strong>Outlook:</strong> Sử dụng Resend với branding Vietcombank (SMTP không khả dụng trong Edge Functions)</li>
+          <li>• <strong>Resend API:</strong> Gửi qua API Resend với domain caremylife.me</li>
+          <li>• <strong>From:</strong> Vietcombank Tài sản &lt;taisan@caremylife.me&gt;</li>
+          <li>• <strong>Reply-to:</strong> dongnv.hvu@vietcombank.com.vn</li>
           <li>• Email test sẽ có template HTML đầy đủ với thông tin chi tiết</li>
           <li>• Kiểm tra cả inbox và spam folder nếu không thấy email</li>
-          <li>• Thời gian gửi: vài giây đến vài phút tùy provider</li>
+          <li>• Thời gian gửi: vài giây đến vài phút</li>
         </ul>
       </div>
     </div>

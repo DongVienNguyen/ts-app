@@ -1,226 +1,289 @@
 import { supabase } from '@/integrations/supabase/client';
-import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
+import { EMAIL_CONFIG } from '@/config';
 
-export interface EmailPayload {
+export interface EmailOptions {
   to: string | string[];
   subject: string;
-  html?: string;
+  html: string;
   type?: string;
   data?: any;
-  provider?: 'resend' | 'outlook';
-  attachments?: { filename: string; content: string; encoding?: string }[];
 }
 
-export class EmailService {
-  private static instance: EmailService;
+export interface EmailResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+  message?: string;
+  provider: string;
+  from?: string;
+  reply_to?: string;
+}
 
-  static getInstance(): EmailService {
-    if (!EmailService.instance) {
-      EmailService.instance = new EmailService();
-    }
-    return EmailService.instance;
-  }
+/**
+ * Send email using Resend API via Supabase Edge Function
+ */
+export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> => {
+  try {
+    console.log('📧 Sending email via Resend API...');
+    console.log('📧 To:', Array.isArray(options.to) ? options.to.join(', ') : options.to);
+    console.log('📧 Subject:', options.subject);
 
-  // Test email service
-  async testEmailService() {
-    const startTime = performance.now();
-    
-    try {
-      // Use the dedicated 'api_check' type for health checks
-      const { data, error } = await supabase.functions.invoke('send-notification-email', {
-        body: { 
-          type: 'api_check'
-        }
-      });
+    const { data, error } = await supabase.functions.invoke('send-notification-email', {
+      body: {
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+        type: options.type,
+        data: options.data
+      }
+    });
 
-      const responseTime = Math.round(performance.now() - startTime);
-
-      // Check if service responded and the check was successful
-      const isWorking = !error && data?.success;
-
-      await updateSystemStatus({
-        service_name: 'email',
-        status: isWorking ? 'online' : 'degraded',
-        response_time_ms: responseTime,
-        uptime_percentage: isWorking ? 100 : 0,
-        status_data: {
-          lastCheck: new Date().toISOString(),
-          responseTime,
-          result: isWorking ? 'success' : 'failed',
-          error: error?.message || (data && !data.success ? data.message : null)
-        }
-      });
-
-      // Log performance metric
-      await logSystemMetric({
-        metric_type: 'performance',
-        metric_name: 'email_service_response_time',
-        metric_value: responseTime,
-        metric_unit: 'ms'
-      });
-
-      console.log('✅ Email service health check completed');
-
-    } catch (error) {
-      const responseTime = Math.round(performance.now() - startTime);
-      
-      await updateSystemStatus({
-        service_name: 'email',
-        status: 'offline',
-        response_time_ms: responseTime,
-        uptime_percentage: 0,
-        status_data: {
-          lastCheck: new Date().toISOString(),
-          result: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error'
-        }
-      });
-
-      console.error('❌ Email service health check failed:', error);
+    if (error) {
+      console.error('❌ Supabase function error:', error);
       throw error;
     }
-  }
 
-  // Send email notification
-  async sendEmail(payload: EmailPayload) {
-    try {
-      console.log('📧 Sending email with payload:', {
-        to: payload.to,
-        subject: payload.subject,
-        provider: payload.provider || 'default',
-        type: payload.type
-      });
-
-      const { data, error } = await supabase.functions.invoke('send-notification-email', {
-        body: payload
-      });
-
-      console.log('📧 Edge Function response:', { data, error });
-
-      if (error) {
-        console.error('❌ Email sending error:', error);
-        return { success: false, error: error.message };
-      }
-
-      if (!data || !data.success) {
-        console.error('❌ Email sending failed:', data);
-        return { success: false, error: data?.error || 'Unknown error from Edge Function' };
-      }
-
-      console.log('✅ Email sent successfully:', data);
-      return { 
-        success: true, 
-        data,
-        message: data.message || 'Email sent successfully',
-        provider: data.provider || 'unknown'
-      };
-
-    } catch (error) {
-      console.error('❌ Failed to send email:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      };
-    }
-  }
-
-  // Send bulk emails
-  async sendBulkEmails(emails: EmailPayload[]) {
-    const results = [];
-    
-    for (const email of emails) {
-      const result = await this.sendEmail(email);
-      results.push({ ...email, ...result });
-      
-      // Add delay between emails to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 100));
+    if (!data.success) {
+      console.error('❌ Email send failed:', data.error);
+      throw new Error(data.error || 'Email send failed');
     }
 
-    return results;
+    console.log('✅ Email sent successfully via Resend API');
+    return {
+      success: true,
+      data: data.data,
+      message: data.message,
+      provider: 'resend',
+      from: data.from,
+      reply_to: data.reply_to
+    };
+
+  } catch (error: any) {
+    console.error('❌ Email service error:', error);
+    return {
+      success: false,
+      error: error.message || 'Unknown email error',
+      provider: 'resend'
+    };
   }
-}
+};
 
-// Export singleton instance
-export const emailService = EmailService.getInstance();
+/**
+ * Send test email
+ */
+export const sendTestEmail = async (to: string, username: string = 'Test User'): Promise<EmailResponse> => {
+  return sendEmail({
+    to,
+    subject: `[TEST] Email từ ${EMAIL_CONFIG.name}`,
+    html: '', // Will be generated by Edge Function
+    type: 'test',
+    data: { username }
+  });
+};
 
-// Export missing functions with proper error handling
-export async function sendAssetNotificationEmail(recipients: string[], subject: string, content: string) {
-  const results = [];
-  let hasError = false;
-  let errorMessage = '';
-  
-  for (const recipient of recipients) {
-    const result = await emailService.sendEmail({ to: recipient, subject, html: content });
-    results.push({ recipient, ...result });
-    
-    if (!result.success) {
-      hasError = true;
-      errorMessage = result.error || 'Unknown error';
-    }
-  }
-  
-  return { 
-    success: results.every(r => r.success), 
-    results,
-    error: hasError ? errorMessage : undefined
-  };
-}
-
-export async function sendAssetTransactionConfirmation(username: string, transactions: any[], isSuccess: boolean) {
-  const subject = isSuccess ? 'Xác nhận giao dịch tài sản thành công' : 'Giao dịch tài sản thất bại';
-  const content = `
-    <h2>${subject}</h2>
-    <p>Người dùng: ${username}</p>
-    <p>Số lượng giao dịch: ${transactions.length}</p>
-    <p>Trạng thái: ${isSuccess ? 'Thành công' : 'Thất bại'}</p>
-    <p>Thời gian: ${new Date().toLocaleString('vi-VN')}</p>
+/**
+ * Send asset notification email
+ */
+export const sendAssetNotificationEmail = async (
+  recipients: string[],
+  subject: string,
+  content: string
+): Promise<EmailResponse> => {
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>${subject}</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 24px;">🏦 Ngân hàng TMCP Ngoại thương Việt Nam</h1>
+        <p style="margin: 5px 0 0 0; opacity: 0.9;">Vietcombank - Hệ thống Quản lý Tài sản</p>
+      </div>
+      <div style="background: white; border: 1px solid #e5e7eb; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
+        <div style="white-space: pre-line; line-height: 1.6;">${content}</div>
+      </div>
+      <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+        <p><strong>Ngân hàng TMCP Ngoại thương Việt Nam (Vietcombank)</strong></p>
+        <p>Hệ thống Quản lý Tài sản Nội bộ</p>
+        <p>Liên hệ hỗ trợ: dongnv.hvu@vietcombank.com.vn</p>
+        <p>Thời gian gửi: ${new Date().toLocaleString('vi-VN')}</p>
+      </div>
+    </body>
+    </html>
   `;
+
+  return sendEmail({
+    to: recipients,
+    subject,
+    html: htmlContent,
+    type: 'asset_notification'
+  });
+};
+
+/**
+ * Send asset transaction confirmation email
+ */
+export const sendAssetTransactionConfirmation = async (
+  username: string,
+  transactions: any[],
+  success: boolean
+): Promise<EmailResponse> => {
+  const subject = success 
+    ? `Xác nhận giao dịch tài sản thành công - ${username}`
+    : `Lỗi giao dịch tài sản - ${username}`;
+
+  const content = success
+    ? `Xin chào ${username},
+
+Giao dịch tài sản của bạn đã được xử lý thành công.
+
+Thông tin giao dịch:
+- Số lượng tài sản: ${transactions.length}
+- Thời gian: ${new Date().toLocaleString('vi-VN')}
+
+Cảm ơn bạn đã sử dụng hệ thống.`
+    : `Xin chào ${username},
+
+Có lỗi xảy ra khi xử lý giao dịch tài sản của bạn.
+
+Vui lòng thử lại hoặc liên hệ bộ phận hỗ trợ.`;
+
+  // Get user email from staff table
+  const { data: staffData } = await supabase
+    .from('staff')
+    .select('email')
+    .eq('username', username)
+    .single();
+
+  const userEmail = staffData?.email ? `${staffData.email}.hvu@vietcombank.com.vn` : `${username}@vietcombank.com.vn`;
+
+  return sendAssetNotificationEmail([userEmail], subject, content);
+};
+
+/**
+ * Send error report email
+ */
+export const sendErrorReport = async (
+  reporterName: string,
+  reporterEmail: string,
+  errorData: {
+    title: string;
+    description: string;
+    stepsToReproduce?: string;
+    expectedResult?: string;
+    actualResult?: string;
+    userAgent?: string;
+    url?: string;
+    timestamp?: string;
+  }
+): Promise<EmailResponse> => {
+  const subject = `[BÁO CÁO LỖI] ${errorData.title}`;
   
-  return emailService.sendEmail({ to: `${username}@company.com`, subject, html: content });
-}
+  const content = `Báo cáo lỗi mới từ hệ thống:
 
-export async function sendErrorReport(reporterName: string, reporterEmail: string, errorData: any) {
-  const subject = `Báo cáo lỗi từ ${reporterName}`;
-  const content = `
-    <h2>Báo cáo lỗi hệ thống</h2>
-    <p><strong>Người báo cáo:</strong> ${reporterName}</p>
-    <p><strong>Email:</strong> ${reporterEmail}</p>
-    <p><strong>Tiêu đề:</strong> ${errorData.title}</p>
-    <p><strong>Mô tả:</strong> ${errorData.description}</p>
-    <p><strong>Các bước tái hiện:</strong> ${errorData.stepsToReproduce || 'Không có'}</p>
-    <p><strong>Kết quả mong đợi:</strong> ${errorData.expectedResult || 'Không có'}</p>
-    <p><strong>Kết quả thực tế:</strong> ${errorData.actualResult || 'Không có'}</p>
-    <p><strong>Thời gian:</strong> ${errorData.timestamp}</p>
-    <p><strong>User Agent:</strong> ${errorData.userAgent}</p>
-    <p><strong>URL:</strong> ${errorData.url}</p>
-  `;
-  
-  return emailService.sendEmail({ to: 'admin@company.com', subject, html: content });
-}
+👤 Người báo cáo: ${reporterName}
+📧 Email: ${reporterEmail}
+🕐 Thời gian: ${errorData.timestamp || new Date().toLocaleString('vi-VN')}
 
-export async function testEmailFunction(username: string) {
-  const subject = 'Test Email Function';
-  const content = `<p>This is a test email for user: ${username}</p>`;
-  return emailService.sendEmail({ to: `${username}@company.com`, subject, html: content });
-}
+📋 THÔNG TIN LỖI:
+Tiêu đề: ${errorData.title}
+Mô tả: ${errorData.description}
 
-export async function getAdminEmail(): Promise<string | null> {
+${errorData.stepsToReproduce ? `🔄 Các bước tái hiện:
+${errorData.stepsToReproduce}
+
+` : ''}${errorData.expectedResult ? `✅ Kết quả mong đợi:
+${errorData.expectedResult}
+
+` : ''}${errorData.actualResult ? `❌ Kết quả thực tế:
+${errorData.actualResult}
+
+` : ''}🌐 THÔNG TIN KỸ THUẬT:
+URL: ${errorData.url || 'N/A'}
+User Agent: ${errorData.userAgent || 'N/A'}
+
+Vui lòng kiểm tra và xử lý lỗi này.`;
+
+  // Send to admin
+  const { data: adminData } = await supabase
+    .from('staff')
+    .select('email')
+    .eq('role', 'admin')
+    .limit(1)
+    .single();
+
+  const adminEmail = adminData?.email ? `${adminData.email}.hvu@vietcombank.com.vn` : 'admin@vietcombank.com.vn';
+
+  return sendAssetNotificationEmail([adminEmail], subject, content);
+};
+
+/**
+ * Test email function
+ */
+export const testEmailFunction = async (username: string): Promise<EmailResponse> => {
+  return sendTestEmail('test@example.com', username);
+};
+
+/**
+ * Get admin email
+ */
+export const getAdminEmail = async (): Promise<string | null> => {
   try {
-    const { data, error } = await supabase
+    const { data: adminData } = await supabase
       .from('staff')
       .select('email')
       .eq('role', 'admin')
       .limit(1)
       .single();
 
-    if (error) {
-      console.error('Error fetching admin email:', error);
-      return null;
-    }
-
-    return data?.email || null;
+    return adminData?.email ? `${adminData.email}.hvu@vietcombank.com.vn` : null;
   } catch (error) {
-    console.error('Exception fetching admin email:', error);
+    console.error('Error getting admin email:', error);
     return null;
   }
-}
+};
+
+/**
+ * Check email service status
+ */
+export const checkEmailStatus = async () => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-notification-email', {
+      body: { type: 'api_check' }
+    });
+
+    if (error) throw error;
+
+    return {
+      success: data.success,
+      providers: data.providers,
+      provider: data.provider,
+      timestamp: data.timestamp
+    };
+  } catch (error: any) {
+    console.error('❌ Email status check error:', error);
+    return {
+      success: false,
+      error: error.message,
+      providers: {
+        resend: { configured: false, status: 'Error checking status' }
+      }
+    };
+  }
+};
+
+// Export emailService object for compatibility
+export const emailService = {
+  sendEmail,
+  sendTestEmail,
+  sendAssetNotificationEmail,
+  sendAssetTransactionConfirmation,
+  sendErrorReport,
+  testEmailFunction,
+  getAdminEmail,
+  checkEmailStatus
+};
+
+export default emailService;

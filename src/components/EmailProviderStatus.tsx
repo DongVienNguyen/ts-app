@@ -2,15 +2,17 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, AlertCircle, Loader2, Server } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, Mail } from 'lucide-react';
 
 interface ProviderStatus {
   configured: boolean;
+  status: string;
+  from?: string;
+  reply_to?: string;
 }
 
 interface ApiStatus {
   resend: ProviderStatus;
-  outlook: ProviderStatus;
 }
 
 export const EmailProviderStatus = () => {
@@ -47,41 +49,49 @@ export const EmailProviderStatus = () => {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
-          <Server className="w-5 h-5 text-indigo-600" />
-          <span>Trạng thái Nhà cung cấp Email</span>
+          <Mail className="w-5 h-5 text-blue-600" />
+          <span>Trạng thái Email Service</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Kiểm tra xem các API key và thông tin xác thực cho nhà cung cấp email đã được cấu hình đúng trong Supabase Secrets hay chưa.
+          Kiểm tra trạng thái kết nối với Resend API để gửi email từ hệ thống.
         </p>
         <Button onClick={checkStatus} disabled={isLoading}>
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {isLoading ? 'Đang kiểm tra...' : 'Kiểm tra Trạng thái Cấu hình'}
+          {isLoading ? 'Đang kiểm tra...' : 'Kiểm tra Trạng thái Email'}
         </Button>
 
         {status && (
           <div className="space-y-2 pt-4">
             <h4 className="font-semibold">Kết quả:</h4>
-            <div className="flex items-center space-x-2 p-2 rounded-md" style={{ backgroundColor: status.resend.configured ? '#f0fdf4' : '#fef2f2' }}>
+            <div className="flex items-center space-x-2 p-3 rounded-md border" style={{ 
+              backgroundColor: status.resend.configured ? '#f0fdf4' : '#fef2f2',
+              borderColor: status.resend.configured ? '#16a34a' : '#dc2626'
+            }}>
               {status.resend.configured ? (
                 <CheckCircle className="h-5 w-5 text-green-500" />
               ) : (
                 <AlertCircle className="h-5 w-5 text-red-500" />
               )}
-              <span className={status.resend.configured ? 'text-green-700' : 'text-red-700'}>
-                Resend API: <strong>{status.resend.configured ? 'Đã cấu hình' : 'Chưa cấu hình'}</strong>
-              </span>
-            </div>
-            <div className="flex items-center space-x-2 p-2 rounded-md" style={{ backgroundColor: status.outlook.configured ? '#f0fdf4' : '#fef2f2' }}>
-              {status.outlook.configured ? (
-                <CheckCircle className="h-5 w-5 text-green-500" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-red-500" />
-              )}
-              <span className={status.outlook.configured ? 'text-green-700' : 'text-red-700'}>
-                Outlook SMTP: <strong>{status.outlook.configured ? 'Đã cấu hình' : 'Chưa cấu hình'}</strong>
-              </span>
+              <div className="flex-1">
+                <div className={status.resend.configured ? 'text-green-700' : 'text-red-700'}>
+                  <strong>Resend API: {status.resend.configured ? 'Đã cấu hình' : 'Chưa cấu hình'}</strong>
+                </div>
+                <div className="text-sm text-gray-600 mt-1">
+                  Status: {status.resend.status}
+                </div>
+                {status.resend.from && (
+                  <div className="text-sm text-gray-600">
+                    From: {status.resend.from}
+                  </div>
+                )}
+                {status.resend.reply_to && (
+                  <div className="text-sm text-gray-600">
+                    Reply-to: {status.resend.reply_to}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
