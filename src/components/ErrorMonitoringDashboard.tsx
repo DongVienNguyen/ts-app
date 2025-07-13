@@ -4,16 +4,17 @@ import { ServiceStatusTab } from './error-monitoring/ServiceStatusTab';
 import { SystemAlertsDisplay } from './error-monitoring/SystemAlertsDisplay';
 import { ErrorListTab } from './error-monitoring/ErrorListTab';
 import { SystemError, SystemAlert } from '@/utils/errorTracking';
-import { HealthSummary } from '@/hooks/useErrorMonitoringData'; // Import HealthSummary
+import { SystemHealth } from '@/components/system-health/types'; // Import SystemHealth
+import { SystemHealthGrid } from './system-health/SystemHealthGrid';
 
 interface ErrorMonitoringDashboardProps {
   errorStats: any;
   recentErrors: SystemError[];
   systemAlerts: SystemAlert[];
-  health: HealthSummary; // Use the new HealthSummary type
+  health: SystemHealth | null; // Changed to SystemHealth | null
   isLoading: boolean;
   refreshAll: () => void;
-  acknowledgeAlert: (alertId: string) => Promise<void>; // Changed to Promise<void>
+  acknowledgeAlert: (alertId: string) => Promise<void>;
 }
 
 export function ErrorMonitoringDashboard({
@@ -22,12 +23,13 @@ export function ErrorMonitoringDashboard({
   systemAlerts,
   health,
   isLoading,
-  refreshAll, // Add refreshAll here
+  refreshAll,
   acknowledgeAlert,
 }: ErrorMonitoringDashboardProps) {
   return (
     <div className="space-y-6">
-      <ErrorOverviewCards errorStats={errorStats} isLoading={isLoading} /> {/* Changed 'stats' to 'errorStats' */}
+      <ErrorOverviewCards errorStats={errorStats} isLoading={isLoading} />
+      <SystemHealthGrid health={health} isLoading={isLoading} /> {/* Removed 'as any' cast */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         <Card className="lg:col-span-4">
           <CardHeader>
@@ -38,7 +40,7 @@ export function ErrorMonitoringDashboard({
           </CardContent>
         </Card>
         <div className="lg:col-span-3 space-y-6">
-          <ServiceStatusTab serviceHealth={health.services} isLoading={isLoading} />
+          <ServiceStatusTab serviceHealth={health?.services} isLoading={isLoading} /> {/* Added optional chaining for services */}
           <SystemAlertsDisplay
             alerts={systemAlerts}
             isLoading={isLoading}

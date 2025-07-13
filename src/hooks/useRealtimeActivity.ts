@@ -6,7 +6,7 @@ import { Tables } from '@/integrations/supabase/types';
 type SecurityEvent = Tables<'security_events'>;
 export type Activity = (SystemError | SecurityEvent) & { activity_type: 'error' | 'security' };
 
-const VALID_SECURITY_EVENT_TYPES = ['LOGIN_FAILED', 'SUSPICIOUS_ACTIVITY', 'RATE_LIMIT_EXCEEDED', 'ACCOUNT_LOCKED', 'ACCESS_DENIED', 'SECURITY_CONFIG_CHANGE'];
+const VALID_SECURITY_EVENT_TYPES = ['LOGIN_FAILED', 'SUSPICIOUS_ACTIVITY', 'RATE_LIMIT_EXCEEDED', 'ACCOUNT_LOCKED', 'ACCESS_DENIED', 'SECURITY_CONFIG_CHANGE', 'HEALTH_CHECK'];
 
 export function useRealtimeActivity(limit: number = 5) {
   const [activities, setActivities] = useState<Activity[]>([]);

@@ -26,7 +26,11 @@ const ActivityMessage = ({ activity }: { activity: Activity }) => {
     return `Lỗi hệ thống: ${(activity as any).error_message}`;
   }
   if (activity.activity_type === 'security') {
-    return `Sự kiện bảo mật: ${(activity as any).event_type}`;
+    const eventType = (activity as any).event_type;
+    if (eventType === 'HEALTH_CHECK') {
+      return `Kiểm tra sức khỏe hệ thống: API`;
+    }
+    return `Sự kiện bảo mật: ${eventType}`;
   }
   return "Hoạt động không xác định";
 };

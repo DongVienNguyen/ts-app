@@ -8,6 +8,8 @@ import { StorageMetric } from './StorageMetric';
 import { MemoryMetric } from './MemoryMetric';
 import { PerformanceMetric } from './PerformanceMetric';
 import { SecurityMetric } from './SecurityMetric';
+import { EmailMetric } from './EmailMetric';
+import { PushNotificationMetric } from './PushNotificationMetric';
 
 interface SystemHealthGridProps {
   health: SystemHealth | null;
@@ -22,8 +24,8 @@ export const SystemHealthGrid: React.FC<SystemHealthGridProps> = ({ health, isLo
           <CardTitle>Tổng quan Sức khỏe Hệ thống</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[...Array(6)].map((_, i) => (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(8)].map((_, i) => (
               <Card key={i}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <Skeleton className="h-5 w-24" />
@@ -47,13 +49,15 @@ export const SystemHealthGrid: React.FC<SystemHealthGridProps> = ({ health, isLo
         <CardTitle>Tổng quan Sức khỏe Hệ thống</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <DatabaseMetric health={health.database} />
           <ApiMetric health={health.api} />
           <StorageMetric health={health.storage} />
           <MemoryMetric health={health.memory} />
           <PerformanceMetric health={health.performance} />
           <SecurityMetric health={health.security} />
+          <EmailMetric status={(health as any).services?.email} isLoading={isLoading} />
+          <PushNotificationMetric status={(health as any).services?.push_notification} isLoading={isLoading} />
         </div>
       </CardContent>
     </Card>

@@ -3,20 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { SystemError, SystemAlert } from '@/utils/errorTracking';
-import { healthCheckService } from '@/services/healthCheckService';
 import { AuthenticatedStaff } from '@/contexts/AuthContext';
+import { AdvancedSystemHealthService } from '@/components/system-health/AdvancedSystemHealthService';
+import { SystemHealth } from '@/components/system-health/types'; // Import SystemHealth
 
-// Define the HealthSummary interface
-export interface HealthSummary {
-  overallHealth: number;
-  services: any; // Consider defining a more specific type for services if possible
-  summary: {
-    total: number;
-    online: number;
-    degraded: number;
-    offline: number;
-  };
-}
+// Removed HealthSummary interface as it was causing type conflicts
 
 export const useErrorMonitoringData = (user?: AuthenticatedStaff | null) => {
   const queryClient = useQueryClient();
@@ -73,9 +64,11 @@ export const useErrorMonitoringData = (user?: AuthenticatedStaff | null) => {
     staleTime: 1000 * 10, // 10 seconds
   });
 
-  const { data: healthData, isLoading: isHealthLoading } = useQuery({
+  const { data: healthData, isLoading: isHealthLoading } = useQuery<SystemHealth | null>({ // Specify return type as SystemHealth | null
     queryKey: ['systemHealth'],
-    queryFn: () => healthCheckService.getHealthSummary(),
+    queryFn: async () => {
+      return await AdvancedSystemHealthService.checkSystemHealth();
+    },
     staleTime: 1000 * 60, // 1 minute
   });
 
@@ -143,13 +136,13 @@ export const useErrorMonitoringData = (user?: AuthenticatedStaff | null) => {
   const errorStats = errorStatsData || { totalErrors: 0, criticalErrors: 0, resolvedErrors: 0, errorRate: 0 };
   const recentErrors = recentErrorsData || [];
   const systemAlerts = systemAlertsData || [];
-  const health = healthData || { overallHealth: 0, services: {}, summary: { total: 0, online: 0, degraded: 0, offline: 0 } };
+  const health = healthData; // healthData is already SystemHealth | null
 
   return {
     errorStats,
     recentErrors,
     systemAlerts,
-    health,
+    health, // This will now be SystemHealth | null
     isLoading,
     isRefreshing,
     realtimeStatus,
