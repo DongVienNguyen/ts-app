@@ -90,30 +90,24 @@ export function QuickMessageDialog({ isOpen, onOpenChange }: QuickMessageDialogP
 
   const onSubmit = (values: MessageFormData) => {
     onOpenChange(false);
-    reset();
 
     sendMessageMutation.mutate(values, {
       onSuccess: (newNotification) => {
-        let toastId: string | number;
-        const undoTimeout = setTimeout(() => {
-          toast.success('Đã gửi tin nhắn thành công!', { id: toastId });
-        }, 6000);
-
-        toastId = toast.info('Đã gửi tin nhắn.', {
+        reset();
+        toast.info('Message sent.', {
           duration: 6000,
           action: {
-            label: 'Hoàn tác',
+            label: 'Undo',
             onClick: async () => {
-              clearTimeout(undoTimeout);
               await supabase.from('notifications').delete().eq('id', newNotification.id);
               queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
-              toast.warning('Đã hoàn tác gửi tin nhắn.');
+              toast.warning('Sending message has been undone.');
             },
           },
         });
       },
       onError: (error) => {
-        toast.error(`Lỗi: ${error.message}`);
+        toast.error(`Error: ${error.message}`);
       },
     });
   };
@@ -123,8 +117,8 @@ export function QuickMessageDialog({ isOpen, onOpenChange }: QuickMessageDialogP
       <DialogContent className="sm:max-w-[480px]">
         <form onSubmit={handleSubmit(onSubmit)}>
           <DialogHeader>
-            <DialogTitle>Gửi tin nhắn nhanh</DialogTitle>
-            <DialogDescription>Soạn và gửi tin nhắn trực tiếp đến một nhân viên.</DialogDescription>
+            <DialogTitle>New</DialogTitle>
+            <DialogDescription>Compose and send a direct message to a staff member.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">

@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { usePageVisibility } from '@/hooks/usePageVisibility';
 
 interface Notification {
   id: string;
@@ -30,6 +31,7 @@ export function NotificationBell() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const isVisible = usePageVisibility();
 
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
@@ -86,36 +88,14 @@ export function NotificationBell() {
     onSuccess: (notification) => {
       if (notification) sendReadReceiptMutation.mutate(notification);
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
     },
     onError: (error: any) => console.error('Error sending quick action from bell:', error),
   });
 
-  useEffect(() => {
-    if (!user) {
-      setNotifications([]);
-      return;
-    }
-    loadNotifications();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel('notifications-bell')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_username=eq.${user.username}` },
-        (payload) => {
-          setNotifications(prev => [payload.new as Notification, ...prev]);
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
-
-  if (!user) return null;
-
   const loadNotifications = async () => {
     if (!user) return;
-    setIsLoading(true);
+    if (!isOpen) setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('notifications')
@@ -132,15 +112,47 @@ export function NotificationBell() {
     }
   };
 
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+    loadNotifications();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !isVisible) return;
+
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [user, isVisible]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('notifications-bell')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_username=eq.${user.username}` },
+        (payload) => {
+          setNotifications(prev => [payload.new as Notification, ...prev]);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  if (!user) return null;
+
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.is_read) {
       markAsReadMutation.mutate(notification.id);
       sendReadReceiptMutation.mutate(notification);
-    } else {
-      const correspondent = (notification.related_data as any)?.sender || 'Hệ thống';
-      navigate(`/notifications?conversation=${correspondent}`);
-      setIsOpen(false);
     }
+    const correspondent = (notification.related_data as any)?.sender || 'Hệ thống';
+    navigate(`/notifications?conversation=${correspondent}`);
+    setIsOpen(false);
   };
 
   const handleQuickAction = (notification: Notification, action: string) => {
@@ -209,7 +221,7 @@ export function NotificationBell() {
                           {!notification.is_read && (<div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>)}
                         </div>
                         <p className="text-xs text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
-                        <p className="text-xs text-gray-400 mt-1">{new Date(notification.created_at).toLocaleString('vi-VN')}</p>
+                        <p className="text-xs text-gray-400 mt-1">{new Date(notification.created_at!).toLocaleString('vi-VN')}</p>
                         {notification.notification_type !== 'read_receipt' && (
                           <div className="flex items-center space-x-2 mt-2">
                             <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={(e) => { e.stopPropagation(); handleQuickAction(notification, 'acknowledged'); }}>

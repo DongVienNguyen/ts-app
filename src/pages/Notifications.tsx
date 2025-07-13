@@ -7,7 +7,7 @@ import { NotificationCard } from '@/components/notifications/NotificationCard';
 import { EmptyNotifications } from '@/components/notifications/EmptyNotifications';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationSkeleton } from '@/components/notifications/NotificationSkeleton';
-import { Loader2, User, RefreshCw, Trash2, MessageSquarePlus } from 'lucide-react';
+import { Loader2, User, RefreshCw, Trash2 } from 'lucide-react';
 import { QuickMessageDialog } from '@/components/notifications/QuickMessageDialog';
 import { groupNotificationsByCorrespondent } from '@/utils/notificationUtils';
 import { Accordion, AccordionContent, AccordionItem } from '@/components/ui/accordion';
@@ -17,6 +17,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { Tables } from '@/integrations/supabase/types';
+import { supabase } from '@/integrations/supabase/client';
+
+type Notification = Tables<'notifications'>;
 
 export default function Notifications() {
   const { user } = useSecureAuth();
@@ -25,6 +31,7 @@ export default function Notifications() {
   const [visibleMessages, setVisibleMessages] = useState<Record<string, number>>({});
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const {
     notifications,
@@ -45,6 +52,55 @@ export default function Notifications() {
     setSelectedConversations,
     deleteSelectedConversations,
   } = useNotifications();
+
+  const sendReadReceiptMutation = useMutation({
+    mutationFn: async (notification: Notification) => {
+      const originalSender = (notification.related_data as any)?.sender;
+      const recipient = user?.username;
+
+      if (!originalSender || !recipient || !['reply', 'quick_reply'].includes(notification.notification_type)) {
+        return null;
+      }
+      const { error } = await supabase.from('notifications').insert({
+        recipient_username: originalSender,
+        title: `Đã xem: ${notification.title.substring(0, 50)}`,
+        message: `${recipient} đã xem thông báo của bạn.`,
+        notification_type: 'read_receipt',
+        related_data: { original_notification_id: notification.id }
+      });
+      if (error) throw error;
+    },
+    onError: (error: any) => console.error('Error sending read receipt:', error),
+  });
+
+  const quickActionMutation = useMutation({
+    mutationFn: async ({ notification, action }: { notification: Notification, action: string }) => {
+      if (!user) throw new Error("User not authenticated");
+      const originalSender = (notification.related_data as any)?.sender || 'admin';
+      const actionMessages: { [key: string]: string } = {
+        'acknowledged': '👍 Đã biết.',
+        'processed': '✅ Đã xử lý.'
+      };
+      const { error } = await supabase.from('notifications').insert({
+        recipient_username: originalSender,
+        title: `Phản hồi nhanh: ${notification.title}`,
+        message: actionMessages[action] || action,
+        notification_type: 'quick_reply',
+        related_data: { original_notification_id: notification.id, replied_by: user.username, sender: user.username, action }
+      });
+      if (error) throw error;
+      return { notification, action };
+    },
+    onSuccess: ({ notification, action }) => {
+      if (notification) {
+        markAsSeen(notification.id);
+        sendReadReceiptMutation.mutate(notification);
+      }
+      queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
+      toast.success(`Đã gửi phản hồi nhanh: "${action === 'acknowledged' ? 'Đã biết' : 'Đã xử lý'}"`);
+    },
+    onError: (error: any) => toast.error(`Lỗi gửi phản hồi: ${error.message}`),
+  });
 
   const { ref, inView } = useInView({
     threshold: 0.5,
@@ -200,7 +256,13 @@ export default function Notifications() {
                         </div>
                       )}
                       {displayedMessages.map((notification) => (
-                        <NotificationCard key={notification.id} notification={notification} onMarkAsSeen={markAsSeen} isSent={(notification.related_data as any)?.sender === user.username} />
+                        <NotificationCard 
+                          key={notification.id} 
+                          notification={notification} 
+                          onMarkAsSeen={markAsSeen} 
+                          isSent={(notification.related_data as any)?.sender === user.username}
+                          onQuickAction={quickActionMutation.mutate}
+                        />
                       ))}
                     </div>
                     <ConversationReply onSendReply={(data) => sendReply({ message: data.message, correspondent })} isReplying={isReplying} />

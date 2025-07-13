@@ -4,6 +4,8 @@ import { Tables } from '@/integrations/supabase/types';
 import { formatRelativeTime } from '@/utils/dateUtils';
 import { cn } from '@/lib/utils';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
+import { Button } from '@/components/ui/button';
+import { ThumbsUp, Check } from 'lucide-react';
 
 type Notification = Tables<'notifications'>;
 
@@ -11,12 +13,14 @@ interface NotificationCardProps {
   notification: Notification;
   onMarkAsSeen: (id: string) => void;
   isSent: boolean;
+  onQuickAction: (data: { notification: Notification, action: string }) => void;
 }
 
 export function NotificationCard({ 
   notification, 
   onMarkAsSeen,
   isSent,
+  onQuickAction,
 }: NotificationCardProps) {
   const { ref, isIntersecting } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.8 }, true);
 
@@ -25,6 +29,11 @@ export function NotificationCard({
       onMarkAsSeen(notification.id);
     }
   }, [isIntersecting, isSent, notification.is_seen, notification.id, onMarkAsSeen]);
+
+  const handleQuickAction = (e: React.MouseEvent, action: string) => {
+    e.stopPropagation();
+    onQuickAction({ notification, action });
+  };
 
   return (
     <div ref={ref} className={cn("flex w-full", isSent ? "justify-end" : "justify-start")}>
@@ -43,15 +52,29 @@ export function NotificationCard({
             <p className="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap">
               {notification.message}
             </p>
-            <div className="flex justify-end items-center mt-2 text-xs">
-              <span className="text-gray-500 mr-2">
-                {formatRelativeTime(notification.created_at!)}
-              </span>
-              {isSent && notification.is_seen && (
-                <span className="text-blue-600">
-                  Đã xem
+            <div className="flex justify-between items-center mt-2 text-xs">
+              <div className="flex items-center space-x-2">
+                {!isSent && notification.notification_type !== 'read_receipt' && (
+                  <>
+                    <Button size="sm" variant="outline" className="h-6 px-2 text-xs bg-white" onClick={(e) => handleQuickAction(e, 'acknowledged')}>
+                      <ThumbsUp className="h-3 w-3 mr-1" /> Đã biết
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-6 px-2 text-xs bg-white" onClick={(e) => handleQuickAction(e, 'processed')}>
+                      <Check className="h-3 w-3 mr-1" /> Đã xử lý
+                    </Button>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center text-gray-500">
+                <span className="mr-2">
+                  {formatRelativeTime(notification.created_at!)}
                 </span>
-              )}
+                {isSent && notification.is_seen && (
+                  <span className="text-blue-600 font-medium">
+                    Đã xem
+                  </span>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
