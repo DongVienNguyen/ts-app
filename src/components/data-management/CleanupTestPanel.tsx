@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Play, Settings, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface CleanupResult {
   table: string;
@@ -26,8 +27,10 @@ interface CleanupResponse {
 }
 
 export function CleanupTestPanel() {
+  const queryClient = useQueryClient();
   const [isRunningCleanup, setIsRunningCleanup] = useState(false);
   const [isSettingUpPolicies, setIsSettingUpPolicies] = useState(false);
+  const [isResettingPolicies, setIsResettingPolicies] = useState(false);
   const [cleanupResults, setCleanupResults] = useState<CleanupResponse | null>(null);
   const [setupResults, setSetupResults] = useState<any>(null);
 
@@ -83,6 +86,45 @@ export function CleanupTestPanel() {
     }
   };
 
+  const resetPolicies = async () => {
+    setIsResettingPolicies(true);
+    setSetupResults(null);
+    
+    try {
+      // First delete all existing policies
+      const { error: deleteError } = await supabase
+        .from('log_cleanup_policies')
+        .delete()
+        .neq('table_name', ''); // Delete all records
+      
+      if (deleteError) {
+        console.warn('Warning deleting existing policies:', deleteError);
+      }
+      
+      // Then setup new policies
+      const { data, error } = await supabase.functions.invoke('setup-cleanup-policies');
+      
+      if (error) {
+        throw error;
+      }
+      
+      setSetupResults(data);
+      
+      if (data.success) {
+        toast.success(`Reset hoàn tất! ${data.successful} policies đã được tạo lại.`);
+        // Refresh the policies in the parent component
+        queryClient.invalidateQueries({ queryKey: ['logCleanupPolicies'] });
+      } else {
+        toast.error(`Reset thất bại: ${data.message}`);
+      }
+    } catch (error: any) {
+      console.error('Reset error:', error);
+      toast.error(`Lỗi khi reset policies: ${error.message}`);
+    } finally {
+      setIsResettingPolicies(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -93,7 +135,7 @@ export function CleanupTestPanel() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <Button 
               onClick={setupPolicies} 
               disabled={isSettingUpPolicies}
@@ -105,6 +147,20 @@ export function CleanupTestPanel() {
                 <Settings className="h-4 w-4 mr-2" />
               )}
               Thiết lập Policies mặc định
+            </Button>
+            
+            <Button 
+              onClick={resetPolicies} 
+              disabled={isResettingPolicies}
+              variant="outline"
+              className="bg-yellow-50 hover:bg-yellow-100 border-yellow-300"
+            >
+              {isResettingPolicies ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Settings className="h-4 w-4 mr-2" />
+              )}
+              Reset tất cả Policies
             </Button>
             
             <Button 
@@ -125,6 +181,8 @@ export function CleanupTestPanel() {
             <AlertDescription>
               <strong>Lưu ý:</strong> Chức năng này sẽ xóa vĩnh viễn dữ liệu cũ theo cấu hình thời gian lưu trữ. 
               Hãy đảm bảo bạn đã backup dữ liệu quan trọng trước khi chạy.
+              <br />
+              <strong>Reset Policies:</strong> Sẽ xóa tất cả cấu hình hiện tại và tạo lại với giá trị mặc định (bao gồm 15 ngày cho notifications).
             </AlertDescription>
           </Alert>
         </CardContent>

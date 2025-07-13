@@ -20,7 +20,10 @@ const LOG_TABLES: TableName[] = [
 const RETENTION_OPTIONS = [
   { label: '15 ngày', value: 15 },
   { label: '30 ngày', value: 30 },
+  { label: '45 ngày', value: 45 },
+  { label: '60 ngày', value: 60 },
   { label: '90 ngày', value: 90 },
+  { label: '180 ngày', value: 180 },
   { label: '1 năm', value: 365 },
 ];
 
@@ -75,7 +78,9 @@ export function LogManagementTab({ onNavigateToTable }: LogManagementTabProps) {
 
   const updatePolicyMutation = useMutation({
     mutationFn: async (policy: Partial<LogPolicy> & { table_name: string }) => {
-      const { error } = await supabase.from('log_cleanup_policies').upsert(policy);
+      const { error } = await supabase.from('log_cleanup_policies').upsert(policy, {
+        onConflict: 'table_name'
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -87,11 +92,28 @@ export function LogManagementTab({ onNavigateToTable }: LogManagementTabProps) {
 
   const deleteAllMutation = useMutation({
     mutationFn: async (tableName: TableName) => {
-      const { error } = await supabase.from(tableName).delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Placeholder to delete all
-      if (error) throw error;
+      // Use a more reliable method to delete all records
+      const { data: allRecords, error: fetchError } = await supabase
+        .from(tableName)
+        .select('id');
+      
+      if (fetchError) throw fetchError;
+      
+      if (!allRecords || allRecords.length === 0) {
+        return { message: `Bảng ${tableName} đã trống.` };
+      }
+      
+      const { error: deleteError } = await supabase
+        .from(tableName)
+        .delete()
+        .in('id', allRecords.map(r => r.id));
+      
+      if (deleteError) throw deleteError;
+      
+      return { message: `Đã xóa ${allRecords.length} bản ghi từ bảng ${tableName}.` };
     },
-    onSuccess: (_, tableName) => {
-      toast.success(`Đã xóa tất cả bản ghi trong bảng ${tableName}.`);
+    onSuccess: (result, tableName) => {
+      toast.success(result.message);
       queryClient.invalidateQueries({ queryKey: ['logTableCounts'] });
     },
     onError: (error: any, tableName) => toast.error(`Lỗi khi xóa bảng ${tableName}: ${error.message}`),

@@ -19,9 +19,9 @@ const DEFAULT_POLICIES = [
   { table_name: 'system_status', retention_days: 45, is_enabled: true },
   
   // Notifications and reminders - shorter retention
-  { table_name: 'notifications', retention_days: 30, is_enabled: true },
-  { table_name: 'sent_asset_reminders', retention_days: 30, is_enabled: true },
-  { table_name: 'sent_crc_reminders', retention_days: 30, is_enabled: true },
+  { table_name: 'notifications', retention_days: 15, is_enabled: true }, // Changed to 15 days
+  { table_name: 'sent_asset_reminders', retention_days: 15, is_enabled: true }, // Changed to 15 days
+  { table_name: 'sent_crc_reminders', retention_days: 15, is_enabled: true }, // Changed to 15 days
   
   // Push subscriptions - keep longer as they're user preferences
   { table_name: 'push_subscriptions', retention_days: 180, is_enabled: false }, // Disabled by default

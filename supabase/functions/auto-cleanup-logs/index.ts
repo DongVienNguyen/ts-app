@@ -57,24 +57,24 @@ serve(async (req) => {
 
         console.log(`📅 Cutoff date for ${policy.table_name}: ${cutoffISOString}`)
 
-        // Count records to be deleted first
-        const { count: recordCount, error: countError } = await supabase
+        // First, get all records to be deleted
+        const { data: recordsToDelete, error: fetchError } = await supabase
           .from(policy.table_name)
-          .select('*', { count: 'exact', head: true })
+          .select('id')
           .lt('created_at', cutoffISOString)
 
-        if (countError) {
-          console.error(`❌ Error counting records for ${policy.table_name}:`, countError)
+        if (fetchError) {
+          console.error(`❌ Error fetching records for ${policy.table_name}:`, fetchError)
           results.push({
             table: policy.table_name,
             success: false,
-            error: countError.message,
+            error: `Fetch error: ${fetchError.message}`,
             deleted_count: 0
           })
           continue
         }
 
-        if (recordCount === 0) {
+        if (!recordsToDelete || recordsToDelete.length === 0) {
           console.log(`✅ No old records found in ${policy.table_name}`)
           results.push({
             table: policy.table_name,
@@ -85,40 +85,57 @@ serve(async (req) => {
           continue
         }
 
-        // Delete old records
-        const { error: deleteError } = await supabase
-          .from(policy.table_name)
-          .delete()
-          .lt('created_at', cutoffISOString)
+        console.log(`📊 Found ${recordsToDelete.length} records to delete in ${policy.table_name}`)
 
-        if (deleteError) {
-          console.error(`❌ Error deleting records from ${policy.table_name}:`, deleteError)
-          results.push({
-            table: policy.table_name,
-            success: false,
-            error: deleteError.message,
-            deleted_count: 0
-          })
-          continue
+        // Delete records in batches to avoid timeout
+        const batchSize = 1000
+        let totalDeletedForTable = 0
+        
+        for (let i = 0; i < recordsToDelete.length; i += batchSize) {
+          const batch = recordsToDelete.slice(i, i + batchSize)
+          const batchIds = batch.map(r => r.id)
+          
+          const { data: deletedBatch, error: deleteError } = await supabase
+            .from(policy.table_name)
+            .delete()
+            .in('id', batchIds)
+            .select('id')
+
+          if (deleteError) {
+            console.error(`❌ Error deleting batch from ${policy.table_name}:`, deleteError)
+            results.push({
+              table: policy.table_name,
+              success: false,
+              error: `Delete error: ${deleteError.message}`,
+              deleted_count: totalDeletedForTable
+            })
+            break
+          }
+
+          const batchDeletedCount = deletedBatch?.length || 0
+          totalDeletedForTable += batchDeletedCount
+          console.log(`✅ Deleted batch of ${batchDeletedCount} records from ${policy.table_name}`)
         }
 
-        console.log(`✅ Successfully deleted ${recordCount} records from ${policy.table_name}`)
-        results.push({
-          table: policy.table_name,
-          success: true,
-          deleted_count: recordCount,
-          cutoff_date: cutoffISOString,
-          retention_days: policy.retention_days
-        })
+        if (totalDeletedForTable > 0) {
+          console.log(`✅ Successfully deleted ${totalDeletedForTable} records from ${policy.table_name}`)
+          results.push({
+            table: policy.table_name,
+            success: true,
+            deleted_count: totalDeletedForTable,
+            cutoff_date: cutoffISOString,
+            retention_days: policy.retention_days
+          })
 
-        totalDeleted += recordCount || 0
+          totalDeleted += totalDeletedForTable
+        }
 
       } catch (error) {
         console.error(`❌ Unexpected error processing ${policy.table_name}:`, error)
         results.push({
           table: policy.table_name,
           success: false,
-          error: error.message,
+          error: `Unexpected error: ${error.message}`,
           deleted_count: 0
         })
       }
