@@ -162,20 +162,37 @@ export const dataService = {
       throw new Error('Chỉ quản trị viên mới có quyền thực hiện thao tác này.');
     }
 
-    const { error, count } = await supabase
+    // First check if the record exists
+    const { data: existingRecord, error: checkError } = await supabase
+      .from(selectedEntity)
+      .select('id')
+      .eq('id', item.id)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Error checking record existence:', checkError);
+      throw new Error(`Lỗi khi kiểm tra bản ghi: ${checkError.message}`);
+    }
+
+    if (!existingRecord) {
+      throw new Error('Bản ghi không tồn tại hoặc đã bị xóa.');
+    }
+
+    // Now perform the delete operation
+    const { data: deletedData, error: deleteError } = await supabase
       .from(selectedEntity)
       .delete()
       .eq('id', item.id)
-      .select();
+      .select('id');
 
-    if (error) {
-      console.error('Error deleting data:', error);
-      throw new Error(`Không thể xóa bản ghi: ${error.message}`);
+    if (deleteError) {
+      console.error('Error deleting data:', deleteError);
+      throw new Error(`Không thể xóa bản ghi: ${deleteError.message}`);
     }
 
     // Check if any rows were actually deleted
-    if (count === 0) {
-      throw new Error('Không thể xóa bản ghi. Có thể bạn không có quyền hoặc bản ghi không tồn tại.');
+    if (!deletedData || deletedData.length === 0) {
+      throw new Error('Không thể xóa bản ghi. Có thể bạn không có quyền xóa bản ghi này.');
     }
 
     return { message: `Đã xóa bản ghi thành công.` };
@@ -186,17 +203,44 @@ export const dataService = {
       throw new Error('Chỉ quản trị viên mới có quyền thực hiện thao tác này.');
     }
 
-    const { error } = await supabase
+    // First check how many records exist
+    const { count: existingCount, error: countError } = await supabase
       .from(selectedEntity)
-      .delete()
+      .select('*', { count: 'exact', head: true })
       .in('id', ids);
 
-    if (error) {
-      console.error('Error bulk deleting data:', error);
-      throw new Error(`Không thể xóa các bản ghi đã chọn: ${error.message}`);
+    if (countError) {
+      console.error('Error counting existing records:', countError);
+      throw new Error(`Lỗi khi kiểm tra bản ghi: ${countError.message}`);
     }
 
-    return { message: `Đã xóa thành công ${ids.length} bản ghi.` };
+    if (existingCount === 0) {
+      throw new Error('Không tìm thấy bản ghi nào để xóa.');
+    }
+
+    // Perform the delete operation
+    const { data: deletedData, error: deleteError } = await supabase
+      .from(selectedEntity)
+      .delete()
+      .in('id', ids)
+      .select('id');
+
+    if (deleteError) {
+      console.error('Error bulk deleting data:', deleteError);
+      throw new Error(`Không thể xóa các bản ghi đã chọn: ${deleteError.message}`);
+    }
+
+    const actualDeletedCount = deletedData?.length || 0;
+    
+    if (actualDeletedCount === 0) {
+      throw new Error('Không thể xóa bản ghi nào. Có thể bạn không có quyền xóa các bản ghi này.');
+    }
+
+    if (actualDeletedCount < ids.length) {
+      return { message: `Đã xóa thành công ${actualDeletedCount}/${ids.length} bản ghi. Một số bản ghi có thể không có quyền xóa.` };
+    }
+
+    return { message: `Đã xóa thành công ${actualDeletedCount} bản ghi.` };
   },
 
   toggleStaffLock: async ({ staffId, currentStatus, user }: ToggleStaffLockParams) => {
