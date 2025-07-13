@@ -44,7 +44,7 @@ const generateTestEmailHTML = (username: string): string => {
           <h3 style="color: #15803d; margin-top: 0;">🔧 Các chức năng đã test:</h3>
           <ul>
             <li>✅ Kết nối Supabase Edge Function</li>
-            <li>✅ Kết nối Email Provider</li>
+            <li>✅ Kết nối Resend API</li>
             <li>✅ Template email HTML</li>
             <li>✅ Gửi email thành công</li>
           </ul>
@@ -57,6 +57,36 @@ const generateTestEmailHTML = (username: string): string => {
     </body>
     </html>
   `
+}
+
+const sendViaResend = async (recipients: string[], subject: string, emailHTML: string) => {
+  // @ts-ignore
+  const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  if (!resendApiKey) {
+    throw new Error('RESEND_API_KEY not configured')
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'Hệ thống Tài sản <taisan@caremylife.me>',
+      to: recipients,
+      subject: subject,
+      html: emailHTML,
+    }),
+  })
+
+  const result = await response.json()
+  
+  if (!response.ok) {
+    throw new Error(`Resend API error: ${result.message || 'Unknown error'}`)
+  }
+
+  return result
 }
 
 serve(async (req) => {
@@ -133,131 +163,42 @@ serve(async (req) => {
     const recipients = Array.isArray(to) ? to : [to]
     console.log(`📧 Sending to: ${recipients.join(', ')} via ${provider}`)
 
-    // Send email based on provider
+    // For now, only support Resend via fetch API
     if (provider === 'outlook') {
-      console.log('📧 Using Outlook...')
-      
-      // @ts-ignore
-      const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
-      // @ts-ignore
-      const outlookPassword = Deno.env.get('OUTLOOK_APP_PASSWORD')
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Outlook provider temporarily disabled. Please use Resend.'
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      })
+    }
 
-      if (!outlookEmail || !outlookPassword) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Outlook credentials not configured'
-        }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        })
-      }
+    // Use Resend via fetch API
+    console.log('📧 Using Resend via fetch API...')
+    
+    try {
+      const result = await sendViaResend(recipients, subject, emailHTML)
+      console.log('✅ Resend success:', result.id)
 
-      try {
-        // @ts-ignore
-        const nodemailer = await import('npm:nodemailer@6.9.14')
-        
-        const transporter = nodemailer.default.createTransporter({
-          host: 'smtp.office365.com',
-          port: 587,
-          secure: false,
-          auth: {
-            user: outlookEmail,
-            pass: outlookPassword,
-          },
-          tls: {
-            rejectUnauthorized: false
-          }
-        })
+      return new Response(JSON.stringify({
+        success: true,
+        data: result,
+        message: 'Email sent via Resend'
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      })
 
-        const info = await transporter.sendMail({
-          from: `"Hệ thống Tài sản" <${outlookEmail}>`,
-          to: recipients,
-          subject: subject,
-          html: emailHTML,
-        })
-
-        console.log('✅ Outlook success:', info.messageId)
-
-        return new Response(JSON.stringify({
-          success: true,
-          data: { messageId: info.messageId },
-          message: 'Email sent via Outlook'
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        })
-
-      } catch (outlookError) {
-        console.error('❌ Outlook error:', outlookError)
-        return new Response(JSON.stringify({
-          success: false,
-          error: `Outlook error: ${outlookError.message}`
-        }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        })
-      }
-
-    } else {
-      // Use Resend (default)
-      console.log('📧 Using Resend...')
-      
-      // @ts-ignore
-      const resendApiKey = Deno.env.get('RESEND_API_KEY')
-      if (!resendApiKey) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'RESEND_API_KEY not configured'
-        }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        })
-      }
-
-      try {
-        // @ts-ignore
-        const { Resend } = await import('npm:resend@2.0.0')
-        const resend = new Resend(resendApiKey)
-
-        const result = await resend.emails.send({
-          from: 'Hệ thống Tài sản <taisan@caremylife.me>',
-          to: recipients,
-          subject: subject,
-          html: emailHTML,
-        })
-
-        if (result.error) {
-          console.error('❌ Resend error:', result.error)
-          return new Response(JSON.stringify({
-            success: false,
-            error: `Resend error: ${result.error.message}`
-          }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          })
-        }
-
-        console.log('✅ Resend success:', result.data?.id)
-
-        return new Response(JSON.stringify({
-          success: true,
-          data: result.data,
-          message: 'Email sent via Resend'
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        })
-
-      } catch (resendError) {
-        console.error('❌ Resend error:', resendError)
-        return new Response(JSON.stringify({
-          success: false,
-          error: `Resend error: ${resendError.message}`
-        }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        })
-      }
+    } catch (resendError) {
+      console.error('❌ Resend error:', resendError)
+      return new Response(JSON.stringify({
+        success: false,
+        error: `Resend error: ${resendError.message}`
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      })
     }
 
   } catch (error) {
