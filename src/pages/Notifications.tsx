@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/Layout';
@@ -10,9 +10,11 @@ import { useNotifications, Notification } from '@/hooks/useNotifications';
 import { groupNotificationsByDate } from '@/utils/dateUtils';
 import { NotificationSkeleton } from '@/components/notifications/NotificationSkeleton';
 import { Loader2 } from 'lucide-react';
+import { QuickMessageDialog } from '@/components/notifications/QuickMessageDialog';
 
 export default function Notifications() {
   const { user } = useSecureAuth();
+  const [isQuickMessageOpen, setIsQuickMessageOpen] = useState(false);
   const {
     notifications,
     unreadCount,
@@ -84,6 +86,7 @@ export default function Notifications() {
           onRefresh={refetch}
           onMarkAllAsRead={markAllAsRead}
           onDeleteAll={deleteAllNotifications}
+          onQuickMessage={() => setIsQuickMessageOpen(true)}
           isMarkingAllAsRead={isMarkingAllAsRead}
           filter={filter}
           onFilterChange={setFilter}
@@ -144,6 +147,8 @@ export default function Notifications() {
             isQuickActioning={isQuickActioning}
           />
         )}
+
+        <QuickMessageDialog isOpen={isQuickMessageOpen} onOpenChange={setIsQuickMessageOpen} />
       </div>
     </Layout>
   );

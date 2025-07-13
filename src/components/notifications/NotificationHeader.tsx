@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Bell, RefreshCw, CheckCheck, Trash2, Search } from 'lucide-react';
+import { Bell, RefreshCw, CheckCheck, Trash2, Search, MessageSquarePlus } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -13,6 +13,7 @@ interface NotificationHeaderProps {
   onRefresh: () => void;
   onMarkAllAsRead: () => void;
   onDeleteAll: () => void;
+  onQuickMessage: () => void;
   isMarkingAllAsRead: boolean;
   filter: FilterType;
   onFilterChange: (filter: FilterType) => void;
@@ -32,6 +33,7 @@ export function NotificationHeader({
   onRefresh,
   onMarkAllAsRead,
   onDeleteAll,
+  onQuickMessage,
   isMarkingAllAsRead,
   filter,
   onFilterChange,
@@ -77,6 +79,14 @@ export function NotificationHeader({
             className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button
+            variant="default"
+            onClick={onQuickMessage}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <MessageSquarePlus className="h-4 w-4 mr-2" />
+            Gửi tin nhanh
           </Button>
         </div>
       </div>
