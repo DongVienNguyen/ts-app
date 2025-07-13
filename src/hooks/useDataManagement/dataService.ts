@@ -162,14 +162,20 @@ export const dataService = {
       throw new Error('Chỉ quản trị viên mới có quyền thực hiện thao tác này.');
     }
 
-    const { error } = await supabase
+    const { error, count } = await supabase
       .from(selectedEntity)
       .delete()
-      .eq('id', item.id);
+      .eq('id', item.id)
+      .select();
 
     if (error) {
       console.error('Error deleting data:', error);
       throw new Error(`Không thể xóa bản ghi: ${error.message}`);
+    }
+
+    // Check if any rows were actually deleted
+    if (count === 0) {
+      throw new Error('Không thể xóa bản ghi. Có thể bạn không có quyền hoặc bản ghi không tồn tại.');
     }
 
     return { message: `Đã xóa bản ghi thành công.` };
