@@ -185,53 +185,68 @@ export class AdvancedSystemHealthService {
     error?: string;
   }> {
     return this.retryWithBackoff(async () => {
+      let activeThreatsCount = 0;
+      let failedLoginAttemptsCount = 0;
+      let securityError: string | undefined;
+
       try {
         // Check for active threats (e.g., recent high-severity security events)
-        const { count: activeThreatsCount, error: threatsError } = await supabase
+        const { count, error } = await supabase
           .from('security_events')
-          .select('id', { count: 'exact', head: true })
+          .select('*', { count: 'exact' }) // Changed from 'id', head: true
           .in('event_type', ['SUSPICIOUS_ACTIVITY', 'ACCOUNT_LOCKED'])
           .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
-        if (threatsError) {
-          console.error('Security health check (threats) failed:', threatsError);
-          // Do not throw, just log and proceed with 0 threats
+        if (error) {
+          console.error('Security health check (threats) query failed:', error);
+          securityError = `Threats query failed: ${error.message}`;
+        } else {
+          activeThreatsCount = count || 0;
         }
+      } catch (e) {
+        console.error('Security health check (threats) unexpected error:', e);
+        securityError = `Threats check unexpected error: ${(e as Error).message}`;
+      }
 
+      try {
         // Check recent failed login attempts from the staff table
-        const { count: failedLoginAttemptsCount, error: failedLoginError } = await supabase
+        const { count, error } = await supabase
           .from('staff')
-          .select('id', { count: 'exact', head: true })
+          .select('*', { count: 'exact' }) // Changed from 'id', head: true
           .gt('failed_login_attempts', 0)
           .gte('last_failed_login', new Date(Date.now() - 60 * 60 * 1000).toISOString());
 
-        if (failedLoginError) {
-          console.error('Security health check (failed logins) failed:', failedLoginError);
-          // Do not throw, just log and proceed with 0 failed logins
+        if (error) {
+          console.error('Security health check (failed logins) query failed:', error);
+          if (!securityError) securityError = `Failed logins query failed: ${error.message}`;
+          else securityError += `; Failed logins query failed: ${error.message}`;
+        } else {
+          failedLoginAttemptsCount = count || 0;
         }
-
-        const activeThreats = activeThreatsCount || 0;
-        const failedLogins = failedLoginAttemptsCount || 0;
-        const lastSecurityScan = new Date().toISOString();
-
-        const status = activeThreats > 0 ? 'error' : 
-                      failedLogins > 10 ? 'warning' : 'healthy'; // Threshold for warning on failed logins
-
-        return {
-          status,
-          activeThreats,
-          failedLogins,
-          lastSecurityScan
-        };
-      } catch (error) {
-        return {
-          status: 'error' as const,
-          activeThreats: 0,
-          failedLogins: 0,
-          lastSecurityScan: new Date().toISOString(),
-          error: (error as Error).message
-        };
+      } catch (e) {
+        console.error('Security health check (failed logins) unexpected error:', e);
+        if (!securityError) securityError = `Failed logins check unexpected error: ${(e as Error).message}`;
+        else securityError += `; Failed logins check unexpected error: ${(e as Error).message}`;
       }
+
+      const lastSecurityScan = new Date().toISOString();
+
+      let status: 'healthy' | 'warning' | 'error' = 'healthy';
+      if (securityError) {
+        status = 'error';
+      } else if (activeThreatsCount > 0) {
+        status = 'error';
+      } else if (failedLoginAttemptsCount > 10) { // Threshold for warning on failed logins
+        status = 'warning';
+      }
+
+      return {
+        status,
+        activeThreats: activeThreatsCount,
+        failedLogins: failedLoginAttemptsCount,
+        lastSecurityScan,
+        error: securityError
+      };
     });
   }
 
