@@ -60,28 +60,28 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
   `
 }
 
-// EmailJS implementation with new API
+// EmailJS implementation with correct Public Key usage
 const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: string) => {
   // @ts-ignore
   const emailjsServiceId = Deno.env.get('EMAILJS_SERVICE_ID')
   // @ts-ignore
   const emailjsTemplateId = Deno.env.get('EMAILJS_TEMPLATE_ID')
   // @ts-ignore
-  const emailjsAccessToken = Deno.env.get('EMAILJS_ACCESS_TOKEN')
+  const emailjsPublicKey = Deno.env.get('EMAILJS_PUBLIC_KEY') // Changed from ACCESS_TOKEN
   // @ts-ignore
   const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
 
   console.log('🔍 EmailJS Configuration Check:')
   console.log('- Service ID:', emailjsServiceId || 'NOT SET')
   console.log('- Template ID:', emailjsTemplateId || 'NOT SET')
-  console.log('- Access Token:', emailjsAccessToken ? `${emailjsAccessToken.substring(0, 8)}...` : 'NOT SET')
+  console.log('- Public Key:', emailjsPublicKey ? `${emailjsPublicKey.substring(0, 8)}...` : 'NOT SET')
   console.log('- Outlook Email:', outlookEmail || 'NOT SET')
 
-  if (!emailjsServiceId || !emailjsTemplateId || !emailjsAccessToken || !outlookEmail) {
+  if (!emailjsServiceId || !emailjsTemplateId || !emailjsPublicKey || !outlookEmail) {
     const missing = [];
     if (!emailjsServiceId) missing.push('EMAILJS_SERVICE_ID');
     if (!emailjsTemplateId) missing.push('EMAILJS_TEMPLATE_ID');
-    if (!emailjsAccessToken) missing.push('EMAILJS_ACCESS_TOKEN');
+    if (!emailjsPublicKey) missing.push('EMAILJS_PUBLIC_KEY');
     if (!outlookEmail) missing.push('OUTLOOK_EMAIL');
     
     throw new Error(`EmailJS credentials not configured. Missing: ${missing.join(', ')}`);
@@ -93,10 +93,11 @@ const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: 
   console.log('📧 Service ID:', emailjsServiceId)
   console.log('📧 Template ID:', emailjsTemplateId)
 
-  // EmailJS API payload for new version
+  // EmailJS API payload with Public Key in body
   const emailJSPayload = {
     service_id: emailjsServiceId,
     template_id: emailjsTemplateId,
+    user_id: emailjsPublicKey, // Public Key goes here as user_id
     template_params: {
       from_name: 'Đồng Nguyễn - Vietcombank',
       from_email: outlookEmail,
@@ -120,8 +121,8 @@ const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: 
     const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${emailjsAccessToken}` // Use Bearer token instead
+        'Content-Type': 'application/json'
+        // No Authorization header needed - Public Key is in body
       },
       body: JSON.stringify(emailJSPayload)
     });
@@ -252,22 +253,22 @@ serve(async (req) => {
       // @ts-ignore
       const emailjsTemplateId = Deno.env.get('EMAILJS_TEMPLATE_ID')
       // @ts-ignore
-      const emailjsAccessToken = Deno.env.get('EMAILJS_ACCESS_TOKEN')
+      const emailjsPublicKey = Deno.env.get('EMAILJS_PUBLIC_KEY')
 
       return new Response(JSON.stringify({
         success: true,
         message: 'Email providers status checked',
         providers: {
           outlook: { 
-            configured: !!(outlookEmail && emailjsServiceId && emailjsTemplateId && emailjsAccessToken),
+            configured: !!(outlookEmail && emailjsServiceId && emailjsTemplateId && emailjsPublicKey),
             email: outlookEmail || 'Not configured',
-            status: (outlookEmail && emailjsServiceId && emailjsTemplateId && emailjsAccessToken) ? 'Ready - EmailJS + Outlook SMTP' : 'Missing EmailJS configuration',
+            status: (outlookEmail && emailjsServiceId && emailjsTemplateId && emailjsPublicKey) ? 'Ready - EmailJS + Outlook SMTP' : 'Missing EmailJS configuration',
             isDefault: true,
             method: 'EmailJS',
             details: {
               serviceId: emailjsServiceId ? 'SET' : 'MISSING',
               templateId: emailjsTemplateId ? 'SET' : 'MISSING',
-              accessToken: emailjsAccessToken ? 'SET' : 'MISSING'
+              publicKey: emailjsPublicKey ? 'SET' : 'MISSING'
             }
           },
           resend: { 
