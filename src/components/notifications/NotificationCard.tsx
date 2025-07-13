@@ -1,7 +1,7 @@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Check, Trash2, Reply, Package, ClipboardList, AlertTriangle, Bell, MessageSquare, ThumbsUp } from 'lucide-react';
+import { Check, Trash2, Reply, Package, ClipboardList, AlertTriangle, Bell, MessageSquare, ThumbsUp, CheckCircle } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { formatRelativeTime } from '@/utils/dateUtils';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -11,7 +11,7 @@ type Notification = Tables<'notifications'>;
 
 interface NotificationCardProps {
   notification: Notification;
-  onMarkAsRead: (id: string) => void;
+  onMarkAsRead: (notification: Notification) => void;
   onDelete: (id: string) => void;
   onReply: (notification: Notification) => void;
   onQuickAction: (notification: Notification, action: string) => void;
@@ -28,6 +28,7 @@ const getNotificationIcon = (type: string) => {
     case 'system_error': return <AlertTriangle {...iconProps} />;
     case 'reply': return <MessageSquare {...iconProps} />;
     case 'quick_reply': return <ThumbsUp {...iconProps} />;
+    case 'read_receipt': return <CheckCircle {...iconProps} />;
     default: return <Bell {...iconProps} />;
   }
 };
@@ -39,6 +40,7 @@ const getNotificationIconColor = (type: string) => {
     case 'system_error': return 'text-red-500 bg-red-100';
     case 'reply': return 'text-purple-500 bg-purple-100';
     case 'quick_reply': return 'text-teal-500 bg-teal-100';
+    case 'read_receipt': return 'text-gray-500 bg-gray-100';
     default: return 'text-gray-500 bg-gray-100';
   }
 };
@@ -89,7 +91,7 @@ export function NotificationCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => onMarkAsRead(notification.id)}
+                  onClick={() => onMarkAsRead(notification)}
                   disabled={isMarkingAsRead}
                   title="Đánh dấu đã đọc"
                   className="h-8 w-8 hover:bg-gray-100"
@@ -124,16 +126,22 @@ export function NotificationCard({
           </p>
         </CardContent>
 
-        <CardFooter className="pl-14 pb-3 flex justify-end space-x-2">
-          <Button variant="outline" size="sm" onClick={() => onQuickAction(notification, 'acknowledged')}>
-            <ThumbsUp className="h-4 w-4 mr-2" />
-            Đã biết
-          </Button>
-          <Button variant="default" size="sm" onClick={() => onReply(notification)}>
-            <Reply className="h-4 w-4 mr-2" />
-            Trả lời
-          </Button>
-        </CardFooter>
+        {notification.notification_type !== 'read_receipt' && (
+          <CardFooter className="pl-14 pb-3 flex justify-end space-x-2">
+            <Button variant="outline" size="sm" onClick={() => onQuickAction(notification, 'acknowledged')}>
+              <ThumbsUp className="h-4 w-4 mr-2" />
+              Đã biết
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => onQuickAction(notification, 'processed')}>
+              <Check className="h-4 w-4 mr-2" />
+              Đã xử lý
+            </Button>
+            <Button variant="default" size="sm" onClick={() => onReply(notification)}>
+              <Reply className="h-4 w-4 mr-2" />
+              Trả lời
+            </Button>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );

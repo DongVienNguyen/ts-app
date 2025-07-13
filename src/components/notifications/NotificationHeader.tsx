@@ -1,9 +1,10 @@
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Bell, RefreshCw, CheckCheck, Trash2, Search, X } from 'lucide-react';
+import { Bell, RefreshCw, CheckCheck, Trash2, Search } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { FilterType } from '@/hooks/useNotifications';
 
 interface NotificationHeaderProps {
   unreadCount: number;
@@ -13,8 +14,8 @@ interface NotificationHeaderProps {
   onMarkAllAsRead: () => void;
   onDeleteAll: () => void;
   isMarkingAllAsRead: boolean;
-  filter: 'all' | 'unread';
-  onFilterChange: (filter: 'all' | 'unread') => void;
+  filter: FilterType;
+  onFilterChange: (filter: FilterType) => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
   selectedCount: number;
@@ -80,7 +81,7 @@ export function NotificationHeader({
         </div>
       </div>
 
-      <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 min-h-[52px]">
+      <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 min-h-[52px] flex-wrap gap-4">
         <div className="flex items-center space-x-2">
           <Checkbox
             id="select-all-checkbox"
@@ -121,47 +122,26 @@ export function NotificationHeader({
           )}
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 flex-wrap">
           <ToggleGroup
             type="single"
             value={filter}
             onValueChange={(value) => {
-              if (value) onFilterChange(value as 'all' | 'unread');
+              if (value) onFilterChange(value as FilterType);
             }}
             className="bg-gray-200 p-1 rounded-lg"
           >
+            <ToggleGroupItem value="unread_all" aria-label="Chưa đọc" className="data-[state=on]:bg-white data-[state=on]:text-green-700 px-3">Chưa đọc</ToggleGroupItem>
+            <ToggleGroupItem value="unread_asset" aria-label="Tài sản" className="data-[state=on]:bg-white data-[state=on]:text-green-700 px-3">Tài sản</ToggleGroupItem>
+            <ToggleGroupItem value="unread_crc" aria-label="CRC" className="data-[state=on]:bg-white data-[state=on]:text-green-700 px-3">CRC</ToggleGroupItem>
             <ToggleGroupItem value="all" aria-label="Tất cả" className="data-[state=on]:bg-white data-[state=on]:text-green-700 px-3">Tất cả</ToggleGroupItem>
-            <ToggleGroupItem value="unread" aria-label="Chưa đọc" className="data-[state=on]:bg-white data-[state=on]:text-green-700 px-3">Chưa đọc</ToggleGroupItem>
           </ToggleGroup>
           
-          {!isSelectionMode && unreadCount > 0 && (
+          {!isSelectionMode && unreadCount > 0 && filter.startsWith('unread') && (
             <Button variant="ghost" size="sm" onClick={onMarkAllAsRead} disabled={isMarkingAllAsRead}>
               <CheckCheck className="h-4 w-4 mr-2" />
               Đọc tất cả
             </Button>
-          )}
-          
-          {!isSelectionMode && totalCount > 0 && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Xóa tất cả
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Xác nhận xóa tất cả thông báo</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Hành động này không thể hoàn tác.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Hủy</AlertDialogCancel>
-                  <AlertDialogAction onClick={onDeleteAll} className="bg-red-600 hover:bg-red-700">Xóa tất cả</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           )}
         </div>
       </div>

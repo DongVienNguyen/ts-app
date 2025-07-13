@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useDebounce } from '@/hooks/useDebounce';
 
 export type Notification = Tables<'notifications'>;
+export type FilterType = 'all' | 'unread_all' | 'unread_asset' | 'unread_crc';
 
 interface NotificationRelatedData {
   sender?: string;
@@ -22,7 +23,7 @@ export function useNotifications() {
   
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [filter, setFilter] = useState<FilterType>('unread_all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
 
@@ -50,8 +51,14 @@ export function useNotifications() {
         .order('created_at', { ascending: false })
         .range(from, to);
 
-      if (filter === 'unread') {
+      if (filter.startsWith('unread')) {
         query = query.eq('is_read', false);
+      }
+      if (filter === 'unread_asset') {
+        query = query.eq('notification_type', 'asset_reminder');
+      }
+      if (filter === 'unread_crc') {
+        query = query.eq('notification_type', 'crc_reminder');
       }
 
       if (debouncedSearchTerm) {
@@ -63,9 +70,9 @@ export function useNotifications() {
       return data || [];
     },
     initialPageParam: 0,
-    getNextPageParam: (lastPage, allPages) => {
+    getNextPageParam: (lastPage, _allPages) => {
       if (lastPage.length < NOTIFICATIONS_PER_PAGE) return undefined;
-      return allPages.length;
+      return (data?.pages.length || 0);
     },
     enabled: !!user,
     staleTime: 30 * 1000,
@@ -74,62 +81,96 @@ export function useNotifications() {
 
   const notifications = useMemo(() => data?.pages.flat() ?? [], [data]);
 
-  const createMutation = <TVariables = void>(
-    mutationFn: (variables: TVariables) => Promise<any>,
-    options?: {
-      successMessage?: string;
-      errorMessage?: string;
-      onSuccess?: () => void;
+  const sendReadReceiptMutation = useMutation({
+    mutationFn: async (notification: Notification) => {
+      const relatedData = notification.related_data as NotificationRelatedData | null;
+      const originalSender = relatedData?.sender;
+      const recipient = user?.username;
+
+      if (!originalSender || !recipient || !['reply', 'quick_reply'].includes(notification.notification_type)) {
+        return null;
+      }
+
+      const { error } = await supabase.from('notifications').insert({
+        recipient_username: originalSender,
+        title: `Đã xem: ${notification.title.substring(0, 50)}`,
+        message: `${recipient} đã xem thông báo của bạn.`,
+        notification_type: 'read_receipt',
+        related_data: { original_notification_id: notification.id }
+      });
+      if (error) throw error;
+    },
+    onError: (error: any) => {
+      console.error('Error sending read receipt:', error);
     }
-  ) => {
-    return useMutation<any, Error, TVariables>({
-      mutationFn,
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['notifications'] });
-        if (options?.successMessage) toast.success(options.successMessage);
-        options?.onSuccess?.();
-      },
-      onError: (error: any) => {
-        const errorMessage = options?.errorMessage || 'Đã xảy ra lỗi';
-        console.error(errorMessage, error);
-        toast.error(error.message || errorMessage);
-      },
-    });
-  };
+  });
 
-  const markAsReadMutation = createMutation<string>(
-    async (notificationId) => await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId),
-    { successMessage: 'Đã đánh dấu đã đọc' }
-  );
+  const markAsReadMutation = useMutation({
+    mutationFn: async (notification: Notification) => {
+      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
+      if (error) throw error;
+      return notification;
+    },
+    onSuccess: (notification) => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Đã đánh dấu đã đọc');
+      if (notification) sendReadReceiptMutation.mutate(notification);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Không thể đánh dấu đã đọc');
+    }
+  });
 
-  const markAllAsReadMutation = createMutation(
-    async () => await supabase.from('notifications').update({ is_read: true }).eq('recipient_username', user!.username).eq('is_read', false),
-    { successMessage: 'Đã đánh dấu tất cả đã đọc' }
-  );
+  const markAllAsReadMutation = useMutation({
+    mutationFn: async () => await supabase.from('notifications').update({ is_read: true }).eq('recipient_username', user!.username).eq('is_read', false),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Đã đánh dấu tất cả đã đọc');
+    },
+    onError: (error: any) => toast.error(error.message || 'Lỗi khi đánh dấu tất cả đã đọc'),
+  });
 
-  const deleteNotificationMutation = createMutation<string>(
-    async (notificationId) => await supabase.from('notifications').delete().eq('id', notificationId),
-    { successMessage: 'Đã xóa thông báo' }
-  );
+  const deleteNotificationMutation = useMutation({
+    mutationFn: async (notificationId: string) => await supabase.from('notifications').delete().eq('id', notificationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Đã xóa thông báo');
+    },
+    onError: (error: any) => toast.error(error.message || 'Lỗi khi xóa thông báo'),
+  });
 
-  const deleteAllNotificationsMutation = createMutation(
-    async () => await supabase.from('notifications').delete().eq('recipient_username', user!.username),
-    { successMessage: 'Đã xóa tất cả thông báo' }
-  );
+  const deleteAllNotificationsMutation = useMutation({
+    mutationFn: async () => await supabase.from('notifications').delete().eq('recipient_username', user!.username),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Đã xóa tất cả thông báo');
+    },
+    onError: (error: any) => toast.error(error.message || 'Lỗi khi xóa tất cả thông báo'),
+  });
 
-  const markSelectedAsReadMutation = createMutation<string[]>(
-    async (ids) => await supabase.from('notifications').update({ is_read: true }).in('id', ids),
-    { successMessage: 'Đã đánh dấu các mục đã chọn là đã đọc', onSuccess: () => setSelectedIds({}) }
-  );
+  const markSelectedAsReadMutation = useMutation({
+    mutationFn: async (ids: string[]) => await supabase.from('notifications').update({ is_read: true }).in('id', ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Đã đánh dấu các mục đã chọn là đã đọc');
+      setSelectedIds({});
+    },
+    onError: (error: any) => toast.error(error.message || 'Lỗi khi thực hiện hành động'),
+  });
 
-  const deleteSelectedMutation = createMutation<string[]>(
-    async (ids) => await supabase.from('notifications').delete().in('id', ids),
-    { successMessage: 'Đã xóa các thông báo đã chọn', onSuccess: () => setSelectedIds({}) }
-  );
+  const deleteSelectedMutation = useMutation({
+    mutationFn: async (ids: string[]) => await supabase.from('notifications').delete().in('id', ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Đã xóa các thông báo đã chọn');
+      setSelectedIds({});
+    },
+    onError: (error: any) => toast.error(error.message || 'Lỗi khi xóa các mục đã chọn'),
+  });
 
   const replyMutation = useMutation({
     mutationFn: async ({ replyText }: { replyText: string }) => {
-      if (!selectedNotification) throw new Error("No notification selected");
+      if (!selectedNotification || !user) throw new Error("No notification selected or user not authenticated");
       const relatedData = selectedNotification.related_data as NotificationRelatedData | null;
       const originalSender = relatedData?.sender || 'admin';
       
@@ -138,7 +179,7 @@ export function useNotifications() {
         title: `Phản hồi: ${selectedNotification.title}`,
         message: replyText,
         notification_type: 'reply',
-        related_data: { original_notification_id: selectedNotification.id, replied_by: user?.username }
+        related_data: { original_notification_id: selectedNotification.id, replied_by: user.username, sender: user.username }
       } as TablesInsert<'notifications'>);
     },
     onSuccess: () => {
@@ -146,43 +187,46 @@ export function useNotifications() {
       setIsReplyDialogOpen(false);
       toast.success('Đã gửi phản hồi');
     },
-    onError: (error: any) => {
-      console.error('Error sending reply:', error);
-      toast.error(error.message || 'Không thể gửi phản hồi');
-    }
+    onError: (error: any) => toast.error(error.message || 'Không thể gửi phản hồi'),
   });
 
   const quickActionMutation = useMutation({
-    mutationFn: async ({ action }: { action: string }) => {
-      if (!selectedNotification) throw new Error("No notification selected");
-      const relatedData = selectedNotification.related_data as NotificationRelatedData | null;
-      const originalSender = relatedData?.sender || 'admin';
-      const actionMessages: { [key: string]: string } = { 'acknowledged': '👍 Đã biết.' };
+    mutationFn: async ({ notification, action }: { notification: Notification; action: string }) => {
+      if (!user) throw new Error("User not authenticated");
+      
+      await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
 
-      return supabase.from('notifications').insert({
+      const relatedData = notification.related_data as NotificationRelatedData | null;
+      const originalSender = relatedData?.sender || 'admin';
+      const actionMessages: { [key: string]: string } = { 
+        'acknowledged': '👍 Đã biết.',
+        'processed': '✅ Đã xử lý.'
+      };
+
+      const { error } = await supabase.from('notifications').insert({
         recipient_username: originalSender,
-        title: `Phản hồi nhanh: ${selectedNotification.title}`,
+        title: `Phản hồi nhanh: ${notification.title}`,
         message: actionMessages[action] || action,
         notification_type: 'quick_reply',
-        related_data: { original_notification_id: selectedNotification.id, replied_by: user?.username, action_type: action }
+        related_data: { original_notification_id: notification.id, replied_by: user.username, action_type: action, sender: user.username }
       } as TablesInsert<'notifications'>);
+
+      if (error) throw error;
+      return notification;
     },
-    onSuccess: () => {
+    onSuccess: (notification) => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast.success('Đã gửi phản hồi nhanh');
+      if (notification) sendReadReceiptMutation.mutate(notification);
     },
-    onError: (error: any) => {
-      console.error('Error sending quick action:', error);
-      toast.error(error.message || 'Không thể gửi phản hồi nhanh');
-    }
+    onError: (error: any) => toast.error(error.message || 'Không thể gửi phản hồi nhanh'),
   });
 
   useEffect(() => {
     if (!user?.username) return;
     const channel = supabase.channel(`notifications:${user.username}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `recipient_username=eq.${user.username}` },
-        (payload) => {
-          console.log('Real-time notification change detected, refetching...', payload);
+        () => {
           queryClient.invalidateQueries({ queryKey: ['notifications'] });
         }
       ).subscribe();
@@ -199,8 +243,7 @@ export function useNotifications() {
   };
 
   const handleQuickAction = (notification: Notification, action: string) => {
-    setSelectedNotification(notification);
-    quickActionMutation.mutate({ action });
+    quickActionMutation.mutate({ notification, action });
   };
 
   const toggleSelection = (id: string) => {
@@ -215,9 +258,7 @@ export function useNotifications() {
       setSelectedIds({});
     } else {
       const newSelectedIds = { ...selectedIds };
-      allVisibleIds.forEach(id => {
-        newSelectedIds[id] = true;
-      });
+      allVisibleIds.forEach(id => { newSelectedIds[id] = true; });
       setSelectedIds(newSelectedIds);
     }
   };
