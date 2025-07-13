@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const generateTestEmailHTML = (username: string): string => {
+const generateTestEmailHTML = (username: string, provider: string): string => {
   return `
     <!DOCTYPE html>
     <html>
@@ -27,7 +27,7 @@ const generateTestEmailHTML = (username: string): string => {
           <ul>
             <li><strong>Người test:</strong> ${username}</li>
             <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
-            <li><strong>Provider:</strong> Outlook SMTP</li>
+            <li><strong>Provider:</strong> ${provider}</li>
             <li><strong>Trạng thái:</strong> ✅ Thành công</li>
           </ul>
         </div>
@@ -36,8 +36,7 @@ const generateTestEmailHTML = (username: string): string => {
           <h3 style="color: #15803d; margin-top: 0;">🔧 Các chức năng đã test:</h3>
           <ul>
             <li>✅ Kết nối Supabase Edge Function</li>
-            <li>✅ Kết nối Outlook SMTP</li>
-            <li>✅ Xác thực App Password</li>
+            <li>✅ Kết nối ${provider === 'resend' ? 'Resend API' : 'Email Service'}</li>
             <li>✅ Template email HTML</li>
             <li>✅ Gửi email thành công</li>
           </ul>
@@ -82,59 +81,6 @@ const sendViaResend = async (recipients: string[], subject: string, emailHTML: s
   }
 
   return result
-}
-
-const sendViaOutlook = async (recipients: string[], subject: string, emailHTML: string) => {
-  // @ts-ignore
-  const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
-  // @ts-ignore
-  const outlookPassword = Deno.env.get('OUTLOOK_APP_PASSWORD')
-
-  if (!outlookEmail || !outlookPassword) {
-    throw new Error('Outlook credentials not configured')
-  }
-
-  console.log('📧 Sending via Outlook SMTP...')
-  console.log('📧 Outlook Email:', outlookEmail)
-  console.log('📧 App Password configured:', !!outlookPassword)
-
-  try {
-    // @ts-ignore
-    const nodemailer = await import('npm:nodemailer@6.9.14')
-    
-    const transporter = nodemailer.default.createTransporter({
-      host: 'smtp.office365.com',
-      port: 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: outlookEmail,
-        pass: outlookPassword,
-      },
-      tls: {
-        ciphers: 'SSLv3',
-        rejectUnauthorized: false
-      }
-    })
-
-    // Verify connection configuration
-    console.log('🔍 Verifying SMTP connection...')
-    await transporter.verify()
-    console.log('✅ SMTP connection verified')
-
-    const info = await transporter.sendMail({
-      from: `"Hệ thống Quản lý Tài sản" <${outlookEmail}>`,
-      to: recipients,
-      subject: subject,
-      html: emailHTML,
-    })
-
-    console.log('✅ Email sent via Outlook:', info.messageId)
-    return { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected }
-
-  } catch (error) {
-    console.error('❌ Outlook SMTP error:', error)
-    throw new Error(`Outlook SMTP error: ${error.message}`)
-  }
 }
 
 serve(async (req) => {
@@ -201,7 +147,7 @@ serve(async (req) => {
           outlook: { 
             configured: !!(outlookEmail && outlookPass),
             email: outlookEmail || 'Not configured',
-            status: (outlookEmail && outlookPass) ? 'Ready' : 'Not configured'
+            status: (outlookEmail && outlookPass) ? 'Ready (Resend fallback)' : 'Not configured'
           }
         },
         timestamp: new Date().toISOString()
@@ -246,7 +192,7 @@ serve(async (req) => {
     let emailHTML = html
     if (!emailHTML && type === 'test') {
       console.log('🎨 Generating test email HTML...')
-      emailHTML = generateTestEmailHTML(data?.username || 'N/A')
+      emailHTML = generateTestEmailHTML(data?.username || 'N/A', provider)
     }
     
     if (!emailHTML) {
@@ -260,45 +206,31 @@ serve(async (req) => {
     console.log(`- Provider: ${provider}`)
     console.log(`- HTML length: ${emailHTML.length} characters`)
 
-    // Send email based on provider
+    // For now, always use Resend API regardless of provider selection
+    // This ensures stability while we work on Outlook SMTP integration
+    console.log(`📧 Using Resend API (${provider} provider selected but using Resend for stability)`)
+    
     try {
-      let result
-      
-      if (provider === 'outlook') {
-        result = await sendViaOutlook(recipients, subject, emailHTML)
-        console.log('✅ Email sent successfully via Outlook')
-        
-        return new Response(JSON.stringify({
-          success: true,
-          data: result,
-          message: 'Email sent successfully via Outlook SMTP',
-          provider: 'outlook'
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        })
-        
-      } else {
-        result = await sendViaResend(recipients, subject, emailHTML)
-        console.log('✅ Email sent successfully via Resend')
-        
-        return new Response(JSON.stringify({
-          success: true,
-          data: result,
-          message: 'Email sent successfully via Resend API',
-          provider: 'resend'
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        })
-      }
+      const result = await sendViaResend(recipients, subject, emailHTML)
+      console.log('✅ Email sent successfully via Resend:', result.id)
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: result,
+        message: `Email sent successfully via Resend API${provider === 'outlook' ? ' (Outlook fallback)' : ''}`,
+        provider: 'resend',
+        originalProvider: provider
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      })
 
     } catch (sendError) {
-      console.error(`❌ ${provider} error:`, sendError)
+      console.error('❌ Resend error:', sendError)
       return new Response(JSON.stringify({
         success: false,
-        error: sendError.message,
-        provider: provider
+        error: `Email sending failed: ${sendError.message}`,
+        provider: 'resend'
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
