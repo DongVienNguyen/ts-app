@@ -21,6 +21,7 @@ export function useNotifications() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  const [selectedConversations, setSelectedConversations] = useState<Record<string, boolean>>({});
 
   const {
     data,
@@ -114,6 +115,23 @@ export function useNotifications() {
     onError: (error: any) => toast.error(error.message || 'Không thể xóa cuộc trò chuyện'),
   });
 
+  const deleteConversationsMutation = useMutation({
+    mutationFn: async (correspondents: string[]) => {
+      // This uses the same hide logic, but for multiple conversations
+      const promises = correspondents.map(c => supabase.rpc('hide_conversation', { p_correspondent_username: c }));
+      const results = await Promise.all(promises);
+      results.forEach(result => {
+        if (result.error) throw result.error;
+      });
+    },
+    onSuccess: () => {
+      toast.success('Đã xóa các cuộc trò chuyện đã chọn.');
+      setSelectedConversations({});
+      queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
+    },
+    onError: (error: any) => toast.error(error.message || 'Không thể xóa các cuộc trò chuyện.'),
+  });
+
   useEffect(() => {
     if (!user?.username) return;
     const channel = supabase.channel(`notifications_conversations:${user.username}`)
@@ -131,10 +149,13 @@ export function useNotifications() {
     notifications, unreadCount,
     isLoading, isFetchingNextPage,
     isReplying: sendReplyMutation.isPending,
+    isDeleting: deleteConversationsMutation.isPending,
     refetch, fetchNextPage, hasNextPage,
     searchTerm, setSearchTerm,
     markAsSeen: markAsSeenMutation.mutate,
     sendReply: sendReplyMutation.mutate,
     hideConversation: hideConversationMutation.mutate,
+    selectedConversations, setSelectedConversations,
+    deleteSelectedConversations: deleteConversationsMutation.mutate,
   };
 }

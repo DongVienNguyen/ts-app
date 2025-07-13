@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/Layout';
@@ -14,15 +14,23 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button';
 import { ConversationReply } from '@/components/notifications/ConversationReply';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function Notifications() {
   const { user } = useSecureAuth();
   const [isQuickMessageOpen, setIsQuickMessageOpen] = useState(false);
+  const [activeAccordionItem, setActiveAccordionItem] = useState<string | undefined>();
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const {
     notifications,
     unreadCount,
     isLoading,
     isReplying,
+    isDeleting,
     refetch,
     markAsSeen,
     sendReply,
@@ -32,6 +40,9 @@ export default function Notifications() {
     isFetchingNextPage,
     searchTerm,
     setSearchTerm,
+    selectedConversations,
+    setSelectedConversations,
+    deleteSelectedConversations,
   } = useNotifications();
 
   const { ref, inView } = useInView({
@@ -40,29 +51,51 @@ export default function Notifications() {
   });
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const conversation = params.get('conversation');
+    if (conversation) {
+      setActiveAccordionItem(conversation);
+      // Xóa query param sau khi sử dụng để không bị mở lại khi refresh
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location, navigate]);
+
+  useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  const groupedConversations = useMemo(() => groupNotificationsByCorrespondent(notifications, user?.username || ''), [notifications, user]);
+  
+  const conversationKeys = useMemo(() => Object.keys(groupedConversations).sort((a, b) => {
+    const lastMessageA = groupedConversations[a][groupedConversations[a].length - 1];
+    const lastMessageB = groupedConversations[b][groupedConversations[b].length - 1];
+    return new Date(lastMessageB.created_at!).getTime() - new Date(lastMessageA.created_at!).getTime();
+  }), [groupedConversations]);
+
+  const handleToggleSelectAll = (checked: boolean) => {
+    const newSelection: Record<string, boolean> = {};
+    if (checked) {
+      conversationKeys.forEach(key => {
+        newSelection[key] = true;
+      });
+    }
+    setSelectedConversations(newSelection);
+  };
+
+  const selectedCount = Object.values(selectedConversations).filter(Boolean).length;
+  const isAllSelected = selectedCount > 0 && selectedCount === conversationKeys.length;
+
   if (!user) {
     return (
       <Layout>
         <div className="container mx-auto p-6 max-w-4xl bg-white">
-          <div className="text-center py-8">
-            <p className="text-gray-600">Vui lòng đăng nhập để xem thông báo</p>
-          </div>
+          <div className="text-center py-8"><p className="text-gray-600">Vui lòng đăng nhập để xem thông báo</p></div>
         </div>
       </Layout>
     );
   }
-
-  const groupedConversations = groupNotificationsByCorrespondent(notifications, user.username);
-  const conversationKeys = Object.keys(groupedConversations).sort((a, b) => {
-    const lastMessageA = groupedConversations[a][groupedConversations[a].length - 1];
-    const lastMessageB = groupedConversations[b][groupedConversations[b].length - 1];
-    return new Date(lastMessageB.created_at!).getTime() - new Date(lastMessageA.created_at!).getTime();
-  });
 
   return (
     <Layout>
@@ -75,91 +108,70 @@ export default function Notifications() {
           onQuickMessage={() => setIsQuickMessageOpen(true)}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
+          selectedCount={selectedCount}
+          onDeleteSelected={() => deleteSelectedConversations(Object.keys(selectedConversations).filter(k => selectedConversations[k]))}
+          isAllSelected={isAllSelected}
+          onToggleSelectAll={handleToggleSelectAll}
+          isDeleting={isDeleting}
         />
 
         {isLoading && notifications.length === 0 ? (
           <NotificationSkeleton />
-        ) : notifications.length === 0 ? (
+        ) : conversationKeys.length === 0 ? (
           <EmptyNotifications searchTerm={searchTerm} />
         ) : (
-          <Accordion type="single" collapsible className="w-full space-y-2">
-            {conversationKeys.map((correspondent) => (
-              <AccordionItem key={correspondent} value={correspondent} className="bg-white rounded-lg shadow-sm border">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-50 rounded-t-lg">
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-gray-200 p-2 rounded-full">
-                        <User className="h-5 w-5 text-gray-600" />
+          <Accordion type="single" collapsible className="w-full space-y-2" value={activeAccordionItem} onValueChange={setActiveAccordionItem}>
+            {conversationKeys.map((correspondent) => {
+              const conversation = groupedConversations[correspondent];
+              const unreadInConv = conversation.filter(n => !n.is_read && n.recipient_username === user.username).length;
+              return (
+                <AccordionItem key={correspondent} value={correspondent} className="bg-white rounded-lg shadow-sm border data-[state=open]:border-green-500">
+                  <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-50 rounded-t-lg">
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={selectedConversations[correspondent] || false}
+                          onCheckedChange={(checked) => {
+                            setSelectedConversations(prev => ({ ...prev, [correspondent]: !!checked }));
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Chọn cuộc trò chuyện với ${correspondent}`}
+                        />
+                        <div className="bg-gray-200 p-2 rounded-full"><User className="h-5 w-5 text-gray-600" /></div>
+                        <h2 className="text-lg font-semibold text-gray-800">{correspondent}</h2>
+                        {unreadInConv > 0 && (
+                          <Badge variant="destructive" className="bg-green-500 hover:bg-green-600">{unreadInConv}</Badge>
+                        )}
                       </div>
-                      <h2 className="text-lg font-semibold text-gray-800">{correspondent}</h2>
+                      <div className="flex items-center gap-2 pr-2">
+                        <span className="h-8 w-8 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-100 transition-colors" onClick={(e) => { e.stopPropagation(); refetch(); }} role="button" tabIndex={0} aria-label="Làm mới"><RefreshCw className="h-4 w-4" /></span>
+                        <AlertDialog onOpenChange={(open) => { if (open) { event?.stopPropagation(); } }}>
+                          <AlertDialogTrigger asChild>
+                            <span className="h-8 w-8 flex items-center justify-center rounded-md cursor-pointer text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors" onClick={(e) => e.stopPropagation()} role="button" tabIndex={0} aria-label="Xóa"><Trash2 className="h-4 w-4" /></span>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                            <AlertDialogHeader><AlertDialogTitle>Xóa cuộc trò chuyện?</AlertDialogTitle><AlertDialogDescription>Hành động này sẽ ẩn cuộc trò chuyện với "{correspondent}" khỏi danh sách của bạn. Bạn sẽ không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>Hủy</AlertDialogCancel><AlertDialogAction onClick={() => hideConversation(correspondent)} className="bg-red-600 hover:bg-red-700">Xóa</AlertDialogAction></AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 pr-2">
-                      {/* Thay thế Button bằng span để tránh lỗi lồng nút */}
-                      <span
-                        className="h-8 w-8 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={(e) => { e.stopPropagation(); refetch(); }}
-                        role="button"
-                        tabIndex={0}
-                        aria-label="Làm mới cuộc trò chuyện"
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </span>
-                      <AlertDialog onOpenChange={(open) => { if (open) { event?.stopPropagation(); } }}>
-                        <AlertDialogTrigger asChild>
-                          {/* Thay thế Button bằng span để tránh lỗi lồng nút */}
-                          <span
-                            className="h-8 w-8 flex items-center justify-center rounded-md cursor-pointer text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                            role="button"
-                            tabIndex={0}
-                            aria-label="Xóa cuộc trò chuyện"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </span>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Xóa cuộc trò chuyện?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Hành động này sẽ ẩn cuộc trò chuyện với "{correspondent}" khỏi danh sách của bạn. Bạn sẽ không thể hoàn tác.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Hủy</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => hideConversation(correspondent)} className="bg-red-600 hover:bg-red-700">Xóa</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                  </AccordionTrigger>
+                  <AccordionContent className="p-4 border-t">
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                      {conversation.map((notification) => (
+                        <NotificationCard key={notification.id} notification={notification} onMarkAsSeen={markAsSeen} isSent={(notification.related_data as any)?.sender === user.username} />
+                      ))}
                     </div>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="p-4 border-t">
-                  <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                    {groupedConversations[correspondent].map((notification) => (
-                      <NotificationCard
-                        key={notification.id}
-                        notification={notification}
-                        onMarkAsSeen={markAsSeen}
-                        isSent={(notification.related_data as any)?.sender === user.username}
-                      />
-                    ))}
-                  </div>
-                  <ConversationReply
-                    onSendReply={(data) => sendReply({ message: data.message, correspondent })}
-                    isReplying={isReplying}
-                  />
-                </AccordionContent>
-              </AccordionItem>
-            ))}
+                    <ConversationReply onSendReply={(data) => sendReply({ message: data.message, correspondent })} isReplying={isReplying} />
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
           </Accordion>
         )}
         
-        {hasNextPage && (
-          <div ref={ref} className="flex justify-center items-center py-6">
-            {isFetchingNextPage && <Loader2 className="h-8 w-8 animate-spin text-gray-500" />}
-          </div>
-        )}
-
+        {hasNextPage && (<div ref={ref} className="flex justify-center items-center py-6">{isFetchingNextPage && <Loader2 className="h-8 w-8 animate-spin text-gray-500" />}</div>)}
         <QuickMessageDialog isOpen={isQuickMessageOpen} onOpenChange={setIsQuickMessageOpen} />
       </div>
     </Layout>

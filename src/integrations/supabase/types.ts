@@ -222,6 +222,8 @@ export type Database = {
       notifications: {
         Row: {
           created_at: string | null
+          email_reminder_sent_at: string | null // Thêm dòng này
+          hidden_for: string[] | null // Thêm dòng này
           id: string
           is_read: boolean | null
           is_seen: boolean | null
@@ -234,6 +236,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          email_reminder_sent_at?: string | null // Thêm dòng này
+          hidden_for?: string[] | null // Thêm dòng này
           id?: string
           is_read?: boolean | null
           is_seen?: boolean | null
@@ -246,6 +250,8 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          email_reminder_sent_at?: string | null // Thêm dòng này
+          hidden_for?: string[] | null // Thêm dòng này
           id?: string
           is_read?: boolean | null
           is_seen?: boolean | null

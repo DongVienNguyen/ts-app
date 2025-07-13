@@ -1,8 +1,7 @@
 import { Button } from '@/components/ui/button';
-import { Bell, RefreshCw, Search, MessageSquarePlus } from 'lucide-react';
+import { Bell, RefreshCw, Search, MessageSquarePlus, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-// FilterType is no longer directly used in props, but might be in useNotifications hook, so keeping import for now.
-// import { FilterType } from '@/hooks/useNotifications'; // No longer needed here
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface NotificationHeaderProps {
   unreadCount: number;
@@ -12,29 +11,30 @@ interface NotificationHeaderProps {
   onQuickMessage: () => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  // Các props sau đã bị loại bỏ vì không còn được sử dụng trong giao diện header mới:
-  // isMarkingAllAsRead: boolean;
-  // filter: FilterType;
-  // selectedCount: number;
-  // onMarkSelectedAsRead: () => void;
-  // onDeleteSelected: () => void;
-  // isAllSelected: boolean;
-  // onToggleSelectAll: () => void;
+  selectedCount: number;
+  onDeleteSelected: () => void;
+  isAllSelected: boolean;
+  onToggleSelectAll: (checked: boolean) => void;
+  isDeleting: boolean;
 }
 
 export function NotificationHeader({
   unreadCount,
-  totalCount,
   isLoading,
   onRefresh,
   onQuickMessage,
   searchTerm,
   onSearchChange,
+  selectedCount,
+  onDeleteSelected,
+  isAllSelected,
+  onToggleSelectAll,
+  isDeleting,
 }: NotificationHeaderProps) {
 
   return (
-    <div className="mb-6 space-y-4 bg-white p-4 rounded-lg shadow-md">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="mb-6 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-4 rounded-lg shadow-md">
         <div className="flex items-center space-x-3">
           <Bell className="h-8 w-8 text-green-600" />
           <div>
@@ -74,6 +74,31 @@ export function NotificationHeader({
             Tin nhắn mới
           </Button>
         </div>
+      </div>
+      
+      <div className="flex items-center justify-between bg-gray-100 p-2 rounded-lg">
+        <div className="flex items-center gap-3">
+          <Checkbox
+            id="select-all"
+            checked={isAllSelected}
+            onCheckedChange={onToggleSelectAll}
+            aria-label="Chọn tất cả"
+          />
+          <label htmlFor="select-all" className="text-sm font-medium text-gray-700 cursor-pointer">
+            {selectedCount > 0 ? `${selectedCount} đã chọn` : "Chọn tất cả"}
+          </label>
+        </div>
+        {selectedCount > 0 && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onDeleteSelected}
+            disabled={isDeleting}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {isDeleting ? 'Đang xóa...' : `Xóa (${selectedCount})`}
+          </Button>
+        )}
       </div>
     </div>
   );

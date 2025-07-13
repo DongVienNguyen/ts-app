@@ -31,6 +31,19 @@ export function NotificationBell() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const markAsReadMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
+      if (error) throw error;
+      return notificationId;
+    },
+    onSuccess: (notificationId) => {
+      setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n));
+      queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
+    },
+    onError: (error: any) => console.error('Error marking as read from bell:', error),
+  });
+
   const sendReadReceiptMutation = useMutation({
     mutationFn: async (notification: Notification) => {
       const relatedData = notification.related_data as NotificationRelatedData | null;
@@ -119,19 +132,21 @@ export function NotificationBell() {
     }
   };
 
-  const markAsRead = async (notification: Notification) => {
-    try {
-      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
-      if (error) throw error;
-      setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
+  const handleNotificationClick = (notification: Notification) => {
+    if (!notification.is_read) {
+      markAsReadMutation.mutate(notification.id);
       sendReadReceiptMutation.mutate(notification);
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
+    } else {
+      const correspondent = (notification.related_data as any)?.sender || 'Hệ thống';
+      navigate(`/notifications?conversation=${correspondent}`);
+      setIsOpen(false);
     }
   };
 
   const handleQuickAction = (notification: Notification, action: string) => {
-    markAsRead(notification);
+    if (!notification.is_read) {
+      markAsReadMutation.mutate(notification.id);
+    }
     quickActionMutation.mutate({ notification, action });
   };
 
@@ -184,7 +199,7 @@ export function NotificationBell() {
                   <div
                     key={notification.id}
                     className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${notification.is_read ? 'bg-gray-50 border-gray-200 hover:bg-gray-100' : 'bg-green-50 border-green-200 hover:bg-green-100'}`}
-                    onClick={() => { if (!notification.is_read) markAsRead(notification); }}
+                    onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-lg mt-1">{getNotificationIcon(notification.notification_type)}</span>
@@ -195,7 +210,7 @@ export function NotificationBell() {
                         </div>
                         <p className="text-xs text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
                         <p className="text-xs text-gray-400 mt-1">{new Date(notification.created_at).toLocaleString('vi-VN')}</p>
-                        {!notification.is_read && notification.notification_type !== 'read_receipt' && (
+                        {notification.notification_type !== 'read_receipt' && (
                           <div className="flex items-center space-x-2 mt-2">
                             <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={(e) => { e.stopPropagation(); handleQuickAction(notification, 'acknowledged'); }}>
                               <ThumbsUp className="h-3 w-3 mr-1" /> Đã biết
