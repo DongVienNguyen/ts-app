@@ -84,21 +84,43 @@ export class EmailService {
   // Send email notification
   async sendEmail(payload: EmailPayload) {
     try {
+      console.log('📧 Sending email with payload:', {
+        to: payload.to,
+        subject: payload.subject,
+        provider: payload.provider || 'default',
+        type: payload.type
+      });
+
       const { data, error } = await supabase.functions.invoke('send-notification-email', {
         body: payload
       });
 
+      console.log('📧 Edge Function response:', { data, error });
+
       if (error) {
-        console.error('Email sending error:', error);
+        console.error('❌ Email sending error:', error);
         return { success: false, error: error.message };
       }
 
+      if (!data || !data.success) {
+        console.error('❌ Email sending failed:', data);
+        return { success: false, error: data?.error || 'Unknown error from Edge Function' };
+      }
+
       console.log('✅ Email sent successfully:', data);
-      return { success: true, data };
+      return { 
+        success: true, 
+        data,
+        message: data.message || 'Email sent successfully',
+        provider: data.provider || 'unknown'
+      };
 
     } catch (error) {
       console.error('❌ Failed to send email:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
     }
   }
 
