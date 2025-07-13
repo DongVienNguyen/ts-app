@@ -278,10 +278,11 @@ export async function captureError(
     userId?: string;
     severity?: 'low' | 'medium' | 'high' | 'critical';
     additionalData?: any;
+    errorType?: string; // Thêm thuộc tính này
   }
 ): Promise<void> {
   const errorData: SystemError = {
-    error_type: error.name || 'Error',
+    error_type: context?.errorType || error.name || 'Error', // Sử dụng errorType từ context nếu có
     error_message: error.message,
     error_stack: error.stack,
     function_name: context?.functionName,

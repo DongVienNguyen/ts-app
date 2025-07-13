@@ -77,9 +77,9 @@ export function LogManagementTab() {
         functionName: functionName,
         severity: severity,
         userId: user?.username || 'test_admin',
+        errorType: errorType, // Truyền errorType trực tiếp
         additionalData: {
           simulated: true,
-          testType: errorType,
         },
       });
       toast.success('Đã tạo lỗi test thành công!');
@@ -103,9 +103,9 @@ export function LogManagementTab() {
           functionName: `randomFunction${i}`,
           severity: randomSeverity,
           userId: `random_user_${Math.floor(Math.random() * 100)}`,
+          errorType: randomErrorType, // Truyền randomErrorType trực tiếp
           additionalData: {
             simulated: true,
-            testType: randomErrorType,
             userAgent: randomUserAgent,
           },
         });
