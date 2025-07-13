@@ -1,4 +1,7 @@
 import { safeDbOperation } from '@/utils/supabaseAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { notificationService } from '@/services/notificationService';
+import { emailService } from '@/services/emailService';
 
 export interface SystemError {
   id?: string;
@@ -291,6 +294,69 @@ export async function captureError(
   };
 
   await logSystemError(errorData);
+
+  // --- START: New Notification Logic ---
+  try {
+    const { data: admins, error: adminError } = await supabase
+      .from('staff')
+      .select('username, email')
+      .eq('role', 'admin')
+      .not('email', 'is', null);
+
+    if (adminError) {
+      console.error('Failed to fetch admins for notification:', adminError);
+      return;
+    }
+
+    if (!admins || admins.length === 0) {
+      console.warn('No admins found to send notifications to.');
+      return;
+    }
+
+    const pushPayload = {
+      title: `Lỗi Hệ thống: ${errorData.severity?.toUpperCase()}`,
+      body: errorData.error_message.substring(0, 100),
+      data: { url: '/error-monitoring' },
+    };
+
+    const emailSubject = `[Cảnh báo] Lỗi Hệ thống Mức độ ${errorData.severity?.toUpperCase()}`;
+    const emailHtml = `
+      <h1>Cảnh báo Lỗi Hệ thống</h1>
+      <p>Một lỗi mới đã được ghi nhận với thông tin chi tiết như sau:</p>
+      <ul>
+        <li><strong>Mức độ:</strong> ${errorData.severity}</li>
+        <li><strong>Loại lỗi:</strong> ${errorData.error_type}</li>
+        <li><strong>Thông báo:</strong> ${errorData.error_message}</li>
+        <li><strong>Hàm:</strong> ${errorData.function_name || 'N/A'}</li>
+        <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
+      </ul>
+      <p>Vui lòng truy cập trang Giám sát Hệ thống để xem chi tiết và xử lý.</p>
+    `;
+
+    const severity = errorData.severity;
+
+    if (severity === 'critical' || severity === 'high') {
+      console.log(`Sending email and push notifications to ${admins.length} admins for ${severity} error.`);
+      // Send emails
+      const emails = admins.map(admin => admin.email!).filter(Boolean);
+      if (emails.length > 0) {
+        await emailService.sendBulkEmails(emails.map(email => ({ to: email, subject: emailSubject, html: emailHtml })));
+      }
+      // Send push notifications
+      for (const admin of admins) {
+        await notificationService.sendPushNotification(admin.username, pushPayload);
+      }
+    } else if (severity === 'medium') {
+      console.log(`Sending push notifications to ${admins.length} admins for ${severity} error.`);
+      // Send push notifications only
+      for (const admin of admins) {
+        await notificationService.sendPushNotification(admin.username, pushPayload);
+      }
+    }
+  } catch (notificationError) {
+    console.error('❌ Failed to send error notifications:', notificationError);
+  }
+  // --- END: New Notification Logic ---
 
   // If the error is critical, create a system alert
   if (errorData.severity === 'critical') {

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { NotificationBell } from '@/components/NotificationBell';
+import { UnresolvedErrorsBanner } from '@/components/UnresolvedErrorsBanner';
 
 const Index = () => {
   const { user } = useSecureAuth();
@@ -84,6 +85,9 @@ const Index = () => {
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Unresolved Errors Banner for Admins */}
+        {user?.role === 'admin' && <UnresolvedErrorsBanner />}
+
         {/* Welcome Header */}
         <div className="flex items-center justify-between">
           <div>
