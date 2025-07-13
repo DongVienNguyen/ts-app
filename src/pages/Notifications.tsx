@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/Layout';
 import { NotificationHeader } from '@/components/notifications/NotificationHeader';
@@ -7,7 +9,7 @@ import { EmptyNotifications } from '@/components/notifications/EmptyNotification
 import { useNotifications, Notification } from '@/hooks/useNotifications';
 import { groupNotificationsByDate } from '@/utils/dateUtils';
 import { NotificationSkeleton } from '@/components/notifications/NotificationSkeleton';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 export default function Notifications() {
   const { user } = useSecureAuth();
@@ -23,8 +25,6 @@ export default function Notifications() {
     isQuickActioning,
     refetch,
     markAsRead,
-    markAllAsRead,
-    deleteNotification,
     deleteAllNotifications,
     handleReply,
     handleSendReply,
@@ -35,7 +35,29 @@ export default function Notifications() {
     isFetchingNextPage,
     filter,
     setFilter,
+    searchTerm,
+    setSearchTerm,
+    selectedIds,
+    selectedCount,
+    allVisibleSelected,
+    toggleSelection,
+    toggleSelectAll,
+    markSelectedAsRead,
+    deleteSelected,
+    deleteNotification,
+    markAllAsRead,
   } = useNotifications();
+
+  const { ref, inView } = useInView({
+    threshold: 0.5,
+    triggerOnce: false,
+  });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (!user) {
     return (
@@ -64,12 +86,19 @@ export default function Notifications() {
           isMarkingAllAsRead={isMarkingAllAsRead}
           filter={filter}
           onFilterChange={setFilter}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          selectedCount={selectedCount}
+          onMarkSelectedAsRead={markSelectedAsRead}
+          onDeleteSelected={deleteSelected}
+          isAllSelected={allVisibleSelected}
+          onToggleSelectAll={toggleSelectAll}
         />
 
         {isLoading ? (
           <NotificationSkeleton />
         ) : notifications.length === 0 ? (
-          <EmptyNotifications />
+          <EmptyNotifications searchTerm={searchTerm} />
         ) : (
           <div className="space-y-8">
             {Object.entries(groupedNotifications).map(([groupTitle, groupItems]) =>
@@ -86,21 +115,18 @@ export default function Notifications() {
                         onReply={handleReply}
                         onQuickAction={handleQuickAction}
                         isMarkingAsRead={isMarkingAsRead}
+                        isSelected={!!selectedIds[notification.id]}
+                        onToggleSelect={toggleSelection}
                       />
                     ))}
                   </div>
                 </div>
               )
             )}
+            
             {hasNextPage && (
-              <div className="text-center mt-8">
-                <Button
-                  onClick={() => fetchNextPage()}
-                  disabled={isFetchingNextPage}
-                  variant="outline"
-                >
-                  {isFetchingNextPage ? 'Đang tải...' : 'Tải thêm thông báo'}
-                </Button>
+              <div ref={ref} className="flex justify-center items-center py-6">
+                {isFetchingNextPage && <Loader2 className="h-8 w-8 animate-spin text-gray-500" />}
               </div>
             )}
           </div>

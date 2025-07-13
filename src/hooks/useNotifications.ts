@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables, TablesInsert } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export type Notification = Tables<'notifications'>;
 
@@ -18,9 +19,14 @@ const NOTIFICATIONS_PER_PAGE = 15;
 export function useNotifications() {
   const { user } = useSecureAuth();
   const queryClient = useQueryClient();
+  
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   const {
     data,
@@ -30,7 +36,7 @@ export function useNotifications() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ['notifications', user?.username, filter],
+    queryKey: ['notifications', user?.username, filter, debouncedSearchTerm],
     queryFn: async ({ pageParam }) => {
       if (!user) return [];
       
@@ -48,6 +54,10 @@ export function useNotifications() {
         query = query.eq('is_read', false);
       }
 
+      if (debouncedSearchTerm) {
+        query = query.or(`title.ilike.%${debouncedSearchTerm}%,message.ilike.%${debouncedSearchTerm}%`);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -62,20 +72,25 @@ export function useNotifications() {
     gcTime: 5 * 60 * 1000,
   });
 
-  const notifications = data?.pages.flat() ?? [];
+  const notifications = useMemo(() => data?.pages.flat() ?? [], [data]);
 
   const createMutation = <TVariables = void>(
     mutationFn: (variables: TVariables) => Promise<any>,
-    successMessage: string,
-    errorMessage: string
+    options?: {
+      successMessage?: string;
+      errorMessage?: string;
+      onSuccess?: () => void;
+    }
   ) => {
     return useMutation<any, Error, TVariables>({
       mutationFn,
       onSuccess: () => {
-        refetch();
-        toast.success(successMessage);
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        if (options?.successMessage) toast.success(options.successMessage);
+        options?.onSuccess?.();
       },
       onError: (error: any) => {
+        const errorMessage = options?.errorMessage || 'Đã xảy ra lỗi';
         console.error(errorMessage, error);
         toast.error(error.message || errorMessage);
       },
@@ -83,43 +98,33 @@ export function useNotifications() {
   };
 
   const markAsReadMutation = createMutation<string>(
-    async (notificationId: string) => {
-      const { data, error } = await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
-      if (error) throw error;
-      return data;
-    },
-    'Đã đánh dấu đã đọc',
-    'Lỗi khi đánh dấu đã đọc'
+    (notificationId) => supabase.from('notifications').update({ is_read: true }).eq('id', notificationId),
+    { successMessage: 'Đã đánh dấu đã đọc' }
   );
 
   const markAllAsReadMutation = createMutation(
-    async () => {
-      const { data, error } = await supabase.from('notifications').update({ is_read: true }).eq('recipient_username', user!.username).eq('is_read', false);
-      if (error) throw error;
-      return data;
-    },
-    'Đã đánh dấu tất cả đã đọc',
-    'Lỗi khi đánh dấu tất cả'
+    () => supabase.from('notifications').update({ is_read: true }).eq('recipient_username', user!.username).eq('is_read', false),
+    { successMessage: 'Đã đánh dấu tất cả đã đọc' }
   );
 
   const deleteNotificationMutation = createMutation<string>(
-    async (notificationId: string) => {
-      const { data, error } = await supabase.from('notifications').delete().eq('id', notificationId);
-      if (error) throw error;
-      return data;
-    },
-    'Đã xóa thông báo',
-    'Lỗi khi xóa thông báo'
+    (notificationId) => supabase.from('notifications').delete().eq('id', notificationId),
+    { successMessage: 'Đã xóa thông báo' }
   );
 
   const deleteAllNotificationsMutation = createMutation(
-    async () => {
-      const { data, error } = await supabase.from('notifications').delete().eq('recipient_username', user!.username);
-      if (error) throw error;
-      return data;
-    },
-    'Đã xóa tất cả thông báo',
-    'Lỗi khi xóa tất cả thông báo'
+    () => supabase.from('notifications').delete().eq('recipient_username', user!.username),
+    { successMessage: 'Đã xóa tất cả thông báo' }
+  );
+
+  const markSelectedAsReadMutation = createMutation<string[]>(
+    (ids) => supabase.from('notifications').update({ is_read: true }).in('id', ids),
+    { successMessage: 'Đã đánh dấu các mục đã chọn là đã đọc', onSuccess: () => setSelectedIds({}) }
+  );
+
+  const deleteSelectedMutation = createMutation<string[]>(
+    (ids) => supabase.from('notifications').delete().in('id', ids),
+    { successMessage: 'Đã xóa các thông báo đã chọn', onSuccess: () => setSelectedIds({}) }
   );
 
   const replyMutation = useMutation({
@@ -137,7 +142,7 @@ export function useNotifications() {
       } as TablesInsert<'notifications'>);
     },
     onSuccess: () => {
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       setIsReplyDialogOpen(false);
       toast.success('Đã gửi phản hồi');
     },
@@ -163,7 +168,7 @@ export function useNotifications() {
       } as TablesInsert<'notifications'>);
     },
     onSuccess: () => {
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
       toast.success('Đã gửi phản hồi nhanh');
     },
     onError: (error: any) => {
@@ -176,13 +181,13 @@ export function useNotifications() {
     if (!user?.username) return;
     const channel = supabase.channel(`notifications:${user.username}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `recipient_username=eq.${user.username}` },
-        () => {
-          console.log('Real-time notification change detected, refetching...');
-          refetch();
+        (payload) => {
+          console.log('Real-time notification change detected, refetching...', payload);
+          queryClient.invalidateQueries({ queryKey: ['notifications'] });
         }
       ).subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user?.username, refetch]);
+  }, [user?.username, queryClient]);
 
   const handleReply = (notification: Notification) => {
     setSelectedNotification(notification);
@@ -198,7 +203,31 @@ export function useNotifications() {
     quickActionMutation.mutate({ action });
   };
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleSelectAll = () => {
+    const allVisibleIds = notifications.map(n => n.id);
+    const allVisibleSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedIds[id]);
+    
+    if (allVisibleSelected) {
+      setSelectedIds({});
+    } else {
+      const newSelectedIds = { ...selectedIds };
+      allVisibleIds.forEach(id => {
+        newSelectedIds[id] = true;
+      });
+      setSelectedIds(newSelectedIds);
+    }
+  };
+
+  const selectedCount = Object.values(selectedIds).filter(Boolean).length;
+  const unreadCount = useMemo(() => notifications.filter(n => !n.is_read).length, [notifications]);
+  const allVisibleSelected = useMemo(() => {
+    const visibleIds = notifications.map(n => n.id);
+    return visibleIds.length > 0 && visibleIds.every(id => selectedIds[id]);
+  }, [notifications, selectedIds]);
 
   return {
     notifications, unreadCount, selectedNotification, isReplyDialogOpen,
@@ -209,10 +238,21 @@ export function useNotifications() {
     isQuickActioning: quickActionMutation.isPending,
     refetch, fetchNextPage, hasNextPage,
     filter, setFilter,
+    searchTerm, setSearchTerm,
+    selectedIds, selectedCount, allVisibleSelected,
+    toggleSelection, toggleSelectAll,
     markAsRead: markAsReadMutation.mutate,
     markAllAsRead: markAllAsReadMutation.mutate,
     deleteNotification: deleteNotificationMutation.mutate,
     deleteAllNotifications: deleteAllNotificationsMutation.mutate,
+    markSelectedAsRead: () => {
+      const idsToMark = Object.keys(selectedIds).filter(id => selectedIds[id]);
+      if (idsToMark.length > 0) markSelectedAsReadMutation.mutate(idsToMark);
+    },
+    deleteSelected: () => {
+      const idsToDelete = Object.keys(selectedIds).filter(id => selectedIds[id]);
+      if (idsToDelete.length > 0) deleteSelectedMutation.mutate(idsToDelete);
+    },
     handleReply, handleSendReply, handleQuickAction,
     setIsReplyDialogOpen,
   };

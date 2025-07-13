@@ -1,16 +1,23 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Bell } from 'lucide-react';
+import { Inbox } from 'lucide-react';
 
-export function EmptyNotifications() {
+interface EmptyNotificationsProps {
+  searchTerm?: string;
+}
+
+export function EmptyNotifications({ searchTerm }: EmptyNotificationsProps) {
   return (
-    <Card className="bg-white border-gray-200">
-      <CardContent className="flex flex-col items-center justify-center py-12">
-        <Bell className="h-16 w-16 text-gray-300 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Không có thông báo</h3>
-        <p className="text-gray-500 text-center">
-          Bạn chưa có thông báo nào. Các thông báo mới sẽ xuất hiện ở đây.
-        </p>
-      </CardContent>
-    </Card>
+    <div className="text-center py-16 px-6 border-2 border-dashed border-gray-200 rounded-lg">
+      <Inbox className="mx-auto h-12 w-12 text-gray-400" />
+      <h3 className="mt-4 text-lg font-medium text-gray-900">
+        {searchTerm ? 'Không tìm thấy kết quả' : 'Không có thông báo nào'}
+      </h3>
+      <p className="mt-1 text-sm text-gray-500">
+        {searchTerm
+          ? 'Hãy thử một từ khóa tìm kiếm khác.'
+          : 'Tất cả thông báo của bạn sẽ xuất hiện ở đây.'}
+      </p>
+    </div>
   );
 }
