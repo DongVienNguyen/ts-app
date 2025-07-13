@@ -1,6 +1,16 @@
 import { supabase } from '@/integrations/supabase/client';
 import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
 
+export interface EmailPayload {
+  to: string | string[];
+  subject: string;
+  html?: string;
+  type?: string;
+  data?: any;
+  provider?: 'resend' | 'outlook';
+  attachments?: { filename: string; content: string; encoding?: string }[];
+}
+
 export class EmailService {
   private static instance: EmailService;
 
@@ -72,10 +82,10 @@ export class EmailService {
   }
 
   // Send email notification
-  async sendEmail(to: string, subject: string, html: string) {
+  async sendEmail(payload: EmailPayload) {
     try {
       const { data, error } = await supabase.functions.invoke('send-notification-email', {
-        body: { to, subject, html }
+        body: payload
       });
 
       if (error) {
@@ -93,11 +103,11 @@ export class EmailService {
   }
 
   // Send bulk emails
-  async sendBulkEmails(emails: Array<{ to: string; subject: string; html: string }>) {
+  async sendBulkEmails(emails: EmailPayload[]) {
     const results = [];
     
     for (const email of emails) {
-      const result = await this.sendEmail(email.to, email.subject, email.html);
+      const result = await this.sendEmail(email);
       results.push({ ...email, ...result });
       
       // Add delay between emails to avoid rate limiting
@@ -118,7 +128,7 @@ export async function sendAssetNotificationEmail(recipients: string[], subject: 
   let errorMessage = '';
   
   for (const recipient of recipients) {
-    const result = await emailService.sendEmail(recipient, subject, content);
+    const result = await emailService.sendEmail({ to: recipient, subject, html: content });
     results.push({ recipient, ...result });
     
     if (!result.success) {
@@ -144,7 +154,7 @@ export async function sendAssetTransactionConfirmation(username: string, transac
     <p>Thời gian: ${new Date().toLocaleString('vi-VN')}</p>
   `;
   
-  return emailService.sendEmail(`${username}@company.com`, subject, content);
+  return emailService.sendEmail({ to: `${username}@company.com`, subject, html: content });
 }
 
 export async function sendErrorReport(reporterName: string, reporterEmail: string, errorData: any) {
@@ -163,11 +173,32 @@ export async function sendErrorReport(reporterName: string, reporterEmail: strin
     <p><strong>URL:</strong> ${errorData.url}</p>
   `;
   
-  return emailService.sendEmail('admin@company.com', subject, content);
+  return emailService.sendEmail({ to: 'admin@company.com', subject, html: content });
 }
 
 export async function testEmailFunction(username: string) {
   const subject = 'Test Email Function';
   const content = `<p>This is a test email for user: ${username}</p>`;
-  return emailService.sendEmail(`${username}@company.com`, subject, content);
+  return emailService.sendEmail({ to: `${username}@company.com`, subject, html: content });
+}
+
+export async function getAdminEmail(): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('email')
+      .eq('role', 'admin')
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.error('Error fetching admin email:', error);
+      return null;
+    }
+
+    return data?.email || null;
+  } catch (error) {
+    console.error('Exception fetching admin email:', error);
+    return null;
+  }
 }

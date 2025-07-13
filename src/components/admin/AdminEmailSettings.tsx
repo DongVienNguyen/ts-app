@@ -9,12 +9,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from '@/integrations/supabase/client';
 import { performEmailTest } from '@/services/emailTestService';
 import { useSecureAuth } from '@/contexts/AuthContext';
-import { EmailTestButton } from '@/components/EmailTestButton';
 import { EmailProviderStatus } from '@/components/EmailProviderStatus';
 import { ResendSetupGuide } from '@/components/ResendSetupGuide';
 import { CreateAdminButton } from '@/components/CreateAdminButton';
 import { ForceCreateAdminButton } from '@/components/ForceCreateAdminButton';
-import { DirectEmailTester } from '@/components/DirectEmailTester';
+import { ProviderTester } from '@/components/admin/ProviderTester';
 
 export const AdminEmailSettings = () => {
   const [adminEmail, setAdminEmail] = useState('');
@@ -456,11 +455,11 @@ export const AdminEmailSettings = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <DirectEmailTester />
+          <ProviderTester />
         </CardContent>
       </Card>
 
-      {/* Email Test Function */}
+      {/* Email Test Function (Legacy) - This can be kept or removed based on preference */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -494,18 +493,10 @@ export const AdminEmailSettings = () => {
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <h4 className="font-semibold text-green-800 mb-2">🧪 Test bao gồm</h4>
             <ul className="text-sm text-green-700 space-y-1">
-              <li>• Thông báo mượn/xuất tài sản</li>
-              <li>• Nhắc nhở tài sản đến hạn</li>
-              <li>• Nhắc nhở duyệt CRC</li>
-              <li>• Báo cáo lỗi hệ thống</li>
-              <li>• Xác nhận giao dịch</li>
+              <li>• Gửi email theo nhà cung cấp mặc định đã lưu.</li>
+              <li>• Sử dụng template email 'test' của hệ thống.</li>
+              <li>• Gửi đến email của admin đã được cấu hình.</li>
             </ul>
-          </div>
-
-          {/* Direct Email Test */}
-          <div className="border-t pt-4">
-            <h4 className="font-semibold text-purple-800 mb-2">🔧 Test Email Trực tiếp</h4>
-            <EmailTestButton />
           </div>
 
           {!currentAdminEmail && (

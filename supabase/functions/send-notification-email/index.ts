@@ -1,5 +1,6 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+// @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 // @ts-ignore
 import nodemailer from "npm:nodemailer@6.9.14";
@@ -55,6 +56,7 @@ interface EmailRequest {
   html?: string;
   type?: string;
   data?: any;
+  provider?: 'resend' | 'outlook'; // Thêm trường provider
   attachments?: Array<{
     filename: string;
     content: string;
@@ -196,7 +198,7 @@ const handler = async (req: Request): Promise<Response> => {
     const requestBody = await req.json();
     console.log('📧 Email request received:', JSON.stringify(requestBody, null, 2));
 
-    const { to, subject, html, type, data, attachments }: EmailRequest = requestBody;
+    const { to, subject, html, type, data, attachments, provider: providerOverride }: EmailRequest = requestBody;
 
     if (type === 'api_check') {
       const resendApiKeyExists = !!Deno.env.get("RESEND_API_KEY");
@@ -221,13 +223,16 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Missing required fields: 'to' and 'subject'");
     }
 
-    const { data: config } = await supabaseAdmin
-      .from('system_config')
-      .select('value')
-      .eq('key', 'email_provider')
-      .single();
-
-    const provider = config?.value || 'resend';
+    let provider = providerOverride;
+    if (!provider) {
+      const { data: config } = await supabaseAdmin
+        .from('system_config')
+        .select('value')
+        .eq('key', 'email_provider')
+        .single();
+      provider = config?.value || 'resend';
+    }
+    
     console.log(`📧 Using email provider: ${provider}`);
 
     let emailHTML = html;
@@ -257,7 +262,6 @@ const handler = async (req: Request): Promise<Response> => {
           pass: outlookPassword,
         },
         tls: {
-          ciphers: 'SSLv3',
           rejectUnauthorized: false
         }
       });
