@@ -1,11 +1,9 @@
 import { useEffect } from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { CheckCheck } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tables } from '@/integrations/supabase/types';
 import { formatRelativeTime } from '@/utils/dateUtils';
 import { cn } from '@/lib/utils';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Notification = Tables<'notifications'>;
 
@@ -45,21 +43,14 @@ export function NotificationCard({
             <p className="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap">
               {notification.message}
             </p>
-            <div className="flex justify-end items-center mt-2">
-              <span className="text-xs text-gray-500">
+            <div className="flex justify-end items-center mt-2 text-xs">
+              <span className="text-gray-500 mr-2">
                 {formatRelativeTime(notification.created_at!)}
               </span>
               {isSent && notification.is_seen && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <CheckCheck className="h-4 w-4 ml-2 text-blue-600" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{`Đã xem lúc ${new Date(notification.seen_at!).toLocaleString('vi-VN')}`}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <span className="text-blue-600">
+                  Đã xem
+                </span>
               )}
             </div>
           </CardContent>

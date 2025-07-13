@@ -11,7 +11,6 @@ import { Loader2, User, RefreshCw, Trash2 } from 'lucide-react';
 import { QuickMessageDialog } from '@/components/notifications/QuickMessageDialog';
 import { groupNotificationsByCorrespondent } from '@/utils/notificationUtils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Button } from '@/components/ui/button';
 import { ConversationReply } from '@/components/notifications/ConversationReply';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,7 +20,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 export default function Notifications() {
   const { user } = useSecureAuth();
   const [isQuickMessageOpen, setIsQuickMessageOpen] = useState(false);
-  const [activeAccordionItem, setActiveAccordionItem] = useState<string | undefined>();
+  const [activeAccordionItem, setActiveAccordionItem] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -50,23 +49,35 @@ export default function Notifications() {
     triggerOnce: false,
   });
 
+  const groupedConversations = useMemo(() => groupNotificationsByCorrespondent(notifications, user?.username || ''), [notifications, user]);
+
+  const handleAccordionChange = (correspondent: string) => {
+    setActiveAccordionItem(correspondent);
+
+    if (correspondent && groupedConversations[correspondent] && user) {
+      const unseenMessages = groupedConversations[correspondent].filter(
+        n => !n.is_seen && n.recipient_username === user.username
+      );
+      unseenMessages.forEach(msg => {
+        markAsSeen(msg.id);
+      });
+    }
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const conversation = params.get('conversation');
     if (conversation) {
-      setActiveAccordionItem(conversation);
-      // Xóa query param sau khi sử dụng để không bị mở lại khi refresh
+      handleAccordionChange(conversation);
       navigate(location.pathname, { replace: true });
     }
-  }, [location, navigate]);
+  }, [location.search, navigate]);
 
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  const groupedConversations = useMemo(() => groupNotificationsByCorrespondent(notifications, user?.username || ''), [notifications, user]);
   
   const conversationKeys = useMemo(() => Object.keys(groupedConversations).sort((a, b) => {
     const lastMessageA = groupedConversations[a][groupedConversations[a].length - 1];
@@ -120,13 +131,15 @@ export default function Notifications() {
         ) : conversationKeys.length === 0 ? (
           <EmptyNotifications searchTerm={searchTerm} />
         ) : (
-          <Accordion type="single" collapsible className="w-full space-y-2" value={activeAccordionItem} onValueChange={setActiveAccordionItem}>
+          <Accordion type="single" collapsible className="w-full space-y-2" value={activeAccordionItem} onValueChange={handleAccordionChange}>
             {conversationKeys.map((correspondent) => {
               const conversation = groupedConversations[correspondent];
               const unreadInConv = conversation.filter(n => !n.is_read && n.recipient_username === user.username).length;
+              const lastMessage = conversation[conversation.length - 1];
+              const isLastMessageSentByMe = (lastMessage.related_data as any)?.sender === user.username;
+
               return (
                 <AccordionItem key={correspondent} value={correspondent} className="bg-white rounded-lg shadow-sm border data-[state=open]:border-green-500">
-                  {/* Wrapper div for Checkbox and AccordionTrigger to avoid nested buttons */}
                   <div className="flex items-center px-4 py-3 hover:bg-gray-50 rounded-t-lg">
                     <Checkbox
                       checked={selectedConversations[correspondent] || false}
@@ -135,18 +148,23 @@ export default function Notifications() {
                       }}
                       onClick={(e) => e.stopPropagation()}
                       aria-label={`Chọn cuộc trò chuyện với ${correspondent}`}
-                      className="mr-3" // Add margin to separate checkbox from trigger content
+                      className="mr-4 self-start mt-2"
                     />
-                    <AccordionTrigger className="flex-1 p-0 hover:no-underline"> {/* AccordionTrigger takes remaining space, no padding */}
+                    <AccordionTrigger className="flex-1 p-0 text-left hover:no-underline">
                       <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-gray-200 p-2 rounded-full"><User className="h-5 w-5 text-gray-600" /></div>
-                          <h2 className="text-lg font-semibold text-gray-800">{correspondent}</h2>
-                          {unreadInConv > 0 && (
-                            <Badge variant="destructive" className="bg-green-500 hover:bg-green-600">{unreadInConv}</Badge>
-                          )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-gray-200 p-2 rounded-full flex-shrink-0"><User className="h-5 w-5 text-gray-600" /></div>
+                            <h2 className="text-lg font-semibold text-gray-800 truncate">{correspondent}</h2>
+                            {unreadInConv > 0 && (
+                              <Badge variant="destructive" className="bg-green-500 hover:bg-green-600 flex-shrink-0">{unreadInConv}</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1 truncate pr-2">
+                            {isLastMessageSentByMe ? <span className="font-medium">Bạn: </span> : ''}{lastMessage.message}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-2 pr-2">
+                        <div className="flex items-center gap-1 self-start">
                           <span className="h-8 w-8 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-100 transition-colors" onClick={(e) => { e.stopPropagation(); refetch(); }} role="button" tabIndex={0} aria-label="Làm mới"><RefreshCw className="h-4 w-4" /></span>
                           <AlertDialog onOpenChange={(open) => { if (open) { event?.stopPropagation(); } }}>
                             <AlertDialogTrigger asChild>
@@ -161,8 +179,8 @@ export default function Notifications() {
                       </div>
                     </AccordionTrigger>
                   </div>
-                  <AccordionContent className="p-4 border-t">
-                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                  <AccordionContent className="p-4 border-t bg-gray-50">
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                       {conversation.map((notification) => (
                         <NotificationCard key={notification.id} notification={notification} onMarkAsSeen={markAsSeen} isSent={(notification.related_data as any)?.sender === user.username} />
                       ))}
