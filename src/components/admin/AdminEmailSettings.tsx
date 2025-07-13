@@ -4,13 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, TestTube, Settings, CheckCircle, AlertCircle, User, Eye, EyeOff, RefreshCw, Server, Loader2 } from 'lucide-react';
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Mail, TestTube, Settings, CheckCircle, AlertCircle, User, Eye, EyeOff, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { performEmailTest } from '@/services/emailTestService';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { EmailProviderStatus } from '@/components/EmailProviderStatus';
-import { ResendSetupGuide } from '@/components/ResendSetupGuide';
 import { CreateAdminButton } from '@/components/CreateAdminButton';
 import { ForceCreateAdminButton } from '@/components/ForceCreateAdminButton';
 import { ProviderTester } from '@/components/admin/ProviderTester';
@@ -24,53 +22,11 @@ export const AdminEmailSettings = () => {
   const [showCurrentEmail, setShowCurrentEmail] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [adminExists, setAdminExists] = useState(false);
-  const [emailProvider, setEmailProvider] = useState('resend');
-  const [selectedProvider, setSelectedProvider] = useState('resend');
-  const [isProviderLoading, setIsProviderLoading] = useState(true);
-  const [isSavingProvider, setIsSavingProvider] = useState(false);
   const { user } = useSecureAuth();
 
   useEffect(() => {
     loadAdminEmail();
-    loadEmailProvider();
   }, []);
-
-  const loadEmailProvider = async () => {
-    setIsProviderLoading(true);
-    const { data, error } = await supabase
-      .from('system_config')
-      .select('value')
-      .eq('key', 'email_provider')
-      .single();
-    
-    if (data && typeof data.value === 'string') {
-      setEmailProvider(data.value);
-      setSelectedProvider(data.value);
-    } else if (error) {
-      console.error("Error loading email provider:", error);
-      // Default to outlook (Vietcombank email) instead of resend
-      setEmailProvider('outlook');
-      setSelectedProvider('outlook');
-    }
-    setIsProviderLoading(false);
-  };
-
-  const saveEmailProvider = async () => {
-    setIsSavingProvider(true);
-    const { error } = await supabase
-      .from('system_config')
-      .update({ value: selectedProvider })
-      .eq('key', 'email_provider');
-    
-    if (error) {
-      setMessage({ type: 'error', text: `Lỗi cập nhật nhà cung cấp: ${error.message}` });
-      setSelectedProvider(emailProvider); // Revert on error
-    } else {
-      setEmailProvider(selectedProvider);
-      setMessage({ type: 'success', text: `Đã lưu nhà cung cấp email là ${selectedProvider}.` });
-    }
-    setIsSavingProvider(false);
-  };
 
   const loadAdminEmail = async () => {
     setIsLoadingEmail(true);
@@ -333,13 +289,6 @@ export const AdminEmailSettings = () => {
                   </Button>
                 )}
               </div>
-
-              <div className="flex items-center space-x-2 text-sm">
-                <Server className="w-4 h-4" />
-                <span>
-                  Nhà cung cấp: <span className="font-semibold capitalize">{emailProvider}</span>
-                </span>
-              </div>
               
               <div className={`text-xs ${adminExists ? 'text-green-600' : 'text-yellow-600'}`}>
                 {adminExists ? (
@@ -351,53 +300,6 @@ export const AdminEmailSettings = () => {
                 )}
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Email Provider Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Settings className="w-5 h-5 text-blue-600" />
-            <span>Nhà cung cấp Email</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isProviderLoading ? (
-            <p>Đang tải cài đặt...</p>
-          ) : (
-            <>
-              <RadioGroup value={selectedProvider} onValueChange={setSelectedProvider} className="space-y-2">
-                <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="outlook" id="outlook" />
-                  <Label htmlFor="outlook" className="font-normal">
-                    <div className="flex items-center space-x-2">
-                      <span>Sử dụng Email Vietcombank (Outlook SMTP)</span>
-                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">MẶC ĐỊNH</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Gửi email trực tiếp từ dongnv.hvu@vietcombank.com.vn qua Outlook SMTP với App Password.</p>
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="resend" id="resend" />
-                  <Label htmlFor="resend" className="font-normal">
-                    <div className="flex items-center space-x-2">
-                      <span>Sử dụng Resend API</span>
-                      <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">DỰ PHÒNG</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Gửi email thông qua dịch vụ Resend API (chỉ khi Outlook không khả dụng).</p>
-                  </Label>
-                </div>
-              </RadioGroup>
-              <Button 
-                onClick={saveEmailProvider} 
-                disabled={isSavingProvider || selectedProvider === emailProvider}
-              >
-                {isSavingProvider ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Lưu thay đổi
-              </Button>
-            </>
           )}
         </CardContent>
       </Card>
@@ -444,8 +346,7 @@ export const AdminEmailSettings = () => {
               <li>• Email này sẽ nhận tất cả thông báo từ hệ thống</li>
               <li>• Bao gồm: báo cáo lỗi, thông báo tài sản, nhắc nhở CRC</li>
               <li>• Đảm bảo email luôn hoạt động để không bỏ lỡ thông báo quan trọng</li>
-              <li>• Email sẽ được gửi qua dịch vụ Resend API</li>
-              <li>• <strong>API Key:</strong> re_XfoPgfXP_CeNdATrbvEXHT7HatRCHenxn</li>
+              <li>• Email sẽ được gửi qua Resend API</li>
               {!adminExists && <li>• <strong>Sẽ tạo admin mới với username: admin, password: admin123</strong></li>}
             </ul>
           </div>
@@ -457,7 +358,7 @@ export const AdminEmailSettings = () => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <TestTube className="w-5 h-5 text-green-600" />
-            <span>Test Email Trực tiếp</span>
+            <span>Test Email</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -465,7 +366,7 @@ export const AdminEmailSettings = () => {
         </CardContent>
       </Card>
 
-      {/* Email Test Function (Legacy) - This can be kept or removed based on preference */}
+      {/* Email Test Function */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -499,9 +400,9 @@ export const AdminEmailSettings = () => {
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <h4 className="font-semibold text-green-800 mb-2">🧪 Test bao gồm</h4>
             <ul className="text-sm text-green-700 space-y-1">
-              <li>• Gửi email theo nhà cung cấp mặc định đã lưu.</li>
-              <li>• Sử dụng template email 'test' của hệ thống.</li>
-              <li>• Gửi đến email của admin đã được cấu hình.</li>
+              <li>• Gửi email qua Resend API</li>
+              <li>• Sử dụng template email 'test' của hệ thống</li>
+              <li>• Gửi đến email của admin đã được cấu hình</li>
             </ul>
           </div>
 
@@ -534,9 +435,6 @@ export const AdminEmailSettings = () => {
 
       {/* Email Provider Status */}
       <EmailProviderStatus />
-
-      {/* Resend Setup Guide */}
-      <ResendSetupGuide />
 
       {/* Message Display */}
       {message.text && (
