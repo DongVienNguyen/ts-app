@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Layout from '@/components/Layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, RotateCw } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
 import { ErrorMonitoringDashboard } from '@/components/ErrorMonitoringDashboard';
@@ -9,27 +9,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminEmailSettings } from '@/components/admin/AdminEmailSettings';
 import { PWATestPanel } from '@/components/PWATestPanel';
 import PushNotificationTester from '@/components/PushNotificationTester';
+import { Button } from '@/components/ui/button';
+import { RealTimeStatusIndicator } from '@/components/error-monitoring/RealTimeStatusIndicator';
 
 const ErrorMonitoring = () => {
   const { user } = useAuth();
   const {
     errorStats,
     recentErrors,
-    systemMetrics,
-    serviceHealth,
     systemAlerts,
     health,
-    performanceMetrics,
-    performanceInsights,
     isLoading,
-    lastUpdated,
     isRefreshing,
-    timeRange,
     realtimeStatus,
     refreshAll,
     acknowledgeAlert,
-    setTimeRange,
-    exportPerformanceData,
   } = useErrorMonitoringData();
   const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -53,7 +47,7 @@ const ErrorMonitoring = () => {
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Chỉ admin mới có thể truy cập trang Giám sát Lỗi.
+              Chỉ admin mới có thể truy cập trang Giám sát Hệ thống.
             </AlertDescription>
           </Alert>
         </div>
@@ -63,39 +57,36 @@ const ErrorMonitoring = () => {
 
   return (
     <Layout>
-      <div className="space-y-6 p-4 md:p-6">
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+          <h2 className="text-3xl font-bold tracking-tight">Giám sát Hệ thống</h2>
+          <div className="flex items-center space-x-2">
+            <RealTimeStatusIndicator status={realtimeStatus} />
+            <Button onClick={refreshAll} disabled={isLoading || isRefreshing}>
+              <RotateCw className={`mr-2 h-4 w-4 ${isLoading || isRefreshing ? 'animate-spin' : ''}`} />
+              Làm mới
+            </Button>
+          </div>
+        </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList>
             <TabsTrigger value="dashboard">Bảng điều khiển</TabsTrigger>
-            <TabsTrigger value="admin-settings">Cài đặt Admin</TabsTrigger>
-            <TabsTrigger value="pwa-test">PWA & Push Test</TabsTrigger>
+            <TabsTrigger value="admin-tools">Công cụ Admin</TabsTrigger>
           </TabsList>
           <TabsContent value="dashboard" className="mt-6">
             <ErrorMonitoringDashboard
               errorStats={errorStats}
               recentErrors={recentErrors}
-              systemMetrics={systemMetrics}
-              serviceHealth={serviceHealth}
               systemAlerts={systemAlerts}
               health={health}
-              performanceMetrics={performanceMetrics}
-              performanceInsights={performanceInsights}
               isLoading={isLoading}
-              lastUpdated={lastUpdated}
-              isRefreshing={isRefreshing}
-              timeRange={timeRange}
-              realtimeStatus={realtimeStatus}
               refreshAll={refreshAll}
               acknowledgeAlert={acknowledgeAlert}
-              setTimeRange={setTimeRange}
-              exportPerformanceData={exportPerformanceData}
             />
           </TabsContent>
-          <TabsContent value="admin-settings" className="mt-6">
-            <AdminEmailSettings />
-          </TabsContent>
-          <TabsContent value="pwa-test" className="mt-6">
+          <TabsContent value="admin-tools" className="mt-6">
             <div className="space-y-6">
+              <AdminEmailSettings />
               <PWATestPanel />
               <PushNotificationTester />
             </div>
