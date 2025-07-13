@@ -27,6 +27,7 @@ const SecurityMonitor = lazy(() => import('@/pages/SecurityMonitor'));
 const ErrorMonitoring = lazy(() => import('@/pages/ErrorMonitoring'));
 const UsageMonitoring = lazy(() => import('@/pages/UsageMonitoring'));
 const SystemBackup = lazy(() => import('@/pages/SystemBackup'));
+const Notifications = lazy(() => import('@/pages/Notifications')); // Lazy load Notifications page
 const NotFound = lazy(() => import('@/pages/NotFound'));
 
 // Loading component
@@ -158,6 +159,11 @@ function AppContent() {
             <Route path="/error-monitoring" element={<ProtectedRoute><ErrorMonitoring /></ProtectedRoute>} />
             <Route path="/usage-monitoring" element={<ProtectedRoute><UsageMonitoring /></ProtectedRoute>}/>
             <Route path="/backup" element={<ProtectedRoute><SystemBackup /></ProtectedRoute>} />
+            <Route path="/notifications" element={
+              <ProtectedRoute>
+                <Notifications />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
