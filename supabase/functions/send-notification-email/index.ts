@@ -51,12 +51,12 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  to: string | string[];
-  subject: string;
+  to?: string | string[];
+  subject?: string;
   html?: string;
   type?: string;
   data?: any;
-  provider?: 'resend' | 'outlook'; // Thêm trường provider
+  provider?: 'resend' | 'outlook';
   attachments?: Array<{
     filename: string;
     content: string;
@@ -200,6 +200,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { to, subject, html, type, data, attachments, provider: providerOverride }: EmailRequest = requestBody;
 
+    // Handle API check request first (doesn't need to/subject)
     if (type === 'api_check') {
       const resendApiKeyExists = !!Deno.env.get("RESEND_API_KEY");
       const outlookEmailExists = !!Deno.env.get("OUTLOOK_EMAIL");
@@ -219,6 +220,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // For all other requests, validate required fields
     if (!to || !subject) {
       throw new Error("Missing required fields: 'to' and 'subject'");
     }
