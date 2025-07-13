@@ -1,70 +1,74 @@
-// Nodemailer service implementation
-export const sendViaNodemailerService = async (recipients: string[], subject: string, emailHTML: string) => {
-  // @ts-ignore
-  const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
-  // @ts-ignore
-  const outlookPassword = Deno.env.get('OUTLOOK_APP_PASSWORD')
-  // @ts-ignore
-  const nodemailerServiceUrl = Deno.env.get('NODEMAILER_SERVICE_URL') // Your external service URL
+// Nodemailer service for Outlook SMTP
+export interface EmailConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth: {
+    user: string;
+    pass: string;
+  };
+}
 
-  if (!outlookEmail || !outlookPassword) {
-    throw new Error('Outlook SMTP credentials not configured')
-  }
+export interface EmailOptions {
+  from: string;
+  to: string | string[];
+  subject: string;
+  html: string;
+}
 
-  if (!nodemailerServiceUrl) {
-    throw new Error('Nodemailer service URL not configured')
-  }
+// Outlook SMTP configuration
+export const getOutlookConfig = (email: string, appPassword: string): EmailConfig => ({
+  host: 'smtp-mail.outlook.com',
+  port: 587,
+  secure: false, // true for 465, false for other ports
+  auth: {
+    user: email,
+    pass: appPassword,
+  },
+});
 
-  console.log('📧 Sending via external Nodemailer service...')
+// Send email via Nodemailer (simulated for Edge Functions)
+export const sendViaNodemailer = async (
+  recipients: string[],
+  subject: string,
+  emailHTML: string,
+  fromEmail: string,
+  appPassword: string
+) => {
+  console.log('📧 Sending via Outlook SMTP (Nodemailer simulation)...');
+  console.log('📧 From:', fromEmail);
+  console.log('📧 To:', recipients.join(', '));
+  console.log('📧 SMTP Host: smtp-mail.outlook.com:587');
 
-  const payload = {
-    smtp: {
-      host: 'smtp.office365.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: outlookEmail,
-        pass: outlookPassword
-      }
+  // Since we can't use actual Nodemailer in Edge Functions,
+  // we'll use fetch to call a third-party SMTP service or API
+  
+  // For now, we'll simulate the SMTP call
+  // In production, you might want to use a service like SendGrid, Mailgun, etc.
+  
+  const emailData = {
+    host: 'smtp-mail.outlook.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: fromEmail,
+      pass: appPassword,
     },
-    email: {
-      from: `"Đồng Nguyễn - Vietcombank" <${outlookEmail}>`,
-      to: recipients,
-      subject: subject,
-      html: emailHTML
-    }
+    from: `Đồng Nguyễn - Vietcombank <${fromEmail}>`,
+    to: recipients,
+    subject: subject,
+    html: emailHTML,
   };
 
-  try {
-    const response = await fetch(nodemailerServiceUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer your-service-token` // Optional security
-      },
-      body: JSON.stringify(payload)
-    });
+  console.log('📤 SMTP Configuration:', {
+    host: emailData.host,
+    port: emailData.port,
+    user: emailData.auth.user,
+    from: emailData.from,
+    to: emailData.to,
+  });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Nodemailer service error: ${response.status} - ${errorText}`);
-    }
-
-    const result = await response.json();
-    console.log('✅ Nodemailer service response:', result);
-
-    return {
-      messageId: result.messageId || `nodemailer-${Date.now()}`,
-      status: 'sent',
-      provider: 'nodemailer-outlook',
-      from: outlookEmail,
-      to: recipients,
-      timestamp: new Date().toISOString(),
-      service: 'External Nodemailer + Outlook SMTP'
-    };
-
-  } catch (error) {
-    console.error('❌ Nodemailer service error:', error);
-    throw new Error(`Nodemailer service failed: ${error.message}`);
-  }
-}
+  // Since Edge Functions don't support Nodemailer directly,
+  // we'll throw an error to indicate this limitation
+  throw new Error('Nodemailer not supported in Edge Functions. Use Resend API instead.');
+};

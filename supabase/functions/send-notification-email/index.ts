@@ -12,24 +12,25 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Test Email từ Vietcombank</title>
+      <title>Email từ Vietcombank</title>
     </head>
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-        <h1 style="margin: 0; font-size: 24px;">🏦 Email từ Vietcombank</h1>
+        <h1 style="margin: 0; font-size: 24px;">🏦 Ngân hàng TMCP Ngoại thương Việt Nam</h1>
+        <p style="margin: 5px 0 0 0; opacity: 0.9;">Vietcombank - Hệ thống Quản lý Tài sản</p>
       </div>
       <div style="background: white; border: 1px solid #e5e7eb; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
         <h2 style="color: #1e40af;">Email Test Thành Công!</h2>
-        <p>Đây là email được gửi trực tiếp từ email doanh nghiệp Vietcombank qua EmailJS.</p>
+        <p>Đây là email được gửi từ hệ thống quản lý tài sản nội bộ của Vietcombank.</p>
         
         <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1e40af;">
           <h3 style="color: #1e40af; margin-top: 0;">📊 Thông tin email:</h3>
           <ul style="margin: 0; padding-left: 20px;">
             <li><strong>Người test:</strong> ${username}</li>
             <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
-            <li><strong>Provider:</strong> ${provider === 'outlook' ? 'EmailJS + Outlook SMTP' : 'Resend API'}</li>
-            <li><strong>Email gửi:</strong> dongnv.hvu@vietcombank.com.vn</li>
-            <li><strong>Phương thức:</strong> ${provider === 'outlook' ? 'EmailJS với App Password' : 'API'}</li>
+            <li><strong>Provider:</strong> ${provider === 'outlook' ? 'Resend API với branding Vietcombank' : 'Resend API'}</li>
+            <li><strong>Phương thức:</strong> API Gateway</li>
+            <li><strong>Trạng thái:</strong> Gửi thành công</li>
           </ul>
         </div>
         
@@ -37,22 +38,22 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
           <h3 style="color: #16a34a; margin-top: 0;">✅ Chức năng đã kiểm tra:</h3>
           <ul style="margin: 0; padding-left: 20px;">
             <li>✅ Kết nối Supabase Edge Function</li>
-            <li>✅ EmailJS Service Integration</li>
-            <li>✅ Outlook SMTP Authentication</li>
-            <li>✅ Template email HTML</li>
+            <li>✅ Resend API Integration</li>
+            <li>✅ Email Template HTML</li>
+            <li>✅ Vietcombank Branding</li>
             <li>✅ Gửi email thành công</li>
           </ul>
         </div>
 
         <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-          <p style="margin: 0; color: #92400e;"><strong>Lưu ý:</strong> Email này được gửi trực tiếp từ hệ thống quản lý tài sản nội bộ của Vietcombank thông qua EmailJS.</p>
+          <p style="margin: 0; color: #92400e;"><strong>Lưu ý:</strong> Email này được gửi qua Resend API với branding Vietcombank. Người nhận sẽ thấy email từ hệ thống tài sản của Vietcombank.</p>
         </div>
       </div>
       
       <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
         <p><strong>Ngân hàng TMCP Ngoại thương Việt Nam (Vietcombank)</strong></p>
         <p>Hệ thống Quản lý Tài sản Nội bộ</p>
-        <p>Liên hệ: dongnv.hvu@vietcombank.com.vn</p>
+        <p>Liên hệ hỗ trợ: dongnv.hvu@vietcombank.com.vn</p>
         <p>Thời gian gửi: ${new Date().toLocaleString('vi-VN')}</p>
       </div>
     </body>
@@ -60,122 +61,23 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
   `
 }
 
-// EmailJS implementation with correct Public Key usage
-const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: string) => {
-  // @ts-ignore
-  const emailjsServiceId = Deno.env.get('EMAILJS_SERVICE_ID')
-  // @ts-ignore
-  const emailjsTemplateId = Deno.env.get('EMAILJS_TEMPLATE_ID')
-  // @ts-ignore
-  const emailjsPublicKey = Deno.env.get('EMAILJS_PUBLIC_KEY') // Changed from ACCESS_TOKEN
-  // @ts-ignore
-  const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
-
-  console.log('🔍 EmailJS Configuration Check:')
-  console.log('- Service ID:', emailjsServiceId || 'NOT SET')
-  console.log('- Template ID:', emailjsTemplateId || 'NOT SET')
-  console.log('- Public Key:', emailjsPublicKey ? `${emailjsPublicKey.substring(0, 8)}...` : 'NOT SET')
-  console.log('- Outlook Email:', outlookEmail || 'NOT SET')
-
-  if (!emailjsServiceId || !emailjsTemplateId || !emailjsPublicKey || !outlookEmail) {
-    const missing = [];
-    if (!emailjsServiceId) missing.push('EMAILJS_SERVICE_ID');
-    if (!emailjsTemplateId) missing.push('EMAILJS_TEMPLATE_ID');
-    if (!emailjsPublicKey) missing.push('EMAILJS_PUBLIC_KEY');
-    if (!outlookEmail) missing.push('OUTLOOK_EMAIL');
-    
-    throw new Error(`EmailJS credentials not configured. Missing: ${missing.join(', ')}`);
-  }
-
-  console.log('📧 Sending via EmailJS + Outlook SMTP...')
-  console.log('📧 From:', outlookEmail)
-  console.log('📧 To:', recipients.join(', '))
-  console.log('📧 Service ID:', emailjsServiceId)
-  console.log('📧 Template ID:', emailjsTemplateId)
-
-  // EmailJS API payload with Public Key in body
-  const emailJSPayload = {
-    service_id: emailjsServiceId,
-    template_id: emailjsTemplateId,
-    user_id: emailjsPublicKey, // Public Key goes here as user_id
-    template_params: {
-      from_name: 'Đồng Nguyễn - Vietcombank',
-      from_email: outlookEmail,
-      to_email: recipients.join(','),
-      subject: subject,
-      html_content: emailHTML,
-      reply_to: outlookEmail
-    }
-  };
-
-  try {
-    console.log('📤 Sending EmailJS request...')
-    console.log('📤 Payload:', JSON.stringify({
-      ...emailJSPayload,
-      template_params: {
-        ...emailJSPayload.template_params,
-        html_content: '[HTML CONTENT TRUNCATED]'
-      }
-    }, null, 2));
-
-    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-        // No Authorization header needed - Public Key is in body
-      },
-      body: JSON.stringify(emailJSPayload)
-    });
-
-    console.log('📥 EmailJS response status:', response.status)
-    console.log('📥 EmailJS response headers:', Object.fromEntries(response.headers.entries()))
-
-    const responseText = await response.text();
-    console.log('📥 EmailJS response body:', responseText)
-
-    if (!response.ok) {
-      console.error('❌ EmailJS error response:', responseText)
-      
-      // Parse error details
-      let errorDetails = responseText;
-      try {
-        const errorJson = JSON.parse(responseText);
-        errorDetails = errorJson.message || errorJson.error || responseText;
-      } catch (e) {
-        // Keep original text if not JSON
-      }
-      
-      throw new Error(`EmailJS API error: ${response.status} - ${errorDetails}`);
-    }
-
-    console.log('✅ EmailJS success response:', responseText);
-
-    return {
-      messageId: `emailjs-${Date.now()}@vietcombank.com.vn`,
-      status: 'sent',
-      provider: 'emailjs-outlook',
-      from: outlookEmail,
-      to: recipients,
-      timestamp: new Date().toISOString(),
-      service: 'EmailJS + Outlook SMTP',
-      response: responseText
-    };
-
-  } catch (error) {
-    console.error('❌ EmailJS error:', error);
-    throw new Error(`EmailJS failed: ${error.message}`);
-  }
-}
-
-// Resend API implementation (fallback)
-const sendViaResend = async (recipients: string[], subject: string, emailHTML: string) => {
+// Resend API implementation with Vietcombank branding
+const sendViaResend = async (recipients: string[], subject: string, emailHTML: string, provider: string = 'resend') => {
   // @ts-ignore
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   if (!resendApiKey) {
     throw new Error('RESEND_API_KEY not configured')
   }
 
-  console.log('📧 Sending via Resend API (fallback)...')
+  console.log('📧 Sending via Resend API...')
+  
+  // Use different "from" based on provider preference
+  const fromEmail = provider === 'outlook' 
+    ? 'Vietcombank Tài sản <taisan@caremylife.me>' 
+    : 'Hệ thống Tài sản <taisan@caremylife.me>';
+  
+  console.log('📧 From:', fromEmail);
+  console.log('📧 To:', recipients.join(', '));
   
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -184,10 +86,11 @@ const sendViaResend = async (recipients: string[], subject: string, emailHTML: s
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Hệ thống Tài sản <taisan@caremylife.me>',
+      from: fromEmail,
       to: recipients,
       subject: subject,
       html: emailHTML,
+      reply_to: 'dongnv.hvu@vietcombank.com.vn', // Set reply-to to Vietcombank email
     }),
   })
 
@@ -197,7 +100,12 @@ const sendViaResend = async (recipients: string[], subject: string, emailHTML: s
     throw new Error(`Resend API error: ${result.message || 'Unknown error'}`)
   }
 
-  return result
+  return {
+    ...result,
+    provider: 'resend',
+    from: fromEmail,
+    reply_to: 'dongnv.hvu@vietcombank.com.vn'
+  }
 }
 
 serve(async (req) => {
@@ -248,36 +156,27 @@ serve(async (req) => {
       const resendKey = Deno.env.get('RESEND_API_KEY')
       // @ts-ignore
       const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
-      // @ts-ignore
-      const emailjsServiceId = Deno.env.get('EMAILJS_SERVICE_ID')
-      // @ts-ignore
-      const emailjsTemplateId = Deno.env.get('EMAILJS_TEMPLATE_ID')
-      // @ts-ignore
-      const emailjsPublicKey = Deno.env.get('EMAILJS_PUBLIC_KEY')
 
       return new Response(JSON.stringify({
         success: true,
         message: 'Email providers status checked',
         providers: {
           outlook: { 
-            configured: !!(outlookEmail && emailjsServiceId && emailjsTemplateId && emailjsPublicKey),
-            email: outlookEmail || 'Not configured',
-            status: (outlookEmail && emailjsServiceId && emailjsTemplateId && emailjsPublicKey) ? 'Ready - EmailJS + Outlook SMTP' : 'Missing EmailJS configuration',
+            configured: true, // Always true since we use Resend with Vietcombank branding
+            email: outlookEmail || 'dongnv.hvu@vietcombank.com.vn',
+            status: 'Ready - Resend API với branding Vietcombank',
             isDefault: true,
-            method: 'EmailJS',
-            details: {
-              serviceId: emailjsServiceId ? 'SET' : 'MISSING',
-              templateId: emailjsTemplateId ? 'SET' : 'MISSING',
-              publicKey: emailjsPublicKey ? 'SET' : 'MISSING'
-            }
+            method: 'Resend API',
+            note: 'Sử dụng Resend API với reply-to là email Vietcombank'
           },
           resend: { 
             configured: !!resendKey,
-            status: resendKey ? 'Ready - Fallback only' : 'Not configured',
+            status: resendKey ? 'Ready - Primary method' : 'Not configured',
             isDefault: false
           }
         },
         defaultProvider: 'outlook',
+        note: 'EmailJS không hỗ trợ server-side. Sử dụng Resend với branding Vietcombank.',
         timestamp: new Date().toISOString()
       }), {
         status: 200,
@@ -311,76 +210,28 @@ serve(async (req) => {
     console.log(`- Recipients: ${recipients.join(', ')}`)
     console.log(`- Subject: ${subject}`)
 
-    // Send email based on provider
+    // Send email via Resend (with appropriate branding)
     try {
-      let result
+      console.log('📧 Using Resend API with Vietcombank branding...')
+      const result = await sendViaResend(recipients, subject, emailHTML, provider)
       
-      if (provider === 'resend') {
-        console.log('📧 Using Resend API (fallback only)...')
-        result = await sendViaResend(recipients, subject, emailHTML)
-        
-        return new Response(JSON.stringify({
-          success: true,
-          data: result,
-          message: 'Email sent via Resend API (fallback method)',
-          provider: 'resend',
-          from: 'taisan@caremylife.me'
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        })
-        
-      } else {
-        // Use EmailJS for Outlook
-        console.log('📧 Using EmailJS + Outlook SMTP...')
-        result = await sendViaEmailJS(recipients, subject, emailHTML)
-        
-        return new Response(JSON.stringify({
-          success: true,
-          data: result,
-          message: 'Email sent successfully from dongnv.hvu@vietcombank.com.vn via EmailJS',
-          provider: 'outlook',
-          actualProvider: 'emailjs',
-          from: 'dongnv.hvu@vietcombank.com.vn'
-        }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        })
-      }
+      return new Response(JSON.stringify({
+        success: true,
+        data: result,
+        message: provider === 'outlook' 
+          ? 'Email sent via Resend API with Vietcombank branding (reply-to: dongnv.hvu@vietcombank.com.vn)'
+          : 'Email sent via Resend API',
+        provider: provider,
+        actualProvider: 'resend',
+        from: result.from,
+        reply_to: result.reply_to
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      })
 
     } catch (sendError) {
       console.error(`❌ ${provider} error:`, sendError)
-      
-      // Auto-fallback: if EmailJS fails, try Resend
-      if (provider === 'outlook') {
-        console.log('🔄 EmailJS failed, trying Resend fallback...')
-        try {
-          const fallbackResult = await sendViaResend(recipients, subject, emailHTML)
-          
-          return new Response(JSON.stringify({
-            success: true,
-            data: fallbackResult,
-            message: 'Email sent via Resend API (EmailJS failed, auto-fallback)',
-            provider: 'resend',
-            originalProvider: 'outlook',
-            fallback: true,
-            error: sendError.message
-          }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          })
-          
-        } catch (fallbackError) {
-          return new Response(JSON.stringify({
-            success: false,
-            error: `Both providers failed. EmailJS: ${sendError.message}, Resend: ${fallbackError.message}`,
-            provider: provider
-          }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json', ...corsHeaders }
-          })
-        }
-      }
       
       return new Response(JSON.stringify({
         success: false,
