@@ -387,7 +387,7 @@ export async function captureError(
   // If the error is critical, create a system alert
   if (errorData.severity === 'critical') {
     await createSystemAlert({
-      alert_id: 'critical_application_error',
+      alert_id: crypto.randomUUID(), // Generate a unique ID for each alert instance
       rule_name: 'Critical Application Error Detected',
       severity: 'critical',
       message: `Lỗi nghiêm trọng: ${errorData.error_message} tại ${errorData.function_name || 'unknown function'}.`,
