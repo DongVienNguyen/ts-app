@@ -163,7 +163,7 @@ export function CleanupTestPanel() {
       // Tạm thời cập nhật policies với thời gian ngắn để test
       const testRetentionDays = parseInt(testDaysOld) - 1; // Ngắn hơn 1 ngày so với dữ liệu test
       
-      const testTables = ['notifications', 'system_metrics', 'system_alerts', 'security_events', 'sent_asset_reminders'];
+      const testTables = ['system_metrics', 'system_alerts', 'sent_asset_reminders'];
       
       // Cập nhật policies tạm thời
       for (const tableName of testTables) {
