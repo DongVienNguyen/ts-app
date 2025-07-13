@@ -60,10 +60,8 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
   `
 }
 
-// EmailJS implementation with better error handling
+// EmailJS implementation with new API
 const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: string) => {
-  // @ts-ignore
-  const emailjsUserId = Deno.env.get('EMAILJS_USER_ID')
   // @ts-ignore
   const emailjsServiceId = Deno.env.get('EMAILJS_SERVICE_ID')
   // @ts-ignore
@@ -74,17 +72,16 @@ const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: 
   const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
 
   console.log('🔍 EmailJS Configuration Check:')
-  console.log('- User ID:', emailjsUserId ? `${emailjsUserId.substring(0, 10)}...` : 'NOT SET')
   console.log('- Service ID:', emailjsServiceId || 'NOT SET')
   console.log('- Template ID:', emailjsTemplateId || 'NOT SET')
-  console.log('- Access Token:', emailjsAccessToken ? 'SET' : 'NOT SET')
+  console.log('- Access Token:', emailjsAccessToken ? `${emailjsAccessToken.substring(0, 8)}...` : 'NOT SET')
   console.log('- Outlook Email:', outlookEmail || 'NOT SET')
 
-  if (!emailjsUserId || !emailjsServiceId || !emailjsTemplateId || !outlookEmail) {
+  if (!emailjsServiceId || !emailjsTemplateId || !emailjsAccessToken || !outlookEmail) {
     const missing = [];
-    if (!emailjsUserId) missing.push('EMAILJS_USER_ID');
     if (!emailjsServiceId) missing.push('EMAILJS_SERVICE_ID');
     if (!emailjsTemplateId) missing.push('EMAILJS_TEMPLATE_ID');
+    if (!emailjsAccessToken) missing.push('EMAILJS_ACCESS_TOKEN');
     if (!outlookEmail) missing.push('OUTLOOK_EMAIL');
     
     throw new Error(`EmailJS credentials not configured. Missing: ${missing.join(', ')}`);
@@ -96,27 +93,19 @@ const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: 
   console.log('📧 Service ID:', emailjsServiceId)
   console.log('📧 Template ID:', emailjsTemplateId)
 
-  // EmailJS API payload
-  const emailJSPayload: any = {
+  // EmailJS API payload for new version
+  const emailJSPayload = {
     service_id: emailjsServiceId,
     template_id: emailjsTemplateId,
-    user_id: emailjsUserId,
     template_params: {
       from_name: 'Đồng Nguyễn - Vietcombank',
       from_email: outlookEmail,
       to_email: recipients.join(','),
       subject: subject,
-      html_content: emailHTML
+      html_content: emailHTML,
+      reply_to: outlookEmail
     }
   };
-
-  // Add access token if available
-  if (emailjsAccessToken) {
-    emailJSPayload.accessToken = emailjsAccessToken;
-    console.log('🔑 Using access token for authentication');
-  } else {
-    console.log('⚠️ No access token provided - using public API');
-  }
 
   try {
     console.log('📤 Sending EmailJS request...')
@@ -132,6 +121,7 @@ const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${emailjsAccessToken}` // Use Bearer token instead
       },
       body: JSON.stringify(emailJSPayload)
     });
@@ -258,8 +248,6 @@ serve(async (req) => {
       // @ts-ignore
       const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
       // @ts-ignore
-      const emailjsUserId = Deno.env.get('EMAILJS_USER_ID')
-      // @ts-ignore
       const emailjsServiceId = Deno.env.get('EMAILJS_SERVICE_ID')
       // @ts-ignore
       const emailjsTemplateId = Deno.env.get('EMAILJS_TEMPLATE_ID')
@@ -271,13 +259,12 @@ serve(async (req) => {
         message: 'Email providers status checked',
         providers: {
           outlook: { 
-            configured: !!(outlookEmail && emailjsUserId && emailjsServiceId && emailjsTemplateId),
+            configured: !!(outlookEmail && emailjsServiceId && emailjsTemplateId && emailjsAccessToken),
             email: outlookEmail || 'Not configured',
-            status: (outlookEmail && emailjsUserId && emailjsServiceId && emailjsTemplateId) ? 'Ready - EmailJS + Outlook SMTP' : 'Missing EmailJS configuration',
+            status: (outlookEmail && emailjsServiceId && emailjsTemplateId && emailjsAccessToken) ? 'Ready - EmailJS + Outlook SMTP' : 'Missing EmailJS configuration',
             isDefault: true,
             method: 'EmailJS',
             details: {
-              userId: emailjsUserId ? 'SET' : 'MISSING',
               serviceId: emailjsServiceId ? 'SET' : 'MISSING',
               templateId: emailjsTemplateId ? 'SET' : 'MISSING',
               accessToken: emailjsAccessToken ? 'SET' : 'MISSING'
