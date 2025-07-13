@@ -91,8 +91,7 @@ export function TestErrorGeneratorTab() {
   };
 
   const handleCreateRandomTestErrors = async (count: number = 10) => {
-    toast.loading(`Đang tạo ${count} lỗi test ngẫu nhiên...`);
-    try {
+    const promise = async () => {
       for (let i = 0; i < count; i++) {
         const randomUserAgent = mockUserAgents[Math.floor(Math.random() * mockUserAgents.length)];
         const randomErrorType = ['API_ERROR', 'DB_ERROR', 'UI_ERROR', 'NETWORK_ERROR'][Math.floor(Math.random() * 4)];
@@ -103,20 +102,29 @@ export function TestErrorGeneratorTab() {
           functionName: `randomFunction${i}`,
           severity: randomSeverity,
           userId: `random_user_${Math.floor(Math.random() * 100)}`,
-          errorType: randomErrorType, // Truyền randomErrorType trực tiếp
+          errorType: randomErrorType,
           additionalData: {
             simulated: true,
             userAgent: randomUserAgent,
           },
         });
+        // Add a small delay to prevent overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
-      toast.success(`Đã tạo ${count} lỗi test ngẫu nhiên thành công!`);
-      refetch();
-      queryClient.invalidateQueries({ queryKey: ['error_monitoring_data'] }); // Invalidate error monitoring data to refresh charts
-    } catch (error) {
-      console.error('Error creating random test errors:', error);
-      toast.error('Không thể tạo lỗi test ngẫu nhiên.');
-    }
+    };
+
+    toast.promise(promise(), {
+      loading: `Đang tạo ${count} lỗi test ngẫu nhiên...`,
+      success: () => {
+        refetch();
+        queryClient.invalidateQueries({ queryKey: ['error_monitoring_data'] });
+        return `Đã tạo ${count} lỗi test ngẫu nhiên thành công!`;
+      },
+      error: (err: any) => {
+        console.error('Error creating random test errors:', err);
+        return 'Không thể tạo lỗi test ngẫu nhiên.';
+      },
+    });
   };
 
   const handleDeleteAllErrors = async () => {

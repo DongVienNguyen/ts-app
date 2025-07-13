@@ -18,6 +18,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { UnresolvedErrorsBanner } from '@/components/UnresolvedErrorsBanner';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RealtimeActivityFeed } from '@/components/RealtimeActivityFeed';
 
 const Index = () => {
   const { user } = useSecureAuth();
@@ -209,33 +210,7 @@ const Index = () => {
             <CardTitle>Hoạt Động Gần Đây</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Hệ thống khởi động thành công</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date().toLocaleString('vi-VN')}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Đăng nhập thành công</p>
-                  <p className="text-xs text-gray-500">
-                    Người dùng: {user?.username}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Kiểm tra bảo mật hoàn tất</p>
-                  <p className="text-xs text-gray-500">Không phát hiện mối đe dọa</p>
-                </div>
-              </div>
-            </div>
+            <RealtimeActivityFeed />
           </CardContent>
         </Card>
       </div>

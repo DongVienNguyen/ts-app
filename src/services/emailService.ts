@@ -16,30 +16,28 @@ export class EmailService {
     const startTime = performance.now();
     
     try {
-      // Test with a simple email to check if the service is available
-      const { error } = await supabase.functions.invoke('send-notification-email', {
+      // Use the dedicated 'api_check' type for health checks
+      const { data, error } = await supabase.functions.invoke('send-notification-email', {
         body: { 
-          to: 'test@example.com',
-          subject: 'Health Check',
-          html: '<p>Testing email service</p>'
+          type: 'api_check'
         }
       });
 
       const responseTime = Math.round(performance.now() - startTime);
 
-      // Check if service responded (even if email wasn't sent due to invalid address)
-      const isWorking = !error || (error && !error.message?.includes('network'));
+      // Check if service responded and the check was successful
+      const isWorking = !error && data?.success;
 
       await updateSystemStatus({
         service_name: 'email',
-        status: isWorking ? 'online' : 'offline',
+        status: isWorking ? 'online' : 'degraded',
         response_time_ms: responseTime,
         uptime_percentage: isWorking ? 100 : 0,
         status_data: {
           lastCheck: new Date().toISOString(),
           responseTime,
           result: isWorking ? 'success' : 'failed',
-          error: error?.message || null
+          error: error?.message || (data && !data.success ? data.message : null)
         }
       });
 

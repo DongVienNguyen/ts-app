@@ -175,7 +175,7 @@ function AppContent() {
           position="top-right" 
           closeButton={true}
           richColors={true}
-          duration={4000}
+          duration={2000}
           visibleToasts={3}
         />
       </Router>
