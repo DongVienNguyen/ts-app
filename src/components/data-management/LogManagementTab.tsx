@@ -137,19 +137,19 @@ export function LogManagementTab({ onNavigateToTable }: LogManagementTabProps) {
                     <label htmlFor={`switch-${name}`} className="font-medium text-sm">Tự động xóa</label>
                     <Switch
                       id={`switch-${name}`}
-                      checked={policy?.is_enabled || false}
+                      checked={policy?.is_enabled ?? false}
                       onCheckedChange={(checked) => {
-                        updatePolicyMutation.mutate({ table_name: name, is_enabled: checked, retention_days: policy?.retention_days || 30 });
+                        updatePolicyMutation.mutate({ table_name: name, is_enabled: checked, retention_days: policy?.retention_days ?? 30 });
                       }}
                       disabled={updatePolicyMutation.isPending}
                     />
                   </div>
                   <Select
-                    value={String(policy?.retention_days || 30)}
+                    value={String(policy?.retention_days ?? 30)}
                     onValueChange={(value) => {
-                      updatePolicyMutation.mutate({ table_name: name, is_enabled: policy?.is_enabled || false, retention_days: Number(value) });
+                      updatePolicyMutation.mutate({ table_name: name, is_enabled: policy?.is_enabled ?? false, retention_days: Number(value) });
                     }}
-                    disabled={!policy?.is_enabled || updatePolicyMutation.isPending}
+                    disabled={!(policy?.is_enabled ?? false) || updatePolicyMutation.isPending}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Thời gian lưu trữ" />
