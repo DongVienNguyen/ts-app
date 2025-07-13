@@ -280,7 +280,7 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
               <Label htmlFor={`filter-${field.key}`}>{field.label}</Label>
               {field.type === 'select' && field.options ? (
                 <Select
-                  value={filters[field.key]?.value || ''}
+                  value={filters[field.key]?.value === undefined ? undefined : filters[field.key]?.value}
                   onValueChange={(value) => onFilterChange(field.key, value === '' ? undefined : value, 'eq')}
                 >
                   <SelectTrigger id={`filter-${field.key}`}>
@@ -301,7 +301,7 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
                 />
               ) : field.type === 'boolean' ? (
                 <Select
-                  value={filters[field.key]?.value === true ? 'true' : filters[field.key]?.value === false ? 'false' : ''}
+                  value={filters[field.key]?.value === true ? 'true' : filters[field.key]?.value === false ? 'false' : undefined}
                   onValueChange={(value) => onFilterChange(field.key, value === 'true' ? true : value === 'false' ? false : undefined, 'is')}
                 >
                   <SelectTrigger id={`filter-${field.key}`}>
