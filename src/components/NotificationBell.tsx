@@ -37,12 +37,13 @@ export function NotificationBell() {
 
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
+      const { error } = await supabase.from('notifications').update({ is_read: true, is_seen: true, seen_at: new Date().toISOString() }).eq('id', notificationId);
       if (error) throw error;
       return notificationId;
     },
     onSuccess: (notificationId) => {
-      setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n));
+      // Remove the notification immediately from the local state
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
       queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
     },
     onError: (error: any) => console.error('Error marking as read from bell:', error),
@@ -94,7 +95,6 @@ export function NotificationBell() {
       return notification;
     },
     onSuccess: (notification) => {
-      // Không gửi read receipt khi đã có quick action
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
     },
@@ -109,6 +109,7 @@ export function NotificationBell() {
         .from('notifications')
         .select('*')
         .eq('recipient_username', user.username)
+        .eq('is_read', false) // Only fetch unread notifications
         .order('created_at', { ascending: false })
         .limit(10);
       if (error) throw error;
@@ -145,7 +146,10 @@ export function NotificationBell() {
       .channel('notifications-bell')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_username=eq.${user.username}` },
         (payload) => {
-          setNotifications(prev => [payload.new as Notification, ...prev]);
+          // Only add if it's an unread notification
+          if (!(payload.new as Notification).is_read) {
+            setNotifications(prev => [payload.new as Notification, ...prev]);
+          }
         }
       )
       .subscribe();
@@ -165,9 +169,8 @@ export function NotificationBell() {
   };
 
   const handleQuickAction = (notification: Notification, action: string) => {
-    if (!notification.is_read) {
-      markAsReadMutation.mutate(notification.id);
-    }
+    // Mark as read and remove from popup immediately
+    markAsReadMutation.mutate(notification.id);
     quickActionMutation.mutate({ notification, action });
   };
 
@@ -194,7 +197,7 @@ export function NotificationBell() {
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const unreadCount = notifications.length; // Now notifications state only holds unread ones
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
