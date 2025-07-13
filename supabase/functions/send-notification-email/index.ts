@@ -20,7 +20,7 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
       </div>
       <div style="background: white; border: 1px solid #e5e7eb; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
         <h2 style="color: #16a34a;">Email Test Thành Công!</h2>
-        <p>Đây là email test để kiểm tra chức năng gửi email của hệ thống.</p>
+        <p>Đây là email test từ hệ thống quản lý tài sản Vietcombank.</p>
         
         <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
           <h3 style="color: #0369a1; margin-top: 0;">📊 Thông tin test:</h3>
@@ -28,6 +28,7 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
             <li><strong>Người test:</strong> ${username}</li>
             <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
             <li><strong>Provider:</strong> ${provider}</li>
+            <li><strong>Người gửi:</strong> Đồng Nguyễn (dongnv.hvu@vietcombank.com.vn)</li>
             <li><strong>Trạng thái:</strong> ✅ Thành công</li>
           </ul>
         </div>
@@ -36,14 +37,16 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
           <h3 style="color: #15803d; margin-top: 0;">🔧 Các chức năng đã test:</h3>
           <ul>
             <li>✅ Kết nối Supabase Edge Function</li>
-            <li>✅ Kết nối ${provider === 'resend' ? 'Resend API' : 'Email Service'}</li>
+            <li>✅ Kết nối Email Service</li>
+            <li>✅ Reply-to Vietcombank email</li>
             <li>✅ Template email HTML</li>
             <li>✅ Gửi email thành công</li>
           </ul>
         </div>
       </div>
       <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px;">
-        <p>Email này được gửi tự động từ Hệ thống Quản lý Tài sản</p>
+        <p>Email này được gửi từ Hệ thống Quản lý Tài sản - Vietcombank</p>
+        <p>Liên hệ: dongnv.hvu@vietcombank.com.vn</p>
         <p>Thời gian: ${new Date().toLocaleString('vi-VN')}</p>
       </div>
     </body>
@@ -51,7 +54,7 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
   `
 }
 
-const sendViaResend = async (recipients: string[], subject: string, emailHTML: string) => {
+const sendViaResend = async (recipients: string[], subject: string, emailHTML: string, useVietcombankReply = false) => {
   // @ts-ignore
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   if (!resendApiKey) {
@@ -60,18 +63,29 @@ const sendViaResend = async (recipients: string[], subject: string, emailHTML: s
 
   console.log('📧 Sending via Resend API...')
   
+  const emailPayload: any = {
+    from: useVietcombankReply 
+      ? 'Đồng Nguyễn - Vietcombank <taisan@caremylife.me>'
+      : 'Hệ thống Tài sản <taisan@caremylife.me>',
+    to: recipients,
+    subject: subject,
+    html: emailHTML,
+  }
+
+  // Add reply-to if using Vietcombank mode
+  if (useVietcombankReply) {
+    emailPayload.reply_to = 'dongnv.hvu@vietcombank.com.vn'
+  }
+
+  console.log('📧 Email payload:', JSON.stringify(emailPayload, null, 2))
+  
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${resendApiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      from: 'Hệ thống Tài sản <taisan@caremylife.me>',
-      to: recipients,
-      subject: subject,
-      html: emailHTML,
-    }),
+    body: JSON.stringify(emailPayload),
   })
 
   const result = await response.json()
@@ -93,14 +107,13 @@ serve(async (req) => {
   }
 
   try {
-    // Parse request body with detailed logging
+    // Parse request body
     let requestBody
     try {
       const bodyText = await req.text()
       console.log('📝 Raw request body:', bodyText)
       
       if (!bodyText || bodyText.trim() === '') {
-        console.log('❌ Empty request body')
         return new Response(JSON.stringify({
           success: false,
           error: 'Request body is empty'
@@ -111,13 +124,12 @@ serve(async (req) => {
       }
       
       requestBody = JSON.parse(bodyText)
-      console.log('✅ Request body parsed successfully:', JSON.stringify(requestBody, null, 2))
+      console.log('✅ Request body parsed successfully')
     } catch (parseError) {
       console.error('❌ JSON parse error:', parseError)
       return new Response(JSON.stringify({
         success: false,
-        error: 'Invalid JSON in request body',
-        details: parseError.message
+        error: 'Invalid JSON in request body'
       }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -136,7 +148,7 @@ serve(async (req) => {
       // @ts-ignore
       const outlookPass = Deno.env.get('OUTLOOK_APP_PASSWORD')
 
-      const response = {
+      return new Response(JSON.stringify({
         success: true,
         message: 'API keys status checked',
         providers: {
@@ -147,41 +159,21 @@ serve(async (req) => {
           outlook: { 
             configured: !!(outlookEmail && outlookPass),
             email: outlookEmail || 'Not configured',
-            status: (outlookEmail && outlookPass) ? 'Ready (Resend fallback)' : 'Not configured'
+            status: (outlookEmail && outlookPass) ? 'Ready - Using Resend with Vietcombank Reply-To' : 'Not configured'
           }
         },
         timestamp: new Date().toISOString()
-      }
-
-      console.log('✅ API check response:', response)
-      return new Response(JSON.stringify(response), {
+      }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       })
     }
 
-    // Validate required fields for email sending
-    console.log('🔍 Validating required fields...')
-    console.log('- to:', to)
-    console.log('- subject:', subject)
-    console.log('- provider:', provider)
-    
-    if (!to) {
-      console.log('❌ Missing "to" field')
+    // Validate required fields
+    if (!to || !subject) {
       return new Response(JSON.stringify({
         success: false,
-        error: 'Missing required field: "to"'
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      })
-    }
-
-    if (!subject) {
-      console.log('❌ Missing "subject" field')
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Missing required field: "subject"'
+        error: 'Missing required fields: to, subject'
       }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -191,7 +183,6 @@ serve(async (req) => {
     // Generate email HTML
     let emailHTML = html
     if (!emailHTML && type === 'test') {
-      console.log('🎨 Generating test email HTML...')
       emailHTML = generateTestEmailHTML(data?.username || 'N/A', provider)
     }
     
@@ -200,37 +191,37 @@ serve(async (req) => {
     }
 
     const recipients = Array.isArray(to) ? to : [to]
-    console.log(`📧 Preparing to send email:`)
+    console.log(`📧 Sending email via ${provider}:`)
     console.log(`- Recipients: ${recipients.join(', ')}`)
     console.log(`- Subject: ${subject}`)
-    console.log(`- Provider: ${provider}`)
-    console.log(`- HTML length: ${emailHTML.length} characters`)
 
-    // For now, always use Resend API regardless of provider selection
-    // This ensures stability while we work on Outlook SMTP integration
-    console.log(`📧 Using Resend API (${provider} provider selected but using Resend for stability)`)
-    
+    // Send email - both providers use Resend but with different configurations
     try {
-      const result = await sendViaResend(recipients, subject, emailHTML)
-      console.log('✅ Email sent successfully via Resend:', result.id)
-
+      const useVietcombankReply = provider === 'outlook'
+      const result = await sendViaResend(recipients, subject, emailHTML, useVietcombankReply)
+      
+      console.log('✅ Email sent successfully')
+      
       return new Response(JSON.stringify({
         success: true,
         data: result,
-        message: `Email sent successfully via Resend API${provider === 'outlook' ? ' (Outlook fallback)' : ''}`,
-        provider: 'resend',
-        originalProvider: provider
+        message: useVietcombankReply 
+          ? 'Email sent with Vietcombank reply-to (dongnv.hvu@vietcombank.com.vn)'
+          : 'Email sent successfully via Resend API',
+        provider: provider,
+        actualProvider: 'resend',
+        replyTo: useVietcombankReply ? 'dongnv.hvu@vietcombank.com.vn' : null
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       })
 
     } catch (sendError) {
-      console.error('❌ Resend error:', sendError)
+      console.error(`❌ Email sending error:`, sendError)
       return new Response(JSON.stringify({
         success: false,
-        error: `Email sending failed: ${sendError.message}`,
-        provider: 'resend'
+        error: sendError.message,
+        provider: provider
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -238,12 +229,10 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('❌ Unexpected error in Edge Function:', error)
+    console.error('❌ Unexpected error:', error)
     return new Response(JSON.stringify({
       success: false,
-      error: error.message || 'Unknown error occurred',
-      stack: error.stack,
-      timestamp: new Date().toISOString()
+      error: error.message || 'Unknown error occurred'
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
