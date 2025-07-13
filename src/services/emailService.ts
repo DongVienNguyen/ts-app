@@ -14,9 +14,7 @@ export interface EmailResponse {
   data?: any;
   error?: string;
   message?: string;
-  provider: string;
   from?: string;
-  reply_to?: string;
 }
 
 /**
@@ -24,7 +22,7 @@ export interface EmailResponse {
  */
 export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> => {
   try {
-    console.log('📧 Sending email via Resend API...');
+    console.log('📧 Sending email...');
     console.log('📧 To:', Array.isArray(options.to) ? options.to.join(', ') : options.to);
     console.log('📧 Subject:', options.subject);
 
@@ -48,22 +46,19 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
       throw new Error(data.error || 'Email send failed');
     }
 
-    console.log('✅ Email sent successfully via Resend API');
+    console.log('✅ Email sent successfully');
     return {
       success: true,
       data: data.data,
       message: data.message,
-      provider: 'resend',
-      from: data.from,
-      reply_to: data.reply_to
+      from: data.from
     };
 
   } catch (error: any) {
     console.error('❌ Email service error:', error);
     return {
       success: false,
-      error: error.message || 'Unknown email error',
-      provider: 'resend'
+      error: error.message || 'Unknown email error'
     };
   }
 };
@@ -98,16 +93,15 @@ export const sendAssetNotificationEmail = async (
     </head>
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-        <h1 style="margin: 0; font-size: 24px;">🏦 Ngân hàng TMCP Ngoại thương Việt Nam</h1>
-        <p style="margin: 5px 0 0 0; opacity: 0.9;">Vietcombank - Hệ thống Quản lý Tài sản</p>
+        <h1 style="margin: 0; font-size: 24px;">📋 Hệ thống Quản lý Tài sản - CRC</h1>
+        <p style="margin: 5px 0 0 0; opacity: 0.9;">Tài sản - CRC - Hệ thống Quản lý Nội bộ</p>
       </div>
       <div style="background: white; border: 1px solid #e5e7eb; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
         <div style="white-space: pre-line; line-height: 1.6;">${content}</div>
       </div>
       <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
-        <p><strong>Ngân hàng TMCP Ngoại thương Việt Nam (Vietcombank)</strong></p>
+        <p><strong>Hệ thống Quản lý Tài sản - CRC</strong></p>
         <p>Hệ thống Quản lý Tài sản Nội bộ</p>
-        <p>Liên hệ hỗ trợ: dongnv.hvu@vietcombank.com.vn</p>
         <p>Thời gian gửi: ${new Date().toLocaleString('vi-VN')}</p>
       </div>
     </body>
@@ -157,7 +151,7 @@ Vui lòng thử lại hoặc liên hệ bộ phận hỗ trợ.`;
     .eq('username', username)
     .single();
 
-  const userEmail = staffData?.email ? `${staffData.email}.hvu@vietcombank.com.vn` : `${username}@vietcombank.com.vn`;
+  const userEmail = staffData?.email ? `${staffData.email}@company.com` : `${username}@company.com`;
 
   return sendAssetNotificationEmail([userEmail], subject, content);
 };
@@ -214,7 +208,7 @@ Vui lòng kiểm tra và xử lý lỗi này.`;
     .limit(1)
     .single();
 
-  const adminEmail = adminData?.email ? `${adminData.email}.hvu@vietcombank.com.vn` : 'admin@vietcombank.com.vn';
+  const adminEmail = adminData?.email ? `${adminData.email}@company.com` : 'admin@company.com';
 
   return sendAssetNotificationEmail([adminEmail], subject, content);
 };
@@ -238,7 +232,7 @@ export const getAdminEmail = async (): Promise<string | null> => {
       .limit(1)
       .single();
 
-    return adminData?.email ? `${adminData.email}.hvu@vietcombank.com.vn` : null;
+    return adminData?.email ? `${adminData.email}@company.com` : null;
   } catch (error) {
     console.error('Error getting admin email:', error);
     return null;
@@ -258,8 +252,7 @@ export const checkEmailStatus = async () => {
 
     return {
       success: data.success,
-      providers: data.providers,
-      provider: data.provider,
+      service: data.service,
       timestamp: data.timestamp
     };
   } catch (error: any) {
@@ -267,9 +260,7 @@ export const checkEmailStatus = async () => {
     return {
       success: false,
       error: error.message,
-      providers: {
-        resend: { configured: false, status: 'Error checking status' }
-      }
+      service: { configured: false, status: 'Error checking status' }
     };
   }
 };

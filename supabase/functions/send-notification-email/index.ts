@@ -12,23 +12,22 @@ const generateTestEmailHTML = (username: string): string => {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Email từ Vietcombank</title>
+      <title>Email từ Hệ thống Tài sản - CRC</title>
     </head>
     <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-        <h1 style="margin: 0; font-size: 24px;">🏦 Ngân hàng TMCP Ngoại thương Việt Nam</h1>
-        <p style="margin: 5px 0 0 0; opacity: 0.9;">Vietcombank - Hệ thống Quản lý Tài sản</p>
+        <h1 style="margin: 0; font-size: 24px;">📋 Hệ thống Quản lý Tài sản - CRC</h1>
+        <p style="margin: 5px 0 0 0; opacity: 0.9;">Tài sản - CRC - Hệ thống Quản lý Nội bộ</p>
       </div>
       <div style="background: white; border: 1px solid #e5e7eb; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
         <h2 style="color: #1e40af;">Email Test Thành Công!</h2>
-        <p>Đây là email được gửi từ hệ thống quản lý tài sản nội bộ của Vietcombank.</p>
+        <p>Đây là email được gửi từ hệ thống quản lý tài sản nội bộ.</p>
         
         <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1e40af;">
           <h3 style="color: #1e40af; margin-top: 0;">📊 Thông tin email:</h3>
           <ul style="margin: 0; padding-left: 20px;">
             <li><strong>Người test:</strong> ${username}</li>
             <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
-            <li><strong>Provider:</strong> Resend API</li>
             <li><strong>Trạng thái:</strong> Gửi thành công</li>
           </ul>
         </div>
@@ -37,18 +36,17 @@ const generateTestEmailHTML = (username: string): string => {
           <h3 style="color: #16a34a; margin-top: 0;">✅ Chức năng đã kiểm tra:</h3>
           <ul style="margin: 0; padding-left: 20px;">
             <li>✅ Kết nối Supabase Edge Function</li>
-            <li>✅ Resend API Integration</li>
+            <li>✅ Email API Integration</li>
             <li>✅ Email Template HTML</li>
-            <li>✅ Vietcombank Branding</li>
+            <li>✅ Hệ thống Tài sản - CRC</li>
             <li>✅ Gửi email thành công</li>
           </ul>
         </div>
       </div>
       
       <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
-        <p><strong>Ngân hàng TMCP Ngoại thương Việt Nam (Vietcombank)</strong></p>
+        <p><strong>Hệ thống Quản lý Tài sản - CRC</strong></p>
         <p>Hệ thống Quản lý Tài sản Nội bộ</p>
-        <p>Liên hệ hỗ trợ: dongnv.hvu@vietcombank.com.vn</p>
         <p>Thời gian gửi: ${new Date().toLocaleString('vi-VN')}</p>
       </div>
     </body>
@@ -64,8 +62,8 @@ const sendEmail = async (recipients: string[], subject: string, emailHTML: strin
     throw new Error('RESEND_API_KEY not configured')
   }
 
-  console.log('📧 Sending via Resend API...')
-  console.log('📧 From: Vietcombank Tài sản <taisan@caremylife.me>')
+  console.log('📧 Sending email...')
+  console.log('📧 From: Tài sản - CRC <taisan@caremylife.me>')
   console.log('📧 To:', recipients.join(', '))
   
   const response = await fetch('https://api.resend.com/emails', {
@@ -75,18 +73,17 @@ const sendEmail = async (recipients: string[], subject: string, emailHTML: strin
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Vietcombank Tài sản <taisan@caremylife.me>',
+      from: 'Tài sản - CRC <taisan@caremylife.me>',
       to: recipients,
       subject: subject,
       html: emailHTML,
-      reply_to: 'dongnv.hvu@vietcombank.com.vn',
     }),
   })
 
   const result = await response.json()
   
   if (!response.ok) {
-    throw new Error(`Resend API error: ${result.message || 'Unknown error'}`)
+    throw new Error(`Email API error: ${result.message || 'Unknown error'}`)
   }
 
   return result
@@ -141,16 +138,12 @@ serve(async (req) => {
 
       return new Response(JSON.stringify({
         success: true,
-        message: 'Email provider status checked',
-        providers: {
-          resend: { 
-            configured: !!resendKey,
-            status: resendKey ? 'Ready' : 'Not configured',
-            from: 'Vietcombank Tài sản <taisan@caremylife.me>',
-            reply_to: 'dongnv.hvu@vietcombank.com.vn'
-          }
+        message: 'Email service status checked',
+        service: {
+          configured: !!resendKey,
+          status: resendKey ? 'Ready' : 'Not configured',
+          from: 'Tài sản - CRC <taisan@caremylife.me>'
         },
-        provider: 'resend',
         timestamp: new Date().toISOString()
       }), {
         status: 200,
@@ -176,7 +169,7 @@ serve(async (req) => {
     }
     
     if (!emailHTML) {
-      emailHTML = '<p>Nội dung email từ hệ thống Vietcombank</p>'
+      emailHTML = '<p>Nội dung email từ hệ thống Tài sản - CRC</p>'
     }
 
     const recipients = Array.isArray(to) ? to : [to]
@@ -190,10 +183,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         success: true,
         data: result,
-        message: 'Email sent successfully via Resend API',
-        provider: 'resend',
-        from: 'Vietcombank Tài sản <taisan@caremylife.me>',
-        reply_to: 'dongnv.hvu@vietcombank.com.vn'
+        message: 'Email sent successfully',
+        from: 'Tài sản - CRC <taisan@caremylife.me>'
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -204,8 +195,7 @@ serve(async (req) => {
       
       return new Response(JSON.stringify({
         success: false,
-        error: sendError.message,
-        provider: 'resend'
+        error: sendError.message
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }

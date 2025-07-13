@@ -60,12 +60,10 @@ export const DEFAULT_VALUES = {
   transactionType: ''
 };
 
-// Email configuration - Simplified to use only Resend
+// Email configuration - Simplified branding
 export const EMAIL_CONFIG = {
-  provider: 'resend',
-  from: 'Vietcombank Tài sản <taisan@caremylife.me>',
-  replyTo: 'dongnv.hvu@vietcombank.com.vn',
-  name: 'Hệ thống Quản lý Tài sản Vietcombank'
+  from: 'Tài sản - CRC <taisan@caremylife.me>',
+  name: 'Hệ thống Quản lý Tài sản - CRC'
 };
 
 export default {

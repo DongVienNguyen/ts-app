@@ -35,24 +35,20 @@ export const ProviderTester = () => {
     }
 
     setIsLoading(true);
-    setMessage({ type: 'info', text: 'Đang gửi email qua Resend API...', details: '' });
+    setMessage({ type: 'info', text: 'Đang gửi email...', details: '' });
 
     try {
-      console.log('🧪 Testing Resend provider...');
+      console.log('🧪 Testing email service...');
       
       const result = await emailService.sendTestEmail(to, user?.username || 'N/A');
 
       console.log('📧 Test result:', result);
 
       if (result.success) {
-        const fromEmail = result.from || 'Vietcombank Tài sản <taisan@caremylife.me>';
+        const fromEmail = result.from || 'Tài sản - CRC <taisan@caremylife.me>';
         
         let successMessage = `✅ Email đã được gửi thành công đến ${to}`;
-        let details = `Provider: ${result.provider}, From: ${fromEmail}`;
-
-        if (result.reply_to) {
-          details += `\nReply-to: ${result.reply_to}`;
-        }
+        let details = `From: ${fromEmail}`;
 
         if (result.message) {
           details += `\nThông báo: ${result.message}`;
@@ -116,7 +112,7 @@ export const ProviderTester = () => {
           ) : (
             <Send className="mr-2 h-4 w-4" />
           )}
-          Test với Resend API
+          Test Email Service
         </Button>
       </div>
 
@@ -149,9 +145,7 @@ export const ProviderTester = () => {
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <h4 className="font-semibold text-gray-800 mb-2">📧 Thông tin Test</h4>
         <ul className="text-sm text-gray-700 space-y-1">
-          <li>• <strong>Resend API:</strong> Gửi qua API Resend với domain caremylife.me</li>
-          <li>• <strong>From:</strong> Vietcombank Tài sản &lt;taisan@caremylife.me&gt;</li>
-          <li>• <strong>Reply-to:</strong> dongnv.hvu@vietcombank.com.vn</li>
+          <li>• <strong>From:</strong> Tài sản - CRC &lt;taisan@caremylife.me&gt;</li>
           <li>• Email test sẽ có template HTML đầy đủ với thông tin chi tiết</li>
           <li>• Kiểm tra cả inbox và spam folder nếu không thấy email</li>
           <li>• Thời gian gửi: vài giây đến vài phút</li>
