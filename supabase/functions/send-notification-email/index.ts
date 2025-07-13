@@ -6,6 +6,137 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const generateTestEmailHTML = (username: string): string => {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Test Email</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 24px;">🧪 Test Email Function</h1>
+      </div>
+      <div style="background: white; border: 1px solid #e5e7eb; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
+        <h2 style="color: #16a34a;">Email Test Thành Công!</h2>
+        <p>Đây là email test để kiểm tra chức năng gửi email của hệ thống.</p>
+        
+        <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="color: #0369a1; margin-top: 0;">📊 Thông tin test:</h3>
+          <ul>
+            <li><strong>Người test:</strong> ${username}</li>
+            <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
+            <li><strong>Provider:</strong> Outlook SMTP</li>
+            <li><strong>Trạng thái:</strong> ✅ Thành công</li>
+          </ul>
+        </div>
+        
+        <div style="background-color: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="color: #15803d; margin-top: 0;">🔧 Các chức năng đã test:</h3>
+          <ul>
+            <li>✅ Kết nối Supabase Edge Function</li>
+            <li>✅ Kết nối Outlook SMTP</li>
+            <li>✅ Xác thực App Password</li>
+            <li>✅ Template email HTML</li>
+            <li>✅ Gửi email thành công</li>
+          </ul>
+        </div>
+      </div>
+      <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px;">
+        <p>Email này được gửi tự động từ Hệ thống Quản lý Tài sản</p>
+        <p>Thời gian: ${new Date().toLocaleString('vi-VN')}</p>
+      </div>
+    </body>
+    </html>
+  `
+}
+
+const sendViaResend = async (recipients: string[], subject: string, emailHTML: string) => {
+  // @ts-ignore
+  const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  if (!resendApiKey) {
+    throw new Error('RESEND_API_KEY not configured')
+  }
+
+  console.log('📧 Sending via Resend API...')
+  
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${resendApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'Hệ thống Tài sản <taisan@caremylife.me>',
+      to: recipients,
+      subject: subject,
+      html: emailHTML,
+    }),
+  })
+
+  const result = await response.json()
+  
+  if (!response.ok) {
+    throw new Error(`Resend API error: ${result.message || 'Unknown error'}`)
+  }
+
+  return result
+}
+
+const sendViaOutlook = async (recipients: string[], subject: string, emailHTML: string) => {
+  // @ts-ignore
+  const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
+  // @ts-ignore
+  const outlookPassword = Deno.env.get('OUTLOOK_APP_PASSWORD')
+
+  if (!outlookEmail || !outlookPassword) {
+    throw new Error('Outlook credentials not configured')
+  }
+
+  console.log('📧 Sending via Outlook SMTP...')
+  console.log('📧 Outlook Email:', outlookEmail)
+  console.log('📧 App Password configured:', !!outlookPassword)
+
+  try {
+    // @ts-ignore
+    const nodemailer = await import('npm:nodemailer@6.9.14')
+    
+    const transporter = nodemailer.default.createTransporter({
+      host: 'smtp.office365.com',
+      port: 587,
+      secure: false, // true for 465, false for other ports
+      auth: {
+        user: outlookEmail,
+        pass: outlookPassword,
+      },
+      tls: {
+        ciphers: 'SSLv3',
+        rejectUnauthorized: false
+      }
+    })
+
+    // Verify connection configuration
+    console.log('🔍 Verifying SMTP connection...')
+    await transporter.verify()
+    console.log('✅ SMTP connection verified')
+
+    const info = await transporter.sendMail({
+      from: `"Hệ thống Quản lý Tài sản" <${outlookEmail}>`,
+      to: recipients,
+      subject: subject,
+      html: emailHTML,
+    })
+
+    console.log('✅ Email sent via Outlook:', info.messageId)
+    return { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected }
+
+  } catch (error) {
+    console.error('❌ Outlook SMTP error:', error)
+    throw new Error(`Outlook SMTP error: ${error.message}`)
+  }
+}
+
 serve(async (req) => {
   console.log('🚀 Edge Function called:', req.method, req.url)
   
@@ -63,8 +194,15 @@ serve(async (req) => {
         success: true,
         message: 'API keys status checked',
         providers: {
-          resend: { configured: !!resendKey },
-          outlook: { configured: !!(outlookEmail && outlookPass) }
+          resend: { 
+            configured: !!resendKey,
+            status: resendKey ? 'Ready' : 'Not configured'
+          },
+          outlook: { 
+            configured: !!(outlookEmail && outlookPass),
+            email: outlookEmail || 'Not configured',
+            status: (outlookEmail && outlookPass) ? 'Ready' : 'Not configured'
+          }
         },
         timestamp: new Date().toISOString()
       }
@@ -80,6 +218,7 @@ serve(async (req) => {
     console.log('🔍 Validating required fields...')
     console.log('- to:', to)
     console.log('- subject:', subject)
+    console.log('- provider:', provider)
     
     if (!to) {
       console.log('❌ Missing "to" field')
@@ -107,37 +246,7 @@ serve(async (req) => {
     let emailHTML = html
     if (!emailHTML && type === 'test') {
       console.log('🎨 Generating test email HTML...')
-      emailHTML = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Test Email</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h1 style="margin: 0; font-size: 24px;">🧪 Test Email Function</h1>
-          </div>
-          <div style="background: white; border: 1px solid #e5e7eb; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
-            <h2 style="color: #16a34a;">Email Test Thành Công!</h2>
-            <p>Đây là email test để kiểm tra chức năng gửi email của hệ thống.</p>
-            
-            <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="color: #0369a1; margin-top: 0;">📊 Thông tin test:</h3>
-              <ul>
-                <li><strong>Người test:</strong> ${data?.username || 'N/A'}</li>
-                <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
-                <li><strong>Trạng thái:</strong> ✅ Thành công</li>
-              </ul>
-            </div>
-          </div>
-          <div style="text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px;">
-            <p>Email này được gửi tự động từ Hệ thống Quản lý Tài sản</p>
-            <p>Thời gian: ${new Date().toLocaleString('vi-VN')}</p>
-          </div>
-        </body>
-        </html>
-      `
+      emailHTML = generateTestEmailHTML(data?.username || 'N/A')
     }
     
     if (!emailHTML) {
@@ -151,78 +260,45 @@ serve(async (req) => {
     console.log(`- Provider: ${provider}`)
     console.log(`- HTML length: ${emailHTML.length} characters`)
 
-    // Check Resend API key
-    // @ts-ignore
-    const resendApiKey = Deno.env.get('RESEND_API_KEY')
-    if (!resendApiKey) {
-      console.log('❌ RESEND_API_KEY not configured')
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'RESEND_API_KEY not configured'
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      })
-    }
-
-    console.log('✅ RESEND_API_KEY found')
-
-    // Send email via Resend API
+    // Send email based on provider
     try {
-      console.log('📧 Calling Resend API...')
+      let result
       
-      const emailPayload = {
-        from: 'Hệ thống Tài sản <taisan@caremylife.me>',
-        to: recipients,
-        subject: subject,
-        html: emailHTML,
-      }
-      
-      console.log('📧 Email payload:', JSON.stringify(emailPayload, null, 2))
-
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(emailPayload),
-      })
-
-      console.log('📧 Resend API response status:', response.status)
-      
-      const result = await response.json()
-      console.log('📧 Resend API response body:', JSON.stringify(result, null, 2))
-      
-      if (!response.ok) {
-        console.error('❌ Resend API error:', result)
+      if (provider === 'outlook') {
+        result = await sendViaOutlook(recipients, subject, emailHTML)
+        console.log('✅ Email sent successfully via Outlook')
+        
         return new Response(JSON.stringify({
-          success: false,
-          error: `Resend API error: ${result.message || 'Unknown error'}`,
-          details: result
+          success: true,
+          data: result,
+          message: 'Email sent successfully via Outlook SMTP',
+          provider: 'outlook'
         }), {
-          status: 500,
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        })
+        
+      } else {
+        result = await sendViaResend(recipients, subject, emailHTML)
+        console.log('✅ Email sent successfully via Resend')
+        
+        return new Response(JSON.stringify({
+          success: true,
+          data: result,
+          message: 'Email sent successfully via Resend API',
+          provider: 'resend'
+        }), {
+          status: 200,
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         })
       }
 
-      console.log('✅ Email sent successfully via Resend:', result.id)
-
-      return new Response(JSON.stringify({
-        success: true,
-        data: result,
-        message: 'Email sent successfully via Resend'
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders }
-      })
-
-    } catch (resendError) {
-      console.error('❌ Resend fetch error:', resendError)
+    } catch (sendError) {
+      console.error(`❌ ${provider} error:`, sendError)
       return new Response(JSON.stringify({
         success: false,
-        error: `Resend fetch error: ${resendError.message}`,
-        stack: resendError.stack
+        error: sendError.message,
+        provider: provider
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
