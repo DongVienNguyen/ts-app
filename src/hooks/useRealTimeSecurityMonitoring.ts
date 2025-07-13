@@ -54,6 +54,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
       const { data: alerts, error: alertsError } = await supabase
         .from('system_alerts')
         .select('*')
+        .eq('acknowledged', false) // Chỉ lấy các cảnh báo chưa được giải quyết
         .order('created_at', { ascending: false })
         .limit(10); // Limit to recent alerts
 
@@ -143,16 +144,19 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     
     if (!isMountedRef.current) return;
     
-    setSecurityAlerts((prevAlerts) => {
-      if (!isMountedRef.current) return prevAlerts;
+    // Only add new alerts if they are not acknowledged
+    if (!newAlert.acknowledged) {
+      setSecurityAlerts((prevAlerts) => {
+        if (!isMountedRef.current) return prevAlerts;
+        
+        const updated = [newAlert, ...prevAlerts].slice(0, 10);
+        return updated;
+      });
       
-      const updated = [newAlert, ...prevAlerts].slice(0, 10);
-      return updated;
-    });
-    
-    toast.warning(`Cảnh báo hệ thống mới: ${newAlert.rule_name}`, {
-      duration: 5000,
-    });
+      toast.warning(`Cảnh báo hệ thống mới: ${newAlert.rule_name}`, {
+        duration: 5000,
+      });
+    }
   }, []);
 
   const acknowledgeSystemAlert = useCallback(async (alertId: string) => {
