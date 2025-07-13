@@ -20,16 +20,16 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
       </div>
       <div style="background: white; border: 1px solid #e5e7eb; border-top: none; padding: 20px; border-radius: 0 0 8px 8px;">
         <h2 style="color: #1e40af;">Email Test Thành Công!</h2>
-        <p>Đây là email được gửi trực tiếp từ email doanh nghiệp Vietcombank.</p>
+        <p>Đây là email được gửi trực tiếp từ email doanh nghiệp Vietcombank qua EmailJS.</p>
         
         <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1e40af;">
           <h3 style="color: #1e40af; margin-top: 0;">📊 Thông tin email:</h3>
           <ul style="margin: 0; padding-left: 20px;">
             <li><strong>Người test:</strong> ${username}</li>
             <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
-            <li><strong>Provider:</strong> ${provider === 'outlook' ? 'Outlook SMTP (EmailJS)' : 'Resend API'}</li>
+            <li><strong>Provider:</strong> ${provider === 'outlook' ? 'EmailJS + Outlook SMTP' : 'Resend API'}</li>
             <li><strong>Email gửi:</strong> dongnv.hvu@vietcombank.com.vn</li>
-            <li><strong>Phương thức:</strong> ${provider === 'outlook' ? 'EmailJS + Outlook SMTP' : 'API'}</li>
+            <li><strong>Phương thức:</strong> ${provider === 'outlook' ? 'EmailJS với App Password' : 'API'}</li>
           </ul>
         </div>
         
@@ -37,15 +37,15 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
           <h3 style="color: #16a34a; margin-top: 0;">✅ Chức năng đã kiểm tra:</h3>
           <ul style="margin: 0; padding-left: 20px;">
             <li>✅ Kết nối Supabase Edge Function</li>
-            <li>✅ ${provider === 'outlook' ? 'EmailJS + Outlook SMTP' : 'Kết nối Resend API'}</li>
-            <li>✅ ${provider === 'outlook' ? 'Xác thực App Password' : 'Sử dụng API Key'}</li>
+            <li>✅ EmailJS Service Integration</li>
+            <li>✅ Outlook SMTP Authentication</li>
             <li>✅ Template email HTML</li>
             <li>✅ Gửi email thành công</li>
           </ul>
         </div>
 
         <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-          <p style="margin: 0; color: #92400e;"><strong>Lưu ý:</strong> Email này được gửi trực tiếp từ hệ thống quản lý tài sản nội bộ của Vietcombank.</p>
+          <p style="margin: 0; color: #92400e;"><strong>Lưu ý:</strong> Email này được gửi trực tiếp từ hệ thống quản lý tài sản nội bộ của Vietcombank thông qua EmailJS.</p>
         </div>
       </div>
       
@@ -60,37 +60,50 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
   `
 }
 
-// EmailJS implementation for Outlook SMTP
+// EmailJS implementation
 const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: string) => {
   // @ts-ignore
-  const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
+  const emailjsUserId = Deno.env.get('EMAILJS_USER_ID')
   // @ts-ignore
-  const outlookPassword = Deno.env.get('OUTLOOK_APP_PASSWORD')
+  const emailjsServiceId = Deno.env.get('EMAILJS_SERVICE_ID')
+  // @ts-ignore
+  const emailjsTemplateId = Deno.env.get('EMAILJS_TEMPLATE_ID')
+  // @ts-ignore
+  const emailjsAccessToken = Deno.env.get('EMAILJS_ACCESS_TOKEN')
+  // @ts-ignore
+  const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
 
-  if (!outlookEmail || !outlookPassword) {
-    throw new Error('Outlook SMTP credentials not configured. Please set OUTLOOK_EMAIL and OUTLOOK_APP_PASSWORD.')
+  if (!emailjsUserId || !emailjsServiceId || !emailjsTemplateId || !outlookEmail) {
+    throw new Error('EmailJS credentials not configured. Please set EMAILJS_USER_ID, EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, and OUTLOOK_EMAIL.')
   }
 
   console.log('📧 Sending via EmailJS + Outlook SMTP...')
   console.log('📧 From:', outlookEmail)
   console.log('📧 To:', recipients.join(', '))
+  console.log('📧 Service ID:', emailjsServiceId)
+  console.log('📧 Template ID:', emailjsTemplateId)
 
-  // EmailJS API call
-  const emailJSPayload = {
-    service_id: 'outlook_smtp_service', // You'll need to configure this in EmailJS
-    template_id: 'custom_html_template', // You'll need to create this template
-    user_id: 'your_emailjs_user_id', // Your EmailJS user ID
+  // EmailJS API payload
+  const emailJSPayload: any = {
+    service_id: emailjsServiceId,
+    template_id: emailjsTemplateId,
+    user_id: emailjsUserId,
     template_params: {
+      from_name: 'Đồng Nguyễn - Vietcombank',
       from_email: outlookEmail,
       to_email: recipients.join(','),
       subject: subject,
-      html_content: emailHTML,
-      from_name: 'Đồng Nguyễn - Vietcombank'
-    },
-    accessToken: 'your_emailjs_access_token' // Your EmailJS access token
+      html_content: emailHTML
+    }
   };
 
+  // Add access token if available
+  if (emailjsAccessToken) {
+    emailJSPayload.accessToken = emailjsAccessToken;
+  }
+
   try {
+    console.log('📤 Sending EmailJS request...')
     const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
       method: 'POST',
       headers: {
@@ -99,13 +112,16 @@ const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: 
       body: JSON.stringify(emailJSPayload)
     });
 
+    console.log('📥 EmailJS response status:', response.status)
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('❌ EmailJS error response:', errorText)
       throw new Error(`EmailJS API error: ${response.status} - ${errorText}`);
     }
 
     const result = await response.text();
-    console.log('✅ EmailJS response:', result);
+    console.log('✅ EmailJS success response:', result);
 
     return {
       messageId: `emailjs-${Date.now()}@vietcombank.com.vn`,
@@ -114,74 +130,13 @@ const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: 
       from: outlookEmail,
       to: recipients,
       timestamp: new Date().toISOString(),
-      service: 'EmailJS + Outlook SMTP'
+      service: 'EmailJS + Outlook SMTP',
+      response: result
     };
 
   } catch (error) {
     console.error('❌ EmailJS error:', error);
     throw new Error(`EmailJS failed: ${error.message}`);
-  }
-}
-
-// SMTP2GO implementation (Alternative)
-const sendViaSMTP2GO = async (recipients: string[], subject: string, emailHTML: string) => {
-  // @ts-ignore
-  const smtp2goApiKey = Deno.env.get('SMTP2GO_API_KEY')
-  // @ts-ignore
-  const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
-
-  if (!smtp2goApiKey || !outlookEmail) {
-    throw new Error('SMTP2GO credentials not configured. Please set SMTP2GO_API_KEY and OUTLOOK_EMAIL.')
-  }
-
-  console.log('📧 Sending via SMTP2GO...')
-  console.log('📧 From:', outlookEmail)
-
-  const smtp2goPayload = {
-    api_key: smtp2goApiKey,
-    to: recipients,
-    sender: outlookEmail,
-    subject: subject,
-    html_body: emailHTML,
-    text_body: 'Email từ hệ thống Vietcombank', // Fallback text
-    custom_headers: [
-      {
-        header: 'Reply-To',
-        value: outlookEmail
-      }
-    ]
-  };
-
-  try {
-    const response = await fetch('https://api.smtp2go.com/v3/email/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(smtp2goPayload)
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || result.data?.error) {
-      throw new Error(`SMTP2GO API error: ${result.data?.error || 'Unknown error'}`);
-    }
-
-    console.log('✅ SMTP2GO response:', result);
-
-    return {
-      messageId: result.data?.email_id || `smtp2go-${Date.now()}`,
-      status: 'sent',
-      provider: 'smtp2go',
-      from: outlookEmail,
-      to: recipients,
-      timestamp: new Date().toISOString(),
-      service: 'SMTP2GO'
-    };
-
-  } catch (error) {
-    console.error('❌ SMTP2GO error:', error);
-    throw new Error(`SMTP2GO failed: ${error.message}`);
   }
 }
 
@@ -267,20 +222,20 @@ serve(async (req) => {
       // @ts-ignore
       const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
       // @ts-ignore
-      const outlookPass = Deno.env.get('OUTLOOK_APP_PASSWORD')
+      const emailjsUserId = Deno.env.get('EMAILJS_USER_ID')
       // @ts-ignore
-      const smtp2goKey = Deno.env.get('SMTP2GO_API_KEY')
+      const emailjsServiceId = Deno.env.get('EMAILJS_SERVICE_ID')
 
       return new Response(JSON.stringify({
         success: true,
         message: 'Email providers status checked',
         providers: {
           outlook: { 
-            configured: !!(outlookEmail && outlookPass),
+            configured: !!(outlookEmail && emailjsUserId && emailjsServiceId),
             email: outlookEmail || 'Not configured',
-            status: (outlookEmail && outlookPass) ? 'Ready - EmailJS + Outlook SMTP' : 'Missing credentials',
+            status: (outlookEmail && emailjsUserId && emailjsServiceId) ? 'Ready - EmailJS + Outlook SMTP' : 'Missing EmailJS configuration',
             isDefault: true,
-            method: 'EmailJS or SMTP2GO'
+            method: 'EmailJS'
           },
           resend: { 
             configured: !!resendKey,
@@ -342,74 +297,60 @@ serve(async (req) => {
         })
         
       } else {
-        // Try EmailJS first, then SMTP2GO, then Resend as fallback
-        console.log('📧 Attempting to send from Vietcombank email...')
+        // Use EmailJS for Outlook
+        console.log('📧 Using EmailJS + Outlook SMTP...')
+        result = await sendViaEmailJS(recipients, subject, emailHTML)
         
+        return new Response(JSON.stringify({
+          success: true,
+          data: result,
+          message: 'Email sent successfully from dongnv.hvu@vietcombank.com.vn via EmailJS',
+          provider: 'outlook',
+          actualProvider: 'emailjs',
+          from: 'dongnv.hvu@vietcombank.com.vn'
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        })
+      }
+
+    } catch (sendError) {
+      console.error(`❌ ${provider} error:`, sendError)
+      
+      // Auto-fallback: if EmailJS fails, try Resend
+      if (provider === 'outlook') {
+        console.log('🔄 EmailJS failed, trying Resend fallback...')
         try {
-          // Try EmailJS first
-          console.log('📧 Trying EmailJS...')
-          result = await sendViaEmailJS(recipients, subject, emailHTML)
+          const fallbackResult = await sendViaResend(recipients, subject, emailHTML)
           
           return new Response(JSON.stringify({
             success: true,
-            data: result,
-            message: 'Email sent successfully from dongnv.hvu@vietcombank.com.vn via EmailJS',
-            provider: 'outlook',
-            actualProvider: 'emailjs',
-            from: 'dongnv.hvu@vietcombank.com.vn'
+            data: fallbackResult,
+            message: 'Email sent via Resend API (EmailJS failed, auto-fallback)',
+            provider: 'resend',
+            originalProvider: 'outlook',
+            fallback: true,
+            error: sendError.message
           }), {
             status: 200,
             headers: { 'Content-Type': 'application/json', ...corsHeaders }
           })
           
-        } catch (emailJSError) {
-          console.log('📧 EmailJS failed, trying SMTP2GO...')
-          
-          try {
-            result = await sendViaSMTP2GO(recipients, subject, emailHTML)
-            
-            return new Response(JSON.stringify({
-              success: true,
-              data: result,
-              message: 'Email sent successfully from dongnv.hvu@vietcombank.com.vn via SMTP2GO',
-              provider: 'outlook',
-              actualProvider: 'smtp2go',
-              from: 'dongnv.hvu@vietcombank.com.vn'
-            }), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json', ...corsHeaders }
-            })
-            
-          } catch (smtp2goError) {
-            console.log('📧 SMTP2GO failed, falling back to Resend...')
-            
-            result = await sendViaResend(recipients, subject, emailHTML)
-            
-            return new Response(JSON.stringify({
-              success: true,
-              data: result,
-              message: 'Email sent via Resend (all Vietcombank methods failed)',
-              provider: 'resend',
-              originalProvider: 'outlook',
-              fallback: true,
-              errors: {
-                emailjs: emailJSError.message,
-                smtp2go: smtp2goError.message
-              }
-            }), {
-              status: 200,
-              headers: { 'Content-Type': 'application/json', ...corsHeaders }
-            })
-          }
+        } catch (fallbackError) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: `Both providers failed. EmailJS: ${sendError.message}, Resend: ${fallbackError.message}`,
+            provider: provider
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          })
         }
       }
-
-    } catch (sendError) {
-      console.error(`❌ All email methods failed:`, sendError)
       
       return new Response(JSON.stringify({
         success: false,
-        error: `All email providers failed: ${sendError.message}`,
+        error: sendError.message,
         provider: provider
       }), {
         status: 500,
