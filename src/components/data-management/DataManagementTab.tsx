@@ -280,14 +280,13 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
               <Label htmlFor={`filter-${field.key}`}>{field.label}</Label>
               {field.type === 'select' && field.options ? (
                 <Select
-                  value={filters[field.key]?.value === undefined ? undefined : filters[field.key]?.value}
-                  onValueChange={(value) => onFilterChange(field.key, value === '' ? undefined : value, 'eq')}
+                  value={filters[field.key]?.value || undefined}
+                  onValueChange={(value) => onFilterChange(field.key, value || undefined, 'eq')}
                 >
                   <SelectTrigger id={`filter-${field.key}`}>
                     <SelectValue placeholder={`Lọc theo ${field.label}`} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tất cả</SelectItem>
                     {field.options.map(option => (
                       <SelectItem key={option} value={option}>{option}</SelectItem>
                     ))}
@@ -308,7 +307,6 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
                     <SelectValue placeholder={`Lọc theo ${field.label}`} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Tất cả</SelectItem>
                     <SelectItem value="true">Có</SelectItem>
                     <SelectItem value="false">Không</SelectItem>
                   </SelectContent>
