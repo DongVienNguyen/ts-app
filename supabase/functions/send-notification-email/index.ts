@@ -42,8 +42,6 @@ interface ResendClient {
 // @ts-ignore
 const { Resend } = await import("npm:resend@2.0.0");
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY")) as ResendClient;
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -190,11 +188,6 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
     const requestBody = await req.json();
     console.log('📧 Email request received:', JSON.stringify(requestBody, null, 2));
 
@@ -202,22 +195,34 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Handle API check request first (doesn't need to/subject)
     if (type === 'api_check') {
-      const resendApiKeyExists = !!Deno.env.get("RESEND_API_KEY");
-      const outlookEmailExists = !!Deno.env.get("OUTLOOK_EMAIL");
-      const outlookPasswordExists = !!Deno.env.get("OUTLOOK_APP_PASSWORD");
+      try {
+        const resendApiKeyExists = !!Deno.env.get("RESEND_API_KEY");
+        const outlookEmailExists = !!Deno.env.get("OUTLOOK_EMAIL");
+        const outlookPasswordExists = !!Deno.env.get("OUTLOOK_APP_PASSWORD");
 
-      return new Response(JSON.stringify({
-        success: true,
-        message: "API keys status checked.",
-        providers: {
-          resend: { configured: resendApiKeyExists },
-          outlook: { configured: outlookEmailExists && outlookPasswordExists }
-        },
-        timestamp: new Date().toISOString()
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+        return new Response(JSON.stringify({
+          success: true,
+          message: "API keys status checked.",
+          providers: {
+            resend: { configured: resendApiKeyExists },
+            outlook: { configured: outlookEmailExists && outlookPasswordExists }
+          },
+          timestamp: new Date().toISOString()
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      } catch (checkError) {
+        console.error('Error during API check:', checkError);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Failed to check API status',
+          details: checkError instanceof Error ? checkError.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
     }
 
     // For all other requests, validate required fields
@@ -225,14 +230,26 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Missing required fields: 'to' and 'subject'");
     }
 
-    let provider = providerOverride;
-    if (!provider) {
+    // Initialize Supabase client only when needed (not for api_check)
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    let provider = providerOverride || 'resend'; // Default to resend
+    
+    // Try to get provider from config, but don't fail if it doesn't work
+    try {
       const { data: config } = await supabaseAdmin
         .from('system_config')
         .select('value')
         .eq('key', 'email_provider')
         .single();
-      provider = config?.value || 'resend';
+      if (config?.value) {
+        provider = config.value;
+      }
+    } catch (configError) {
+      console.log('Could not fetch email provider config, using default:', provider);
     }
     
     console.log(`📧 Using email provider: ${provider}`);
@@ -255,7 +272,7 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error("Outlook credentials are not configured in Supabase secrets.");
       }
 
-      const transporter = nodemailer.createTransport({
+      const transporter = nodemailer.createTransporter({
         host: "smtp.office365.com",
         port: 587,
         secure: false,
@@ -297,6 +314,8 @@ const handler = async (req: Request): Promise<Response> => {
       if (!Deno.env.get("RESEND_API_KEY")) {
         throw new Error("RESEND_API_KEY not configured");
       }
+
+      const resend = new Resend(Deno.env.get("RESEND_API_KEY")) as ResendClient;
 
       const emailData: ResendEmail = {
         from: "Hệ thống Tài sản <taisan@caremylife.me>",
