@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -42,6 +42,7 @@ interface QuickMessageDialogProps {
 export function QuickMessageDialog({ isOpen, onOpenChange }: QuickMessageDialogProps) {
   const { user } = useAuth();
   const [popoverOpen, setPopoverOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: staffList = [], isLoading: isLoadingStaff } = useQuery<Staff[]>({
     queryKey: ['staffList'],
@@ -50,7 +51,7 @@ export function QuickMessageDialog({ isOpen, onOpenChange }: QuickMessageDialogP
       if (error) throw new Error(error.message);
       return data;
     },
-    enabled: isOpen, // Only fetch when the dialog is open
+    enabled: isOpen,
   });
 
   const {
@@ -82,66 +83,38 @@ export function QuickMessageDialog({ isOpen, onOpenChange }: QuickMessageDialogP
       if (error) throw error;
       return data;
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
+    },
   });
 
   const onSubmit = (values: MessageFormData) => {
-    let toastId: string | number | undefined;
-    let countdown = 6; // 6 giây để hoàn tác
+    onOpenChange(false);
+    reset();
 
-    const promise = new Promise((resolve, reject) => {
-      sendMessageMutation.mutate(values, {
-        onSuccess: (newNotification) => {
-          const interval = setInterval(() => {
-            countdown--;
-            if (toastId) {
-              toast.info(`Đã gửi! Hoàn tác trong ${countdown}s...`, {
-                id: toastId,
-                action: {
-                  label: 'Hoàn tác',
-                  onClick: async () => {
-                    clearInterval(interval);
-                    await supabase.from('notifications').delete().eq('id', newNotification.id);
-                    toast.dismiss(toastId);
-                    toast.warning('Đã hoàn tác gửi tin nhắn.');
-                    reject(new Error('Action undone'));
-                  },
-                },
-              });
-            }
-          }, 1000);
+    sendMessageMutation.mutate(values, {
+      onSuccess: (newNotification) => {
+        let toastId: string | number;
+        const undoTimeout = setTimeout(() => {
+          toast.success('Đã gửi tin nhắn thành công!', { id: toastId });
+        }, 6000);
 
-          const undoTimeout = setTimeout(() => {
-            clearInterval(interval);
-            toast.success('Đã gửi tin nhắn thành công!', { id: toastId });
-            resolve(newNotification);
-          }, countdown * 1000);
-
-          toastId = toast.info(`Đã gửi! Hoàn tác trong ${countdown}s...`, {
-            action: {
-              label: 'Hoàn tác',
-              onClick: async () => {
-                clearTimeout(undoTimeout);
-                clearInterval(interval);
-                await supabase.from('notifications').delete().eq('id', newNotification.id);
-                toast.dismiss(toastId);
-                toast.warning('Đã hoàn tác gửi tin nhắn.');
-                reject(new Error('Action undone'));
-              },
+        toastId = toast.info('Đã gửi tin nhắn.', {
+          duration: 6000,
+          action: {
+            label: 'Hoàn tác',
+            onClick: async () => {
+              clearTimeout(undoTimeout);
+              await supabase.from('notifications').delete().eq('id', newNotification.id);
+              queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
+              toast.warning('Đã hoàn tác gửi tin nhắn.');
             },
-          });
-        },
-        onError: (error) => {
-          toast.error(`Lỗi: ${error.message}`);
-          reject(error);
-        },
-      });
-    });
-
-    promise.then(() => {
-      reset();
-      onOpenChange(false);
-    }).catch(() => {
-      // Handle undo or error, do not close dialog
+          },
+        });
+      },
+      onError: (error) => {
+        toast.error(`Lỗi: ${error.message}`);
+      },
     });
   };
 

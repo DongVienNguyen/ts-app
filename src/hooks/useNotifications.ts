@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tables, TablesInsert } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { useDebounce } from '@/hooks/useDebounce';
+import { usePageVisibility } from '@/hooks/usePageVisibility';
 
 export type Notification = Tables<'notifications'>;
 
@@ -18,6 +19,7 @@ const NOTIFICATIONS_PER_PAGE = 50;
 export function useNotifications() {
   const { user } = useSecureAuth();
   const queryClient = useQueryClient();
+  const isVisible = usePageVisibility();
   
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
@@ -41,7 +43,7 @@ export function useNotifications() {
       let query = supabase
         .from('notifications')
         .select('*')
-        .not('hidden_for', 'cs', `{${user.username}}`) // 'cs' means 'contains' for array
+        .not('hidden_for', 'cs', `{${user.username}}`)
         .or(`recipient_username.eq.${user.username},related_data->>sender.eq.${user.username}`)
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -60,7 +62,7 @@ export function useNotifications() {
       return (data?.pages.length || 0);
     },
     enabled: !!user,
-    staleTime: 15 * 1000, // Shorter stale time for chat-like experience
+    staleTime: 10 * 1000,
   });
 
   const notifications = useMemo(() => data?.pages.flat() ?? [], [data]);
@@ -69,9 +71,9 @@ export function useNotifications() {
     mutationFn: async (notificationId: string) => {
       const { error } = await supabase
         .from('notifications')
-        .update({ is_seen: true, seen_at: new Date().toISOString() })
+        .update({ is_seen: true, seen_at: new Date().toISOString(), is_read: true })
         .eq('id', notificationId)
-        .eq('is_seen', false);
+        .or('is_seen.is.false,is_read.is.false');
       if (error) throw error;
     },
     onSuccess: () => {
@@ -98,7 +100,6 @@ export function useNotifications() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
-      // No toast for replies to feel more like a chat
     },
     onError: (error: any) => toast.error(error.message || 'Không thể gửi trả lời'),
   });
@@ -117,7 +118,6 @@ export function useNotifications() {
 
   const deleteConversationsMutation = useMutation({
     mutationFn: async (correspondents: string[]) => {
-      // This uses the same hide logic, but for multiple conversations
       const promises = correspondents.map(c => supabase.rpc('hide_conversation', { p_correspondent_username: c }));
       const results = await Promise.all(promises);
       results.forEach(result => {
@@ -133,15 +133,14 @@ export function useNotifications() {
   });
 
   useEffect(() => {
-    if (!user?.username) return;
-    const channel = supabase.channel(`notifications_conversations:${user.username}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `or(recipient_username.eq.${user.username},related_data->>sender.eq.${user.username})` },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
-        }
-      ).subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user?.username, queryClient]);
+    if (!user?.username || !isVisible) return;
+
+    const interval = setInterval(() => {
+      refetch();
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [user?.username, isVisible, refetch]);
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.is_read && n.recipient_username === user?.username).length, [notifications, user]);
 
