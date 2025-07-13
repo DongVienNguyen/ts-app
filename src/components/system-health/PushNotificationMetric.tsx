@@ -1,16 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Bell, BellOff, AlertTriangle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { SystemStatus } from '@/utils/errorTracking';
+import { PushNotificationHealth } from '@/components/system-health/types';
 
 interface PushNotificationMetricProps {
-  status?: SystemStatus;
+  status?: PushNotificationHealth;
   isLoading: boolean;
 }
 
 export const PushNotificationMetric: React.FC<PushNotificationMetricProps> = ({ status, isLoading }) => {
-  if (isLoading) {
+  if (isLoading || !status) {
     return (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -26,16 +25,15 @@ export const PushNotificationMetric: React.FC<PushNotificationMetricProps> = ({ 
   }
 
   const getStatusInfo = () => {
-    if (!status) {
-      return { Icon: AlertTriangle, color: 'text-gray-500', text: 'Chưa có dữ liệu' };
-    }
     switch (status.status) {
-      case 'online':
+      case 'healthy':
         return { Icon: Bell, color: 'text-green-500', text: 'Hoạt động' };
-      case 'offline':
+      case 'error':
         return { Icon: BellOff, color: 'text-red-500', text: 'Ngoại tuyến' };
+      case 'warning':
+        return { Icon: AlertTriangle, color: 'text-yellow-500', text: 'Suy giảm' };
       default:
-        return { Icon: AlertTriangle, color: 'text-yellow-500', text: 'Trạng thái không xác định' };
+        return { Icon: AlertTriangle, color: 'text-gray-500', text: 'Không xác định' };
     }
   };
 
@@ -50,7 +48,7 @@ export const PushNotificationMetric: React.FC<PushNotificationMetricProps> = ({ 
       <CardContent>
         <div className={`text-2xl font-bold ${color}`}>{text}</div>
         <p className="text-xs text-muted-foreground">
-          {status ? `Phản hồi: ${status.response_time_ms}ms` : 'Chưa có lần kiểm tra nào'}
+          {status.responseTime !== undefined ? `Phản hồi: ${status.responseTime}ms` : 'Chưa có lần kiểm tra nào'}
         </p>
       </CardContent>
     </Card>

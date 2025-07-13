@@ -67,8 +67,7 @@ export class AdvancedSystemHealthService {
         // Test basic connectivity
         const { error } = await supabase
           .from('staff')
-          .select('count')
-          .limit(1);
+          .select('id', { count: 'exact', head: true });
 
         const responseTime = Date.now() - start;
 
@@ -79,8 +78,7 @@ export class AdvancedSystemHealthService {
         // Test connection pool
         await supabase
           .from('system_status')
-          .select('count')
-          .limit(1);
+          .select('id', { count: 'exact', head: true });
 
         const connections = Math.floor(Math.random() * 10) + 1;
         const uptime = 99.9 - Math.random() * 0.5;
@@ -188,30 +186,38 @@ export class AdvancedSystemHealthService {
   }> {
     return this.retryWithBackoff(async () => {
       try {
-        // Check recent security events - simplified to avoid unused variables
-        await supabase
+        // Check for active threats (example: recent high-severity security events)
+        const { count: activeThreats, error: threatsError } = await supabase
           .from('security_events')
-          .select('count')
+          .select('*', { count: 'exact', head: true })
+          .in('event_type', ['SUSPICIOUS_ACTIVITY', 'ACCOUNT_LOCKED'])
           .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
-        // Check failed login attempts - simplified to avoid unused variables
-        await supabase
-          .from('user_sessions')
-          .select('count')
-          .eq('session_end', null)
-          .gte('session_start', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+        if (threatsError) {
+          console.error('Security health check (threats) failed:', threatsError);
+        }
 
-        const activeThreats = 0; // No active threats detected
-        const failedLoginCount = Math.floor(Math.random() * 5);
+        // Check recent failed login attempts from the staff table
+        const { count: failedLoginCount, error: failedLoginError } = await supabase
+          .from('staff')
+          .select('*', { count: 'exact', head: true })
+          .gt('failed_login_attempts', 0)
+          .gte('last_failed_login', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+        if (failedLoginError) {
+          console.error('Security health check (failed logins) failed:', failedLoginError);
+          throw new Error(`Query on 'staff' for failed logins failed: ${failedLoginError.message}`);
+        }
+
         const lastSecurityScan = new Date().toISOString();
 
-        const status = activeThreats > 0 ? 'error' : 
-                      failedLoginCount > 10 ? 'warning' : 'healthy';
+        const status = (activeThreats || 0) > 0 ? 'error' : 
+                      (failedLoginCount || 0) > 10 ? 'warning' : 'healthy';
 
         return {
           status,
-          activeThreats,
-          failedLogins: failedLoginCount,
+          activeThreats: activeThreats || 0,
+          failedLogins: failedLoginCount || 0,
           lastSecurityScan
         };
       } catch (error) {
@@ -229,7 +235,6 @@ export class AdvancedSystemHealthService {
   static async checkSystemHealth(useCache: boolean = true): Promise<SystemHealth> {
     console.log('🏥 Advanced system health check starting...');
     
-    // Try cache first
     if (useCache) {
       const cached = systemHealthCache.get('default');
       if (cached) {
@@ -239,19 +244,15 @@ export class AdvancedSystemHealthService {
     }
 
     try {
-      // Run all health checks in parallel
       const [dbHealth, apiHealth, securityHealth, emailHealth, pushNotificationHealth] = await Promise.all([
         this.checkDatabaseHealth(),
         this.checkApiHealth(),
         this.checkSecurityHealth(),
-        this.checkEmailHealth(), // New
-        this.checkPushNotificationHealth() // New
+        this.checkEmailHealth(),
+        this.checkPushNotificationHealth()
       ]);
 
-      // Get performance stats
       const perfStats = getPerformanceStats();
-
-      // Simulate system metrics
       const storageUsed = Math.random() * 80 + 10;
       const memoryUsed = Math.random() * 70 + 20;
       const memoryPeak = memoryUsed + Math.random() * 10;
@@ -300,23 +301,21 @@ export class AdvancedSystemHealthService {
           failedLogins: securityHealth.failedLogins,
           lastCheck: new Date().toISOString()
         },
-        email: emailHealth, // New
-        pushNotification: pushNotificationHealth, // New
+        email: emailHealth,
+        pushNotification: pushNotificationHealth,
         overall: 'healthy'
       };
 
-      // Determine overall health
       health.overall = determineOverallHealth(
         health.database.status,
         health.api.status,
         health.storage.status,
         health.memory.status,
         health.security.status,
-        health.email.status, // New
-        health.pushNotification.status // New
+        health.email.status,
+        health.pushNotification.status
       );
 
-      // Cache the result
       if (useCache) {
         systemHealthCache.set('default', health);
       }
@@ -327,60 +326,21 @@ export class AdvancedSystemHealthService {
     } catch (error) {
       console.error('❌ Advanced system health check failed:', error);
       
-      // Return cached data if available, otherwise error state
       const cached = systemHealthCache.get('default');
       if (cached) {
         console.log('⚠️ Using stale cached data due to health check failure');
         return cached;
       }
 
-      // Return error state
       const errorHealth: SystemHealth = {
-        database: {
-          status: 'error',
-          responseTime: 0,
-          connections: 0,
-          lastCheck: new Date().toISOString(),
-          uptime: 0
-        },
-        api: {
-          status: 'error',
-          responseTime: 0,
-          uptime: 0,
-          lastCheck: new Date().toISOString(),
-          requestsPerMinute: 0
-        },
-        storage: {
-          status: 'error',
-          used: 0,
-          total: 100,
-          percentage: 0,
-          growth: 0,
-          lastCheck: new Date().toISOString()
-        },
-        memory: {
-          status: 'error',
-          used: 0,
-          total: 100,
-          percentage: 0,
-          peak: 0,
-          lastCheck: new Date().toISOString()
-        },
-        performance: {
-          averageResponseTime: 0,
-          totalOperations: 0,
-          slowestOperation: null,
-          fastestOperation: null
-        },
-        security: {
-          status: 'error',
-          activeThreats: 0,
-          lastSecurityScan: new Date().toISOString(),
-          failedLogins: 0,
-          lastCheck: new Date().toISOString()
-        },
-        email: { status: 'error', lastCheck: new Date().toISOString() }, // New
-        pushNotification: { status: 'error', lastCheck: new Date().toISOString() }, // New
+        database: { status: 'error', responseTime: 0, connections: 0, lastCheck: new Date().toISOString(), uptime: 0 },
+        api: { status: 'error', responseTime: 0, uptime: 0, lastCheck: new Date().toISOString(), requestsPerMinute: 0 },
+        storage: { status: 'error', used: 0, total: 100, percentage: 0, growth: 0, lastCheck: new Date().toISOString() },
+        memory: { status: 'error', used: 0, total: 100, percentage: 0, peak: 0, lastCheck: new Date().toISOString() },
+        performance: { averageResponseTime: 0, totalOperations: 0, slowestOperation: null, fastestOperation: null },
+        security: { status: 'error', activeThreats: 0, lastSecurityScan: new Date().toISOString(), failedLogins: 0, lastCheck: new Date().toISOString() },
+        email: { status: 'error', lastCheck: new Date().toISOString() },
+        pushNotification: { status: 'error', lastCheck: new Date().toISOString() },
         overall: 'error'
       };
 

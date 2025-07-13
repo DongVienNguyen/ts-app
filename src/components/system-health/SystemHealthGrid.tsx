@@ -56,8 +56,8 @@ export const SystemHealthGrid: React.FC<SystemHealthGridProps> = ({ health, isLo
           <MemoryMetric health={health.memory} />
           <PerformanceMetric health={health.performance} />
           <SecurityMetric health={health.security} />
-          <EmailMetric status={(health as any).services?.email} isLoading={isLoading} />
-          <PushNotificationMetric status={(health as any).services?.push_notification} isLoading={isLoading} />
+          <EmailMetric status={health.email} isLoading={isLoading} />
+          <PushNotificationMetric status={health.pushNotification} isLoading={isLoading} />
         </div>
       </CardContent>
     </Card>

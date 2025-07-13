@@ -1,16 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Mail, ServerCrash, AlertTriangle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { SystemStatus } from '@/utils/errorTracking';
+import { EmailHealth } from '@/components/system-health/types';
 
 interface EmailMetricProps {
-  status?: SystemStatus;
+  status?: EmailHealth;
   isLoading: boolean;
 }
 
 export const EmailMetric: React.FC<EmailMetricProps> = ({ status, isLoading }) => {
-  if (isLoading) {
+  if (isLoading || !status) {
     return (
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -26,16 +25,15 @@ export const EmailMetric: React.FC<EmailMetricProps> = ({ status, isLoading }) =
   }
 
   const getStatusInfo = () => {
-    if (!status) {
-      return { Icon: AlertTriangle, color: 'text-gray-500', text: 'Chưa có dữ liệu' };
-    }
     switch (status.status) {
-      case 'online':
+      case 'healthy':
         return { Icon: Mail, color: 'text-green-500', text: 'Hoạt động' };
-      case 'offline':
+      case 'error':
         return { Icon: ServerCrash, color: 'text-red-500', text: 'Ngoại tuyến' };
+      case 'warning':
+        return { Icon: AlertTriangle, color: 'text-yellow-500', text: 'Suy giảm' };
       default:
-        return { Icon: AlertTriangle, color: 'text-yellow-500', text: 'Trạng thái không xác định' };
+        return { Icon: AlertTriangle, color: 'text-gray-500', text: 'Không xác định' };
     }
   };
 
@@ -50,7 +48,7 @@ export const EmailMetric: React.FC<EmailMetricProps> = ({ status, isLoading }) =
       <CardContent>
         <div className={`text-2xl font-bold ${color}`}>{text}</div>
         <p className="text-xs text-muted-foreground">
-          {status ? `Phản hồi: ${status.response_time_ms}ms` : 'Chưa có lần kiểm tra nào'}
+          {status.responseTime !== undefined ? `Phản hồi: ${status.responseTime}ms` : 'Chưa có lần kiểm tra nào'}
         </p>
       </CardContent>
     </Card>
