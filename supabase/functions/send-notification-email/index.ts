@@ -272,7 +272,7 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error("Outlook credentials are not configured in Supabase secrets.");
       }
 
-      const transporter = nodemailer.createTransporter({
+      const transporter = nodemailer.createTransport({
         host: "smtp.office365.com",
         port: 587,
         secure: false,
