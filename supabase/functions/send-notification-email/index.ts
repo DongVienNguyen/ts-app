@@ -1,36 +1,40 @@
 // @ts-ignore
+/// <reference types="https://deno.land/x/deno_types/index.d.ts" />
+
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 // @ts-ignore
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-// @ts-ignore
-import nodemailer from "npm:nodemailer@6.9.14";
 
-// Global type declarations for Deno environment
-declare global {
-  const Deno: {
-    env: {
-      get(key: string): string | undefined;
-    };
+// Type declarations for Deno environment
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
+
+// Type declarations for nodemailer
+interface NodemailerTransporter {
+  sendMail(options: any): Promise<any>;
+}
+
+interface NodemailerModule {
+  default: {
+    createTransport(config: any): NodemailerTransporter;
   };
 }
 
-// Type declaration for Resend
+// Type declarations for Resend
 interface ResendEmail {
   from: string;
   to: string | string[];
   subject: string;
   html: string;
-  attachments?: Array<{
-    filename: string;
-    content: string;
-  }>;
 }
 
 interface ResendResponse {
-  id?: string;
-  error?: {
-    message: string;
-  };
+  data?: { id: string };
+  error?: { message: string };
 }
 
 interface ResendClient {
@@ -39,10 +43,13 @@ interface ResendClient {
   };
 }
 
+interface ResendModule {
+  Resend: new (apiKey: string) => ResendClient;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 interface EmailRequest {
@@ -77,182 +84,90 @@ const generateEmailHTML = (type: string, data: any, subject: string): string => 
     </div>
   `;
 
-  switch (type) {
-    case 'test':
-      return baseStyle + `
-        <h2 style="color: #16a34a;">🧪 Test Email Function</h2>
-        <p>Đây là email test để kiểm tra chức năng gửi email của hệ thống.</p>
-        
-        <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="color: #0369a1; margin-top: 0;">📊 Thông tin test:</h3>
-          <ul>
-            <li><strong>Người test:</strong> ${data?.username || 'N/A'}</li>
-            <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
-            <li><strong>Trạng thái:</strong> ✅ Thành công</li>
-          </ul>
-        </div>
-        
-        <div style="background-color: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="color: #15803d; margin-top: 0;">🔧 Các chức năng đã test:</h3>
-          <ul>
-            <li>✅ Kết nối Supabase Edge Function</li>
-            <li>✅ Kết nối Resend API</li>
-            <li>✅ Template email HTML</li>
-            <li>✅ Gửi email thành công</li>
-          </ul>
-        </div>
-      ` + footerStyle;
-
-    case 'error_report':
-      return baseStyle + `
-        <h2 style="color: #dc2626;">🚨 Báo cáo lỗi hệ thống</h2>
-        <div style="background-color: #fef2f2; padding: 15px; border-radius: 8px; border-left: 4px solid #dc2626;">
-          <h3 style="color: #dc2626; margin-top: 0;">${data?.title || subject}</h3>
-          <p><strong>Mô tả:</strong> ${data?.description || 'Không có mô tả'}</p>
-          ${data?.stepsToReproduce ? `<p><strong>Các bước tái hiện:</strong> ${data.stepsToReproduce}</p>` : ''}
-          ${data?.expectedResult ? `<p><strong>Kết quả mong đợi:</strong> ${data.expectedResult}</p>` : ''}
-          ${data?.actualResult ? `<p><strong>Kết quả thực tế:</strong> ${data.actualResult}</p>` : ''}
-        </div>
-        
-        <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin-top: 15px;">
-          <h4 style="margin-top: 0;">Thông tin người báo cáo:</h4>
-          <ul>
-            <li><strong>Tên:</strong> ${data?.reporterName || 'N/A'}</li>
-            <li><strong>Email:</strong> ${data?.reporterEmail || 'N/A'}</li>
-            <li><strong>URL:</strong> ${data?.url || 'N/A'}</li>
-            <li><strong>User Agent:</strong> ${data?.userAgent || 'N/A'}</li>
-          </ul>
-        </div>
-      ` + footerStyle;
-
-    case 'transaction_confirmation':
-      return baseStyle + `
-        <h2 style="color: ${data?.isSuccess ? '#16a34a' : '#dc2626'};">
-          ${data?.isSuccess ? '✅' : '❌'} ${subject}
-        </h2>
-        <div style="background-color: ${data?.isSuccess ? '#f0fdf4' : '#fef2f2'}; padding: 15px; border-radius: 8px;">
-          <p><strong>Người thực hiện:</strong> ${data?.username || 'N/A'}</p>
-          <p><strong>Số lượng giao dịch:</strong> ${data?.transactions?.length || 0}</p>
-          <p><strong>Trạng thái:</strong> ${data?.isSuccess ? 'Thành công' : 'Thất bại'}</p>
-        </div>
-        
-        ${data?.transactions?.length > 0 ? `
-        <div style="margin-top: 15px;">
-          <h4>Chi tiết giao dịch:</h4>
-          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-            <thead>
-              <tr style="background-color: #f9fafb;">
-                <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">Mã tài sản</th>
-                <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">Loại giao dịch</th>
-                <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">Phòng</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${data.transactions.map((t: any) => `
-                <tr>
-                  <td style="border: 1px solid #e5e7eb; padding: 8px;">${t.asset_year}/${t.asset_code}</td>
-                  <td style="border: 1px solid #e5e7eb; padding: 8px;">${t.transaction_type}</td>
-                  <td style="border: 1px solid #e5e7eb; padding: 8px;">${t.room}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-        ` : ''}
-      ` + footerStyle;
-
-    case 'asset_notification':
-      return baseStyle + `
-        <h2 style="color: #0369a1;">📋 Thông báo tài sản</h2>
-        <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px;">
-          ${data?.content || 'Nội dung thông báo'}
-        </div>
-      ` + footerStyle;
-
-    default:
-      return baseStyle + `
-        <h2 style="color: #374151;">${subject}</h2>
-        <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px;">
-          ${data?.content || 'Nội dung email'}
-        </div>
-      ` + footerStyle;
+  if (type === 'test') {
+    return baseStyle + `
+      <h2 style="color: #16a34a;">🧪 Test Email Function</h2>
+      <p>Đây là email test để kiểm tra chức năng gửi email của hệ thống.</p>
+      
+      <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #0369a1; margin-top: 0;">📊 Thông tin test:</h3>
+        <ul>
+          <li><strong>Người test:</strong> ${data?.username || 'N/A'}</li>
+          <li><strong>Thời gian:</strong> ${new Date().toLocaleString('vi-VN')}</li>
+          <li><strong>Trạng thái:</strong> ✅ Thành công</li>
+        </ul>
+      </div>
+    ` + footerStyle;
   }
+
+  return baseStyle + `
+    <h2 style="color: #374151;">${subject}</h2>
+    <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px;">
+      ${data?.content || 'Nội dung email'}
+    </div>
+  ` + footerStyle;
 };
 
-const handler = async (req: Request): Promise<Response> => {
+serve(async (req: Request) => {
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const requestBody = await req.json();
-    console.log('📧 Email request received:', JSON.stringify(requestBody, null, 2));
+    console.log('📧 Email function called');
+    
+    // Parse request body
+    let requestBody: EmailRequest;
+    try {
+      requestBody = await req.json();
+      console.log('📧 Request body parsed:', JSON.stringify(requestBody, null, 2));
+    } catch (parseError) {
+      console.error('❌ Failed to parse request body:', parseError);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid JSON in request body'
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
+    }
 
-    const { to, subject, html, type, data, attachments, provider: providerOverride }: EmailRequest = requestBody;
+    const { to, subject, html, type, data, provider = 'resend' } = requestBody;
 
-    // Handle API check request first (doesn't need to/subject)
+    // Handle API check request
     if (type === 'api_check') {
       console.log('🔍 Performing API check...');
-      try {
-        const resendApiKeyExists = !!Deno.env.get("RESEND_API_KEY");
-        const outlookEmailExists = !!Deno.env.get("OUTLOOK_EMAIL");
-        const outlookPasswordExists = !!Deno.env.get("OUTLOOK_APP_PASSWORD");
+      const resendApiKeyExists = !!Deno.env.get("RESEND_API_KEY");
+      const outlookEmailExists = !!Deno.env.get("OUTLOOK_EMAIL");
+      const outlookPasswordExists = !!Deno.env.get("OUTLOOK_APP_PASSWORD");
 
-        console.log('✅ API check completed successfully');
-        return new Response(JSON.stringify({
-          success: true,
-          message: "API keys status checked.",
-          providers: {
-            resend: { configured: resendApiKeyExists },
-            outlook: { configured: outlookEmailExists && outlookPasswordExists }
-          },
-          timestamp: new Date().toISOString()
-        }), {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      } catch (checkError) {
-        console.error('❌ Error during API check:', checkError);
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Failed to check API status',
-          details: checkError instanceof Error ? checkError.message : 'Unknown error'
-        }), {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        });
-      }
+      return new Response(JSON.stringify({
+        success: true,
+        message: "API keys status checked.",
+        providers: {
+          resend: { configured: resendApiKeyExists },
+          outlook: { configured: outlookEmailExists && outlookPasswordExists }
+        },
+        timestamp: new Date().toISOString()
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
     }
 
-    // For all other requests, validate required fields
+    // Validate required fields for email sending
     if (!to || !subject) {
-      throw new Error("Missing required fields: 'to' and 'subject'");
+      return new Response(JSON.stringify({
+        success: false,
+        error: "Missing required fields: 'to' and 'subject'"
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders }
+      });
     }
 
-    console.log('🔧 Initializing Supabase client...');
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
-    let provider = providerOverride || 'resend'; // Default to resend
-    
-    // Try to get provider from config, but don't fail if it doesn't work
-    try {
-      const { data: config } = await supabaseAdmin
-        .from('system_config')
-        .select('value')
-        .eq('key', 'email_provider')
-        .single();
-      if (config?.value) {
-        provider = config.value;
-      }
-    } catch (configError) {
-      console.log('⚠️ Could not fetch email provider config, using default:', provider);
-    }
-    
-    console.log(`📧 Using email provider: ${provider}`);
-
+    // Generate email HTML
     let emailHTML = html;
     if (!emailHTML && type) {
       emailHTML = generateEmailHTML(type, data, subject);
@@ -262,108 +177,145 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const recipients = Array.isArray(to) ? to : [to];
+    console.log(`📧 Sending email to: ${recipients.join(', ')}`);
+    console.log(`📧 Using provider: ${provider}`);
 
     if (provider === 'outlook') {
+      // Use Outlook/Nodemailer
       console.log('📧 Using Outlook provider...');
+      
       const outlookEmail = Deno.env.get("OUTLOOK_EMAIL");
       const outlookPassword = Deno.env.get("OUTLOOK_APP_PASSWORD");
 
       if (!outlookEmail || !outlookPassword) {
-        throw new Error("Outlook credentials are not configured in Supabase secrets.");
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Outlook credentials are not configured"
+        }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
       }
 
-      const transporter = nodemailer.createTransport({
-        host: "smtp.office365.com",
-        port: 587,
-        secure: false,
-        auth: {
-          user: outlookEmail,
-          pass: outlookPassword,
-        },
-        tls: {
-          rejectUnauthorized: false
-        }
-      });
+      try {
+        // @ts-ignore
+        const nodemailer = await import("npm:nodemailer@6.9.14") as NodemailerModule;
+        
+        const transporter = nodemailer.default.createTransport({
+          host: "smtp.office365.com",
+          port: 587,
+          secure: false,
+          auth: {
+            user: outlookEmail,
+            pass: outlookPassword,
+          },
+          tls: {
+            rejectUnauthorized: false
+          }
+        });
 
-      const mailOptions = {
-        from: `"Hệ thống Tài sản" <${outlookEmail}>`,
-        to: recipients,
-        subject: subject,
-        html: emailHTML,
-        attachments: attachments?.map(att => ({
-          filename: att.filename,
-          content: att.content,
-          encoding: 'base64'
-        }))
-      };
+        const mailOptions = {
+          from: `"Hệ thống Tài sản" <${outlookEmail}>`,
+          to: recipients,
+          subject: subject,
+          html: emailHTML,
+        };
 
-      console.log("📧 Sending email via Outlook...");
-      const info = await transporter.sendMail(mailOptions);
-      console.log("✅ Outlook send response:", info);
+        const info = await transporter.sendMail(mailOptions);
+        console.log("✅ Outlook email sent:", info.messageId);
 
-      return new Response(JSON.stringify({
-        success: true,
-        data: info,
-        message: "Email sent successfully via Outlook",
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+        return new Response(JSON.stringify({
+          success: true,
+          data: { messageId: info.messageId },
+          message: "Email sent successfully via Outlook"
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
 
-    } else { // Default to Resend
+      } catch (outlookError: any) {
+        console.error('❌ Outlook error:', outlookError);
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Outlook error: ${outlookError.message}`
+        }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      }
+
+    } else {
+      // Use Resend (default)
       console.log('📧 Using Resend provider...');
-      if (!Deno.env.get("RESEND_API_KEY")) {
-        throw new Error("RESEND_API_KEY not configured");
+      
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      if (!resendApiKey) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: "RESEND_API_KEY not configured"
+        }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
       }
 
-      console.log('🔧 Importing Resend...');
-      // @ts-ignore
-      const { Resend } = await import("npm:resend@2.0.0");
-      const resend = new Resend(Deno.env.get("RESEND_API_KEY")) as ResendClient;
+      try {
+        // @ts-ignore
+        const { Resend } = await import("npm:resend@2.0.0") as ResendModule;
+        const resend = new Resend(resendApiKey);
 
-      const emailData: ResendEmail = {
-        from: "Hệ thống Tài sản <taisan@caremylife.me>",
-        to: recipients,
-        subject: subject,
-        html: emailHTML,
-        attachments: attachments?.map(att => ({
-          filename: att.filename,
-          content: att.content,
-        }))
-      };
+        const emailData: ResendEmail = {
+          from: "Hệ thống Tài sản <taisan@caremylife.me>",
+          to: recipients,
+          subject: subject,
+          html: emailHTML,
+        };
 
-      console.log("📧 Sending email via Resend...");
-      const emailResponse = await resend.emails.send(emailData);
+        const emailResponse = await resend.emails.send(emailData);
 
-      if (emailResponse.error) {
-        throw new Error(`Resend API error: ${emailResponse.error.message}`);
+        if (emailResponse.error) {
+          console.error('❌ Resend error:', emailResponse.error);
+          return new Response(JSON.stringify({
+            success: false,
+            error: `Resend error: ${emailResponse.error.message}`
+          }), {
+            status: 500,
+            headers: { "Content-Type": "application/json", ...corsHeaders }
+          });
+        }
+
+        console.log("✅ Resend email sent:", emailResponse.data?.id);
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: emailResponse.data,
+          message: "Email sent successfully via Resend"
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+
+      } catch (resendError: any) {
+        console.error('❌ Resend error:', resendError);
+        return new Response(JSON.stringify({
+          success: false,
+          error: `Resend error: ${resendError.message}`
+        }), {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
       }
-
-      console.log("✅ Resend send response:", emailResponse);
-
-      return new Response(JSON.stringify({
-        success: true,
-        data: emailResponse,
-        message: "Email sent successfully via Resend",
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
     }
-  } catch (error: any) {
-    console.error("❌ Error in Edge Function handler:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message,
-        stack: error.stack,
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
-  }
-};
 
-serve(handler);
+  } catch (error: any) {
+    console.error("❌ Unexpected error:", error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Unknown error occurred',
+      stack: error.stack
+    }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders }
+    });
+  }
+});
