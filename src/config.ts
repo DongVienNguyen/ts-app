@@ -60,6 +60,25 @@ export const DEFAULT_VALUES = {
   transactionType: ''
 };
 
+// Email configuration
+export const EMAIL_CONFIG = {
+  defaultProvider: 'outlook', // Vietcombank email as default
+  providers: {
+    outlook: {
+      name: 'Vietcombank Outlook SMTP',
+      description: 'Email doanh nghiệp Vietcombank',
+      from: 'dongnv.hvu@vietcombank.com.vn',
+      isDefault: true
+    },
+    resend: {
+      name: 'Resend API',
+      description: 'Dịch vụ email API dự phòng',
+      from: 'taisan@caremylife.me',
+      isDefault: false
+    }
+  }
+};
+
 export default {
   isDevelopment,
   VAPID_PUBLIC_KEY,
@@ -69,5 +88,6 @@ export default {
   FORM_CONFIG,
   NOTIFICATION_CONFIG,
   ASSET_PATTERNS,
-  DEFAULT_VALUES
+  DEFAULT_VALUES,
+  EMAIL_CONFIG
 };

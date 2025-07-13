@@ -48,9 +48,9 @@ export const AdminEmailSettings = () => {
       setSelectedProvider(data.value);
     } else if (error) {
       console.error("Error loading email provider:", error);
-      // Default to resend if not found
-      setEmailProvider('resend');
-      setSelectedProvider('resend');
+      // Default to outlook (Vietcombank email) instead of resend
+      setEmailProvider('outlook');
+      setSelectedProvider('outlook');
     }
     setIsProviderLoading(false);
   };
@@ -370,17 +370,23 @@ export const AdminEmailSettings = () => {
             <>
               <RadioGroup value={selectedProvider} onValueChange={setSelectedProvider} className="space-y-2">
                 <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="resend" id="resend" />
-                  <Label htmlFor="resend" className="font-normal">
-                    Sử dụng Resend API
-                    <p className="text-xs text-muted-foreground">Gửi email thông qua dịch vụ Resend. Yêu cầu API Key.</p>
+                  <RadioGroupItem value="outlook" id="outlook" />
+                  <Label htmlFor="outlook" className="font-normal">
+                    <div className="flex items-center space-x-2">
+                      <span>Sử dụng Email Vietcombank (Outlook SMTP)</span>
+                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">MẶC ĐỊNH</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Gửi email trực tiếp từ dongnv.hvu@vietcombank.com.vn qua Outlook SMTP với App Password.</p>
                   </Label>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <RadioGroupItem value="outlook" id="outlook" />
-                  <Label htmlFor="outlook" className="font-normal">
-                    Sử dụng Outlook (SMTP)
-                    <p className="text-xs text-muted-foreground">Gửi email trực tiếp từ tài khoản Outlook của bạn. Yêu cầu Email và App Password.</p>
+                  <RadioGroupItem value="resend" id="resend" />
+                  <Label htmlFor="resend" className="font-normal">
+                    <div className="flex items-center space-x-2">
+                      <span>Sử dụng Resend API</span>
+                      <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">DỰ PHÒNG</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Gửi email thông qua dịch vụ Resend API (chỉ khi Outlook không khả dụng).</p>
                   </Label>
                 </div>
               </RadioGroup>
