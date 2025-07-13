@@ -1,6 +1,41 @@
-import { CheckCircle, AlertTriangle, XCircle, Activity } from 'lucide-react';
+import { SystemHealthMetric } from './types';
+import { CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 
-export const getStatusIcon = (status: string) => {
+export const determineOverallHealth = (
+  dbStatus: SystemHealthMetric['status'],
+  apiStatus: SystemHealthMetric['status'],
+  storageStatus: SystemHealthMetric['status'],
+  memoryStatus: SystemHealthMetric['status'],
+  securityStatus: SystemHealthMetric['status'],
+  emailStatus: SystemHealthMetric['status'],
+  pushNotificationStatus: SystemHealthMetric['status']
+): SystemHealthMetric['status'] => {
+  if (
+    dbStatus === 'error' ||
+    apiStatus === 'error' ||
+    storageStatus === 'error' ||
+    memoryStatus === 'error' ||
+    securityStatus === 'error' ||
+    emailStatus === 'error' ||
+    pushNotificationStatus === 'error'
+  ) {
+    return 'error';
+  }
+  if (
+    dbStatus === 'warning' ||
+    apiStatus === 'warning' ||
+    storageStatus === 'warning' ||
+    memoryStatus === 'warning' ||
+    securityStatus === 'warning' ||
+    emailStatus === 'warning' ||
+    pushNotificationStatus === 'warning'
+  ) {
+    return 'warning';
+  }
+  return 'healthy';
+};
+
+export const getStatusIcon = (status: SystemHealthMetric['status']) => {
   switch (status) {
     case 'healthy':
       return CheckCircle;
@@ -9,52 +44,35 @@ export const getStatusIcon = (status: string) => {
     case 'error':
       return XCircle;
     default:
-      return Activity;
+      return CheckCircle;
   }
 };
 
-export const getStatusColor = (status: string) => {
+export const getStatusColor = (status: SystemHealthMetric['status']) => {
   switch (status) {
     case 'healthy':
-      return 'text-green-600 bg-green-100';
+      return 'bg-green-100 text-green-800';
     case 'warning':
-      return 'text-yellow-600 bg-yellow-100';
+      return 'bg-yellow-100 text-yellow-800';
     case 'error':
-      return 'text-red-600 bg-red-100';
+      return 'bg-red-100 text-red-800';
     default:
-      return 'text-gray-600 bg-gray-100';
+      return 'bg-gray-100 text-gray-800';
   }
 };
 
-export const formatUptime = (uptime: number): string => {
-  return `${uptime.toFixed(2)}%`;
+export const formatResponseTime = (ms: number) => {
+  return `${ms.toFixed(0)}ms`;
 };
 
-export const formatResponseTime = (responseTime: number): string => {
-  return `${Math.round(responseTime)}ms`;
+export const formatUptime = (percentage: number) => {
+  return `${percentage.toFixed(2)}%`;
 };
 
-export const formatPercentage = (percentage: number): string => {
+export const formatPercentage = (percentage: number) => {
   return `${percentage.toFixed(1)}%`;
 };
 
-export const formatGrowth = (growth: number): string => {
-  return `${growth > 0 ? '+' : ''}${growth.toFixed(1)}%`;
-};
-
-export const determineOverallHealth = (
-  database: string,
-  api: string,
-  storage: string,
-  memory: string,
-  security: string
-): 'healthy' | 'warning' | 'error' => {
-  const statuses = [database, api, storage, memory, security];
-  
-  if (statuses.includes('error')) {
-    return 'error';
-  } else if (statuses.includes('warning')) {
-    return 'warning';
-  }
-  return 'healthy';
+export const formatGrowth = (value: number) => {
+  return `${value > 0 ? '+' : ''}${value.toFixed(2)}%`;
 };

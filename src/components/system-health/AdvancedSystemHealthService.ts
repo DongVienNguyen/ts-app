@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getPerformanceStats } from '@/utils/performanceMonitor';
-import { SystemHealth } from './types';
+import { SystemHealth, EmailHealth, PushNotificationHealth } from './types';
 import { determineOverallHealth } from './utils';
 import { systemHealthCache } from './SystemHealthCache';
 
@@ -145,6 +145,40 @@ export class AdvancedSystemHealthService {
     });
   }
 
+  static async checkEmailHealth(): Promise<EmailHealth> {
+    return this.retryWithBackoff(async () => {
+      const start = Date.now();
+      // Simulate email service response time
+      await this.delay(Math.random() * 100 + 20); 
+      const responseTime = Date.now() - start;
+      // Example threshold: warning if > 500ms, error if > 1000ms
+      const status = responseTime > 1000 ? 'error' : 
+                     responseTime > 500 ? 'warning' : 'healthy'; 
+      return {
+        status,
+        responseTime,
+        lastCheck: new Date().toISOString(),
+      };
+    });
+  }
+
+  static async checkPushNotificationHealth(): Promise<PushNotificationHealth> {
+    return this.retryWithBackoff(async () => {
+      const start = Date.now();
+      // Simulate push notification service response time
+      await this.delay(Math.random() * 150 + 30); 
+      const responseTime = Date.now() - start;
+      // Example threshold: warning if > 700ms, error if > 1500ms
+      const status = responseTime > 1500 ? 'error' : 
+                     responseTime > 700 ? 'warning' : 'healthy'; 
+      return {
+        status,
+        responseTime,
+        lastCheck: new Date().toISOString(),
+      };
+    });
+  }
+
   static async checkSecurityHealth(): Promise<{
     status: 'healthy' | 'warning' | 'error';
     activeThreats: number;
@@ -206,10 +240,12 @@ export class AdvancedSystemHealthService {
 
     try {
       // Run all health checks in parallel
-      const [dbHealth, apiHealth, securityHealth] = await Promise.all([
+      const [dbHealth, apiHealth, securityHealth, emailHealth, pushNotificationHealth] = await Promise.all([
         this.checkDatabaseHealth(),
         this.checkApiHealth(),
-        this.checkSecurityHealth()
+        this.checkSecurityHealth(),
+        this.checkEmailHealth(), // New
+        this.checkPushNotificationHealth() // New
       ]);
 
       // Get performance stats
@@ -264,6 +300,8 @@ export class AdvancedSystemHealthService {
           failedLogins: securityHealth.failedLogins,
           lastCheck: new Date().toISOString()
         },
+        email: emailHealth, // New
+        pushNotification: pushNotificationHealth, // New
         overall: 'healthy'
       };
 
@@ -273,7 +311,9 @@ export class AdvancedSystemHealthService {
         health.api.status,
         health.storage.status,
         health.memory.status,
-        health.security.status
+        health.security.status,
+        health.email.status, // New
+        health.pushNotification.status // New
       );
 
       // Cache the result
@@ -339,6 +379,8 @@ export class AdvancedSystemHealthService {
           failedLogins: 0,
           lastCheck: new Date().toISOString()
         },
+        email: { status: 'error', lastCheck: new Date().toISOString() }, // New
+        pushNotification: { status: 'error', lastCheck: new Date().toISOString() }, // New
         overall: 'error'
       };
 

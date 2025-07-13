@@ -40,6 +40,14 @@ export interface SecurityHealth extends SystemHealthMetric {
   failedLogins: number;
 }
 
+export interface EmailHealth extends SystemHealthMetric {
+  // Có thể thêm các thuộc tính cụ thể cho Email Health nếu cần
+}
+
+export interface PushNotificationHealth extends SystemHealthMetric {
+  // Có thể thêm các thuộc tính cụ thể cho Push Notification Health nếu cần
+}
+
 export interface SystemHealth {
   database: DatabaseHealth;
   api: ApiHealth;
@@ -47,5 +55,7 @@ export interface SystemHealth {
   memory: MemoryHealth;
   performance: PerformanceHealth;
   security: SecurityHealth;
+  email: EmailHealth; // Thêm Email Health
+  pushNotification: PushNotificationHealth; // Thêm Push Notification Health
   overall: 'healthy' | 'warning' | 'error';
 }
