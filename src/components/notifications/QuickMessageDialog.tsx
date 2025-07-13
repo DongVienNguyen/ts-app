@@ -86,20 +86,42 @@ export function QuickMessageDialog({ isOpen, onOpenChange }: QuickMessageDialogP
 
   const onSubmit = (values: MessageFormData) => {
     let toastId: string | number | undefined;
+    let countdown = 6; // 6 giây để hoàn tác
 
     const promise = new Promise((resolve, reject) => {
       sendMessageMutation.mutate(values, {
         onSuccess: (newNotification) => {
+          const interval = setInterval(() => {
+            countdown--;
+            if (toastId) {
+              toast.info(`Đã gửi! Hoàn tác trong ${countdown}s...`, {
+                id: toastId,
+                action: {
+                  label: 'Hoàn tác',
+                  onClick: async () => {
+                    clearInterval(interval);
+                    await supabase.from('notifications').delete().eq('id', newNotification.id);
+                    toast.dismiss(toastId);
+                    toast.warning('Đã hoàn tác gửi tin nhắn.');
+                    reject(new Error('Action undone'));
+                  },
+                },
+              });
+            }
+          }, 1000);
+
           const undoTimeout = setTimeout(() => {
+            clearInterval(interval);
             toast.success('Đã gửi tin nhắn thành công!', { id: toastId });
             resolve(newNotification);
-          }, 8000);
+          }, countdown * 1000);
 
-          toastId = toast.info('Đã gửi! Bạn có 8 giây để hoàn tác.', {
+          toastId = toast.info(`Đã gửi! Hoàn tác trong ${countdown}s...`, {
             action: {
               label: 'Hoàn tác',
               onClick: async () => {
                 clearTimeout(undoTimeout);
+                clearInterval(interval);
                 await supabase.from('notifications').delete().eq('id', newNotification.id);
                 toast.dismiss(toastId);
                 toast.warning('Đã hoàn tác gửi tin nhắn.');

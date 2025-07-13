@@ -4,14 +4,16 @@ import { useSecureAuth } from '@/contexts/AuthContext';
 import Layout from '@/components/Layout';
 import { NotificationHeader } from '@/components/notifications/NotificationHeader';
 import { NotificationCard } from '@/components/notifications/NotificationCard';
-import { ReplyDialog } from '@/components/notifications/ReplyDialog';
 import { EmptyNotifications } from '@/components/notifications/EmptyNotifications';
-import { useNotifications, Notification } from '@/hooks/useNotifications';
+import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationSkeleton } from '@/components/notifications/NotificationSkeleton';
-import { Loader2, User } from 'lucide-react';
+import { Loader2, User, RefreshCw, Trash2 } from 'lucide-react';
 import { QuickMessageDialog } from '@/components/notifications/QuickMessageDialog';
 import { groupNotificationsByCorrespondent } from '@/utils/notificationUtils';
-import { Card } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
+import { ConversationReply } from '@/components/notifications/ConversationReply';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 export default function Notifications() {
   const { user } = useSecureAuth();
@@ -19,17 +21,12 @@ export default function Notifications() {
   const {
     notifications,
     unreadCount,
-    selectedNotification,
-    isReplyDialogOpen,
     isLoading,
     isReplying,
-    isQuickActioning,
     refetch,
     markAsSeen,
-    handleReply,
-    handleSendReply,
-    handleQuickAction,
-    setIsReplyDialogOpen,
+    sendReply,
+    hideConversation,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -85,47 +82,68 @@ export default function Notifications() {
         ) : notifications.length === 0 ? (
           <EmptyNotifications searchTerm={searchTerm} />
         ) : (
-          <div className="space-y-6">
+          <Accordion type="single" collapsible className="w-full space-y-2">
             {conversationKeys.map((correspondent) => (
-              <Card key={correspondent} className="p-4 bg-white shadow-md rounded-lg">
-                <div className="flex items-center gap-3 mb-4 border-b pb-3">
-                  <div className="bg-gray-200 p-2 rounded-full">
-                    <User className="h-5 w-5 text-gray-600" />
+              <AccordionItem key={correspondent} value={correspondent} className="bg-white rounded-lg shadow-sm border">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-50 rounded-t-lg">
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-gray-200 p-2 rounded-full">
+                        <User className="h-5 w-5 text-gray-600" />
+                      </div>
+                      <h2 className="text-lg font-semibold text-gray-800">{correspondent}</h2>
+                    </div>
+                    <div className="flex items-center gap-2 pr-2">
+                      <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); refetch(); }} className="h-8 w-8">
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog onOpenChange={(open) => { if (open) { event?.stopPropagation(); } }}>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Xóa cuộc trò chuyện?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Hành động này sẽ ẩn cuộc trò chuyện với "{correspondent}" khỏi danh sách của bạn. Bạn sẽ không thể hoàn tác.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Hủy</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => hideConversation(correspondent)} className="bg-red-600 hover:bg-red-700">Xóa</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
-                  <h2 className="text-lg font-semibold text-gray-800">{correspondent}</h2>
-                </div>
-                <div className="space-y-4">
-                  {groupedConversations[correspondent].map((notification) => (
-                    <NotificationCard
-                      key={notification.id}
-                      notification={notification}
-                      onMarkAsSeen={markAsSeen}
-                      onReply={handleReply}
-                      onQuickAction={handleQuickAction}
-                      isSent={(notification.related_data as any)?.sender === user.username}
-                    />
-                  ))}
-                </div>
-              </Card>
+                </AccordionTrigger>
+                <AccordionContent className="p-4 border-t">
+                  <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                    {groupedConversations[correspondent].map((notification) => (
+                      <NotificationCard
+                        key={notification.id}
+                        notification={notification}
+                        onMarkAsSeen={markAsSeen}
+                        isSent={(notification.related_data as any)?.sender === user.username}
+                      />
+                    ))}
+                  </div>
+                  <ConversationReply
+                    onSendReply={(data) => sendReply({ message: data.message, correspondent })}
+                    isReplying={isReplying}
+                  />
+                </AccordionContent>
+              </AccordionItem>
             ))}
-            
-            {hasNextPage && (
-              <div ref={ref} className="flex justify-center items-center py-6">
-                {isFetchingNextPage && <Loader2 className="h-8 w-8 animate-spin text-gray-500" />}
-              </div>
-            )}
-          </div>
+          </Accordion>
         )}
-
-        {selectedNotification && (
-          <ReplyDialog
-            notification={selectedNotification}
-            isOpen={isReplyDialogOpen}
-            onClose={() => setIsReplyDialogOpen(false)}
-            onSendReply={handleSendReply}
-            isReplying={isReplying}
-            isQuickActioning={isQuickActioning}
-          />
+        
+        {hasNextPage && (
+          <div ref={ref} className="flex justify-center items-center py-6">
+            {isFetchingNextPage && <Loader2 className="h-8 w-8 animate-spin text-gray-500" />}
+          </div>
         )}
 
         <QuickMessageDialog isOpen={isQuickMessageOpen} onOpenChange={setIsQuickMessageOpen} />
