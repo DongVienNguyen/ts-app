@@ -369,6 +369,7 @@ export async function captureError(
       current_value: 1, // Assuming one critical error
       threshold: 0, // Any critical error triggers an alert
       acknowledged: false,
+      rule_id: 'critical_application_error', // Thêm rule_id để khắc phục lỗi not-null constraint
     });
   }
 
