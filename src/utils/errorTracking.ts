@@ -313,6 +313,32 @@ export async function captureError(
       return;
     }
 
+    // Create in-app notifications for admins
+    const inAppNotificationPayload = {
+      title: `Lỗi Hệ thống: ${errorData.severity?.toUpperCase()}`,
+      message: errorData.error_message.substring(0, 250),
+      notification_type: 'system_error',
+      related_data: {
+        error_type: errorData.error_type,
+        function_name: errorData.function_name,
+        message: errorData.error_message,
+      },
+    };
+
+    const notificationPromises = admins.map(admin =>
+      supabase.from('notifications').insert({
+        ...inAppNotificationPayload,
+        recipient_username: admin.username,
+      })
+    );
+    
+    try {
+      await Promise.all(notificationPromises);
+      console.log(`✅ In-app notifications created for ${admins.length} admins.`);
+    } catch (dbError) {
+      console.error('❌ Failed to create in-app notifications:', dbError);
+    }
+
     const pushPayload = {
       title: `Lỗi Hệ thống: ${errorData.severity?.toUpperCase()}`,
       body: errorData.error_message.substring(0, 100),

@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables, TablesInsert } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
-import { getCachedNotifications, invalidateNotifications } from '@/utils/databaseCache';
 
-export type Notification = Tables<'notifications'>; // Exported Notification type
+export type Notification = Tables<'notifications'>;
 
 interface NotificationRelatedData {
   sender?: string;
@@ -14,378 +13,207 @@ interface NotificationRelatedData {
   [key: string]: any;
 }
 
+const NOTIFICATIONS_PER_PAGE = 15;
+
 export function useNotifications() {
   const { user } = useSecureAuth();
   const queryClient = useQueryClient();
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
-  // Fetch notifications with caching
-  const { data: notifications = [], isLoading, refetch } = useQuery({
-    queryKey: ['notifications', user?.username],
-    queryFn: async (): Promise<Notification[]> => {
+  const {
+    data,
+    isLoading,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['notifications', user?.username, filter],
+    queryFn: async ({ pageParam }) => {
       if (!user) return [];
       
-      console.log('📨 Fetching notifications with cache for user:', user.username);
-      
-      // Use cached query for better performance
-      const data = await getCachedNotifications(user.username);
-      
-      console.log(`✅ Retrieved ${data?.length || 0} notifications from cache`);
-      return (data as Notification[]) || [];
+      const from = pageParam * NOTIFICATIONS_PER_PAGE;
+      const to = from + NOTIFICATIONS_PER_PAGE - 1;
+
+      let query = supabase
+        .from('notifications')
+        .select('*')
+        .eq('recipient_username', user.username)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (filter === 'unread') {
+        query = query.eq('is_read', false);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) => {
+      if (lastPage.length < NOTIFICATIONS_PER_PAGE) return undefined;
+      return allPages.length;
     },
     enabled: !!user,
-    staleTime: 30 * 1000, // Consider data stale after 30 seconds
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes (renamed from cacheTime)
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 
-  // Mark as read mutation with cache invalidation
-  const markAsReadMutation = useMutation({
-    mutationFn: async (notificationId: string) => {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId);
-      
+  const notifications = data?.pages.flat() ?? [];
+
+  const createMutation = <TVariables = void>(
+    mutationFn: (variables: TVariables) => Promise<any>,
+    successMessage: string,
+    errorMessage: string
+  ) => {
+    return useMutation<any, Error, TVariables>({
+      mutationFn,
+      onSuccess: () => {
+        refetch();
+        toast.success(successMessage);
+      },
+      onError: (error: any) => {
+        console.error(errorMessage, error);
+        toast.error(error.message || errorMessage);
+      },
+    });
+  };
+
+  const markAsReadMutation = createMutation<string>(
+    async (notificationId: string) => {
+      const { data, error } = await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      // Invalidate cache for this user
-      if (user?.username) {
-        invalidateNotifications(user.username);
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ['notifications', user?.username] });
-      toast.success('Đã đánh dấu đã đọc');
-    },
-    onError: (error) => {
-      console.error('Error marking as read:', error);
-      toast.error('Không thể đánh dấu đã đọc');
-    }
-  });
+    'Đã đánh dấu đã đọc',
+    'Lỗi khi đánh dấu đã đọc'
+  );
 
-  // Mark all as read mutation with cache invalidation
-  const markAllAsReadMutation = useMutation({
-    mutationFn: async () => {
-      if (!user) return;
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('recipient_username', user.username)
-        .eq('is_read', false);
-      
+  const markAllAsReadMutation = createMutation(
+    async () => {
+      const { data, error } = await supabase.from('notifications').update({ is_read: true }).eq('recipient_username', user!.username).eq('is_read', false);
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      // Invalidate cache for this user
-      if (user?.username) {
-        invalidateNotifications(user.username);
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ['notifications', user?.username] });
-      toast.success('Đã đánh dấu tất cả đã đọc');
-    },
-    onError: (error) => {
-      console.error('Error marking all as read:', error);
-      toast.error('Không thể đánh dấu tất cả đã đọc');
-    }
-  });
+    'Đã đánh dấu tất cả đã đọc',
+    'Lỗi khi đánh dấu tất cả'
+  );
 
-  // Delete notification mutation with cache invalidation
-  const deleteNotificationMutation = useMutation({
-    mutationFn: async (notificationId: string) => {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId);
-      
+  const deleteNotificationMutation = createMutation<string>(
+    async (notificationId: string) => {
+      const { data, error } = await supabase.from('notifications').delete().eq('id', notificationId);
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      // Invalidate cache for this user
-      if (user?.username) {
-        invalidateNotifications(user.username);
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ['notifications', user?.username] });
-      toast.success('Đã xóa thông báo');
-    },
-    onError: (error) => {
-      console.error('Error deleting notification:', error);
-      toast.error('Không thể xóa thông báo');
-    }
-  });
+    'Đã xóa thông báo',
+    'Lỗi khi xóa thông báo'
+  );
 
-  // Delete all notifications mutation with cache invalidation
-  const deleteAllNotificationsMutation = useMutation({
-    mutationFn: async () => {
-      if (!user) return;
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('recipient_username', user.username);
-      
+  const deleteAllNotificationsMutation = createMutation(
+    async () => {
+      const { data, error } = await supabase.from('notifications').delete().eq('recipient_username', user!.username);
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      // Invalidate cache for this user
-      if (user?.username) {
-        invalidateNotifications(user.username);
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ['notifications', user?.username] });
-      toast.success('Đã xóa tất cả thông báo');
-    },
-    onError: (error) => {
-      console.error('Error deleting all notifications:', error);
-      toast.error('Không thể xóa tất cả thông báo');
-    }
-  });
+    'Đã xóa tất cả thông báo',
+    'Lỗi khi xóa tất cả thông báo'
+  );
 
-  // Reply mutation with cache invalidation
   const replyMutation = useMutation({
-    mutationFn: async ({ notificationId, replyText, replyType }: { 
-      notificationId: string; 
-      replyText: string; 
-      replyType: 'sender' | 'all' 
-    }) => {
-      if (!selectedNotification) return;
-
-      // Get original sender and recipients with proper type casting
+    mutationFn: async ({ replyText }: { replyText: string }) => {
+      if (!selectedNotification) throw new Error("No notification selected");
       const relatedData = selectedNotification.related_data as NotificationRelatedData | null;
       const originalSender = relatedData?.sender || 'admin';
-      const originalRecipients = relatedData?.recipients || [originalSender];
       
-      // Determine recipients based on reply type
-      const recipients = replyType === 'all' 
-        ? [originalSender, ...originalRecipients.filter((r: string) => r !== user?.username)]
-        : [originalSender];
-
-      // Send reply to each recipient
-      const promises = recipients.map((recipient: string) => 
-        supabase.from('notifications').insert({
-          recipient_username: recipient,
-          title: `Phản hồi: ${selectedNotification.title}`,
-          message: replyText,
-          notification_type: 'reply',
-          related_data: { 
-            original_notification_id: notificationId,
-            replied_by: user?.username,
-            reply_type: replyType,
-            original_sender: originalSender,
-            original_recipients: originalRecipients
-          }
-        } as TablesInsert<'notifications'>)
-      );
-
-      const results = await Promise.all(promises);
-      const errors = results.filter(result => result.error);
-      
-      if (errors.length > 0) {
-        throw new Error(`Failed to send ${errors.length} replies`);
-      }
+      return supabase.from('notifications').insert({
+        recipient_username: originalSender,
+        title: `Phản hồi: ${selectedNotification.title}`,
+        message: replyText,
+        notification_type: 'reply',
+        related_data: { original_notification_id: selectedNotification.id, replied_by: user?.username }
+      } as TablesInsert<'notifications'>);
     },
     onSuccess: () => {
-      // Invalidate notifications cache for all affected users
-      invalidateNotifications(); // Clear all notifications cache
-      
+      refetch();
       setIsReplyDialogOpen(false);
-      setSelectedNotification(null);
       toast.success('Đã gửi phản hồi');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error sending reply:', error);
-      toast.error('Không thể gửi phản hồi');
+      toast.error(error.message || 'Không thể gửi phản hồi');
     }
   });
 
-  // Quick action mutation with cache invalidation
   const quickActionMutation = useMutation({
-    mutationFn: async ({ notificationId, action }: { notificationId: string; action: string }) => {
-      if (!selectedNotification) return;
-
+    mutationFn: async ({ action }: { action: string }) => {
+      if (!selectedNotification) throw new Error("No notification selected");
       const relatedData = selectedNotification.related_data as NotificationRelatedData | null;
       const originalSender = relatedData?.sender || 'admin';
-      const actionMessages = {
-        'processed': '✅ Đã xử lý xong.',
-        'acknowledged': '👍 Đã biết.'
-      };
+      const actionMessages: { [key: string]: string } = { 'acknowledged': '👍 Đã biết.' };
 
-      const { error } = await supabase
-        .from('notifications')
-        .insert({
-          recipient_username: originalSender,
-          title: `Phản hồi: ${selectedNotification.title}`,
-          message: actionMessages[action as keyof typeof actionMessages] || action,
-          notification_type: 'quick_reply',
-          related_data: { 
-            original_notification_id: notificationId,
-            replied_by: user?.username,
-            action_type: action,
-            original_sender: originalSender
-          }
-        } as TablesInsert<'notifications'>);
-      
-      if (error) throw error;
+      return supabase.from('notifications').insert({
+        recipient_username: originalSender,
+        title: `Phản hồi nhanh: ${selectedNotification.title}`,
+        message: actionMessages[action] || action,
+        notification_type: 'quick_reply',
+        related_data: { original_notification_id: selectedNotification.id, replied_by: user?.username, action_type: action }
+      } as TablesInsert<'notifications'>);
     },
     onSuccess: () => {
-      // Invalidate notifications cache
-      invalidateNotifications();
-      
-      setIsReplyDialogOpen(false);
-      setSelectedNotification(null);
+      refetch();
       toast.success('Đã gửi phản hồi nhanh');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error sending quick action:', error);
-      toast.error('Không thể gửi phản hồi');
+      toast.error(error.message || 'Không thể gửi phản hồi nhanh');
     }
   });
 
-  // Real-time subscription with cache invalidation
   useEffect(() => {
     if (!user?.username) return;
-
-    const channelName = `notifications_page_${user.username}_${Date.now()}`;
-    
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `recipient_username=eq.${user.username}`,
-        },
-        (payload) => {
-          console.log('📨 Notification page change received:', payload);
-          
-          // Invalidate cache when real-time changes occur
-          invalidateNotifications(user.username);
-          
-          queryClient.invalidateQueries({ queryKey: ['notifications', user.username] });
+    const channel = supabase.channel(`notifications:${user.username}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `recipient_username=eq.${user.username}` },
+        () => {
+          console.log('Real-time notification change detected, refetching...');
+          refetch();
         }
-      )
-      .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`✅ Notifications page channel '${channelName}' subscribed successfully!`);
-        }
-        if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Notifications page channel error:', err);
-        }
-        if (status === 'TIMED_OUT') {
-          console.warn('⌛ Notifications page channel timed out.');
-        }
-      });
-
-    return () => {
-      console.log(`🧹 Cleaning up notifications page channel: ${channelName}`);
-      supabase.removeChannel(channel);
-    };
-  }, [user?.username, queryClient]);
-
-  // Handle URL navigation for specific notifications
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const notificationId = urlParams.get('id');
-    
-    if (notificationId) {
-      setTimeout(() => {
-        const element = document.getElementById(`notification-${notificationId}`);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          element.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
-          setTimeout(() => {
-            element.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
-          }, 3000);
-        }
-      }, 500);
-    }
-  }, []);
-
-  // Listen for service worker navigation messages
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'NAVIGATE_TO_NOTIFICATION') {
-        const notificationId = event.data.notificationId;
-        if (notificationId) {
-          setTimeout(() => {
-            const element = document.getElementById(`notification-${notificationId}`);
-            if (element) {
-              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              element.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
-              setTimeout(() => {
-                element.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
-              }, 3000);
-            }
-          }, 500);
-        }
-      }
-    };
-
-    navigator.serviceWorker?.addEventListener('message', handleMessage);
-    return () => {
-      navigator.serviceWorker?.removeEventListener('message', handleMessage);
-    };
-  }, []);
+      ).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.username, refetch]);
 
   const handleReply = (notification: Notification) => {
     setSelectedNotification(notification);
     setIsReplyDialogOpen(true);
   };
 
-  const handleSendReply = (data: { subject: string; message: string; }) => {
-    if (!selectedNotification) {
-      toast.error('Không có thông báo được chọn để trả lời.');
-      return;
-    }
-    replyMutation.mutate({
-      notificationId: selectedNotification.id,
-      replyText: data.message,
-      replyType: 'sender' // Assuming default reply is to sender
-    });
+  const handleSendReply = (data: { message: string }) => {
+    replyMutation.mutate({ replyText: data.message });
   };
 
-  const handleQuickAction = (action: string) => {
-    if (!selectedNotification) {
-      toast.error('Không có thông báo được chọn để thực hiện hành động nhanh.');
-      return;
-    }
-    quickActionMutation.mutate({
-      notificationId: selectedNotification.id,
-      action: action
-    });
+  const handleQuickAction = (notification: Notification, action: string) => {
+    setSelectedNotification(notification);
+    quickActionMutation.mutate({ action });
   };
 
-  // Ensure notifications is always an array and calculate unread count
-  const notificationsArray = Array.isArray(notifications) ? notifications : [];
-  const unreadCount = notificationsArray.filter(n => !n.is_read).length;
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return {
-    // Data
-    notifications: notificationsArray,
-    unreadCount,
-    selectedNotification,
-    isReplyDialogOpen,
-    
-    // Loading states
-    isLoading,
+    notifications, unreadCount, selectedNotification, isReplyDialogOpen,
+    isLoading, isFetchingNextPage,
     isMarkingAsRead: markAsReadMutation.isPending,
     isMarkingAllAsRead: markAllAsReadMutation.isPending,
     isReplying: replyMutation.isPending,
     isQuickActioning: quickActionMutation.isPending,
-    
-    // Actions
-    refetch,
+    refetch, fetchNextPage, hasNextPage,
+    filter, setFilter,
     markAsRead: markAsReadMutation.mutate,
     markAllAsRead: markAllAsReadMutation.mutate,
     deleteNotification: deleteNotificationMutation.mutate,
     deleteAllNotifications: deleteAllNotificationsMutation.mutate,
-    handleReply,
-    handleSendReply,
-    handleQuickAction,
+    handleReply, handleSendReply, handleQuickAction,
     setIsReplyDialogOpen,
-    setSelectedNotification
   };
 }

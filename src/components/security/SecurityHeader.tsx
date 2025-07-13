@@ -29,7 +29,7 @@ export function SecurityHeader({
         <div>
           <h1 className="text-3xl font-bold">Theo dõi Bảo mật Thời gian Thực</h1>
           <p className="text-gray-600">
-            Giám sát hoạt động bảo mật trực tiếp - Cập nhật lần cuối: {lastUpdated ? formatRelativeTime(lastUpdated) : 'Đang cập nhật...'}
+            Giám sát hoạt động bảo mật trực tiếp - Cập nhật lần cuối: {lastUpdated ? formatRelativeTime(lastUpdated.toISOString()) : 'Đang cập nhật...'}
           </p>
         </div>
       </div>

@@ -1,8 +1,8 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Check, Trash2, Reply } from 'lucide-react';
+import { Check, Trash2, Reply, Package, ClipboardList, AlertTriangle, Bell, MessageSquare, ThumbsUp } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { formatRelativeTime } from '@/utils/dateUtils';
 
@@ -13,128 +13,88 @@ interface NotificationCardProps {
   onMarkAsRead: (id: string) => void;
   onDelete: (id: string) => void;
   onReply: (notification: Notification) => void;
+  onQuickAction: (notification: Notification, action: string) => void;
   isMarkingAsRead: boolean;
 }
+
+const getNotificationIcon = (type: string) => {
+  const iconProps = { className: "h-6 w-6" };
+  switch (type) {
+    case 'asset_reminder': return <Package {...iconProps} />;
+    case 'crc_reminder': return <ClipboardList {...iconProps} />;
+    case 'system_error': return <AlertTriangle {...iconProps} />;
+    case 'reply': return <MessageSquare {...iconProps} />;
+    case 'quick_reply': return <ThumbsUp {...iconProps} />;
+    default: return <Bell {...iconProps} />;
+  }
+};
+
+const getNotificationIconColor = (type: string) => {
+  switch (type) {
+    case 'asset_reminder': return 'text-blue-500 bg-blue-100';
+    case 'crc_reminder': return 'text-green-500 bg-green-100';
+    case 'system_error': return 'text-red-500 bg-red-100';
+    case 'reply': return 'text-purple-500 bg-purple-100';
+    case 'quick_reply': return 'text-teal-500 bg-teal-100';
+    default: return 'text-gray-500 bg-gray-100';
+  }
+};
 
 export function NotificationCard({ 
   notification, 
   onMarkAsRead, 
   onDelete, 
   onReply,
+  onQuickAction,
   isMarkingAsRead 
 }: NotificationCardProps) {
-  const getNotificationTypeColor = (type: string) => {
-    switch (type) {
-      case 'asset_reminder':
-        return 'bg-blue-100 text-blue-800';
-      case 'crc_reminder':
-        return 'bg-green-100 text-green-800';
-      case 'transaction_result':
-        return 'bg-purple-100 text-purple-800';
-      case 'reply':
-        return 'bg-orange-100 text-orange-800';
-      case 'quick_reply':
-        return 'bg-teal-100 text-teal-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getNotificationTypeLabel = (type: string) => {
-    switch (type) {
-      case 'asset_reminder':
-        return 'Nhắc nhở tài sản';
-      case 'crc_reminder':
-        return 'Nhắc nhở CRC';
-      case 'transaction_result':
-        return 'Kết quả giao dịch';
-      case 'reply':
-        return 'Phản hồi';
-      case 'quick_reply':
-        return 'Phản hồi nhanh';
-      default:
-        return 'Thông báo';
-    }
-  };
-
   return (
     <Card 
       id={`notification-${notification.id}`}
-      className={`transition-all hover:shadow-md bg-white border-gray-200 ${
-        !notification.is_read ? 'border-l-4 border-l-blue-500 bg-blue-50/30' : ''
+      className={`transition-all hover:shadow-lg bg-white border-l-4 ${
+        !notification.is_read ? 'border-l-blue-500' : 'border-l-transparent'
       }`}
     >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
+      <CardHeader className="pb-2">
+        <div className="flex items-start gap-4">
+          <div className={`p-2 rounded-full ${getNotificationIconColor(notification.notification_type)}`}>
+            {getNotificationIcon(notification.notification_type)}
+          </div>
           <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-2">
-              <Badge className={getNotificationTypeColor(notification.notification_type)}>
-                {getNotificationTypeLabel(notification.notification_type)}
-              </Badge>
-              {!notification.is_read && (
-                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                  Chưa đọc
-                </Badge>
-              )}
-            </div>
-            <CardTitle className="text-lg font-semibold text-gray-900">
+            <CardTitle className="text-base font-semibold text-gray-900">
               {notification.title}
             </CardTitle>
             <p className="text-sm text-gray-500 mt-1">
               {formatRelativeTime(notification.created_at!)}
             </p>
           </div>
-          
           <div className="flex items-center space-x-1">
             {!notification.is_read && (
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
                 onClick={() => onMarkAsRead(notification.id)}
                 disabled={isMarkingAsRead}
                 title="Đánh dấu đã đọc"
-                className="hover:bg-gray-100"
+                className="h-8 w-8 hover:bg-gray-100"
               >
                 <Check className="h-4 w-4" />
               </Button>
             )}
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onReply(notification)}
-              title="Trả lời"
-              className="hover:bg-gray-100"
-            >
-              <Reply className="h-4 w-4" />
-            </Button>
-            
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  title="Xóa thông báo"
-                  className="hover:bg-gray-100"
-                >
-                  <Trash2 className="h-4 w-4 text-red-500" />
+                <Button variant="ghost" size="icon" title="Xóa" className="h-8 w-8 hover:bg-red-50 text-gray-500 hover:text-red-600">
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent className="bg-white">
+              <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-gray-900">Xác nhận xóa thông báo</AlertDialogTitle>
-                  <AlertDialogDescription className="text-gray-600">
-                    Bạn có chắc chắn muốn xóa thông báo này? Hành động này không thể hoàn tác.
-                  </AlertDialogDescription>
+                  <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
+                  <AlertDialogDescription>Bạn có chắc muốn xóa thông báo này?</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300">Hủy</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => onDelete(notification.id)}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    Xóa
-                  </AlertDialogAction>
+                  <AlertDialogCancel>Hủy</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDelete(notification.id)} className="bg-red-600 hover:bg-red-700">Xóa</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -142,20 +102,22 @@ export function NotificationCard({
         </div>
       </CardHeader>
       
-      <CardContent>
-        <p className="text-gray-700 leading-relaxed">
+      <CardContent className="pl-14 pb-3">
+        <p className="text-gray-700 leading-relaxed text-sm">
           {notification.message}
         </p>
-        
-        {notification.related_data && (
-          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm font-medium text-gray-700 mb-1">Thông tin bổ sung:</p>
-            <pre className="text-xs text-gray-600 whitespace-pre-wrap">
-              {JSON.stringify(notification.related_data, null, 2)}
-            </pre>
-          </div>
-        )}
       </CardContent>
+
+      <CardFooter className="pl-14 pb-3 flex justify-end space-x-2">
+        <Button variant="outline" size="sm" onClick={() => onQuickAction(notification, 'acknowledged')}>
+          <ThumbsUp className="h-4 w-4 mr-2" />
+          Đã biết
+        </Button>
+        <Button variant="default" size="sm" onClick={() => onReply(notification)}>
+          <Reply className="h-4 w-4 mr-2" />
+          Trả lời
+        </Button>
+      </CardFooter>
     </Card>
   );
 }

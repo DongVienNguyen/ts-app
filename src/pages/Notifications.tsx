@@ -4,8 +4,10 @@ import { NotificationHeader } from '@/components/notifications/NotificationHeade
 import { NotificationCard } from '@/components/notifications/NotificationCard';
 import { ReplyDialog } from '@/components/notifications/ReplyDialog';
 import { EmptyNotifications } from '@/components/notifications/EmptyNotifications';
-import { LoadingSpinner } from '@/components/notifications/LoadingSpinner';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
+import { groupNotificationsByDate } from '@/utils/dateUtils';
+import { NotificationSkeleton } from '@/components/notifications/NotificationSkeleton';
+import { Button } from '@/components/ui/button';
 
 export default function Notifications() {
   const { user } = useSecureAuth();
@@ -26,8 +28,13 @@ export default function Notifications() {
     deleteAllNotifications,
     handleReply,
     handleSendReply,
-    // handleQuickAction, // Removed
-    setIsReplyDialogOpen
+    handleQuickAction,
+    setIsReplyDialogOpen,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    filter,
+    setFilter,
   } = useNotifications();
 
   if (!user) {
@@ -42,6 +49,8 @@ export default function Notifications() {
     );
   }
 
+  const groupedNotifications = groupNotificationsByDate(notifications);
+
   return (
     <Layout>
       <div className="container mx-auto p-6 max-w-4xl bg-white min-h-screen">
@@ -53,28 +62,51 @@ export default function Notifications() {
           onMarkAllAsRead={markAllAsRead}
           onDeleteAll={deleteAllNotifications}
           isMarkingAllAsRead={isMarkingAllAsRead}
+          filter={filter}
+          onFilterChange={setFilter}
         />
 
         {isLoading ? (
-          <LoadingSpinner />
+          <NotificationSkeleton />
         ) : notifications.length === 0 ? (
           <EmptyNotifications />
         ) : (
-          <div className="space-y-4">
-            {(notifications as Notification[]).map((notification) => (
-              <NotificationCard
-                key={notification.id}
-                notification={notification}
-                onMarkAsRead={markAsRead}
-                onDelete={deleteNotification}
-                onReply={handleReply}
-                isMarkingAsRead={isMarkingAsRead}
-              />
-            ))}
+          <div className="space-y-8">
+            {Object.entries(groupedNotifications).map(([groupTitle, groupItems]) =>
+              groupItems.length > 0 && (
+                <div key={groupTitle}>
+                  <h2 className="text-base font-semibold text-gray-500 mb-3 uppercase tracking-wider">{groupTitle}</h2>
+                  <div className="space-y-4">
+                    {(groupItems as Notification[]).map((notification) => (
+                      <NotificationCard
+                        key={notification.id}
+                        notification={notification}
+                        onMarkAsRead={markAsRead}
+                        onDelete={deleteNotification}
+                        onReply={handleReply}
+                        onQuickAction={handleQuickAction}
+                        isMarkingAsRead={isMarkingAsRead}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            )}
+            {hasNextPage && (
+              <div className="text-center mt-8">
+                <Button
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                  variant="outline"
+                >
+                  {isFetchingNextPage ? 'Đang tải...' : 'Tải thêm thông báo'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
-        {selectedNotification && ( // Thêm điều kiện này để chỉ render khi có thông báo được chọn
+        {selectedNotification && (
           <ReplyDialog
             notification={selectedNotification}
             isOpen={isReplyDialogOpen}

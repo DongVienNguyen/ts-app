@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Bell, RefreshCw, CheckCheck, Trash2 } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 interface NotificationHeaderProps {
   unreadCount: number;
@@ -10,6 +11,8 @@ interface NotificationHeaderProps {
   onMarkAllAsRead: () => void;
   onDeleteAll: () => void;
   isMarkingAllAsRead: boolean;
+  filter: 'all' | 'unread';
+  onFilterChange: (filter: 'all' | 'unread') => void;
 }
 
 export function NotificationHeader({
@@ -19,21 +22,37 @@ export function NotificationHeader({
   onRefresh,
   onMarkAllAsRead,
   onDeleteAll,
-  isMarkingAllAsRead
+  isMarkingAllAsRead,
+  filter,
+  onFilterChange,
 }: NotificationHeaderProps) {
   return (
-    <div className="flex items-center justify-between mb-6">
+    <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
       <div className="flex items-center space-x-3">
         <Bell className="h-8 w-8 text-green-600" />
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Thông báo</h1>
           <p className="text-gray-600">
-            {unreadCount > 0 ? `${unreadCount} thông báo chưa đọc` : 'Tất cả thông báo đã đọc'}
+            {totalCount > 0
+              ? `${unreadCount > 0 ? `${unreadCount} chưa đọc / ` : ''}${totalCount} tổng số`
+              : 'Không có thông báo nào'}
           </p>
         </div>
       </div>
       
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 flex-wrap">
+        <ToggleGroup
+          type="single"
+          value={filter}
+          onValueChange={(value) => {
+            if (value) onFilterChange(value as 'all' | 'unread');
+          }}
+          className="bg-gray-100 p-1 rounded-lg"
+        >
+          <ToggleGroupItem value="all" aria-label="Tất cả" className="data-[state=on]:bg-white data-[state=on]:text-green-700">Tất cả</ToggleGroupItem>
+          <ToggleGroupItem value="unread" aria-label="Chưa đọc" className="data-[state=on]:bg-white data-[state=on]:text-green-700">Chưa đọc</ToggleGroupItem>
+        </ToggleGroup>
+
         <Button
           variant="outline"
           size="sm"
@@ -54,7 +73,7 @@ export function NotificationHeader({
             className="bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
           >
             <CheckCheck className="h-4 w-4 mr-2" />
-            Đánh dấu tất cả đã đọc
+            Đánh dấu đã đọc
           </Button>
         )}
         
