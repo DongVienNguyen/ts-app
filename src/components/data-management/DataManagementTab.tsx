@@ -29,6 +29,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { FilterOperator, FilterState } from '@/hooks/useDataManagement/types';
 import { SmartPagination } from '@/components/SmartPagination';
+import { format } from 'date-fns'; // Import format from date-fns
+import { z } from 'zod'; // Import z for schema comparison
+
+// Define the type for columns expected by OptimizedTable
+interface OptimizedTableColumn {
+  key: string;
+  label: string;
+  width?: number;
+  render?: (value: any, row: any) => React.ReactNode;
+}
 
 interface DataManagementTabProps {
   activeTab: string;
@@ -135,8 +145,54 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
     }
   };
 
-  const columnsWithActions = [
-    ...config.fields,
+  const columnsWithActions: OptimizedTableColumn[] = config.fields.map(field => {
+    let renderFunction: ((value: any, row: any) => React.ReactNode) | undefined;
+
+    // Handle JSON objects (e.g., subscription, event_data, status_data, error_data, additional_data)
+    // These are typically stored as jsonb in DB and defined as type 'textarea' with z.any() schema
+    // Exclude simple textareas that are not expected to be JSON objects
+    const isJsonField = (field.type === 'textarea' && (
+      field.key === 'subscription' || field.key === 'event_data' || 
+      field.key === 'status_data' || field.key === 'error_data' || 
+      field.key === 'additional_data' || field.key === 'session_data'
+    ));
+
+    if (isJsonField) {
+      renderFunction = (value: any) => {
+        if (typeof value === 'object' && value !== null) {
+          return JSON.stringify(value, null, 2); // Pretty print JSON objects
+        }
+        return value;
+      };
+    } else if (field.type === 'date') {
+      renderFunction = (value: any) => {
+        if (value) {
+          try {
+            // Attempt to parse and format date. Supabase dates are usually ISO strings.
+            return format(new Date(value), 'dd/MM/yyyy HH:mm:ss');
+          } catch (e) {
+            return String(value); // Fallback to string if parsing fails
+          }
+        }
+        return '';
+      };
+    } else if (field.type === 'boolean') {
+      renderFunction = (value: any) => {
+        return value ? 'Có' : 'Không';
+      };
+    }
+    
+    const column: OptimizedTableColumn = {
+      key: field.key,
+      label: field.label,
+      // width is optional and not present in FieldConfig, so it will be undefined, which is fine.
+    };
+
+    if (renderFunction) {
+      column.render = renderFunction;
+    }
+    return column;
+  }).concat([
     {
       key: 'actions',
       label: 'Hành động',
@@ -157,7 +213,7 @@ const DataManagementTab: React.FC<DataManagementTabProps> = ({
         </div>
       ),
     },
-  ];
+  ]);
 
   const ITEMS_PER_PAGE = 20;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
