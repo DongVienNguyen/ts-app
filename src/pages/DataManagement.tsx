@@ -138,7 +138,7 @@ const DataManagement = () => {
           <TabsList>
             <TabsTrigger value="management">Quản lý</TabsTrigger>
             <TabsTrigger value="statistics">Thống kê</TabsTrigger>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
+            <TabsTrigger value="logs">Quản lý logs</TabsTrigger>
           </TabsList>
           <TabsContent value="management" className="mt-6">
             <DataManagementTab

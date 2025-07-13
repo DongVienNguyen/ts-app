@@ -5,15 +5,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { SecurityOverview } from '@/components/SecurityOverview';
 import { SecurityActionsPanel } from '@/components/security/SecurityActionsPanel';
+import { LiveActivityFeed } from '@/components/security/LiveActivityFeed';
+import { ThreatAnalysisCard } from '@/components/security/ThreatAnalysisCard';
+import { TestErrorGeneratorTab } from '@/components/security/TestErrorGeneratorTab';
 import { SecurityDocumentation } from '@/components/SecurityDocumentation';
 import { SecurityImplementationSummary } from '@/components/SecurityImplementationSummary';
 import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
 import { RealTimeSecurityDashboard } from '@/components/RealTimeSecurityDashboard';
 import { LogManagementTab } from '@/components/data-management/LogManagementTab';
 import { UserManagementTab } from '@/components/security/UserManagementTab';
+import { useState } from 'react';
+import { useRealTimeSecurityMonitoring } from '@/hooks/useRealTimeSecurityMonitoring';
+import { SecurityAlerts } from '@/components/security/SecurityAlerts'; // Import SecurityAlerts
 
 const SecurityMonitor = () => {
   const { user } = useSecureAuth();
+  const [activeTab, setActiveTab] = useState('overview');
+
+  const {
+    recentEvents,
+    threatTrends,
+    isLoading: isSecurityDataLoading,
+    isRefreshing,
+    refreshEvents,
+    forceUpdateCounter,
+    securityAlerts,
+  } = useRealTimeSecurityMonitoring(user);
 
   if (!user) {
     return (
@@ -56,41 +73,42 @@ const SecurityMonitor = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="realtime" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 lg:grid-cols-8">
-            <TabsTrigger value="realtime"><Activity className="w-4 h-4 mr-2" />Thời gian thực</TabsTrigger>
-            <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-2" />Tổng hợp</TabsTrigger>
-            <TabsTrigger value="users"><Users className="w-4 h-4 mr-2" />Người dùng</TabsTrigger>
-            <TabsTrigger value="actions"><TestTube className="w-4 h-4 mr-2" />Tác vụ</TabsTrigger>
-            <TabsTrigger value="logs"><Trash2 className="w-4 h-4 mr-2" />Quản lý Logs</TabsTrigger>
-            <TabsTrigger value="docs"><BookOpen className="w-4 h-4 mr-2" />Tài liệu</TabsTrigger>
-            <TabsTrigger value="summary"><CheckCircle className="w-4 h-4 mr-2" />Tổng kết</TabsTrigger>
-            <TabsTrigger value="workflow"><ArrowRight className="w-4 h-4 mr-2" />Demo</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+            <TabsTrigger value="overview">Tổng quan</TabsTrigger>
+            <TabsTrigger value="alerts">Cảnh báo</TabsTrigger>
+            <TabsTrigger value="users">Quản lý người dùng</TabsTrigger>
+            <TabsTrigger value="test_errors">Tạo Lỗi Test</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="realtime" className="mt-6">
-            <RealTimeSecurityDashboard />
-          </TabsContent>
           <TabsContent value="overview" className="mt-6">
-            <SecurityOverview />
+            <div className="grid gap-6 lg:grid-cols-3">
+              <SecurityOverview />
+              <SecurityActionsPanel />
+              <LiveActivityFeed
+                events={recentEvents}
+                isRealTimeEnabled={true} // Assuming real-time is always enabled here
+                isLoading={isSecurityDataLoading}
+                isRefreshing={isRefreshing}
+                onRefresh={refreshEvents}
+                forceUpdateCounter={forceUpdateCounter}
+              />
+              <ThreatAnalysisCard
+                threatTrends={threatTrends}
+                isLoading={isSecurityDataLoading}
+              />
+            </div>
+          </TabsContent>
+          <TabsContent value="alerts" className="mt-6">
+            <SecurityAlerts
+              alerts={securityAlerts}
+              isLoading={isSecurityDataLoading}
+            />
           </TabsContent>
           <TabsContent value="users" className="mt-6">
             <UserManagementTab />
           </TabsContent>
-          <TabsContent value="actions" className="mt-6">
-            <SecurityActionsPanel />
-          </TabsContent>
-          <TabsContent value="logs" className="mt-6">
-            <LogManagementTab />
-          </TabsContent>
-          <TabsContent value="docs" className="mt-6">
-            <SecurityDocumentation />
-          </TabsContent>
-          <TabsContent value="summary" className="mt-6">
-            <SecurityImplementationSummary />
-          </TabsContent>
-          <TabsContent value="workflow" className="mt-6">
-            <SecurityWorkflowDemo />
+          <TabsContent value="test_errors" className="mt-6">
+            <TestErrorGeneratorTab />
           </TabsContent>
         </Tabs>
       </div>
