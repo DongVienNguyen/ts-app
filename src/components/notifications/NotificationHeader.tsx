@@ -1,29 +1,25 @@
 import { Button } from '@/components/ui/button';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Bell, RefreshCw, CheckCheck, Trash2, Search, MessageSquarePlus } from 'lucide-react';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Bell, RefreshCw, Search, MessageSquarePlus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { FilterType } from '@/hooks/useNotifications';
+// FilterType is no longer directly used in props, but might be in useNotifications hook, so keeping import for now.
+// import { FilterType } from '@/hooks/useNotifications'; // No longer needed here
 
 interface NotificationHeaderProps {
   unreadCount: number;
   totalCount: number;
   isLoading: boolean;
   onRefresh: () => void;
-  onMarkAllAsRead: () => void;
-  onDeleteAll: () => void;
   onQuickMessage: () => void;
-  isMarkingAllAsRead: boolean;
-  filter: FilterType;
-  onFilterChange: (filter: FilterType) => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  selectedCount: number;
-  onMarkSelectedAsRead: () => void;
-  onDeleteSelected: () => void;
-  isAllSelected: boolean;
-  onToggleSelectAll: () => void;
+  // Các props sau đã bị loại bỏ vì không còn được sử dụng trong giao diện header mới:
+  // isMarkingAllAsRead: boolean;
+  // filter: FilterType;
+  // selectedCount: number;
+  // onMarkSelectedAsRead: () => void;
+  // onDeleteSelected: () => void;
+  // isAllSelected: boolean;
+  // onToggleSelectAll: () => void;
 }
 
 export function NotificationHeader({
@@ -31,33 +27,22 @@ export function NotificationHeader({
   totalCount,
   isLoading,
   onRefresh,
-  onMarkAllAsRead,
-  onDeleteAll,
   onQuickMessage,
-  isMarkingAllAsRead,
-  filter,
-  onFilterChange,
   searchTerm,
   onSearchChange,
-  selectedCount,
-  onMarkSelectedAsRead,
-  onDeleteSelected,
-  isAllSelected,
-  onToggleSelectAll,
 }: NotificationHeaderProps) {
-  const isSelectionMode = selectedCount > 0;
 
   return (
-    <div className="mb-6 space-y-4">
+    <div className="mb-6 space-y-4 bg-white p-4 rounded-lg shadow-md">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center space-x-3">
           <Bell className="h-8 w-8 text-green-600" />
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Thông báo</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Hộp thư</h1>
             <p className="text-gray-600">
-              {totalCount > 0
-                ? `${unreadCount > 0 ? `${unreadCount} chưa đọc / ` : ''}${totalCount} tổng số`
-                : 'Không có thông báo nào'}
+              {unreadCount > 0
+                ? `${unreadCount} tin nhắn chưa đọc`
+                : 'Không có tin nhắn mới'}
             </p>
           </div>
         </div>
@@ -65,7 +50,7 @@ export function NotificationHeader({
           <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <Input
-              placeholder="Tìm kiếm..."
+              placeholder="Tìm cuộc hội thoại..."
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-10 bg-white"
@@ -86,73 +71,8 @@ export function NotificationHeader({
             className="bg-green-600 hover:bg-green-700 text-white"
           >
             <MessageSquarePlus className="h-4 w-4 mr-2" />
-            Gửi tin nhanh
+            Tin nhắn mới
           </Button>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between p-2 rounded-lg bg-gray-50 min-h-[52px] flex-wrap gap-4">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="select-all-checkbox"
-            checked={isAllSelected}
-            onCheckedChange={onToggleSelectAll}
-            aria-label="Select all"
-          />
-          {isSelectionMode ? (
-            <>
-              <span className="font-medium text-sm text-gray-700">{selectedCount} đã chọn</span>
-              <Button variant="ghost" size="sm" onClick={onMarkSelectedAsRead}>
-                <CheckCheck className="h-4 w-4 mr-2" />
-                Đánh dấu đã đọc
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Xóa
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Bạn có chắc chắn muốn xóa {selectedCount} thông báo đã chọn?
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Hủy</AlertDialogCancel>
-                    <AlertDialogAction onClick={onDeleteSelected} className="bg-red-600 hover:bg-red-700">Xóa</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
-          ) : (
-            <label htmlFor="select-all-checkbox" className="font-medium text-sm text-gray-700 cursor-pointer">Chọn tất cả</label>
-          )}
-        </div>
-
-        <div className="flex items-center space-x-2 flex-wrap">
-          <ToggleGroup
-            type="single"
-            value={filter}
-            onValueChange={(value) => {
-              if (value) onFilterChange(value as FilterType);
-            }}
-            className="bg-gray-200 p-1 rounded-lg"
-          >
-            <ToggleGroupItem value="unread_all" aria-label="Chưa đọc" className="data-[state=on]:bg-white data-[state=on]:text-green-700 px-3">Chưa đọc</ToggleGroupItem>
-            <ToggleGroupItem value="unread_asset" aria-label="Tài sản" className="data-[state=on]:bg-white data-[state=on]:text-green-700 px-3">Tài sản</ToggleGroupItem>
-            <ToggleGroupItem value="unread_crc" aria-label="CRC" className="data-[state=on]:bg-white data-[state=on]:text-green-700 px-3">CRC</ToggleGroupItem>
-            <ToggleGroupItem value="all" aria-label="Tất cả" className="data-[state=on]:bg-white data-[state=on]:text-green-700 px-3">Tất cả</ToggleGroupItem>
-          </ToggleGroup>
-          
-          {!isSelectionMode && unreadCount > 0 && filter.startsWith('unread') && (
-            <Button variant="ghost" size="sm" onClick={onMarkAllAsRead} disabled={isMarkingAllAsRead}>
-              <CheckCheck className="h-4 w-4 mr-2" />
-              Đọc tất cả
-            </Button>
-          )}
         </div>
       </div>
     </div>

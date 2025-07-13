@@ -7,10 +7,11 @@ import { NotificationCard } from '@/components/notifications/NotificationCard';
 import { ReplyDialog } from '@/components/notifications/ReplyDialog';
 import { EmptyNotifications } from '@/components/notifications/EmptyNotifications';
 import { useNotifications, Notification } from '@/hooks/useNotifications';
-import { groupNotificationsByDate } from '@/utils/dateUtils';
 import { NotificationSkeleton } from '@/components/notifications/NotificationSkeleton';
-import { Loader2 } from 'lucide-react';
+import { Loader2, User } from 'lucide-react';
 import { QuickMessageDialog } from '@/components/notifications/QuickMessageDialog';
+import { groupNotificationsByCorrespondent } from '@/utils/notificationUtils';
+import { Card } from '@/components/ui/card';
 
 export default function Notifications() {
   const { user } = useSecureAuth();
@@ -21,14 +22,10 @@ export default function Notifications() {
     selectedNotification,
     isReplyDialogOpen,
     isLoading,
-    isMarkingAsRead,
-    isMarkingAllAsRead,
     isReplying,
     isQuickActioning,
     refetch,
-    markAsRead,
     markAsSeen,
-    deleteAllNotifications,
     handleReply,
     handleSendReply,
     handleQuickAction,
@@ -36,19 +33,8 @@ export default function Notifications() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    filter,
-    setFilter,
     searchTerm,
     setSearchTerm,
-    selectedIds,
-    selectedCount,
-    allVisibleSelected,
-    toggleSelection,
-    toggleSelectAll,
-    markSelectedAsRead,
-    deleteSelected,
-    deleteNotification,
-    markAllAsRead,
   } = useNotifications();
 
   const { ref, inView } = useInView({
@@ -74,60 +60,54 @@ export default function Notifications() {
     );
   }
 
-  const groupedNotifications = groupNotificationsByDate(notifications);
+  const groupedConversations = groupNotificationsByCorrespondent(notifications, user.username);
+  const conversationKeys = Object.keys(groupedConversations).sort((a, b) => {
+    const lastMessageA = groupedConversations[a][groupedConversations[a].length - 1];
+    const lastMessageB = groupedConversations[b][groupedConversations[b].length - 1];
+    return new Date(lastMessageB.created_at!).getTime() - new Date(lastMessageA.created_at!).getTime();
+  });
 
   return (
     <Layout>
-      <div className="container mx-auto p-6 max-w-4xl bg-white min-h-screen">
+      <div className="container mx-auto p-4 md:p-6 max-w-4xl bg-gray-50 min-h-screen">
         <NotificationHeader
           unreadCount={unreadCount}
           totalCount={notifications.length}
           isLoading={isLoading}
           onRefresh={refetch}
-          onMarkAllAsRead={markAllAsRead}
-          onDeleteAll={deleteAllNotifications}
           onQuickMessage={() => setIsQuickMessageOpen(true)}
-          isMarkingAllAsRead={isMarkingAllAsRead}
-          filter={filter}
-          onFilterChange={setFilter}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
-          selectedCount={selectedCount}
-          onMarkSelectedAsRead={markSelectedAsRead}
-          onDeleteSelected={deleteSelected}
-          isAllSelected={allVisibleSelected}
-          onToggleSelectAll={toggleSelectAll}
         />
 
-        {isLoading ? (
+        {isLoading && notifications.length === 0 ? (
           <NotificationSkeleton />
         ) : notifications.length === 0 ? (
           <EmptyNotifications searchTerm={searchTerm} />
         ) : (
-          <div className="space-y-8">
-            {Object.entries(groupedNotifications).map(([groupTitle, groupItems]) =>
-              groupItems.length > 0 && (
-                <div key={groupTitle}>
-                  <h2 className="text-base font-semibold text-gray-500 mb-3 uppercase tracking-wider">{groupTitle}</h2>
-                  <div className="space-y-4">
-                    {(groupItems as Notification[]).map((notification) => (
-                      <NotificationCard
-                        key={notification.id}
-                        notification={notification}
-                        onMarkAsRead={markAsRead}
-                        onMarkAsSeen={markAsSeen}
-                        onDelete={deleteNotification}
-                        onReply={handleReply}
-                        onQuickAction={handleQuickAction}
-                        isMarkingAsRead={isMarkingAsRead}
-                        isSelected={!!selectedIds[notification.id]}
-                        onToggleSelect={toggleSelection}
-                      />
-                    ))}
+          <div className="space-y-6">
+            {conversationKeys.map((correspondent) => (
+              <Card key={correspondent} className="p-4 bg-white shadow-md rounded-lg">
+                <div className="flex items-center gap-3 mb-4 border-b pb-3">
+                  <div className="bg-gray-200 p-2 rounded-full">
+                    <User className="h-5 w-5 text-gray-600" />
                   </div>
+                  <h2 className="text-lg font-semibold text-gray-800">{correspondent}</h2>
                 </div>
-              )
-            )}
+                <div className="space-y-4">
+                  {groupedConversations[correspondent].map((notification) => (
+                    <NotificationCard
+                      key={notification.id}
+                      notification={notification}
+                      onMarkAsSeen={markAsSeen}
+                      onReply={handleReply}
+                      onQuickAction={handleQuickAction}
+                      isSent={(notification.related_data as any)?.sender === user.username}
+                    />
+                  ))}
+                </div>
+              </Card>
+            ))}
             
             {hasNextPage && (
               <div ref={ref} className="flex justify-center items-center py-6">
