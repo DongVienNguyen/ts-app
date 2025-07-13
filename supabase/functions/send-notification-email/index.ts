@@ -60,7 +60,7 @@ const generateTestEmailHTML = (username: string, provider: string): string => {
   `
 }
 
-// EmailJS implementation
+// EmailJS implementation with better error handling
 const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: string) => {
   // @ts-ignore
   const emailjsUserId = Deno.env.get('EMAILJS_USER_ID')
@@ -73,8 +73,21 @@ const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: 
   // @ts-ignore
   const outlookEmail = Deno.env.get('OUTLOOK_EMAIL')
 
+  console.log('🔍 EmailJS Configuration Check:')
+  console.log('- User ID:', emailjsUserId ? `${emailjsUserId.substring(0, 10)}...` : 'NOT SET')
+  console.log('- Service ID:', emailjsServiceId || 'NOT SET')
+  console.log('- Template ID:', emailjsTemplateId || 'NOT SET')
+  console.log('- Access Token:', emailjsAccessToken ? 'SET' : 'NOT SET')
+  console.log('- Outlook Email:', outlookEmail || 'NOT SET')
+
   if (!emailjsUserId || !emailjsServiceId || !emailjsTemplateId || !outlookEmail) {
-    throw new Error('EmailJS credentials not configured. Please set EMAILJS_USER_ID, EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, and OUTLOOK_EMAIL.')
+    const missing = [];
+    if (!emailjsUserId) missing.push('EMAILJS_USER_ID');
+    if (!emailjsServiceId) missing.push('EMAILJS_SERVICE_ID');
+    if (!emailjsTemplateId) missing.push('EMAILJS_TEMPLATE_ID');
+    if (!outlookEmail) missing.push('OUTLOOK_EMAIL');
+    
+    throw new Error(`EmailJS credentials not configured. Missing: ${missing.join(', ')}`);
   }
 
   console.log('📧 Sending via EmailJS + Outlook SMTP...')
@@ -100,10 +113,21 @@ const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: 
   // Add access token if available
   if (emailjsAccessToken) {
     emailJSPayload.accessToken = emailjsAccessToken;
+    console.log('🔑 Using access token for authentication');
+  } else {
+    console.log('⚠️ No access token provided - using public API');
   }
 
   try {
     console.log('📤 Sending EmailJS request...')
+    console.log('📤 Payload:', JSON.stringify({
+      ...emailJSPayload,
+      template_params: {
+        ...emailJSPayload.template_params,
+        html_content: '[HTML CONTENT TRUNCATED]'
+      }
+    }, null, 2));
+
     const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
       method: 'POST',
       headers: {
@@ -113,15 +137,27 @@ const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: 
     });
 
     console.log('📥 EmailJS response status:', response.status)
+    console.log('📥 EmailJS response headers:', Object.fromEntries(response.headers.entries()))
+
+    const responseText = await response.text();
+    console.log('📥 EmailJS response body:', responseText)
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ EmailJS error response:', errorText)
-      throw new Error(`EmailJS API error: ${response.status} - ${errorText}`);
+      console.error('❌ EmailJS error response:', responseText)
+      
+      // Parse error details
+      let errorDetails = responseText;
+      try {
+        const errorJson = JSON.parse(responseText);
+        errorDetails = errorJson.message || errorJson.error || responseText;
+      } catch (e) {
+        // Keep original text if not JSON
+      }
+      
+      throw new Error(`EmailJS API error: ${response.status} - ${errorDetails}`);
     }
 
-    const result = await response.text();
-    console.log('✅ EmailJS success response:', result);
+    console.log('✅ EmailJS success response:', responseText);
 
     return {
       messageId: `emailjs-${Date.now()}@vietcombank.com.vn`,
@@ -131,7 +167,7 @@ const sendViaEmailJS = async (recipients: string[], subject: string, emailHTML: 
       to: recipients,
       timestamp: new Date().toISOString(),
       service: 'EmailJS + Outlook SMTP',
-      response: result
+      response: responseText
     };
 
   } catch (error) {
@@ -225,17 +261,27 @@ serve(async (req) => {
       const emailjsUserId = Deno.env.get('EMAILJS_USER_ID')
       // @ts-ignore
       const emailjsServiceId = Deno.env.get('EMAILJS_SERVICE_ID')
+      // @ts-ignore
+      const emailjsTemplateId = Deno.env.get('EMAILJS_TEMPLATE_ID')
+      // @ts-ignore
+      const emailjsAccessToken = Deno.env.get('EMAILJS_ACCESS_TOKEN')
 
       return new Response(JSON.stringify({
         success: true,
         message: 'Email providers status checked',
         providers: {
           outlook: { 
-            configured: !!(outlookEmail && emailjsUserId && emailjsServiceId),
+            configured: !!(outlookEmail && emailjsUserId && emailjsServiceId && emailjsTemplateId),
             email: outlookEmail || 'Not configured',
-            status: (outlookEmail && emailjsUserId && emailjsServiceId) ? 'Ready - EmailJS + Outlook SMTP' : 'Missing EmailJS configuration',
+            status: (outlookEmail && emailjsUserId && emailjsServiceId && emailjsTemplateId) ? 'Ready - EmailJS + Outlook SMTP' : 'Missing EmailJS configuration',
             isDefault: true,
-            method: 'EmailJS'
+            method: 'EmailJS',
+            details: {
+              userId: emailjsUserId ? 'SET' : 'MISSING',
+              serviceId: emailjsServiceId ? 'SET' : 'MISSING',
+              templateId: emailjsTemplateId ? 'SET' : 'MISSING',
+              accessToken: emailjsAccessToken ? 'SET' : 'MISSING'
+            }
           },
           resend: { 
             configured: !!resendKey,
