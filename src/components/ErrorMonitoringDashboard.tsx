@@ -22,6 +22,7 @@ export function ErrorMonitoringDashboard({
   systemAlerts,
   health,
   isLoading,
+  refreshAll, // Add refreshAll here
   acknowledgeAlert,
 }: ErrorMonitoringDashboardProps) {
   return (

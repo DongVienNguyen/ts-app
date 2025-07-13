@@ -8,13 +8,16 @@ interface RealTimeStatusIndicatorProps {
 export function RealTimeStatusIndicator({ status }: RealTimeStatusIndicatorProps) {
   let icon;
   let text;
-  let variant: "default" | "secondary" | "destructive" | "outline" | "success" | null | undefined = "default";
+  // Cập nhật kiểu của variant để chỉ bao gồm các giá trị được hỗ trợ bởi Badge component
+  let variant: "default" | "secondary" | "destructive" | "outline" | null | undefined = "default";
+  let additionalClasses = ""; // Thêm class để tùy chỉnh màu sắc
 
   switch (status) {
     case 'connected':
       icon = <Wifi className="h-4 w-4 text-green-500" />;
       text = 'Real-time: Đã kết nối';
-      variant = 'success';
+      variant = 'outline'; // Sử dụng variant 'outline'
+      additionalClasses = "text-green-600 border-green-300 bg-green-50"; // Thêm class để tạo màu xanh lá cây
       break;
     case 'disconnected':
       icon = <WifiOff className="h-4 w-4 text-red-500" />;
@@ -38,7 +41,7 @@ export function RealTimeStatusIndicator({ status }: RealTimeStatusIndicatorProps
   }
 
   return (
-    <Badge variant={variant} className="flex items-center space-x-1 px-2 py-1 text-xs">
+    <Badge variant={variant} className={`flex items-center space-x-1 px-2 py-1 text-xs ${additionalClasses}`}>
       {icon}
       <span>{text}</span>
     </Badge>

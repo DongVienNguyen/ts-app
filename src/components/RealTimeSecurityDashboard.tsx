@@ -24,6 +24,7 @@ export function RealTimeSecurityDashboard() {
     securityAlerts,
     refreshEvents,
     forceUpdateCounter,
+    acknowledgeSystemAlert, // Add acknowledgeSystemAlert here
   } = useRealTimeSecurityMonitoring(user);
 
   if (!user) {
