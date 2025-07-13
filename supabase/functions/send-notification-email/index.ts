@@ -1,5 +1,8 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+// @ts-ignore
+import nodemailer from "npm:nodemailer@6.9.14";
 
 // Global type declarations for Deno environment
 declare global {
@@ -180,138 +183,153 @@ const generateEmailHTML = (type: string, data: any, subject: string): string => 
 };
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
     const requestBody = await req.json();
     console.log('📧 Email request received:', JSON.stringify(requestBody, null, 2));
 
     const { to, subject, html, type, data, attachments }: EmailRequest = requestBody;
 
-    // Handle API check request
     if (type === 'api_check') {
-      console.log('🔑 API Key check requested');
-      
-      if (!Deno.env.get("RESEND_API_KEY")) {
-        throw new Error("RESEND_API_KEY not configured");
-      }
-      
-      // Test API key by creating a Resend instance
-      try {
-        const testResend = new Resend(Deno.env.get("RESEND_API_KEY")) as ResendClient;
-        console.log('🔑 Resend client created successfully');
-        
-        return new Response(JSON.stringify({ 
-          success: true, 
-          message: "API key is valid",
-          apiKeyExists: true,
-          timestamp: new Date().toISOString()
-        }), {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            ...corsHeaders,
-          },
-        });
-      } catch (apiError: any) {
-        console.error('🔑 API key validation failed:', apiError);
-        throw new Error(`Invalid API key: ${apiError.message}`);
-      }
+      const resendApiKeyExists = !!Deno.env.get("RESEND_API_KEY");
+      const outlookEmailExists = !!Deno.env.get("OUTLOOK_EMAIL");
+      const outlookPasswordExists = !!Deno.env.get("OUTLOOK_APP_PASSWORD");
+
+      return new Response(JSON.stringify({
+        success: true,
+        message: "API keys status checked.",
+        providers: {
+          resend: { configured: resendApiKeyExists },
+          outlook: { configured: outlookEmailExists && outlookPasswordExists }
+        },
+        timestamp: new Date().toISOString()
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
-    // Validate required fields for regular email sending
     if (!to || !subject) {
       throw new Error("Missing required fields: 'to' and 'subject'");
     }
 
-    // Convert to array if single email
-    const recipients = Array.isArray(to) ? to : [to];
-    
-    console.log('📧 Sending email to:', recipients);
-    console.log('📧 Subject:', subject);
-    console.log('📧 Type:', type);
-    console.log('📧 Has attachments:', !!attachments && attachments.length > 0);
-    console.log('📧 RESEND_API_KEY exists:', !!Deno.env.get("RESEND_API_KEY"));
+    const { data: config } = await supabaseAdmin
+      .from('system_config')
+      .select('value')
+      .eq('key', 'email_provider')
+      .single();
 
-    if (!Deno.env.get("RESEND_API_KEY")) {
-      throw new Error("RESEND_API_KEY not configured");
-    }
+    const provider = config?.value || 'resend';
+    console.log(`📧 Using email provider: ${provider}`);
 
-    // Generate HTML content based on type
     let emailHTML = html;
     if (!emailHTML && type) {
       emailHTML = generateEmailHTML(type, data, subject);
     }
     if (!emailHTML) {
-      emailHTML = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>${subject}</h2>
-          <p>Nội dung email từ Hệ thống Quản lý Tài sản</p>
-          <p>Thời gian: ${new Date().toLocaleString('vi-VN')}</p>
-        </div>
-      `;
+      emailHTML = `<p>Nội dung email.</p>`;
     }
 
-    const emailData: ResendEmail = {
-      from: "Hệ thống Tài sản <taisan@caremylife.me>",
-      to: recipients,
-      subject: subject,
-      html: emailHTML,
-    };
+    const recipients = Array.isArray(to) ? to : [to];
 
-    if (attachments && attachments.length > 0) {
-      emailData.attachments = attachments.map(att => ({
-        filename: att.filename,
-        content: att.content,
-      }));
+    if (provider === 'outlook') {
+      const outlookEmail = Deno.env.get("OUTLOOK_EMAIL");
+      const outlookPassword = Deno.env.get("OUTLOOK_APP_PASSWORD");
+
+      if (!outlookEmail || !outlookPassword) {
+        throw new Error("Outlook credentials are not configured in Supabase secrets.");
+      }
+
+      const transporter = nodemailer.createTransport({
+        host: "smtp.office365.com",
+        port: 587,
+        secure: false,
+        auth: {
+          user: outlookEmail,
+          pass: outlookPassword,
+        },
+        tls: {
+          ciphers: 'SSLv3',
+          rejectUnauthorized: false
+        }
+      });
+
+      const mailOptions = {
+        from: `"Hệ thống Tài sản" <${outlookEmail}>`,
+        to: recipients,
+        subject: subject,
+        html: emailHTML,
+        attachments: attachments?.map(att => ({
+          filename: att.filename,
+          content: att.content,
+          encoding: 'base64'
+        }))
+      };
+
+      console.log("📧 Sending email via Outlook...");
+      const info = await transporter.sendMail(mailOptions);
+      console.log("📧 Outlook send response:", info);
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: info,
+        message: "Email sent successfully via Outlook",
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+
+    } else { // Default to Resend
+      if (!Deno.env.get("RESEND_API_KEY")) {
+        throw new Error("RESEND_API_KEY not configured");
+      }
+
+      const emailData: ResendEmail = {
+        from: "Hệ thống Tài sản <taisan@caremylife.me>",
+        to: recipients,
+        subject: subject,
+        html: emailHTML,
+        attachments: attachments?.map(att => ({
+          filename: att.filename,
+          content: att.content,
+        }))
+      };
+
+      console.log("📧 Sending email via Resend...");
+      const emailResponse = await resend.emails.send(emailData);
+
+      if (emailResponse.error) {
+        throw new Error(`Resend API error: ${emailResponse.error.message}`);
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: emailResponse,
+        message: "Email sent successfully via Resend",
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
-
-    console.log("📧 Email data being sent to Resend:", JSON.stringify({
-      ...emailData,
-      html: emailData.html.substring(0, 100) + '...' // Truncate HTML for logging
-    }, null, 2));
-
-    const emailResponse = await resend.emails.send(emailData);
-
-    console.log("📧 Resend API response:", emailResponse);
-
-    if (emailResponse.error) {
-      console.error("❌ Resend API error details:", emailResponse.error);
-      throw new Error(`Resend API error: ${emailResponse.error.message}`);
-    }
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      data: emailResponse,
-      message: "Email sent successfully",
-      recipients: recipients,
-      type: type || 'general'
-    }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
   } catch (error: any) {
     console.error("❌ Error in Edge Function handler:", error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
+      JSON.stringify({
+        success: false,
         error: error.message,
-        details: error.toString(),
         stack: error.stack,
-        timestamp: new Date().toISOString()
       }),
       {
         status: 500,
-        headers: { 
-          "Content-Type": "application/json", 
-          ...corsHeaders 
-        },
+        headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
   }

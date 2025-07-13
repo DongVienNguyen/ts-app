@@ -543,6 +543,24 @@ export type Database = {
         }
         Relationships: []
       }
+      system_config: {
+        Row: {
+          key: string
+          value: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          key: string
+          value?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          key?: string
+          value?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       system_errors: {
         Row: {
           created_at: string | null

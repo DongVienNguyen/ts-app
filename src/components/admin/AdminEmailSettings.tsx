@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Mail, TestTube, Settings, CheckCircle, AlertCircle, User, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from '@/integrations/supabase/client';
 import { performEmailTest } from '@/services/emailTestService';
 import { useSecureAuth } from '@/contexts/AuthContext';
@@ -24,11 +25,47 @@ export const AdminEmailSettings = () => {
   const [showCurrentEmail, setShowCurrentEmail] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [adminExists, setAdminExists] = useState(false);
+  const [emailProvider, setEmailProvider] = useState('resend');
+  const [isProviderLoading, setIsProviderLoading] = useState(true);
   const { user } = useSecureAuth();
 
   useEffect(() => {
     loadAdminEmail();
+    loadEmailProvider();
   }, []);
+
+  const loadEmailProvider = async () => {
+    setIsProviderLoading(true);
+    const { data, error } = await supabase
+      .from('system_config')
+      .select('value')
+      .eq('key', 'email_provider')
+      .single();
+    
+    if (data && typeof data.value === 'string') {
+      setEmailProvider(data.value);
+    } else if (error) {
+      console.error("Error loading email provider:", error);
+      // Default to resend if not found
+      setEmailProvider('resend');
+    }
+    setIsProviderLoading(false);
+  };
+
+  const handleProviderChange = async (newProvider: string) => {
+    setEmailProvider(newProvider);
+    const { error } = await supabase
+      .from('system_config')
+      .update({ value: newProvider })
+      .eq('key', 'email_provider');
+    
+    if (error) {
+      setMessage({ type: 'error', text: `Lỗi cập nhật nhà cung cấp: ${error.message}` });
+      loadEmailProvider(); // Revert on error
+    } else {
+      setMessage({ type: 'success', text: `Đã chuyển nhà cung cấp email sang ${newProvider}.` });
+    }
+  };
 
   const loadAdminEmail = async () => {
     setIsLoadingEmail(true);
@@ -302,6 +339,38 @@ export const AdminEmailSettings = () => {
                 )}
               </div>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Email Provider Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Settings className="w-5 h-5 text-blue-600" />
+            <span>Nhà cung cấp Email</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isProviderLoading ? (
+            <p>Đang tải cài đặt...</p>
+          ) : (
+            <RadioGroup value={emailProvider} onValueChange={handleProviderChange} className="space-y-2">
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="resend" id="resend" />
+                <Label htmlFor="resend" className="font-normal">
+                  Sử dụng Resend API
+                  <p className="text-xs text-muted-foreground">Gửi email thông qua dịch vụ Resend. Yêu cầu API Key.</p>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="outlook" id="outlook" />
+                <Label htmlFor="outlook" className="font-normal">
+                  Sử dụng Outlook (SMTP)
+                  <p className="text-xs text-muted-foreground">Gửi email trực tiếp từ tài khoản Outlook của bạn. Yêu cầu Email và App Password.</p>
+                </Label>
+              </div>
+            </RadioGroup>
           )}
         </CardContent>
       </Card>
