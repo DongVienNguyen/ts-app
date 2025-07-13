@@ -48,6 +48,26 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     await logSecurityEventRealTime(type, data, username);
   };
 
+  const fetchSecurityAlerts = useCallback(async () => {
+    console.log('🔄 [FETCH] Fetching security alerts...');
+    try {
+      const { data: alerts, error: alertsError } = await supabase
+        .from('system_alerts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10); // Limit to recent alerts
+
+      if (alertsError) {
+        console.error('❌ [FETCH] Error fetching security alerts:', alertsError);
+        return [];
+      }
+      return alerts || [];
+    } catch (err) {
+      console.error('❌ [FETCH] Unexpected error fetching security alerts:', err);
+      return [];
+    }
+  }, []);
+
   const refreshEvents = useCallback(async () => {
     if (!user || user.role !== 'admin') return;
     
@@ -140,11 +160,15 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
     const success = await systemHealthAlertService.acknowledgeAlert(alertId, user.username);
     if (success) {
       toast.success('Đã giải quyết cảnh báo thành công.');
-      setSecurityAlerts(prev => prev.filter(a => a.id !== alertId));
+      // Re-fetch alerts to ensure UI is in sync with DB
+      const updatedAlerts = await fetchSecurityAlerts();
+      if (isMountedRef.current) {
+        setSecurityAlerts(updatedAlerts);
+      }
     } else {
       toast.error('Không thể giải quyết cảnh báo.');
     }
-  }, [user]);
+  }, [user, fetchSecurityAlerts]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -172,14 +196,8 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
         if (!isMountedRef.current) return;
         setRecentEvents(initialEvents || []);
 
-        const { data: initialAlerts, error: alertsError } = await supabase
-          .from('system_alerts')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (alertsError) console.error('❌ [REALTIME] Error loading initial alerts:', alertsError);
-        else if (isMountedRef.current) setSecurityAlerts(initialAlerts || []);
+        const initialAlerts = await fetchSecurityAlerts();
+        if (isMountedRef.current) setSecurityAlerts(initialAlerts);
 
         if (!isMountedRef.current) return;
 
@@ -225,7 +243,7 @@ export const useRealTimeSecurityMonitoring = (user: AuthenticatedStaff | null) =
       if (channel) supabase.removeChannel(channel);
       if (alertsChannel) supabase.removeChannel(alertsChannel);
     };
-  }, [user, handleNewSecurityEvent, handleNewSystemAlert]);
+  }, [user, handleNewSecurityEvent, handleNewSystemAlert, fetchSecurityAlerts]);
 
   useEffect(() => {
     // Generate Threat Trends
