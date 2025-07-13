@@ -39,9 +39,6 @@ interface ResendClient {
   };
 }
 
-// @ts-ignore
-const { Resend } = await import("npm:resend@2.0.0");
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -195,11 +192,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Handle API check request first (doesn't need to/subject)
     if (type === 'api_check') {
+      console.log('🔍 Performing API check...');
       try {
         const resendApiKeyExists = !!Deno.env.get("RESEND_API_KEY");
         const outlookEmailExists = !!Deno.env.get("OUTLOOK_EMAIL");
         const outlookPasswordExists = !!Deno.env.get("OUTLOOK_APP_PASSWORD");
 
+        console.log('✅ API check completed successfully');
         return new Response(JSON.stringify({
           success: true,
           message: "API keys status checked.",
@@ -213,7 +212,7 @@ const handler = async (req: Request): Promise<Response> => {
           headers: { "Content-Type": "application/json", ...corsHeaders },
         });
       } catch (checkError) {
-        console.error('Error during API check:', checkError);
+        console.error('❌ Error during API check:', checkError);
         return new Response(JSON.stringify({
           success: false,
           error: 'Failed to check API status',
@@ -230,7 +229,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Missing required fields: 'to' and 'subject'");
     }
 
-    // Initialize Supabase client only when needed (not for api_check)
+    console.log('🔧 Initializing Supabase client...');
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -249,7 +248,7 @@ const handler = async (req: Request): Promise<Response> => {
         provider = config.value;
       }
     } catch (configError) {
-      console.log('Could not fetch email provider config, using default:', provider);
+      console.log('⚠️ Could not fetch email provider config, using default:', provider);
     }
     
     console.log(`📧 Using email provider: ${provider}`);
@@ -265,6 +264,7 @@ const handler = async (req: Request): Promise<Response> => {
     const recipients = Array.isArray(to) ? to : [to];
 
     if (provider === 'outlook') {
+      console.log('📧 Using Outlook provider...');
       const outlookEmail = Deno.env.get("OUTLOOK_EMAIL");
       const outlookPassword = Deno.env.get("OUTLOOK_APP_PASSWORD");
 
@@ -299,7 +299,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log("📧 Sending email via Outlook...");
       const info = await transporter.sendMail(mailOptions);
-      console.log("📧 Outlook send response:", info);
+      console.log("✅ Outlook send response:", info);
 
       return new Response(JSON.stringify({
         success: true,
@@ -311,10 +311,14 @@ const handler = async (req: Request): Promise<Response> => {
       });
 
     } else { // Default to Resend
+      console.log('📧 Using Resend provider...');
       if (!Deno.env.get("RESEND_API_KEY")) {
         throw new Error("RESEND_API_KEY not configured");
       }
 
+      console.log('🔧 Importing Resend...');
+      // @ts-ignore
+      const { Resend } = await import("npm:resend@2.0.0");
       const resend = new Resend(Deno.env.get("RESEND_API_KEY")) as ResendClient;
 
       const emailData: ResendEmail = {
@@ -334,6 +338,8 @@ const handler = async (req: Request): Promise<Response> => {
       if (emailResponse.error) {
         throw new Error(`Resend API error: ${emailResponse.error.message}`);
       }
+
+      console.log("✅ Resend send response:", emailResponse);
 
       return new Response(JSON.stringify({
         success: true,
