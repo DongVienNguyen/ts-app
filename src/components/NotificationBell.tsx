@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePageVisibility } from '@/hooks/usePageVisibility';
+import { useSystemNotificationStats } from '@/hooks/useSystemNotificationStats';
 
 interface Notification {
   id: string;
@@ -32,6 +33,7 @@ export function NotificationBell() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isVisible = usePageVisibility();
+  const { unprocessedCount: unprocessedSystemCount } = useSystemNotificationStats();
 
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
@@ -198,9 +200,16 @@ export function NotificationBell() {
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-900">Thông báo</h3>
-            <Button onClick={handleViewAllNotifications} variant="ghost" size="sm" className="text-xs text-green-600 hover:text-green-700 hover:bg-green-50">
-              Xem tất cả
-            </Button>
+            <div className="flex items-center gap-2">
+              {unprocessedSystemCount > 0 && (
+                <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600" title={`${unprocessedSystemCount} tin nhắn hệ thống chưa xử lý`}>
+                  {unprocessedSystemCount} Cần xử lý
+                </Badge>
+              )}
+              <Button onClick={handleViewAllNotifications} variant="ghost" size="sm" className="text-xs text-green-600 hover:text-green-700 hover:bg-green-50">
+                Xem tất cả
+              </Button>
+            </div>
           </div>
           <ScrollArea className="h-64">
             {isLoading ? (

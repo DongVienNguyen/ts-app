@@ -21,6 +21,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Tables } from '@/integrations/supabase/types';
 import { supabase } from '@/integrations/supabase/client';
+import { useSystemNotificationStats } from '@/hooks/useSystemNotificationStats';
 
 type Notification = Tables<'notifications'>;
 
@@ -52,6 +53,8 @@ export default function Notifications() {
     setSelectedConversations,
     deleteSelectedConversations,
   } = useNotifications();
+  
+  const { unprocessedCount: unprocessedSystemCount } = useSystemNotificationStats();
 
   const sendReadReceiptMutation = useMutation({
     mutationFn: async (notification: Notification) => {
@@ -81,14 +84,25 @@ export default function Notifications() {
         'acknowledged': '👍 Đã biết.',
         'processed': '✅ Đã xử lý.'
       };
-      const { error } = await supabase.from('notifications').insert({
+      const { error: replyError } = await supabase.from('notifications').insert({
         recipient_username: originalSender,
         title: `Phản hồi nhanh: ${notification.title}`,
         message: actionMessages[action] || action,
         notification_type: 'quick_reply',
         related_data: { original_notification_id: notification.id, replied_by: user.username, sender: user.username, action }
       });
-      if (error) throw error;
+      if (replyError) throw replyError;
+
+      if (action === 'processed') {
+        const currentRelatedData = (notification.related_data || {}) as Record<string, any>;
+        const updatedRelatedData = { ...currentRelatedData, user_action: 'processed' };
+        const { error: updateError } = await supabase
+          .from('notifications')
+          .update({ related_data: updatedRelatedData })
+          .eq('id', notification.id);
+        if (updateError) console.error('Lỗi cập nhật trạng thái thông báo:', updateError);
+      }
+
       return { notification, action };
     },
     onSuccess: ({ notification, action }) => {
@@ -97,6 +111,7 @@ export default function Notifications() {
         sendReadReceiptMutation.mutate(notification);
       }
       queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['system_notification_stats'] });
       toast.success(`Đã gửi phản hồi nhanh: "${action === 'acknowledged' ? 'Đã biết' : 'Đã xử lý'}"`);
     },
     onError: (error: any) => toast.error(`Lỗi gửi phản hồi: ${error.message}`),
@@ -227,6 +242,11 @@ export default function Notifications() {
                         <h2 className="text-lg font-semibold text-gray-800 truncate">{correspondent}</h2>
                         {unreadInConv > 0 && (
                           <Badge variant="destructive" className="bg-green-500 hover:bg-green-600 flex-shrink-0">{unreadInConv}</Badge>
+                        )}
+                        {correspondent === 'Hệ thống' && unprocessedSystemCount > 0 && (
+                          <Badge variant="secondary" className="bg-yellow-500 text-white hover:bg-yellow-600 flex-shrink-0" title={`${unprocessedSystemCount} tin nhắn chưa xử lý`}>
+                            {unprocessedSystemCount}
+                          </Badge>
                         )}
                       </div>
                       <p className="text-sm text-gray-500 mt-1 truncate pr-2">
