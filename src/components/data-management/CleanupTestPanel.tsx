@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Play, Settings, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Play, Settings, AlertTriangle, CheckCircle, XCircle, TestTube, Database } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface CleanupResult {
@@ -31,8 +32,172 @@ export function CleanupTestPanel() {
   const [isRunningCleanup, setIsRunningCleanup] = useState(false);
   const [isSettingUpPolicies, setIsSettingUpPolicies] = useState(false);
   const [isResettingPolicies, setIsResettingPolicies] = useState(false);
+  const [isCreatingTestData, setIsCreatingTestData] = useState(false);
+  const [isRunningTestCleanup, setIsRunningTestCleanup] = useState(false);
+  const [testDaysOld, setTestDaysOld] = useState('7');
   const [cleanupResults, setCleanupResults] = useState<CleanupResponse | null>(null);
   const [setupResults, setSetupResults] = useState<any>(null);
+
+  // Tạo dữ liệu test cũ
+  const createTestData = async () => {
+    setIsCreatingTestData(true);
+    
+    try {
+      const daysOld = parseInt(testDaysOld);
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - daysOld);
+      const oldDateISO = oldDate.toISOString();
+
+      // Tạo test data cho các bảng chính
+      const testTables = [
+        'notifications',
+        'system_metrics', 
+        'system_alerts',
+        'security_events',
+        'sent_asset_reminders'
+      ];
+
+      let totalCreated = 0;
+
+      for (const tableName of testTables) {
+        try {
+          let testData: any[] = [];
+
+          switch (tableName) {
+            case 'notifications':
+              testData = Array.from({ length: 5 }, (_, i) => ({
+                recipient_username: 'test_user',
+                title: `Test Notification ${i + 1}`,
+                message: `This is a test notification created for cleanup testing`,
+                notification_type: 'test',
+                created_at: oldDateISO
+              }));
+              break;
+
+            case 'system_metrics':
+              testData = Array.from({ length: 5 }, (_, i) => ({
+                metric_type: 'test',
+                metric_name: `test_metric_${i + 1}`,
+                metric_value: Math.random() * 100,
+                metric_unit: 'count',
+                created_at: oldDateISO
+              }));
+              break;
+
+            case 'system_alerts':
+              testData = Array.from({ length: 3 }, (_, i) => ({
+                alert_id: `test_alert_${Date.now()}_${i}`,
+                rule_id: 'test_rule',
+                rule_name: 'Test Alert Rule',
+                metric: 'test_metric',
+                current_value: 50,
+                threshold: 100,
+                severity: 'low',
+                message: `Test alert ${i + 1} for cleanup testing`,
+                created_at: oldDateISO
+              }));
+              break;
+
+            case 'security_events':
+              testData = Array.from({ length: 3 }, (_, i) => ({
+                event_type: 'test_event',
+                username: 'test_user',
+                event_data: { test: true, index: i + 1 },
+                user_agent: 'Test Agent',
+                ip_address: '127.0.0.1',
+                created_at: oldDateISO
+              }));
+              break;
+
+            case 'sent_asset_reminders':
+              testData = Array.from({ length: 3 }, (_, i) => ({
+                ten_ts: `Test Asset ${i + 1}`,
+                ngay_den_han: '2024-01-01',
+                cbqln: 'Test CBQLN',
+                cbkh: 'Test CBKH',
+                is_sent: true,
+                sent_date: oldDate.toISOString().split('T')[0],
+                created_at: oldDateISO
+              }));
+              break;
+          }
+
+          if (testData.length > 0) {
+            const { data, error } = await supabase
+              .from(tableName)
+              .insert(testData)
+              .select('id');
+
+            if (error) {
+              console.error(`Error creating test data for ${tableName}:`, error);
+            } else {
+              totalCreated += data?.length || 0;
+              console.log(`Created ${data?.length || 0} test records in ${tableName}`);
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing ${tableName}:`, error);
+        }
+      }
+
+      toast.success(`Đã tạo ${totalCreated} bản ghi test cũ ${daysOld} ngày!`);
+      
+      // Refresh table counts
+      queryClient.invalidateQueries({ queryKey: ['logTableCounts'] });
+
+    } catch (error: any) {
+      console.error('Error creating test data:', error);
+      toast.error(`Lỗi tạo dữ liệu test: ${error.message}`);
+    } finally {
+      setIsCreatingTestData(false);
+    }
+  };
+
+  // Chạy cleanup với thời gian test ngắn
+  const runTestCleanup = async () => {
+    setIsRunningTestCleanup(true);
+    setCleanupResults(null);
+    
+    try {
+      // Tạm thời cập nhật policies với thời gian ngắn để test
+      const testRetentionDays = parseInt(testDaysOld) - 1; // Ngắn hơn 1 ngày so với dữ liệu test
+      
+      const testTables = ['notifications', 'system_metrics', 'system_alerts', 'security_events', 'sent_asset_reminders'];
+      
+      // Cập nhật policies tạm thời
+      for (const tableName of testTables) {
+        await supabase.from('log_cleanup_policies').upsert({
+          table_name: tableName,
+          is_enabled: true,
+          retention_days: testRetentionDays
+        }, { onConflict: 'table_name' });
+      }
+
+      // Chạy cleanup
+      const { data, error } = await supabase.functions.invoke('auto-cleanup-logs');
+      
+      if (error) {
+        throw error;
+      }
+      
+      setCleanupResults(data);
+      
+      if (data.success) {
+        toast.success(`Test cleanup hoàn tất! Đã xóa ${data.total_deleted} bản ghi.`);
+      } else {
+        toast.error(`Test cleanup thất bại: ${data.message}`);
+      }
+
+      // Refresh table counts
+      queryClient.invalidateQueries({ queryKey: ['logTableCounts'] });
+
+    } catch (error: any) {
+      console.error('Test cleanup error:', error);
+      toast.error(`Lỗi khi chạy test cleanup: ${error.message}`);
+    } finally {
+      setIsRunningTestCleanup(false);
+    }
+  };
 
   const runCleanup = async () => {
     setIsRunningCleanup(true);
@@ -188,6 +353,75 @@ export function CleanupTestPanel() {
         </CardContent>
       </Card>
 
+      {/* Test Section */}
+      <Card className="border-blue-200 bg-blue-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-700">
+            <TestTube className="h-5 w-5" />
+            Test Cleanup với dữ liệu giả lập
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">Tạo dữ liệu cũ:</label>
+              <Select value={testDaysOld} onValueChange={setTestDaysOld}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 ngày</SelectItem>
+                  <SelectItem value="3">3 ngày</SelectItem>
+                  <SelectItem value="7">7 ngày</SelectItem>
+                  <SelectItem value="15">15 ngày</SelectItem>
+                  <SelectItem value="30">30 ngày</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-4">
+            <Button 
+              onClick={createTestData} 
+              disabled={isCreatingTestData}
+              variant="outline"
+              className="bg-green-50 hover:bg-green-100 border-green-300"
+            >
+              {isCreatingTestData ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Database className="h-4 w-4 mr-2" />
+              )}
+              Tạo dữ liệu test cũ {testDaysOld} ngày
+            </Button>
+            
+            <Button 
+              onClick={runTestCleanup} 
+              disabled={isRunningTestCleanup}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isRunningTestCleanup ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <TestTube className="h-4 w-4 mr-2" />
+              )}
+              Chạy Test Cleanup
+            </Button>
+          </div>
+
+          <Alert className="bg-blue-100 border-blue-300">
+            <TestTube className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Cách test:</strong>
+              <br />1. Chọn số ngày cũ (ví dụ: 7 ngày)
+              <br />2. Nhấn "Tạo dữ liệu test cũ" để tạo dữ liệu với ngày tạo 7 ngày trước
+              <br />3. Nhấn "Chạy Test Cleanup" - hệ thống sẽ tạm thời đặt retention = 6 ngày để xóa dữ liệu 7 ngày
+              <br />4. Xem kết quả - bây giờ sẽ có dữ liệu bị xóa thực tế!
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+
       {setupResults && (
         <Card>
           <CardHeader>
@@ -266,7 +500,7 @@ export function CleanupTestPanel() {
                         
                         {result.success ? (
                           <div className="text-sm text-gray-600 space-y-1">
-                            <p>Đã xóa: {result.deleted_count} bản ghi</p>
+                            <p>Đã xóa: <strong className={result.deleted_count > 0 ? "text-red-600" : ""}>{result.deleted_count}</strong> bản ghi</p>
                             {result.retention_days && (
                               <p>Thời gian lưu trữ: {result.retention_days} ngày</p>
                             )}
