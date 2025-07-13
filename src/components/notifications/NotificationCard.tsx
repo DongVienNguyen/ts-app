@@ -1,17 +1,20 @@
+import { useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Check, Trash2, Reply, Package, ClipboardList, AlertTriangle, Bell, MessageSquare, ThumbsUp, CheckCircle } from 'lucide-react';
+import { Check, Trash2, Reply, Package, ClipboardList, AlertTriangle, Bell, MessageSquare, ThumbsUp, CheckCircle, CheckCheck } from 'lucide-react';
 import { Tables } from '@/integrations/supabase/types';
 import { formatRelativeTime } from '@/utils/dateUtils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 
 type Notification = Tables<'notifications'>;
 
 interface NotificationCardProps {
   notification: Notification;
   onMarkAsRead: (notification: Notification) => void;
+  onMarkAsSeen: (id: string) => void;
   onDelete: (id: string) => void;
   onReply: (notification: Notification) => void;
   onQuickAction: (notification: Notification, action: string) => void;
@@ -29,6 +32,7 @@ const getNotificationIcon = (type: string) => {
     case 'reply': return <MessageSquare {...iconProps} />;
     case 'quick_reply': return <ThumbsUp {...iconProps} />;
     case 'read_receipt': return <CheckCircle {...iconProps} />;
+    case 'seen_receipt': return <CheckCheck {...iconProps} />;
     default: return <Bell {...iconProps} />;
   }
 };
@@ -41,13 +45,15 @@ const getNotificationIconColor = (type: string) => {
     case 'reply': return 'text-purple-500 bg-purple-100';
     case 'quick_reply': return 'text-teal-500 bg-teal-100';
     case 'read_receipt': return 'text-gray-500 bg-gray-100';
+    case 'seen_receipt': return 'text-indigo-500 bg-indigo-100';
     default: return 'text-gray-500 bg-gray-100';
   }
 };
 
 export function NotificationCard({ 
   notification, 
-  onMarkAsRead, 
+  onMarkAsRead,
+  onMarkAsSeen,
   onDelete, 
   onReply,
   onQuickAction,
@@ -55,8 +61,16 @@ export function NotificationCard({
   isSelected,
   onToggleSelect
 }: NotificationCardProps) {
+  const { ref, isIntersecting } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.5 });
+
+  useEffect(() => {
+    if (isIntersecting && !notification.is_seen) {
+      onMarkAsSeen(notification.id);
+    }
+  }, [isIntersecting, notification.is_seen, notification.id, onMarkAsSeen]);
+
   return (
-    <div className="flex items-start gap-3">
+    <div ref={ref} className="flex items-start gap-3">
       <div className="pt-5 pl-1">
         <Checkbox
           checked={isSelected}
@@ -126,7 +140,7 @@ export function NotificationCard({
           </p>
         </CardContent>
 
-        {notification.notification_type !== 'read_receipt' && (
+        {notification.notification_type !== 'read_receipt' && notification.notification_type !== 'seen_receipt' && (
           <CardFooter className="pl-14 pb-3 flex justify-end space-x-2">
             <Button variant="outline" size="sm" onClick={() => onQuickAction(notification, 'acknowledged')}>
               <ThumbsUp className="h-4 w-4 mr-2" />

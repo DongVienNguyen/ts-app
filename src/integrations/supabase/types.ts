@@ -224,30 +224,36 @@ export type Database = {
           created_at: string | null
           id: string
           is_read: boolean | null
+          is_seen: boolean | null
           message: string
           notification_type: string
           recipient_username: string
           related_data: Json | null
+          seen_at: string | null
           title: string
         }
         Insert: {
           created_at?: string | null
           id?: string
           is_read?: boolean | null
+          is_seen?: boolean | null
           message: string
           notification_type: string
           recipient_username: string
           related_data?: Json | null
+          seen_at?: string | null
           title: string
         }
         Update: {
           created_at?: string | null
           id?: string
           is_read?: boolean | null
+          is_seen?: boolean | null
           message?: string
           notification_type?: string
           recipient_username?: string
           related_data?: Json | null
+          seen_at?: string | null
           title?: string
         }
         Relationships: []

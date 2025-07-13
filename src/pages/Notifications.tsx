@@ -25,6 +25,7 @@ export default function Notifications() {
     isQuickActioning,
     refetch,
     markAsRead,
+    markAsSeen,
     deleteAllNotifications,
     handleReply,
     handleSendReply,
@@ -111,6 +112,7 @@ export default function Notifications() {
                         key={notification.id}
                         notification={notification}
                         onMarkAsRead={markAsRead}
+                        onMarkAsSeen={markAsSeen}
                         onDelete={deleteNotification}
                         onReply={handleReply}
                         onQuickAction={handleQuickAction}

@@ -81,6 +81,48 @@ export function useNotifications() {
 
   const notifications = useMemo(() => data?.pages.flat() ?? [], [data]);
 
+  const sendSeenReceiptMutation = useMutation({
+    mutationFn: async (notification: Notification) => {
+      const relatedData = notification.related_data as NotificationRelatedData | null;
+      const originalSender = relatedData?.sender;
+      const recipient = user?.username;
+
+      if (!originalSender || !recipient || notification.notification_type === 'read_receipt' || notification.notification_type === 'seen_receipt') {
+        return null;
+      }
+
+      const { error } = await supabase.from('notifications').insert({
+        recipient_username: originalSender,
+        title: `Đã xem: ${notification.title.substring(0, 40)}...`,
+        message: `${recipient} đã xem thông báo của bạn.`,
+        notification_type: 'seen_receipt',
+        related_data: { original_notification_id: notification.id }
+      });
+      if (error) throw error;
+    },
+    onError: (error: any) => console.error('Error sending seen receipt:', error),
+  });
+
+  const markAsSeenMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const { data, error } = await supabase
+        .from('notifications')
+        .update({ is_seen: true, seen_at: new Date().toISOString() })
+        .eq('id', notificationId)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (notification) => {
+      if (notification) {
+        sendSeenReceiptMutation.mutate(notification);
+        // No toast, this is a background action
+      }
+    },
+    onError: (error: any) => console.error('Error marking as seen:', error),
+  });
+
   const sendReadReceiptMutation = useMutation({
     mutationFn: async (notification: Notification) => {
       const relatedData = notification.related_data as NotificationRelatedData | null;
@@ -93,16 +135,14 @@ export function useNotifications() {
 
       const { error } = await supabase.from('notifications').insert({
         recipient_username: originalSender,
-        title: `Đã xem: ${notification.title.substring(0, 50)}`,
-        message: `${recipient} đã xem thông báo của bạn.`,
+        title: `Đã đọc: ${notification.title.substring(0, 50)}`,
+        message: `${recipient} đã đọc thông báo của bạn.`,
         notification_type: 'read_receipt',
         related_data: { original_notification_id: notification.id }
       });
       if (error) throw error;
     },
-    onError: (error: any) => {
-      console.error('Error sending read receipt:', error);
-    }
+    onError: (error: any) => console.error('Error sending read receipt:', error),
   });
 
   const markAsReadMutation = useMutation({
@@ -116,9 +156,7 @@ export function useNotifications() {
       toast.success('Đã đánh dấu đã đọc');
       if (notification) sendReadReceiptMutation.mutate(notification);
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Không thể đánh dấu đã đọc');
-    }
+    onError: (error: any) => toast.error(error.message || 'Không thể đánh dấu đã đọc'),
   });
 
   const markAllAsReadMutation = useMutation({
@@ -283,6 +321,7 @@ export function useNotifications() {
     selectedIds, selectedCount, allVisibleSelected,
     toggleSelection, toggleSelectAll,
     markAsRead: markAsReadMutation.mutate,
+    markAsSeen: markAsSeenMutation.mutate,
     markAllAsRead: markAllAsReadMutation.mutate,
     deleteNotification: deleteNotificationMutation.mutate,
     deleteAllNotifications: deleteAllNotificationsMutation.mutate,
