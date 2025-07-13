@@ -34,6 +34,7 @@ export function CleanupTestPanel() {
   const [isResettingPolicies, setIsResettingPolicies] = useState(false);
   const [isCreatingTestData, setIsCreatingTestData] = useState(false);
   const [isRunningTestCleanup, setIsRunningTestCleanup] = useState(false);
+  const [isCleaningTestData, setIsCleaningTestData] = useState(false);
   const [testDaysOld, setTestDaysOld] = useState('7');
   const [cleanupResults, setCleanupResults] = useState<CleanupResponse | null>(null);
   const [setupResults, setSetupResults] = useState<any>(null);
@@ -290,6 +291,89 @@ export function CleanupTestPanel() {
     }
   };
 
+  // Xóa tất cả dữ liệu test
+  const cleanTestData = async () => {
+    setIsCleaningTestData(true);
+    
+    try {
+      const testTables = [
+        'notifications',
+        'system_metrics', 
+        'system_alerts',
+        'security_events',
+        'sent_asset_reminders'
+      ];
+
+      let totalDeleted = 0;
+
+      for (const tableName of testTables) {
+        try {
+          let deleteCondition: any = {};
+
+          switch (tableName) {
+            case 'notifications':
+              deleteCondition = { notification_type: 'test' };
+              break;
+            case 'system_metrics':
+              deleteCondition = { metric_type: 'test' };
+              break;
+            case 'system_alerts':
+              deleteCondition = { rule_id: 'test_rule' };
+              break;
+            case 'security_events':
+              deleteCondition = { event_type: 'test_event' };
+              break;
+            case 'sent_asset_reminders':
+              // Xóa những bản ghi có tên bắt đầu bằng "Test Asset"
+              const { data: testReminders, error: fetchError } = await supabase
+                .from(tableName)
+                .select('id')
+                .like('ten_ts', 'Test Asset%');
+              
+              if (!fetchError && testReminders && testReminders.length > 0) {
+                const { data: deletedReminders, error: deleteError } = await supabase
+                  .from(tableName)
+                  .delete()
+                  .in('id', testReminders.map(r => r.id))
+                  .select('id');
+                
+                if (!deleteError) {
+                  totalDeleted += deletedReminders?.length || 0;
+                }
+              }
+              continue; // Skip the general delete below
+          }
+
+          const { data: deletedData, error } = await supabase
+            .from(tableName)
+            .delete()
+            .match(deleteCondition)
+            .select('id');
+
+          if (error) {
+            console.error(`Error deleting test data from ${tableName}:`, error);
+          } else {
+            totalDeleted += deletedData?.length || 0;
+            console.log(`Deleted ${deletedData?.length || 0} test records from ${tableName}`);
+          }
+        } catch (error) {
+          console.error(`Error processing ${tableName}:`, error);
+        }
+      }
+
+      toast.success(`Đã xóa ${totalDeleted} bản ghi test!`);
+      
+      // Refresh table counts
+      queryClient.invalidateQueries({ queryKey: ['logTableCounts'] });
+
+    } catch (error: any) {
+      console.error('Error cleaning test data:', error);
+      toast.error(`Lỗi xóa dữ liệu test: ${error.message}`);
+    } finally {
+      setIsCleaningTestData(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -406,6 +490,20 @@ export function CleanupTestPanel() {
                 <TestTube className="h-4 w-4 mr-2" />
               )}
               Chạy Test Cleanup
+            </Button>
+
+            <Button 
+              onClick={cleanTestData} 
+              disabled={isCleaningTestData}
+              variant="outline"
+              className="bg-red-50 hover:bg-red-100 border-red-300"
+            >
+              {isCleaningTestData ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <XCircle className="h-4 w-4 mr-2" />
+              )}
+              Xóa dữ liệu test
             </Button>
           </div>
 
