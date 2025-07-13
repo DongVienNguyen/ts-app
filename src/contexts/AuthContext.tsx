@@ -40,7 +40,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           await updateSupabaseAuthToken(token);
 
           setUser(storedUser);
-          healthCheckService.onUserLogin();
           console.log('✅ [AUTH] Session restored for user:', storedUser.username);
         } else {
           console.log('🔎 [AUTH] No valid session found. Clearing session.');
@@ -49,7 +48,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.removeItem('auth_token');
           localStorage.removeItem('auth_login_time');
           setUser(null);
-          healthCheckService.onUserLogout();
         }
       } catch (error) {
         console.error('❌ [AUTH] Error restoring session, clearing session.', error);
@@ -84,7 +82,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('auth_login_time', Date.now().toString());
         
         setUser(authenticatedUser);
-        healthCheckService.onUserLogin();
         
         toast.success("Đăng nhập thành công!", { id: 'login-success', duration: 3000 });
         
@@ -113,7 +110,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('auth_login_time');
     
     setUser(null);
-    healthCheckService.onUserLogout();
     
     toast.success('Đã đăng xuất');
     setLoading(false);

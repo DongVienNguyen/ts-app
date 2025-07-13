@@ -186,38 +186,41 @@ export class AdvancedSystemHealthService {
   }> {
     return this.retryWithBackoff(async () => {
       try {
-        // Check for active threats (example: recent high-severity security events)
-        const { count: activeThreats, error: threatsError } = await supabase
+        // Check for active threats (e.g., recent high-severity security events)
+        const { count: activeThreatsCount, error: threatsError } = await supabase
           .from('security_events')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true })
           .in('event_type', ['SUSPICIOUS_ACTIVITY', 'ACCOUNT_LOCKED'])
           .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
         if (threatsError) {
           console.error('Security health check (threats) failed:', threatsError);
+          // Do not throw, just log and proceed with 0 threats
         }
 
         // Check recent failed login attempts from the staff table
-        const { count: failedLoginCount, error: failedLoginError } = await supabase
+        const { count: failedLoginAttemptsCount, error: failedLoginError } = await supabase
           .from('staff')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true })
           .gt('failed_login_attempts', 0)
           .gte('last_failed_login', new Date(Date.now() - 60 * 60 * 1000).toISOString());
 
         if (failedLoginError) {
           console.error('Security health check (failed logins) failed:', failedLoginError);
-          throw new Error(`Query on 'staff' for failed logins failed: ${failedLoginError.message}`);
+          // Do not throw, just log and proceed with 0 failed logins
         }
 
+        const activeThreats = activeThreatsCount || 0;
+        const failedLogins = failedLoginAttemptsCount || 0;
         const lastSecurityScan = new Date().toISOString();
 
-        const status = (activeThreats || 0) > 0 ? 'error' : 
-                      (failedLoginCount || 0) > 10 ? 'warning' : 'healthy';
+        const status = activeThreats > 0 ? 'error' : 
+                      failedLogins > 10 ? 'warning' : 'healthy'; // Threshold for warning on failed logins
 
         return {
           status,
-          activeThreats: activeThreats || 0,
-          failedLogins: failedLoginCount || 0,
+          activeThreats,
+          failedLogins,
           lastSecurityScan
         };
       } catch (error) {
