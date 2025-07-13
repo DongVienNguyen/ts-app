@@ -1,5 +1,8 @@
 import { isAuthenticated, safeDbOperation } from '@/utils/supabaseAuth';
 import { updateSystemStatus, logSystemMetric, SystemStatus } from '@/utils/errorTracking';
+import { emailService } from '@/services/emailService';
+import { notificationService } from '@/services/notificationService';
+import { supabase } from '@/integrations/supabase/client';
 
 export class HealthCheckService {
   private static instance: HealthCheckService;
@@ -48,11 +51,47 @@ export class HealthCheckService {
     try {
       await Promise.allSettled([
         this.checkDatabaseHealth(),
+        this.checkApiHealth(),
+        emailService.testEmailService(),
+        notificationService.testPushNotificationService(),
         this.collectBasicMetrics()
       ]);
       console.log('✅ Health checks completed');
     } catch (error) {
       console.error('❌ Error during health checks:', error);
+    }
+  }
+
+  private async checkApiHealth() {
+    const startTime = performance.now();
+    try {
+      const { error } = await supabase.functions.invoke('log-security-event', {
+        body: { eventType: 'HEALTH_CHECK', data: { source: 'HealthCheckService' } }
+      });
+
+      const responseTime = Math.round(performance.now() - startTime);
+
+      if (!error) {
+        await updateSystemStatus({
+          service_name: 'api',
+          status: 'online',
+          response_time_ms: responseTime,
+          uptime_percentage: 100,
+          status_data: { lastCheck: new Date().toISOString(), responseTime, result: 'success' }
+        });
+      } else {
+        throw error;
+      }
+    } catch (error) {
+      const responseTime = Math.round(performance.now() - startTime);
+      await updateSystemStatus({
+        service_name: 'api',
+        status: 'offline',
+        response_time_ms: responseTime,
+        uptime_percentage: 0,
+        status_data: { lastCheck: new Date().toISOString(), result: 'failed', error: error instanceof Error ? error.message : 'Unknown error' }
+      });
+      console.warn('⚠️ API health check failed:', error);
     }
   }
 
@@ -149,9 +188,9 @@ export class HealthCheckService {
         const { data, error } = await client
           .from('system_status')
           .select('*')
-          .in('service_name', ['database'])
+          .in('service_name', ['database', 'api', 'email', 'push_notification'])
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(40);
 
         if (error) throw error;
         return data;

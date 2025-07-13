@@ -1,6 +1,6 @@
 import Layout from '@/components/Layout';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Shield, TestTube, BookOpen, CheckCircle, ArrowRight, Activity, BarChart3, Trash2, Users } from 'lucide-react';
+import { AlertCircle, Shield, Bell, ArrowRight } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { SecurityOverview } from '@/components/SecurityOverview';
@@ -8,15 +8,12 @@ import { SecurityActionsPanel } from '@/components/security/SecurityActionsPanel
 import { LiveActivityFeed } from '@/components/security/LiveActivityFeed';
 import { ThreatAnalysisCard } from '@/components/security/ThreatAnalysisCard';
 import { TestErrorGeneratorTab } from '@/components/security/TestErrorGeneratorTab';
-import { SecurityDocumentation } from '@/components/SecurityDocumentation';
-import { SecurityImplementationSummary } from '@/components/SecurityImplementationSummary';
-import { SecurityWorkflowDemo } from '@/components/SecurityWorkflowDemo';
-import { RealTimeSecurityDashboard } from '@/components/RealTimeSecurityDashboard';
-import { LogManagementTab } from '@/components/data-management/LogManagementTab';
 import { UserManagementTab } from '@/components/security/UserManagementTab';
 import { useState } from 'react';
 import { useRealTimeSecurityMonitoring } from '@/hooks/useRealTimeSecurityMonitoring';
-import { SecurityAlerts } from '@/components/security/SecurityAlerts'; // Import SecurityAlerts
+import { SecurityAlerts } from '@/components/security/SecurityAlerts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const SecurityMonitor = () => {
   const { user } = useSecureAuth();
@@ -81,21 +78,49 @@ const SecurityMonitor = () => {
             <TabsTrigger value="test_errors">Tạo Lỗi Test</TabsTrigger>
           </TabsList>
           <TabsContent value="overview" className="mt-6">
-            <div className="grid gap-6 lg:grid-cols-3">
-              <SecurityOverview />
-              <SecurityActionsPanel />
-              <LiveActivityFeed
-                events={recentEvents}
-                isRealTimeEnabled={true} // Assuming real-time is always enabled here
-                isLoading={isSecurityDataLoading}
-                isRefreshing={isRefreshing}
-                onRefresh={refreshEvents}
-                forceUpdateCounter={forceUpdateCounter}
-              />
-              <ThreatAnalysisCard
-                threatTrends={threatTrends}
-                isLoading={isSecurityDataLoading}
-              />
+            <div className="space-y-6">
+              <Card
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => setActiveTab('alerts')}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-base font-medium flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-red-500" />
+                    Cảnh báo Bảo mật
+                  </CardTitle>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  {isSecurityDataLoading ? (
+                    <Skeleton className="h-6 w-1/2" />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Có <span className={`font-bold text-lg ${securityAlerts.length > 0 ? 'text-red-500' : 'text-green-600'}`}>{securityAlerts.length}</span> cảnh báo đang hoạt động. Nhấn để xem chi tiết.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2 space-y-6">
+                  <SecurityOverview />
+                  <LiveActivityFeed
+                    events={recentEvents}
+                    isRealTimeEnabled={true}
+                    isLoading={isSecurityDataLoading}
+                    isRefreshing={isRefreshing}
+                    onRefresh={refreshEvents}
+                    forceUpdateCounter={forceUpdateCounter}
+                  />
+                </div>
+                <div className="lg:col-span-1 space-y-6">
+                  <SecurityActionsPanel />
+                  <ThreatAnalysisCard
+                    threatTrends={threatTrends}
+                    isLoading={isSecurityDataLoading}
+                  />
+                </div>
+              </div>
             </div>
           </TabsContent>
           <TabsContent value="alerts" className="mt-6">

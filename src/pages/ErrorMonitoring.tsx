@@ -6,11 +6,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useErrorMonitoringData } from '@/hooks/useErrorMonitoringData';
 import { ErrorMonitoringDashboard } from '@/components/ErrorMonitoringDashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AdminEmailSettings } from '@/components/admin/AdminEmailSettings';
-import { PWATestPanel } from '@/components/PWATestPanel';
-import PushNotificationTester from '@/components/PushNotificationTester';
 import { Button } from '@/components/ui/button';
 import { RealTimeStatusIndicator } from '@/components/error-monitoring/RealTimeStatusIndicator';
+import { AdminToolsPanel } from '@/components/admin/AdminToolsPanel';
 
 const ErrorMonitoring = () => {
   const { user } = useAuth();
@@ -85,11 +83,7 @@ const ErrorMonitoring = () => {
             />
           </TabsContent>
           <TabsContent value="admin-tools" className="mt-6">
-            <div className="space-y-6">
-              <AdminEmailSettings />
-              <PWATestPanel />
-              <PushNotificationTester />
-            </div>
+            <AdminToolsPanel />
           </TabsContent>
         </Tabs>
       </div>
