@@ -7,7 +7,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Download, Upload, Clock, ListTodo, BarChart, Activity, Settings } from 'lucide-react';
+import { AlertCircle, Download, Upload, Clock, Settings, BarChart, Activity, Shield, Database, HardDrive } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import BackupHeader from '@/components/backup/BackupHeader';
 import BackupStatusCard from '@/components/backup/BackupStatusCard';
 import BackupActionsCard from '@/components/backup/BackupActionsCard';
@@ -30,7 +32,7 @@ import { supabase } from '@/integrations/supabase/client';
 const SystemBackup: React.FC = () => {
   const {
     backupStatus,
-    restoreStatus, // Get restoreStatus from the hook
+    restoreStatus,
     backupItems,
     backupHistory,
     canAccess,
@@ -112,14 +114,25 @@ const SystemBackup: React.FC = () => {
     alert('Backup cancellation is not yet implemented. Please wait for completion.');
   };
 
+  // Calculate backup metrics for header
+  const getBackupMetrics = () => {
+    const totalBackups = backupHistory?.length || 0;
+    const successfulBackups = backupHistory?.filter(b => b.success).length || 0;
+    const successRate = totalBackups > 0 ? Math.round((successfulBackups / totalBackups) * 100) : 0;
+    const lastBackupStatus = backupHistory?.[0]?.success ? 'success' : 'failed';
+    const isRunning = backupStatus.isRunning || restoreStatus.isRunning;
+    
+    return { totalBackups, successfulBackups, successRate, lastBackupStatus, isRunning };
+  };
+
+  const metrics = getBackupMetrics();
+
   const tabs = [
-    { value: 'backup', label: 'Backup', icon: Download, disabled: backupStatus.isRunning },
-    { value: 'restore', label: 'Restore', icon: Upload, disabled: backupStatus.isRunning || restoreStatus.isRunning },
-    { value: 'schedule', label: 'Schedule', icon: Clock, disabled: false },
-    { value: 'management', label: 'Management', icon: ListTodo, disabled: false },
-    { value: 'analytics', label: 'Analytics', icon: BarChart, disabled: false },
-    { value: 'monitoring', label: 'Monitoring', icon: Activity, disabled: false },
-    { value: 'settings', label: 'Settings', icon: Settings, disabled: false },
+    { value: 'backup', label: 'Backup & Restore', icon: Download, disabled: false },
+    { value: 'schedule', label: 'Lập lịch', icon: Clock, disabled: false },
+    { value: 'management', label: 'Quản lý', icon: Settings, disabled: false },
+    { value: 'analytics', label: 'Phân tích', icon: BarChart, disabled: false },
+    { value: 'monitoring', label: 'Giám sát', icon: Activity, disabled: false },
   ];
 
   const renderContent = () => {
@@ -128,91 +141,142 @@ const SystemBackup: React.FC = () => {
       case 'backup':
         return (
           <div className={contentClass}>
-            <BackupStatusCard backupStatus={backupStatus} onToggleAutoBackup={handleToggleAutoBackup} />
-            <BackupActionsCard isRunning={backupStatus.isRunning} progress={backupStatus.progress} currentStep={backupStatus.currentStep} onPerformBackup={handlePerformBackup} onRefreshStatus={handleRefreshStatus} />
-            <BackupComponentsCard backupItems={backupItems || []} />
-            <BackupInfoAlert />
-          </div>
-        );
-      case 'restore':
-        return (
-          <div className={contentClass}>
-            {/* RestoreProgressCard is now redundant as RestoreActionsCard will show progress */}
-            {/* {restoreStatus.isRunning && (
-              <BackupProgressCard isRunning={restoreStatus.isRunning} progress={restoreStatus.progress} currentStep={restoreStatus.currentStep} estimatedTimeRemaining={restoreStatus.estimatedTimeRemaining} />
-            )} */}
-            <RestorePreviewCard selectedFile={selectedRestoreFile} onFileSelected={setSelectedRestoreFile} />
-            <RestoreActionsCard onRestore={handlePerformRestore} restoreStatus={restoreStatus} /> {/* Pass restoreStatus */}
-            {restoreStatus.lastRestore && (
-              <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-800">
-                  <strong>Last Restore:</strong> {new Date(restoreStatus.lastRestore).toLocaleString('vi-VN')}
-                </p>
-                {restoreStatus.error && (
-                  <p className="text-sm text-red-600 mt-1">
-                    <strong>Last Error:</strong> {restoreStatus.error}
-                  </p>
-                )}
+            {/* Quick Actions Section */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Download className="h-5 w-5 text-blue-500" />
+                <h3 className="text-lg font-semibold text-gray-900">Tác vụ Backup & Restore</h3>
               </div>
-            )}
+              <div className="grid gap-6 lg:grid-cols-2">
+                <BackupActionsCard 
+                  isRunning={backupStatus.isRunning} 
+                  progress={backupStatus.progress} 
+                  currentStep={backupStatus.currentStep} 
+                  onPerformBackup={handlePerformBackup} 
+                  onRefreshStatus={handleRefreshStatus} 
+                />
+                <RestoreActionsCard 
+                  onRestore={handlePerformRestore} 
+                  restoreStatus={restoreStatus} 
+                />
+              </div>
+            </div>
+
+            {/* System Components */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Database className="h-5 w-5 text-green-500" />
+                <h3 className="text-lg font-semibold text-gray-900">Thành phần Hệ thống</h3>
+                <Badge variant="outline" className="text-xs">Components</Badge>
+              </div>
+              <BackupComponentsCard backupItems={backupItems || []} />
+            </div>
+
+            {/* Information */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <Shield className="h-5 w-5 text-orange-500" />
+                <h3 className="text-lg font-semibold text-gray-900">Thông tin Quan trọng</h3>
+              </div>
+              <BackupInfoAlert />
+            </div>
           </div>
         );
       case 'schedule':
         return (
           <div className={contentClass}>
-            <BackupScheduleCard autoBackupEnabled={backupStatus.autoBackupEnabled} onToggleAutoBackup={handleToggleAutoBackup} lastAutoBackup={localStorage.getItem('lastAutoBackup')} />
+            <div>
+              <div className="flex items-center gap-2 mb-6">
+                <Clock className="h-6 w-6 text-blue-500" />
+                <h2 className="text-xl font-semibold text-gray-900">Lập lịch Backup Tự động</h2>
+                <Badge variant="outline" className="ml-2">Automation</Badge>
+              </div>
+              <BackupScheduleCard 
+                autoBackupEnabled={backupStatus.autoBackupEnabled} 
+                onToggleAutoBackup={handleToggleAutoBackup} 
+                lastAutoBackup={localStorage.getItem('lastAutoBackup')} 
+              />
+            </div>
           </div>
         );
       case 'management':
         return (
           <div className={contentClass}>
-            <BackupRetentionCard backupHistory={backupHistory || []} onRefresh={handleRefreshStatus} />
-            <BackupVerificationCard backupHistory={backupHistory || []} />
-            <BackupHistoryCard backupHistory={backupHistory || []} onRefresh={handleRefreshStatus} />
+            <div>
+              <div className="flex items-center gap-2 mb-6">
+                <Settings className="h-6 w-6 text-green-500" />
+                <h2 className="text-xl font-semibold text-gray-900">Quản lý Backup</h2>
+                <Badge variant="outline" className="ml-2">Management Tools</Badge>
+              </div>
+              <div className="space-y-6">
+                <BackupRetentionCard backupHistory={backupHistory || []} onRefresh={handleRefreshStatus} />
+                <BackupVerificationCard backupHistory={backupHistory || []} />
+                <BackupHistoryCard backupHistory={backupHistory || []} onRefresh={handleRefreshStatus} />
+                <BackupSettingsCard />
+              </div>
+            </div>
           </div>
         );
       case 'analytics':
         return (
           <div className={contentClass}>
-            <BackupAnalyticsCard backupHistory={backupHistory || []} onRefresh={handleRefreshStatus} />
+            <div>
+              <div className="flex items-center gap-2 mb-6">
+                <BarChart className="h-6 w-6 text-purple-500" />
+                <h2 className="text-xl font-semibold text-gray-900">Phân tích & Báo cáo</h2>
+                <Badge variant="outline" className="ml-2">Analytics</Badge>
+              </div>
+              <BackupAnalyticsCard backupHistory={backupHistory || []} onRefresh={handleRefreshStatus} />
+            </div>
           </div>
         );
       case 'monitoring':
         return (
           <div className={contentClass}>
-            <BackupPerformanceCard backupHistory={backupHistory || []} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h3 className="font-medium text-blue-900 mb-2">System Performance</h3>
-                <div className="space-y-2 text-sm text-blue-700">
-                  <div className="flex justify-between"><span>Total Backups:</span><span className="font-medium">{backupHistory?.length || 0}</span></div>
-                  <div className="flex justify-between"><span>Success Rate:</span><span className="font-medium text-green-600">{backupHistory?.length > 0 ? ((backupHistory.filter(h => h.success).length / backupHistory.length) * 100).toFixed(1) : 0}%</span></div>
-                  <div className="flex justify-between"><span>Avg Duration:</span><span className="font-medium">{backupHistory?.length > 0 ? Math.round(backupHistory.reduce((sum, h) => sum + (h.duration || 0), 0) / backupHistory.length / 1000) : 0}s</span></div>
-                </div>
+            <div>
+              <div className="flex items-center gap-2 mb-6">
+                <Activity className="h-6 w-6 text-red-500" />
+                <h2 className="text-xl font-semibold text-gray-900">Giám sát Hiệu suất</h2>
+                <Badge variant="outline" className="ml-2">Performance</Badge>
               </div>
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h3 className="font-medium text-green-900 mb-2">Storage Efficiency</h3>
-                <div className="space-y-2 text-sm text-green-700">
-                  <div className="flex justify-between"><span>Total Size:</span><span className="font-medium">{((backupHistory?.reduce((sum, h) => sum + (h.size || 0), 0) || 0) / 1024 / 1024).toFixed(1)} MB</span></div>
-                  <div className="flex justify-between"><span>Avg Compression:</span><span className="font-medium">~65%</span></div>
-                  <div className="flex justify-between"><span>Space Saved:</span><span className="font-medium">{((backupHistory?.reduce((sum, h) => sum + (h.size || 0), 0) || 0) * 0.65 / 1024 / 1024).toFixed(1)} MB</span></div>
+              <div className="space-y-6">
+                <BackupPerformanceCard backupHistory={backupHistory || []} />
+                
+                {/* Performance Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+                    <CardContent className="p-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-900 mb-1">
+                          {backupHistory?.length || 0}
+                        </div>
+                        <div className="text-sm text-blue-700">Tổng số Backup</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+                    <CardContent className="p-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-900 mb-1">
+                          {metrics.successRate}%
+                        </div>
+                        <div className="text-sm text-green-700">Tỷ lệ Thành công</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
+                    <CardContent className="p-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-900 mb-1">
+                          {backupHistory?.length > 0 ? Math.round(backupHistory.reduce((sum, h) => sum + (h.duration || 0), 0) / backupHistory.length / 1000) : 0}s
+                        </div>
+                        <div className="text-sm text-purple-700">Thời gian TB</div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              </div>
-            </div>
-          </div>
-        );
-      case 'settings':
-        return (
-          <div className={contentClass}>
-            <BackupSettingsCard />
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-              <h3 className="font-medium text-gray-900 mb-2">Quick Actions</h3>
-              <div className="flex gap-2 flex-wrap">
-                <button onClick={() => handlePerformBackup('full')} disabled={backupStatus.isRunning} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed">Test Full Backup</button>
-                <button onClick={() => handlePerformBackup('database')} disabled={backupStatus.isRunning} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed">Test Database Backup</button>
-                <button onClick={() => handlePerformBackup('config')} disabled={backupStatus.isRunning} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed">Test Config Backup</button>
-                <button onClick={() => handlePerformBackup('security')} disabled={backupStatus.isRunning} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed">Test Security Backup</button>
-                <button onClick={handleRefreshStatus} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md">Refresh All</button>
               </div>
             </div>
           </div>
@@ -224,22 +288,155 @@ const SystemBackup: React.FC = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <BackupHeader />
-        
+      <div className="space-y-6 p-4 md:p-6">
+        {/* Header Section */}
+        <div className="space-y-4">
+          <BackupHeader />
+          
+          {/* Backup Metrics Header */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* System Status */}
+            <Card className={`bg-gradient-to-r ${
+              metrics.isRunning ? 'from-yellow-50 to-yellow-100 border-yellow-200' :
+              metrics.lastBackupStatus === 'success' ? 'from-green-50 to-green-100 border-green-200' :
+              'from-red-50 to-red-100 border-red-200'
+            }`}>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-3">
+                  <div className={`p-2 rounded-lg ${
+                    metrics.isRunning ? 'bg-yellow-500' :
+                    metrics.lastBackupStatus === 'success' ? 'bg-green-500' :
+                    'bg-red-500'
+                  }`}>
+                    <HardDrive className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-medium ${
+                      metrics.isRunning ? 'text-yellow-900' :
+                      metrics.lastBackupStatus === 'success' ? 'text-green-900' :
+                      'text-red-900'
+                    }`}>
+                      Trạng thái Hệ thống
+                    </p>
+                    <p className={`text-xs ${
+                      metrics.isRunning ? 'text-yellow-700' :
+                      metrics.lastBackupStatus === 'success' ? 'text-green-700' :
+                      'text-red-700'
+                    }`}>
+                      {metrics.isRunning ? 'Đang xử lý...' :
+                       metrics.lastBackupStatus === 'success' ? 'Sẵn sàng' :
+                       'Cần kiểm tra'}
+                    </p>
+                  </div>
+                  <Badge 
+                    variant="secondary" 
+                    className={`${
+                      metrics.isRunning ? 'bg-yellow-100 text-yellow-800' :
+                      metrics.lastBackupStatus === 'success' ? 'bg-green-100 text-green-800' :
+                      'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {metrics.isRunning ? 'BUSY' :
+                     metrics.lastBackupStatus === 'success' ? 'READY' :
+                     'ERROR'}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Total Backups */}
+            <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-500 rounded-lg">
+                    <Database className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900">Tổng Backup</p>
+                    <p className="text-xs text-blue-700">Đã tạo</p>
+                  </div>
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                    {metrics.totalBackups}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Success Rate */}
+            <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-green-500 rounded-lg">
+                    <Shield className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-900">Tỷ lệ Thành công</p>
+                    <p className="text-xs text-green-700">Backup thành công</p>
+                  </div>
+                  <Badge variant="secondary" className="bg-green-100 text-green-800">
+                    {metrics.successRate}%
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Auto Backup */}
+            <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-purple-500 rounded-lg">
+                    <Clock className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-purple-900">Auto Backup</p>
+                    <p className="text-xs text-purple-700">
+                      {backupStatus.autoBackupEnabled ? 'Đã bật' : 'Đã tắt'}
+                    </p>
+                  </div>
+                  <Badge 
+                    variant="secondary" 
+                    className={`${
+                      backupStatus.autoBackupEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {backupStatus.autoBackupEnabled ? 'ON' : 'OFF'}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Error Alerts */}
         {backupStatus.error && (
-          <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>Backup Error: {backupStatus.error}</AlertDescription></Alert>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>Backup Error: {backupStatus.error}</AlertDescription>
+          </Alert>
         )}
 
         {restoreStatus.error && (
-          <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>Restore Error: {restoreStatus.error}</AlertDescription></Alert>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>Restore Error: {restoreStatus.error}</AlertDescription>
+          </Alert>
         )}
         
-        <BackupProgressCard isRunning={backupStatus.isRunning} progress={backupStatus.progress} currentStep={backupStatus.currentStep} estimatedTimeRemaining={backupStatus.estimatedTimeRemaining} onCancel={handleCancelBackup} />
+        {/* Progress Card - Always visible when running */}
+        {(backupStatus.isRunning || restoreStatus.isRunning) && (
+          <BackupProgressCard 
+            isRunning={backupStatus.isRunning || restoreStatus.isRunning} 
+            progress={backupStatus.isRunning ? backupStatus.progress : restoreStatus.progress} 
+            currentStep={backupStatus.isRunning ? backupStatus.currentStep : restoreStatus.currentStep} 
+            estimatedTimeRemaining={backupStatus.isRunning ? backupStatus.estimatedTimeRemaining : restoreStatus.estimatedTimeRemaining} 
+            onCancel={handleCancelBackup} 
+          />
+        )}
         
+        {/* Tab Navigation */}
         <Select value={activeTab} onValueChange={setActiveTab}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Chọn một mục..." />
+            <SelectValue placeholder="Chọn chức năng..." />
           </SelectTrigger>
           <SelectContent>
             {tabs.map(tab => (
@@ -253,7 +450,22 @@ const SystemBackup: React.FC = () => {
           </SelectContent>
         </Select>
 
+        {/* Tab Content */}
         {renderContent()}
+
+        {/* Footer */}
+        <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
+          <CardContent className="p-4">
+            <div className="text-center text-sm text-gray-600">
+              <p className="font-medium mb-1">Hệ thống Backup - Tài sản CRC</p>
+              <p>
+                Cập nhật lần cuối: {new Date().toLocaleString('vi-VN')} | 
+                Trạng thái: {metrics.isRunning ? '🟡 Đang xử lý' : metrics.lastBackupStatus === 'success' ? '🟢 Sẵn sàng' : '🔴 Lỗi'} | 
+                Auto: {backupStatus.autoBackupEnabled ? '✅ Bật' : '❌ Tắt'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
