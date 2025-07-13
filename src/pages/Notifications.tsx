@@ -126,37 +126,41 @@ export default function Notifications() {
               const unreadInConv = conversation.filter(n => !n.is_read && n.recipient_username === user.username).length;
               return (
                 <AccordionItem key={correspondent} value={correspondent} className="bg-white rounded-lg shadow-sm border data-[state=open]:border-green-500">
-                  <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-gray-50 rounded-t-lg">
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center gap-3">
-                        <Checkbox
-                          checked={selectedConversations[correspondent] || false}
-                          onCheckedChange={(checked) => {
-                            setSelectedConversations(prev => ({ ...prev, [correspondent]: !!checked }));
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label={`Chọn cuộc trò chuyện với ${correspondent}`}
-                        />
-                        <div className="bg-gray-200 p-2 rounded-full"><User className="h-5 w-5 text-gray-600" /></div>
-                        <h2 className="text-lg font-semibold text-gray-800">{correspondent}</h2>
-                        {unreadInConv > 0 && (
-                          <Badge variant="destructive" className="bg-green-500 hover:bg-green-600">{unreadInConv}</Badge>
-                        )}
+                  {/* Wrapper div for Checkbox and AccordionTrigger to avoid nested buttons */}
+                  <div className="flex items-center px-4 py-3 hover:bg-gray-50 rounded-t-lg">
+                    <Checkbox
+                      checked={selectedConversations[correspondent] || false}
+                      onCheckedChange={(checked) => {
+                        setSelectedConversations(prev => ({ ...prev, [correspondent]: !!checked }));
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Chọn cuộc trò chuyện với ${correspondent}`}
+                      className="mr-3" // Add margin to separate checkbox from trigger content
+                    />
+                    <AccordionTrigger className="flex-1 p-0 hover:no-underline"> {/* AccordionTrigger takes remaining space, no padding */}
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-3">
+                          <div className="bg-gray-200 p-2 rounded-full"><User className="h-5 w-5 text-gray-600" /></div>
+                          <h2 className="text-lg font-semibold text-gray-800">{correspondent}</h2>
+                          {unreadInConv > 0 && (
+                            <Badge variant="destructive" className="bg-green-500 hover:bg-green-600">{unreadInConv}</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 pr-2">
+                          <span className="h-8 w-8 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-100 transition-colors" onClick={(e) => { e.stopPropagation(); refetch(); }} role="button" tabIndex={0} aria-label="Làm mới"><RefreshCw className="h-4 w-4" /></span>
+                          <AlertDialog onOpenChange={(open) => { if (open) { event?.stopPropagation(); } }}>
+                            <AlertDialogTrigger asChild>
+                              <span className="h-8 w-8 flex items-center justify-center rounded-md cursor-pointer text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors" onClick={(e) => e.stopPropagation()} role="button" tabIndex={0} aria-label="Xóa"><Trash2 className="h-4 w-4" /></span>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                              <AlertDialogHeader><AlertDialogTitle>Xóa cuộc trò chuyện?</AlertDialogTitle><AlertDialogDescription>Hành động này sẽ ẩn cuộc trò chuyện với "{correspondent}" khỏi danh sách của bạn. Bạn sẽ không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader>
+                              <AlertDialogFooter><AlertDialogCancel>Hủy</AlertDialogCancel><AlertDialogAction onClick={() => hideConversation(correspondent)} className="bg-red-600 hover:bg-red-700">Xóa</AlertDialogAction></AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 pr-2">
-                        <span className="h-8 w-8 flex items-center justify-center rounded-md cursor-pointer hover:bg-gray-100 transition-colors" onClick={(e) => { e.stopPropagation(); refetch(); }} role="button" tabIndex={0} aria-label="Làm mới"><RefreshCw className="h-4 w-4" /></span>
-                        <AlertDialog onOpenChange={(open) => { if (open) { event?.stopPropagation(); } }}>
-                          <AlertDialogTrigger asChild>
-                            <span className="h-8 w-8 flex items-center justify-center rounded-md cursor-pointer text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors" onClick={(e) => e.stopPropagation()} role="button" tabIndex={0} aria-label="Xóa"><Trash2 className="h-4 w-4" /></span>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                            <AlertDialogHeader><AlertDialogTitle>Xóa cuộc trò chuyện?</AlertDialogTitle><AlertDialogDescription>Hành động này sẽ ẩn cuộc trò chuyện với "{correspondent}" khỏi danh sách của bạn. Bạn sẽ không thể hoàn tác.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Hủy</AlertDialogCancel><AlertDialogAction onClick={() => hideConversation(correspondent)} className="bg-red-600 hover:bg-red-700">Xóa</AlertDialogAction></AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                  </AccordionTrigger>
+                    </AccordionTrigger>
+                  </div>
                   <AccordionContent className="p-4 border-t">
                     <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                       {conversation.map((notification) => (
