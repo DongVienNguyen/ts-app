@@ -52,21 +52,9 @@ export function NotificationCard({
             <p className="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap">
               {notification.message}
             </p>
-            <div className="flex justify-between items-center mt-2 text-xs">
-              <div className="flex items-center space-x-2">
-                {!isSent && notification.notification_type !== 'read_receipt' && (
-                  <>
-                    <Button size="sm" variant="outline" className="h-6 px-2 text-xs bg-white" onClick={(e) => handleQuickAction(e, 'acknowledged')}>
-                      <ThumbsUp className="h-3 w-3 mr-1" /> Đã biết
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-6 px-2 text-xs bg-white" onClick={(e) => handleQuickAction(e, 'processed')}>
-                      <Check className="h-3 w-3 mr-1" /> Đã xử lý
-                    </Button>
-                  </>
-                )}
-              </div>
-              <div className="flex items-center text-gray-500">
-                <span className="mr-2">
+            <div className="flex items-end justify-end mt-2 text-xs">
+              <div className="flex items-center text-gray-500 mr-2">
+                <span className="mr-1">
                   {formatRelativeTime(notification.created_at!)}
                 </span>
                 {isSent && notification.is_seen && (
@@ -75,6 +63,16 @@ export function NotificationCard({
                   </span>
                 )}
               </div>
+              {!isSent && notification.notification_type !== 'read_receipt' && (
+                <div className="flex flex-col space-y-1">
+                  <Button size="sm" variant="outline" className="h-6 px-2 text-xs bg-white" onClick={(e) => handleQuickAction(e, 'acknowledged')}>
+                    <ThumbsUp className="h-3 w-3 mr-1" /> Đã biết
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-6 px-2 text-xs bg-white" onClick={(e) => handleQuickAction(e, 'processed')}>
+                    <Check className="h-3 w-3 mr-1" /> Đã xử lý
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
