@@ -54,10 +54,15 @@ export function NotificationBell() {
       const originalSender = relatedData?.sender;
       const recipient = user?.username;
 
-      // Không gửi thông báo "đã xem" cho hệ thống hoặc nếu không có người gửi
-      if (!originalSender || !recipient || !['reply', 'quick_reply', 'direct_message'].includes(notification.notification_type)) {
+      // Không gửi thông báo "đã xem" nếu:
+      // 1. Không có người gửi gốc (ví dụ: tin nhắn hệ thống)
+      // 2. Không có người nhận (người dùng hiện tại)
+      // 3. Bản thân thông báo là một "biên nhận đã đọc" (tránh vòng lặp)
+      // 4. Thông báo là một "phản hồi nhanh" (hành động phản hồi nhanh đã là xác nhận)
+      if (!originalSender || !recipient || notification.notification_type === 'read_receipt' || notification.notification_type === 'quick_reply') {
         return null;
       }
+      
       const { error } = await supabase.from('notifications').insert({
         recipient_username: originalSender,
         title: `Đã xem: ${notification.title.substring(0, 50)}`,
@@ -89,7 +94,7 @@ export function NotificationBell() {
       return notification;
     },
     onSuccess: (notification) => {
-      if (notification) sendReadReceiptMutation.mutate(notification);
+      // Không gửi read receipt khi đã có quick action
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
     },
@@ -152,7 +157,7 @@ export function NotificationBell() {
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.is_read) {
       markAsReadMutation.mutate(notification.id);
-      sendReadReceiptMutation.mutate(notification);
+      sendReadReceiptMutation.mutate(notification); // Gửi read receipt khi người dùng click vào xem
     }
     const correspondent = (notification.related_data as any)?.sender || 'Hệ thống';
     navigate(`/notifications?conversation=${correspondent}`);
