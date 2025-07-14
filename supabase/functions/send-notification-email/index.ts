@@ -1,4 +1,7 @@
 // @ts-ignore
+/// <reference types="https://deno.land/x/deno@v1.28.0/lib/deno.d.ts" />
+
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 
 const corsHeaders = {
@@ -55,16 +58,26 @@ const generateTestEmailHTML = (username: string): string => {
 }
 
 // Send email via Resend API
-const sendEmail = async (recipients: string[], subject: string, bodyHTML: string) => {
+const sendEmailViaResend = async (recipients: string[], subject: string, bodyHTML: string) => {
   // @ts-ignore
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   if (!resendApiKey) {
     throw new Error('RESEND_API_KEY not configured')
   }
 
-  console.log('📧 Sending email...')
+  console.log('📧 Sending email via Resend...')
   console.log('📧 From: Tài sản - CRC <taisan@caremylife.me>')
   console.log('📧 To:', recipients.join(', '))
+  console.log('📧 Subject:', subject)
+  
+  const emailPayload = {
+    from: 'Tài sản - CRC <taisan@caremylife.me>',
+    to: recipients,
+    subject: subject,
+    html: bodyHTML,
+  }
+  
+  console.log('📧 Email payload prepared')
   
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -72,25 +85,24 @@ const sendEmail = async (recipients: string[], subject: string, bodyHTML: string
       'Authorization': `Bearer ${resendApiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      from: 'Tài sản - CRC <taisan@caremylife.me>',
-      to: recipients,
-      subject: subject,
-      html: bodyHTML,
-    }),
+    body: JSON.stringify(emailPayload),
   })
 
+  console.log('📧 Resend API response status:', response.status)
+  
   const result = await response.json()
+  console.log('📧 Resend API response:', result)
   
   if (!response.ok) {
-    throw new Error(`Email API error: ${result.message || 'Unknown error'}`)
+    throw new Error(`Resend API error (${response.status}): ${result.message || JSON.stringify(result)}`)
   }
 
   return result
 }
 
+// @ts-ignore
 serve(async (req) => {
-  console.log('🚀 Edge Function called:', req.method, req.url)
+  console.log('🚀 Edge Function started:', req.method, req.url)
   
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -100,12 +112,14 @@ serve(async (req) => {
 
   try {
     // Parse request body
-    let requestBody
+    let requestBody: any
     try {
       const bodyText = await req.text()
       console.log('📝 Raw request body length:', bodyText.length)
+      console.log('📝 Raw request body preview:', bodyText.substring(0, 200))
       
       if (!bodyText || bodyText.trim() === '') {
+        console.error('❌ Request body is empty')
         return new Response(JSON.stringify({
           success: false,
           error: 'Request body is empty'
@@ -116,12 +130,12 @@ serve(async (req) => {
       }
       
       requestBody = JSON.parse(bodyText)
-      console.log('✅ Request parsed successfully')
-    } catch (parseError) {
+      console.log('✅ Request parsed successfully:', Object.keys(requestBody))
+    } catch (parseError: any) {
       console.error('❌ JSON parse error:', parseError)
       return new Response(JSON.stringify({
         success: false,
-        error: 'Invalid JSON in request body'
+        error: `Invalid JSON in request body: ${parseError.message}`
       }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -129,6 +143,7 @@ serve(async (req) => {
     }
 
     const { to, subject, html, type, data } = requestBody
+    console.log('📋 Request parameters:', { to, subject, type, hasHtml: !!html, hasData: !!data })
 
     // Handle API check
     if (type === 'api_check') {
@@ -153,6 +168,7 @@ serve(async (req) => {
 
     // Validate required fields
     if (!to || !subject) {
+      console.error('❌ Missing required fields:', { to: !!to, subject: !!subject })
       return new Response(JSON.stringify({
         success: false,
         error: 'Missing required fields: to, subject'
@@ -165,20 +181,24 @@ serve(async (req) => {
     // Generate email HTML
     let finalHtml = html
     if (!finalHtml && type === 'test') {
+      console.log('📝 Generating test email HTML...')
       finalHtml = generateTestEmailHTML(data?.username || 'N/A')
     }
     
     if (!finalHtml) {
+      console.log('📝 Using default email HTML...')
       finalHtml = '<p>Nội dung email từ hệ thống Tài sản - CRC</p>'
     }
 
     const recipients = Array.isArray(to) ? to : [to]
-    console.log(`📧 Sending email to: ${recipients.join(', ')}`)
+    console.log(`📧 Preparing to send email to: ${recipients.join(', ')}`)
     console.log(`📧 Subject: ${subject}`)
+    console.log(`📧 HTML length: ${finalHtml.length}`)
 
     // Send email
     try {
-      const result = await sendEmail(recipients, subject, finalHtml)
+      const result = await sendEmailViaResend(recipients, subject, finalHtml)
+      console.log('✅ Email sent successfully:', result)
       
       return new Response(JSON.stringify({
         success: true,
@@ -190,23 +210,26 @@ serve(async (req) => {
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       })
 
-    } catch (sendError) {
+    } catch (sendError: any) {
       console.error('❌ Send error:', sendError)
       
       return new Response(JSON.stringify({
         success: false,
-        error: sendError.message
+        error: `Email send failed: ${sendError.message}`
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       })
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Unexpected error:', error)
+    console.error('❌ Error stack:', error.stack)
+    
     return new Response(JSON.stringify({
       success: false,
-      error: error.message || 'Unknown error occurred'
+      error: `Unexpected error: ${error.message}`,
+      stack: error.stack
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }

@@ -22,23 +22,34 @@ export interface EmailResponse {
  */
 export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> => {
   try {
-    console.log('📧 Sending email...');
+    console.log('📧 EmailService: Preparing to send email...');
     console.log('📧 To:', Array.isArray(options.to) ? options.to.join(', ') : options.to);
     console.log('📧 Subject:', options.subject);
+    console.log('📧 Type:', options.type);
 
+    const requestBody = {
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      type: options.type,
+      data: options.data
+    };
+
+    console.log('📧 Calling Supabase Edge Function...');
     const { data, error } = await supabase.functions.invoke('send-notification-email', {
-      body: {
-        to: options.to,
-        subject: options.subject,
-        html: options.html,
-        type: options.type,
-        data: options.data
-      }
+      body: requestBody
     });
+
+    console.log('📧 Edge Function response:', { data, error });
 
     if (error) {
       console.error('❌ Supabase function error:', error);
-      throw error;
+      throw new Error(`Supabase function error: ${error.message || JSON.stringify(error)}`);
+    }
+
+    if (!data) {
+      console.error('❌ No data returned from Edge Function');
+      throw new Error('No data returned from Edge Function');
     }
 
     if (!data.success) {
@@ -67,6 +78,8 @@ export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> =
  * Send test email
  */
 export const sendTestEmail = async (to: string, username: string = 'Test User'): Promise<EmailResponse> => {
+  console.log('📧 Sending test email to:', to, 'for user:', username);
+  
   return sendEmail({
     to,
     subject: `[TEST] Email từ ${EMAIL_CONFIG.name}`,
@@ -244,11 +257,18 @@ export const getAdminEmail = async (): Promise<string | null> => {
  */
 export const checkEmailStatus = async () => {
   try {
+    console.log('📧 Checking email service status...');
+    
     const { data, error } = await supabase.functions.invoke('send-notification-email', {
       body: { type: 'api_check' }
     });
 
-    if (error) throw error;
+    console.log('📧 Email status check response:', { data, error });
+
+    if (error) {
+      console.error('❌ Email status check error:', error);
+      throw error;
+    }
 
     return {
       success: data.success,
