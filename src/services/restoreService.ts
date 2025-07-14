@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import { supabase } from '@/integrations/supabase/client';
-import { entityConfig, EntityConfig } from '@/config/entityConfig';
+import { entityConfig } from '@/config/entityConfig';
 import { fromCSV } from '@/utils/csvUtils';
 import { toast } from 'sonner';
 

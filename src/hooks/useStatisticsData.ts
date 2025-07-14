@@ -96,7 +96,7 @@ export const useStatisticsData = (runAsAdmin: (callback: () => Promise<any>) => 
     }
 
     const counts = data.reduce((acc, item) => {
-      const key = item[field];
+      const key = item[field as keyof typeof item];
       if(key) acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);

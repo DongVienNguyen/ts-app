@@ -1,5 +1,4 @@
-import { TableName, EntityConfig, FieldConfig } from '@/config/entityConfig';
-import { User } from '@supabase/supabase-js';
+import { TableName, EntityConfig } from '@/config/entityConfig';
 import React from 'react';
 import { AuthenticatedStaff } from '@/contexts/AuthContext'; // Import AuthenticatedStaff
 

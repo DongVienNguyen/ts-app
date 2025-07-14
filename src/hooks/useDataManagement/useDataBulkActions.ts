@@ -118,7 +118,7 @@ export const useDataBulkActions = ({
       return;
     }
     await runAsAdmin(async () => {
-      const result = await dataService.bulkDeleteTransactions({ startDate, endDate, user });
+      const result = await dataService.bulkDeleteTransactions({ startDate, endDate, user: user! });
       toast.success(result.message);
       clearCache();
       loadData(currentPage, searchTerm, filters);

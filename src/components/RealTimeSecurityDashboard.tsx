@@ -8,7 +8,6 @@ import { SystemOverviewCards } from '@/components/security/SystemOverviewCards';
 import { SecurityAlerts } from '@/components/security/SecurityAlerts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Wifi, WifiOff } from 'lucide-react';
-import { useEffect } from 'react';
 
 export function RealTimeSecurityDashboard() {
   const { user } = useSecureAuth();

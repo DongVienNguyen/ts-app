@@ -111,7 +111,7 @@ export default function OtherAssets() {
             asset_name: editingAsset.name,
             old_data: JSON.stringify(editingAsset),
             new_data: JSON.stringify(assetData),
-            changed_by: user.username,
+            changed_by: user!.username,
             change_type: "update",
             change_reason: changeReason.trim()
           });

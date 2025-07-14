@@ -24,7 +24,6 @@ import BackupSettingsCard from '@/components/backup/BackupSettingsCard';
 import BackupPerformanceCard from '@/components/backup/BackupPerformanceCard';
 import BackupAnalyticsCard from '@/components/backup/BackupAnalyticsCard';
 import RestoreActionsCard from '@/components/backup/RestoreActionsCard';
-import { RestorePreviewCard } from '@/components/backup/RestorePreviewCard';
 import { useBackupOperations } from '@/hooks/useBackupOperations';
 import Layout from '@/components/Layout';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,7 +42,6 @@ const SystemBackup: React.FC = () => {
     loadBackupStats
   } = useBackupOperations();
 
-  const [selectedRestoreFile, setSelectedRestoreFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState('backup');
 
   // Add cleanup for Supabase channels to help with bfcache
@@ -94,7 +92,6 @@ const SystemBackup: React.FC = () => {
 
   const handlePerformRestore = async (file: File) => {
     console.log('🔄 SystemBackup: Starting restore process with file:', file.name);
-    setSelectedRestoreFile(file);
     await performRestore(file);
   };
 

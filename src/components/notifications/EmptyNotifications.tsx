@@ -1,5 +1,4 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { Bell } from 'lucide-react';
 import { Inbox } from 'lucide-react';
 
 interface EmptyNotificationsProps {

@@ -7,7 +7,7 @@ import {
 import { AdminEmailSettings } from '@/components/admin/AdminEmailSettings';
 import { PWATestPanel } from '@/components/PWATestPanel';
 import PushNotificationTester from '@/components/PushNotificationTester';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Mail, TestTube, Bell, Settings, Smartphone, Zap } from 'lucide-react';
 

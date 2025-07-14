@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Staff } from '@/types/auth';
 import { secureLoginUser, validateSession } from '@/services/secureAuthService';
-import { healthCheckService } from '@/services/healthCheckService';
 import { toast } from 'sonner';
 import { updateSupabaseAuthToken } from '@/integrations/supabase/client';
 

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Mail, TestTube, Settings, CheckCircle, AlertCircle, User, Eye, EyeOff, RefreshCw, Loader2 } from 'lucide-react';
+import { Mail, TestTube, Settings, CheckCircle, AlertCircle, User, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { performEmailTest } from '@/services/emailTestService';
 import { useSecureAuth } from '@/contexts/AuthContext';

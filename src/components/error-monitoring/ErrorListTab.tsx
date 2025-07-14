@@ -69,8 +69,8 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter
       updateData.resolved_at = new Date().toISOString();
       updateData.resolved_by = user.username;
     } else {
-      updateData.resolved_at = null;
-      updateData.resolved_by = null;
+      updateData.resolved_at = undefined;
+      updateData.resolved_by = undefined;
     }
 
     const { error } = await supabase

@@ -1,7 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SystemError } from '@/utils/errorTracking';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
-import { getSeverityColor } from '@/utils/errorTracking';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface ErrorStats {
@@ -253,7 +251,7 @@ export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabPr
                     dataKey="value"
                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                   >
-                    {browserData.map((entry, index) => (
+                    {browserData.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -287,7 +285,7 @@ export function ErrorAnalyticsTab({ errorStats, isLoading }: ErrorAnalyticsTabPr
                     dataKey="value"
                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                   >
-                    {osData.map((entry, index) => (
+                    {osData.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>

@@ -9,11 +9,6 @@ import { usePageVisibility } from '@/hooks/usePageVisibility';
 
 export type Notification = Tables<'notifications'>;
 
-interface NotificationRelatedData {
-  sender?: string;
-  [key: string]: any;
-}
-
 const NOTIFICATIONS_PER_PAGE = 50;
 
 export function useNotifications() {
@@ -60,9 +55,9 @@ export function useNotifications() {
       return filteredData;
     },
     initialPageParam: 0,
-    getNextPageParam: (lastPage, _allPages) => {
+    getNextPageParam: (lastPage, allPages) => {
       if (lastPage.length < NOTIFICATIONS_PER_PAGE) return undefined;
-      return (data?.pages.length || 0);
+      return allPages.length;
     },
     enabled: !!user,
     staleTime: 10 * 1000,

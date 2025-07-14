@@ -23,9 +23,6 @@ interface UseDataOperationsProps {
 export const useDataOperations = ({
   selectedEntity,
   user,
-  currentPage,
-  searchTerm,
-  filters,
   sortColumn,
   sortDirection,
   getCachedData,

@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import { isDevelopment } from '@/config';
-import { toast } from 'sonner';
 
 export interface SecurityEvent {
   id: string; // Thêm id để phân biệt các sự kiện

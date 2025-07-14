@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Activity, Users, Lock, Clock } from 'lucide-react';
+import { AlertTriangle, Activity, Users, Lock } from 'lucide-react';
 import { useSecurityMonitoring } from '@/hooks/useSecurityMonitoring';
 import { SecurityFeaturesSummary } from './SecurityFeaturesSummary';
 import { Skeleton } from '@/components/ui/skeleton';

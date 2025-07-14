@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { AlertTriangle, Bell, CheckCircle, X } from 'lucide-react';
+import { AlertTriangle, Bell, CheckCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SystemAlert } from '@/hooks/useRealTimeSecurityMonitoring';
 import { formatRelativeTime } from '@/utils/dateUtils';

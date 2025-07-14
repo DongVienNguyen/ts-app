@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import DataManagementTab from '@/components/data-management/DataManagementTab';
 import { StatisticsTab } from '@/components/data-management/StatisticsTab';
@@ -14,6 +14,7 @@ import { EditDialog } from '@/components/data-management/EditDialog';
 import { entityConfig, EntityConfig } from '@/config/entityConfig';
 import { useDataManagement } from '@/hooks/useDataManagement';
 import { z } from 'zod';
+import { TableName } from '@/config/entityConfig';
 
 type EditDialogField = {
   name: string;
@@ -284,7 +285,7 @@ const DataManagement = () => {
               <DataManagementTab
                 activeTab={activeTab}
                 selectedEntity={dm.selectedEntity}
-                onEntityChange={dm.setSelectedEntity}
+                onEntityChange={(entity) => dm.setSelectedEntity(entity as TableName)}
                 isLoading={dm.isLoading}
                 searchTerm={dm.searchTerm}
                 onSearchChange={dm.setSearchTerm}

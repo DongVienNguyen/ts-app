@@ -13,7 +13,7 @@ interface SystemOverviewCardsProps {
   isLoading: boolean;
 }
 
-export function SystemOverviewCards({ systemStatus, activeUsers, isLoading }: SystemOverviewCardsProps) {
+export function SystemOverviewCards({ systemStatus, isLoading }: SystemOverviewCardsProps) {
   const statusItems = [
     {
       title: 'Trạng thái API',

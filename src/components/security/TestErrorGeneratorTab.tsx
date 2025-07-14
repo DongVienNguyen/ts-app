@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { getSeverityColor } from '@/utils/errorTracking';
 import { SmartPagination } from '@/components/SmartPagination';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -286,7 +286,7 @@ export function TestErrorGeneratorTab() {
           </div>
           {data && data.count !== undefined && (
             <SmartPagination
-              totalCount={data.count}
+              totalCount={data.count || 0}
               itemsPerPage={itemsPerPage}
               currentPage={currentPage}
               onPageChange={setCurrentPage}

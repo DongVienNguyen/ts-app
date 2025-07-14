@@ -11,7 +11,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, CheckCircle, AlertTriangle, Save, Trash2 } from 'lucide-react'; // Import Trash2 icon
+import { Copy, Save, Trash2 } from 'lucide-react'; // Import Trash2 icon
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -92,8 +92,8 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
       updateData.resolved_at = new Date().toISOString();
       updateData.resolved_by = user.username;
     } else if (currentStatus !== 'resolved' && error.resolved_at) {
-      updateData.resolved_at = null;
-      updateData.resolved_by = null;
+      updateData.resolved_at = undefined;
+      updateData.resolved_by = undefined;
     }
 
     const { error: updateError } = await supabase
@@ -181,7 +181,7 @@ export const ErrorDetailsModal: React.FC<ErrorDetailsModalProps> = ({ isOpen, on
                 <div>
                   <h3 className="font-semibold text-lg mb-2 flex items-center">
                     Stack Trace
-                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(error.error_stack)} className="ml-2">
+                    <Button variant="ghost" size="sm" onClick={() => copyToClipboard(error.error_stack || '')} className="ml-2">
                       <Copy className="h-4 w-4" />
                     </Button>
                   </h3>

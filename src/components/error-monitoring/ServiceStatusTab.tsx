@@ -58,7 +58,7 @@ export function ServiceStatusTab({ serviceHealth, isLoading }: ServiceStatusTabP
       <CardContent>
         {isLoading ? (
           <div className="space-y-4">
-            {services.map((service, index) => (
+            {services.map((_service, index) => (
               <div key={index} className="flex items-center justify-between border-b pb-2 last:border-b-0 last:pb-0">
                 <div className="flex items-center space-x-3">
                   <Skeleton className="h-5 w-5 rounded-full" />

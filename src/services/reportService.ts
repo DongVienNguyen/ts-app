@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { ProcessedNote, ProcessedNoteInsert, ProcessedNoteUpdate, TakenAssetStatus, TakenAssetStatusInsert } from '@/types/report';
+import { ProcessedNote, ProcessedNoteInsert, ProcessedNoteUpdate, TakenAssetStatusInsert } from '@/types/report';
 
 // --- Processed Notes Service ---
 

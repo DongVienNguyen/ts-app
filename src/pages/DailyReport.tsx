@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { AssetTransaction } from "@/api/entities/AssetTransaction";
 import { ProcessedNote } from "@/api/entities/ProcessedNote";
+import type { ProcessedNote as ProcessedNoteType } from "@/types/report";
 import { TakenAssetStatus } from "@/api/entities/TakenAssetStatus";
 import { CBQLN } from "@/api/entities/CBQLN";
 import { CBKH } from "@/api/entities/CBKH";
@@ -17,13 +18,12 @@ import { LDPCRC } from "@/api/entities/LDPCRC";
 import { CBCRC } from "@/api/entities/CBCRC";
 import { QUYCRC } from "@/api/entities/QUYCRC";
 import { SendEmail } from "@/api/integrations/SendEmail";
-import { FileText, Download, Calendar, Filter, ListTree, ChevronLeft, ChevronRight, Plus, CheckCircle, Edit, Trash2 } from "lucide-react";
-import { format, addDays, startOfWeek, endOfWeek, isWithinInterval, getWeek, getYear } from "date-fns";
+import { FileText, Download, Filter, ListTree, ChevronLeft, ChevronRight, Plus, CheckCircle, Edit, Trash2 } from "lucide-react";
+import { format, startOfWeek, endOfWeek, isWithinInterval, getWeek, getYear } from "date-fns";
 import ReportTable from "@/components/reports/ReportTable";
 import _ from 'lodash';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { withCache as fetchWithCache } from "@/utils/cacheManager";
-import { Checkbox } from "@/components/ui/checkbox";
 import AutoCompleteInput from "@/components/reminders/AutoCompleteInput";
 import { Transaction } from '@/types/asset';
 import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
@@ -74,7 +74,7 @@ const getCurrentWeekYear = () => {
 };
 
 export default function DailyReport() {
-  const [allTransactions, setAllTransactions] = useState([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [showGrouped, setShowGrouped] = useState(true);
@@ -92,10 +92,10 @@ export default function DailyReport() {
   const { user } = useAuth(); // Use user from AuthContext
   
   // State để hiển thị thời gian cập nhật cuối cùng
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // States cho Notes management
-  const [processedNotes, setProcessedNotes] = useState([]);
+  const [processedNotes, setProcessedNotes] = useState<ProcessedNoteType[]>([]);
   const [isNotesDialogOpen, setIsNotesDialogOpen] = useState(false);
   const [noteFormData, setNoteFormData] = useState({
     room: '',
@@ -103,13 +103,13 @@ export default function DailyReport() {
     content: '',
     mail_to_nv: ''
   });
-  const [editingTransaction, setEditingTransaction] = useState(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<Partial<Transaction>>({});
-  const [allStaff, setAllStaff] = useState([]);
+  const [allStaff, setAllStaff] = useState<any[]>([]);
   
   // States cho Note editing
-  const [editingNote, setEditingNote] = useState(null);
+  const [editingNote, setEditingNote] = useState<ProcessedNoteType | null>(null);
   const [isEditNoteDialogOpen, setIsEditNoteDialogOpen] = useState(false);
   const [editNoteFormData, setEditNoteFormData] = useState({
     room: '',
@@ -140,7 +140,7 @@ export default function DailyReport() {
 
   // Load taken status from database for the current staff and week
   const loadTakenStatus = useCallback(async () => {
-    if (!user?.username) { // Use user.username instead of currentStaff.username
+    if (!user?.username) { // Use user.username
         setTakenTransactionIds(new Set()); // Clear if no staff
         return;
     }
@@ -387,7 +387,7 @@ export default function DailyReport() {
       
       // Gửi email nếu có người nhận
       if (noteFormData.mail_to_nv) {
-          const recipient = allStaff.find(s => s.email === noteFormData.mail_to_nv); // Changed to s.email
+          const recipient = allStaff.find(s => s.email === noteFormData.mail_to_nv);
           if (recipient && recipient.email) {
               const emailBody = `
                   <p><strong>Phòng:</strong> ${noteFormData.room}</p>
@@ -416,7 +416,7 @@ export default function DailyReport() {
   }, [noteFormData, user, loadProcessedNotes, allStaff]); // Depend on user
 
   // Handle note completion
-  const handleNoteDone = useCallback(async (noteId) => {
+  const handleNoteDone = useCallback(async (noteId: string) => {
     try {
       await ProcessedNote.update(noteId, {
         is_done: true,
@@ -430,7 +430,7 @@ export default function DailyReport() {
   }, [loadProcessedNotes]);
 
   // Handle note edit
-  const handleEditNote = useCallback((note) => {
+  const handleEditNote = useCallback((note: ProcessedNoteType) => {
     setEditingNote(note);
     setEditNoteFormData({
       room: note.room,
@@ -456,7 +456,7 @@ export default function DailyReport() {
   }, [editingNote, editNoteFormData, loadProcessedNotes]);
 
   // Handle note delete
-  const handleDeleteNote = useCallback(async (noteId) => {
+  const handleDeleteNote = useCallback(async (noteId: string) => {
     if (!confirm("Bạn có chắc chắn muốn xóa ghi chú này?")) return;
 
     try {
@@ -469,7 +469,7 @@ export default function DailyReport() {
   }, [loadProcessedNotes]);
 
   // Handle transaction edit
-  const handleEditTransaction = useCallback((transaction) => {
+  const handleEditTransaction = useCallback((transaction: Transaction) => {
     setEditingTransaction(transaction);
     setEditFormData({
       transaction_date: format(new Date(transaction.transaction_date), 'yyyy-MM-dd'),
@@ -501,7 +501,7 @@ export default function DailyReport() {
   }, [editingTransaction, editFormData, loadAllTransactions]);
 
   // Handle transaction delete
-  const handleDeleteTransaction = useCallback(async (transactionId) => {
+  const handleDeleteTransaction = useCallback(async (transactionId: string) => {
     if (!confirm("Bạn có chắc chắn muốn xóa giao dịch này?")) return;
 
     try {
@@ -544,7 +544,7 @@ export default function DailyReport() {
       return indexA - indexB; // Both in order
     });
 
-    const rows = [];
+    const rows: any[] = [];
     
     // Thêm các phòng thông thường
     for (const room of sortedRooms) {
@@ -572,7 +572,6 @@ export default function DailyReport() {
           codes: '',
           isNote: true,
           noteData: note,
-          isFullWidth: true
         });
       });
     }
@@ -613,7 +612,7 @@ export default function DailyReport() {
     }
   }, [filterType, customFilters]);
 
-  const handleToggleTakenStatus = useCallback(async (transactionId) => {
+  const handleToggleTakenStatus = useCallback(async (transactionId: string) => {
     if (!user?.username) { // Use user.username
         console.warn("Cannot toggle taken status: No staff logged in.");
         return;
@@ -861,7 +860,7 @@ export default function DailyReport() {
                               <AutoCompleteInput
                                 value={noteFormData.mail_to_nv}
                                 onChange={(value) => setNoteFormData({...noteFormData, mail_to_nv: value})}
-                                suggestions={allStaff.map(s => ({ value: s.email, label: s.ten_nv }))} // Pass value and label
+                                suggestions={allStaff.map(s => ({ value: s.email, label: s.ten_nv }))}
                                 placeholder="Nhập tên nhân viên để gửi email..."
                               />
                             </div>
@@ -890,7 +889,7 @@ export default function DailyReport() {
                     <TableBody>
                       {groupedRows.length > 0 ? groupedRows.map(row => (
                         <TableRow key={row.id}>
-                          {row.isFullWidth ? (
+                          {'isNote' in row && row.isNote ? (
                               <TableCell colSpan={3} className="font-bold text-lg px-2 whitespace-pre-wrap">
                                   {row.room}
                               </TableCell>
@@ -906,7 +905,7 @@ export default function DailyReport() {
                             </>
                           )}
                           <TableCell className="px-1 text-right">
-                            {row.isNote && (
+                            {'isNote' in row && row.isNote && (
                               <div className="flex gap-1 justify-end">
                                 <Button
                                   variant="ghost"

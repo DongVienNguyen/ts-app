@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Users, CreditCard, Activity, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton component
 
 interface ErrorOverviewCardsProps {

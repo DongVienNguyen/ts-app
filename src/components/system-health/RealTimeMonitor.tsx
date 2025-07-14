@@ -17,15 +17,15 @@ export const RealTimeMonitor: React.FC<RealTimeMonitorProps> = ({ systemMetrics,
 
   const cpuMetrics = systemMetrics
     .filter(m => m.metric_name === 'cpu_usage')
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
 
   const memoryMetrics = systemMetrics
     .filter(m => m.metric_name === 'used_heap_size')
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
 
   const networkMetrics = systemMetrics
     .filter(m => m.metric_name === 'effective_type')
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
 
   if (isLoading) {
     return (

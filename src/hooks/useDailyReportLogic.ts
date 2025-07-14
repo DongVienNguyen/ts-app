@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient, UseMutationOptions } from '@tanstack/react-query';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import _ from 'lodash';
 import { format, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
@@ -7,9 +7,9 @@ import { getAssetTransactions, updateAssetTransaction, deleteAssetTransaction } 
 import { getProcessedNotes, addProcessedNote, updateProcessedNote, deleteProcessedNote, getTakenAssetStatus, addTakenAssetStatus, deleteTakenAssetStatus } from '@/services/reportService';
 import { sendEmail } from '@/services/emailService';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { getMorningTargetDate, getNextWorkingDay, getCurrentWeekYear, formatToDDMMYYYY } from '@/utils/dateUtils';
-import { Transaction, AssetTransactionFilters } from '@/types/asset';
-import { ProcessedNote, ProcessedNoteInsert, ProcessedNoteUpdate, TakenAssetStatusInsert } from '@/types/report';
+import { getMorningTargetDate, getNextWorkingDay, getCurrentWeekYear } from '@/utils/dateUtils';
+import { Transaction } from '@/types/asset';
+import { ProcessedNoteInsert, ProcessedNoteUpdate } from '@/types/report';
 import { formatEmail } from '@/utils/emailUtils';
 
 export const useDailyReportLogic = () => {

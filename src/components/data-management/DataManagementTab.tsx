@@ -30,7 +30,6 @@ import {
 import { FilterOperator, FilterState } from '@/hooks/useDataManagement/types';
 import { SmartPagination } from '@/components/SmartPagination';
 import { format } from 'date-fns'; // Import format from date-fns
-import { z } from 'zod'; // Import z for schema comparison
 
 // Define the type for columns expected by OptimizedTable
 interface OptimizedTableColumn {

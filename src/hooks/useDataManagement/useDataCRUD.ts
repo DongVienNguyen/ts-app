@@ -45,7 +45,7 @@ export const useDataCRUD = ({
 
   const handleSave = useCallback(async (formData: any) => {
     await runAsAdmin(async () => {
-      const result = await dataService.saveData({ selectedEntity, formData, editingItem, user });
+      const result = await dataService.saveData({ selectedEntity, formData, editingItem, user: user! });
       toast.success(result.message);
       setDialogOpen(false);
       clearCache();
@@ -58,7 +58,7 @@ export const useDataCRUD = ({
       return;
     }
     await runAsAdmin(async () => {
-      const result = await dataService.deleteData({ selectedEntity, item, user });
+      const result = await dataService.deleteData({ selectedEntity, item, user: user! });
       toast.success(result.message);
       clearCache();
       loadData(currentPage, searchTerm, filters);
@@ -67,7 +67,7 @@ export const useDataCRUD = ({
 
   const toggleStaffLock = useCallback(async (staff: any) => {
     await runAsAdmin(async () => {
-      const result = await dataService.toggleStaffLock({ staffId: staff.id, currentStatus: staff.account_status, user });
+      const result = await dataService.toggleStaffLock({ staffId: staff.id, currentStatus: staff.account_status, user: user! });
       toast.success(result.message);
       clearCache();
       loadData(currentPage, searchTerm, filters);
