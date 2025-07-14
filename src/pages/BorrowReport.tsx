@@ -1,4 +1,5 @@
 import { Download } from 'lucide-react';
+import Layout from '@/components/Layout';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import BorrowReportHeader from '@/components/BorrowReportHeader';
 import BorrowReportFilters from '@/components/BorrowReportFilters';
@@ -24,58 +25,62 @@ const BorrowReport = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
-      </div>
+      <Layout>
+        <div className="flex items-center justify-center min-h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <ErrorBoundary>
-      <div className="space-y-6 p-6">
-        <BorrowReportHeader />
+    <Layout>
+      <ErrorBoundary>
+        <div className="space-y-6 p-6">
+          <BorrowReportHeader />
 
-        <BorrowReportFilters
-          dateRange={dateRange}
-          setDateRange={setDateRange}
-          selectedRoom={selectedRoom}
-          setSelectedRoom={setSelectedRoom}
-          rooms={rooms}
-        />
+          <BorrowReportFilters
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+            selectedRoom={selectedRoom}
+            setSelectedRoom={setSelectedRoom}
+            rooms={rooms}
+          />
 
-        <div className="flex justify-end">
-          <Button onClick={exportToCSV} variant="outline" className="bg-green-500 text-white hover:bg-green-600">
-            <Download className="w-4 h-4 mr-2" />
-            Xuất Excel
-          </Button>
+          <div className="flex justify-end">
+            <Button onClick={exportToCSV} variant="outline" className="bg-green-500 text-white hover:bg-green-600">
+              <Download className="w-4 h-4 mr-2" />
+              Xuất Excel
+            </Button>
+          </div>
+
+          <BorrowReportTable
+            transactions={paginatedTransactions}
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            totalPages={totalPages}
+            totalRecords={filteredTransactions.length}
+          />
         </div>
 
-        <BorrowReportTable
-          transactions={paginatedTransactions}
-          currentPage={currentPage}
-          setCurrentPage={setCurrentPage}
-          totalPages={totalPages}
-          totalRecords={filteredTransactions.length}
-        />
-      </div>
-
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
+        <style>{`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            #print-section, #print-section * {
+              visibility: visible;
+            }
+            #print-section {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+            }
           }
-          #print-section, #print-section * {
-            visibility: visible;
-          }
-          #print-section {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-        }
-      `}</style>
-    </ErrorBoundary>
+        `}</style>
+      </ErrorBoundary>
+    </Layout>
   );
 };
 
