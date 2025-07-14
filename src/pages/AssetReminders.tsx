@@ -34,6 +34,17 @@ const getCurrentDateFormatted = () => {
   return `${day}-${month}`;
 };
 
+const getUniqueStaffOptions = (staffList: { ten_nv: string }[]) => {
+  if (!staffList) return [];
+  const unique = new Map<string, { value: string; label: string }>();
+  staffList.forEach(s => {
+    if (s.ten_nv && !unique.has(s.ten_nv)) {
+      unique.set(s.ten_nv, { value: s.ten_nv, label: s.ten_nv });
+    }
+  });
+  return Array.from(unique.values());
+};
+
 export default function AssetReminders() {
   const { user } = useSecureAuth();
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -52,8 +63,8 @@ export default function AssetReminders() {
 
   const tenTSRef = useRef<HTMLInputElement>(null);
   const ngayDenHanRef = useRef<HTMLInputElement>(null);
-  const cbqlnRef = useRef<HTMLButtonElement>(null);
-  const cbkhRef = useRef<HTMLButtonElement>(null);
+  const cbqlnRef = useRef<HTMLInputElement>(null);
+  const cbkhRef = useRef<HTMLInputElement>(null);
 
   const loadInitialData = useCallback(async () => {
     setIsLoading(true);
@@ -134,6 +145,68 @@ export default function AssetReminders() {
     setNewReminder({ ten_ts: '', ngay_den_han: getCurrentDateFormatted(), cbqln: '', cbkh: '' });
   }, []);
 
+  const sendSingleReminder = useCallback(async (reminder: Reminder) => {
+    if (!isDueOrOverdue(reminder.ngay_den_han)) {
+      if (!window.confirm('Tài sản này chưa đến hạn. Bạn vẫn muốn gửi nhắc nhở?')) {
+        return;
+      }
+    }
+
+    const promise = new Promise(async (resolve, reject) => {
+      try {
+        const allStaff = [...qlnStaff, ...khStaff];
+        const staffMap = new Map(allStaff.map(s => [s.ten_nv, s]));
+
+        const emailContent = `Xin chào bạn ${reminder.cbqln || ''}${reminder.cbkh ? ` và bạn ${reminder.cbkh}` : ''},\n\nCó TS ${reminder.ten_ts} đến hạn vào ngày ${reminder.ngay_den_han}, các bạn hãy trả TS về P. QLN trước 14 giờ 00 ngày ${reminder.ngay_den_han}.\n\nTrân trọng cám ơn.`;
+        const emailSubject = `🔥 [PRIORITY] Nhắc nhở: Tài sản ${reminder.ten_ts} đến hạn ngày ${reminder.ngay_den_han}`;
+        
+        const recipients = [reminder.cbqln, reminder.cbkh].filter((name): name is string => !!name);
+        const recipientEmails = recipients.map(name => staffMap.get(name)?.email).filter((email): email is string => !!email);
+
+        if (recipientEmails.length > 0) {
+          await SendEmail({
+            to: recipientEmails,
+            subject: emailSubject,
+            body: emailContent,
+            from_name: '🔥 Hệ thống QLTS - Nhắc TS đến hạn',
+          });
+        }
+
+        for (const name of recipients) {
+          const staff = staffMap.get(name);
+          if (staff?.email) {
+            const username = staff.email.split('@')[0];
+            await supabase.from('notifications').insert({
+              recipient_username: username,
+              title: `Tài sản đến hạn: ${reminder.ten_ts}`,
+              message: `Tài sản ${reminder.ten_ts} đến hạn vào ngày ${reminder.ngay_den_han}.`,
+              notification_type: 'asset_reminder',
+            });
+            await sendPushNotification(username, {
+              title: 'Nhắc nhở tài sản đến hạn',
+              body: `Tài sản "${reminder.ten_ts}" đã đến hạn.`,
+              url: '/asset-reminders'
+            });
+          }
+        }
+        
+        await SentAssetReminder.create({ ...reminder, sent_date: format(new Date(), 'yyyy-MM-dd'), is_sent: true });
+        await AssetReminder.delete(reminder.id);
+        
+        resolve(true);
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    toast.promise(promise, {
+      loading: 'Đang gửi nhắc nhở...',
+      success: 'Đã gửi email và thông báo nhắc nhở thành công!',
+      error: 'Có lỗi xảy ra khi gửi email hoặc thông báo!',
+      finally: () => loadInitialData(),
+    });
+  }, [qlnStaff, khStaff, isDueOrOverdue, loadInitialData]);
+
   const sendDueReminders = useCallback(async () => {
     const dueReminders = reminders.filter(r => isDueOrOverdue(r.ngay_den_han));
     if (dueReminders.length === 0) {
@@ -143,45 +216,8 @@ export default function AssetReminders() {
 
     const promise = new Promise(async (resolve, reject) => {
       try {
-        const allStaff = [...qlnStaff, ...khStaff];
-        const staffMap = new Map(allStaff.map(s => [s.ten_nv, s]));
-
         for (const reminder of dueReminders) {
-          const emailContent = `Xin chào bạn ${reminder.cbqln || ''}${reminder.cbkh ? ` và bạn ${reminder.cbkh}` : ''},\n\nCó TS ${reminder.ten_ts} đến hạn vào ngày ${reminder.ngay_den_han}, các bạn hãy trả TS về P. QLN trước 14 giờ 00 ngày ${reminder.ngay_den_han}.\n\nTrân trọng cám ơn.`;
-          const emailSubject = `🔥 [PRIORITY] Nhắc nhở: Tài sản ${reminder.ten_ts} đến hạn ngày ${reminder.ngay_den_han}`;
-          
-          const recipients = [reminder.cbqln, reminder.cbkh].filter((name): name is string => !!name);
-          const recipientEmails = recipients.map(name => staffMap.get(name)?.email).filter((email): email is string => !!email);
-
-          if (recipientEmails.length > 0) {
-            await SendEmail({
-              to: recipientEmails,
-              subject: emailSubject,
-              body: emailContent,
-              from_name: '🔥 Hệ thống QLTS - Nhắc TS đến hạn',
-            });
-          }
-
-          for (const name of recipients) {
-            const staff = staffMap.get(name);
-            if (staff?.email) {
-              const username = staff.email.split('@')[0];
-              await supabase.from('notifications').insert({
-                recipient_username: username,
-                title: `Tài sản đến hạn: ${reminder.ten_ts}`,
-                message: `Tài sản ${reminder.ten_ts} đến hạn vào ngày ${reminder.ngay_den_han}.`,
-                notification_type: 'asset_reminder',
-              });
-              await sendPushNotification(username, {
-                title: 'Nhắc nhở tài sản đến hạn',
-                body: `Tài sản "${reminder.ten_ts}" đã đến hạn.`,
-                url: '/asset-reminders'
-              });
-            }
-          }
-          
-          await SentAssetReminder.create({ ...reminder, sent_date: format(new Date(), 'yyyy-MM-dd'), is_sent: true });
-          await AssetReminder.delete(reminder.id);
+          await sendSingleReminder(reminder);
         }
         resolve(dueReminders.length);
       } catch (error) {
@@ -190,12 +226,12 @@ export default function AssetReminders() {
     });
 
     toast.promise(promise, {
-      loading: 'Đang gửi nhắc nhở...',
-      success: (count) => `Đã gửi ${count} email và thông báo nhắc nhở!`,
-      error: 'Có lỗi xảy ra khi gửi email hoặc thông báo!',
+      loading: 'Đang gửi các nhắc nhở...',
+      success: (count) => `Hoàn tất gửi ${count} nhắc nhở!`,
+      error: 'Có lỗi xảy ra trong quá trình gửi!',
       finally: () => loadInitialData(),
     });
-  }, [reminders, qlnStaff, khStaff, isDueOrOverdue, loadInitialData]);
+  }, [reminders, isDueOrOverdue, sendSingleReminder, loadInitialData]);
 
   const deleteReminder = useCallback(async (id: string, isSent = false) => {
     if (user?.role !== 'admin') {
@@ -263,8 +299,8 @@ export default function AssetReminders() {
     }, 100);
   }, []);
 
-  const qlnOptions = useMemo(() => qlnStaff.map(s => ({ value: s.ten_nv, label: s.ten_nv })), [qlnStaff]);
-  const khOptions = useMemo(() => khStaff.map(s => ({ value: s.ten_nv, label: s.ten_nv })), [khStaff]);
+  const qlnOptions = useMemo(() => getUniqueStaffOptions(qlnStaff), [qlnStaff]);
+  const khOptions = useMemo(() => getUniqueStaffOptions(khStaff), [khStaff]);
 
   return (
     <Layout>
@@ -293,11 +329,11 @@ export default function AssetReminders() {
                 </div>
                 <div>
                   <Label htmlFor="cbqln">CBQLN</Label>
-                  <AutoCompleteInput ref={cbqlnRef} value={newReminder.cbqln || ''} onChange={(value) => setNewReminder({ ...newReminder, cbqln: value })} suggestions={qlnOptions} placeholder="Chọn nhân viên QLN" className="mt-1" onTabSelect={() => moveToNextField('cbqln')} />
+                  <AutoCompleteInput ref={cbqlnRef} value={newReminder.cbqln || ''} onChange={(value) => setNewReminder({ ...newReminder, cbqln: value })} suggestions={qlnOptions} placeholder="Chọn hoặc nhập tên nhân viên QLN" className="mt-1" onTabSelect={() => moveToNextField('cbqln')} />
                 </div>
                 <div>
                   <Label htmlFor="cbkh">CBKH</Label>
-                  <AutoCompleteInput ref={cbkhRef} value={newReminder.cbkh || ''} onChange={(value) => setNewReminder({ ...newReminder, cbkh: value })} suggestions={khOptions} placeholder="Chọn nhân viên KH" className="mt-1" />
+                  <AutoCompleteInput ref={cbkhRef} value={newReminder.cbkh || ''} onChange={(value) => setNewReminder({ ...newReminder, cbkh: value })} suggestions={khOptions} placeholder="Chọn hoặc nhập tên nhân viên KH" className="mt-1" />
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-4">
@@ -315,7 +351,7 @@ export default function AssetReminders() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Danh sách nhắc nhở ({sortedReminders.length})</CardTitle>
             <Button onClick={sendDueReminders} className="bg-green-600 hover:bg-green-700">
-              <Send className="w-4 h-4 mr-2" /> Gửi email
+              <Send className="w-4 h-4 mr-2" /> Gửi các mục đến hạn
             </Button>
           </CardHeader>
           <CardContent className="p-0">
@@ -329,7 +365,7 @@ export default function AssetReminders() {
                       <TableCell className={`font-medium ${isDueOrOverdue(r.ngay_den_han) ? 'text-red-600' : ''}`}>{r.ngay_den_han}</TableCell>
                       <TableCell>{r.cbqln || '-'}</TableCell>
                       <TableCell>{r.cbkh || '-'}</TableCell>
-                      <TableCell><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => editReminder(r)}><Edit className="w-4 h-4 text-blue-600" /></Button>{user?.role === 'admin' && <Button variant="ghost" size="icon" onClick={() => deleteReminder(r.id)}><Trash2 className="w-4 h-4 text-red-600" /></Button>}</div></TableCell>
+                      <TableCell><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => sendSingleReminder(r)} title="Gửi nhắc nhở"><Send className="w-4 h-4 text-green-600" /></Button><Button variant="ghost" size="icon" onClick={() => editReminder(r)} title="Sửa"><Edit className="w-4 h-4 text-blue-600" /></Button>{user?.role === 'admin' && <Button variant="ghost" size="icon" onClick={() => deleteReminder(r.id)} title="Xóa"><Trash2 className="w-4 h-4 text-red-600" /></Button>}</div></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -354,7 +390,7 @@ export default function AssetReminders() {
                       <TableCell>{r.ngay_den_han}</TableCell>
                       <TableCell>{r.cbqln || '-'}</TableCell>
                       <TableCell>{r.cbkh || '-'}</TableCell>
-                      <TableCell>{format(new Date(r.sent_date), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>{r.sent_date ? format(new Date(r.sent_date), 'dd/MM/yyyy') : '-'}</TableCell>
                       {user?.role === 'admin' && <TableCell><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => deleteReminder(r.id, true)}><Trash2 className="w-4 h-4 text-red-600" /></Button></div></TableCell>}
                     </TableRow>
                   ))}
