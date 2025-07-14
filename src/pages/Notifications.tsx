@@ -61,11 +61,6 @@ export default function Notifications() {
       const originalSender = (notification.related_data as any)?.sender;
       const recipient = user?.username;
 
-      // Không gửi thông báo "đã xem" nếu:
-      // 1. Không có người gửi gốc (ví dụ: tin nhắn hệ thống)
-      // 2. Không có người nhận (người dùng hiện tại)
-      // 3. Bản thân thông báo là một "biên nhận đã đọc" (tránh vòng lặp)
-      // 4. Thông báo là một "phản hồi nhanh" (hành động phản hồi nhanh đã là xác nhận)
       if (!originalSender || !recipient || notification.notification_type === 'read_receipt' || notification.notification_type === 'quick_reply') {
         return null;
       }
@@ -85,14 +80,17 @@ export default function Notifications() {
   const quickActionMutation = useMutation({
     mutationFn: async ({ notification, action }: { notification: Notification, action: string }) => {
       if (!user) throw new Error("User not authenticated");
-      const originalSender = (notification.related_data as any)?.sender || 'admin';
-      const actionMessages: { [key: string]: string } = {
-        'acknowledged': '👍 Đã biết.',
-        'processed': '✅ Đã xử lý.'
-      };
-      
-      // Chỉ gửi phản hồi nếu có người gửi thực sự (không phải hệ thống)
-      if ((notification.related_data as any)?.sender) {
+
+      const isSystemMessage = !(notification.related_data as any)?.sender;
+
+      // 1. Send reply ONLY for user-to-user messages
+      if (!isSystemMessage) {
+        const originalSender = (notification.related_data as any).sender;
+        const actionMessages: { [key: string]: string } = {
+          'acknowledged': '👍 Đã biết.',
+          'processed': '✅ Đã xử lý.'
+        };
+        
         const { error: replyError } = await supabase.from('notifications').insert({
           recipient_username: originalSender,
           title: `Phản hồi nhanh: ${notification.title}`,
@@ -103,9 +101,12 @@ export default function Notifications() {
         if (replyError) throw replyError;
       }
 
-      if (action === 'processed') {
+      // 2. Update the original notification's state
+      // For system messages: update on 'processed' or 'acknowledged'
+      // For user messages: update only on 'processed' to track status
+      if (action === 'processed' || (isSystemMessage && action === 'acknowledged')) {
         const currentRelatedData = (notification.related_data || {}) as Record<string, any>;
-        const updatedRelatedData = { ...currentRelatedData, user_action: 'processed' };
+        const updatedRelatedData = { ...currentRelatedData, user_action: action };
         const { error: updateError } = await supabase
           .from('notifications')
           .update({ related_data: updatedRelatedData })
@@ -113,18 +114,25 @@ export default function Notifications() {
         if (updateError) console.error('Lỗi cập nhật trạng thái thông báo:', updateError);
       }
 
-      return { notification, action };
+      return { notification, action, isSystemMessage };
     },
-    onSuccess: ({ notification, action }) => {
+    onSuccess: ({ notification, action, isSystemMessage }) => {
       if (notification) {
         markAsSeen(notification.id);
-        // Không gửi read receipt khi đã có quick action
       }
       queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
       queryClient.invalidateQueries({ queryKey: ['system_notification_stats'] });
-      toast.success(`Đã gửi phản hồi nhanh: "${action === 'acknowledged' ? 'Đã biết' : 'Đã xử lý'}"`);
+
+      const actionText = action === 'acknowledged' ? 'Đã biết' : 'Đã xử lý';
+      
+      // 3. Show conditional toast message
+      if (isSystemMessage) {
+        toast.success(`Đã ghi nhận hành động: "${actionText}"`);
+      } else {
+        toast.success(`Đã gửi phản hồi nhanh: "${actionText}"`);
+      }
     },
-    onError: (error: any) => toast.error(`Lỗi gửi phản hồi: ${error.message}`),
+    onError: (error: any) => toast.error(`Lỗi thực hiện hành động: ${error.message}`),
   });
 
   const { ref, inView } = useInView({
@@ -228,7 +236,7 @@ export default function Notifications() {
               let conversation = originalConversation;
 
               if (correspondent === 'Hệ thống') {
-                conversation = originalConversation.filter(n => (n.related_data as any)?.user_action !== 'processed');
+                conversation = originalConversation.filter(n => !['processed', 'acknowledged'].includes((n.related_data as any)?.user_action));
               }
 
               if (correspondent === 'Hệ thống' && conversation.length === 0) {
