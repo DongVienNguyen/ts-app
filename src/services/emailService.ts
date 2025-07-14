@@ -24,19 +24,29 @@ export interface EmailResponse {
 export const sendEmail = async (options: EmailOptions): Promise<EmailResponse> => {
   try {
     console.log('📧 EmailService: Preparing to send email...');
-    console.log('📧 To:', Array.isArray(options.to) ? options.to.join(', ') : options.to);
+    console.log('📧 Original To:', Array.isArray(options.to) ? options.to.join(', ') : options.to);
     console.log('📧 Subject:', options.subject);
     console.log('📧 Type:', options.type);
 
+    // Format recipients to ensure they are valid email addresses
+    const formattedTo = Array.isArray(options.to)
+      ? options.to.map(email => formatEmail(email)).filter(Boolean) as string[]
+      : [formatEmail(options.to)].filter(Boolean) as string[];
+
+    if (formattedTo.length === 0) {
+      console.error('❌ No valid recipients after formatting.');
+      return { success: false, error: 'No valid recipients after formatting.' };
+    }
+
     const requestBody = {
-      to: options.to,
+      to: formattedTo, // Use the formatted email addresses
       subject: options.subject,
       html: options.html,
       type: options.type,
       data: options.data
     };
 
-    console.log('📧 Calling Supabase Edge Function...');
+    console.log('📧 Calling Supabase Edge Function with formatted recipients:', formattedTo.join(', '));
     const { data, error } = await supabase.functions.invoke('send-notification-email', {
       body: requestBody
     });
