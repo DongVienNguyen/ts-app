@@ -83,7 +83,6 @@ export default function Notifications() {
 
       const isSystemMessage = !(notification.related_data as any)?.sender;
 
-      // 1. Send reply ONLY for user-to-user messages
       if (!isSystemMessage) {
         const originalSender = (notification.related_data as any).sender;
         const actionMessages: { [key: string]: string } = {
@@ -101,9 +100,6 @@ export default function Notifications() {
         if (replyError) throw replyError;
       }
 
-      // 2. Update the original notification's state
-      // For system messages: update on 'processed' or 'acknowledged'
-      // For user messages: update only on 'processed' to track status
       if (action === 'processed' || (isSystemMessage && action === 'acknowledged')) {
         const currentRelatedData = (notification.related_data || {}) as Record<string, any>;
         const updatedRelatedData = { ...currentRelatedData, user_action: action };
@@ -125,7 +121,6 @@ export default function Notifications() {
 
       const actionText = action === 'acknowledged' ? 'Đã biết' : 'Đã xử lý';
       
-      // 3. Show conditional toast message
       if (isSystemMessage) {
         toast.success(`Đã ghi nhận hành động: "${actionText}"`);
       } else {
