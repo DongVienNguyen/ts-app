@@ -7,11 +7,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Download, Upload, Clock, Settings, BarChart, Activity, Shield, Database, HardDrive } from 'lucide-react';
+import { AlertCircle, Download, Clock, Settings, BarChart, Activity, Shield, Database, HardDrive } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import BackupHeader from '@/components/backup/BackupHeader';
-import BackupStatusCard from '@/components/backup/BackupStatusCard';
 import BackupActionsCard from '@/components/backup/BackupActionsCard';
 import BackupComponentsCard from '@/components/backup/BackupComponentsCard';
 import BackupInfoAlert from '@/components/backup/BackupInfoAlert';

@@ -172,12 +172,7 @@ export function ErrorListTab({ recentErrors, isLoading, onRefresh, initialFilter
   const {
     paginatedData,
     currentPage,
-    totalPages,
-    nextPage,
-    prevPage,
     goToPage,
-    canNextPage,
-    canPrevPage,
   } = usePagination({ data: filteredErrors, itemsPerPage: ITEMS_PER_PAGE });
 
   const groupErrors = (errors: SystemError[]) => {

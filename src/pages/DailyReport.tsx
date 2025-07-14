@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Layout from '@/components/Layout';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -315,7 +315,7 @@ export default function DailyReport() {
       });
     }
     
-    return _.orderBy(filtered, ['room', 'asset_year', t => parseInt(t.asset_code) || 0], ['asc', 'asc', 'asc']);
+    return _.orderBy(filtered, ['room', 'asset_year', t => parseInt(String(t.asset_code)) || 0], ['asc', 'asc', 'asc']);
   }, [allTransactions, filterType, customFilters]);
   
   // Lọc ra danh sách dành cho việc gom nhóm (loại bỏ những TS đã lấy)
@@ -551,7 +551,7 @@ export default function DailyReport() {
       const groupedByYear = _.groupBy(groupedByRoom[room], 'asset_year');
       const sortedYears = Object.keys(groupedByYear).sort((a, b) => parseInt(a) - parseInt(b));
       for (const year of sortedYears) {
-        const codesWithStatus = _.sortBy(groupedByYear[year], t => parseInt(t.asset_code) || 0)
+        const codesWithStatus = _.sortBy(groupedByYear[year], t => parseInt(String(t.asset_code)) || 0)
           .map(t => {
             const key = `${t.room}-${t.asset_year}-${t.asset_code}`;
             const wasTakenBefore = (assetFrequencyThisWeek.get(key) || 0) > 1;

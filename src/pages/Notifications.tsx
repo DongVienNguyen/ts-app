@@ -56,27 +56,6 @@ export default function Notifications() {
   
   const { unprocessedCount: unprocessedSystemCount } = useSystemNotificationStats();
 
-  const sendReadReceiptMutation = useMutation({
-    mutationFn: async (notification: Notification) => {
-      const originalSender = (notification.related_data as any)?.sender;
-      const recipient = user?.username;
-
-      if (!originalSender || !recipient || notification.notification_type === 'read_receipt' || notification.notification_type === 'quick_reply') {
-        return null;
-      }
-      
-      const { error } = await supabase.from('notifications').insert({
-        recipient_username: originalSender,
-        title: `Đã xem: ${notification.title.substring(0, 50)}`,
-        message: `${recipient} đã xem thông báo của bạn.`,
-        notification_type: 'read_receipt',
-        related_data: { original_notification_id: notification.id }
-      });
-      if (error) throw error;
-    },
-    onError: (error: any) => console.error('Error sending read receipt:', error),
-  });
-
   const quickActionMutation = useMutation({
     mutationFn: async ({ notification, action }: { notification: Notification, action: string }) => {
       if (!user) throw new Error("User not authenticated");
