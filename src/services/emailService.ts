@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { EMAIL_CONFIG } from '@/config';
+import { formatEmail } from '@/utils/emailUtils';
 
 export interface EmailOptions {
   to: string | string[];
@@ -157,14 +158,20 @@ Có lỗi xảy ra khi xử lý giao dịch tài sản của bạn.
 
 Vui lòng thử lại hoặc liên hệ bộ phận hỗ trợ.`;
 
-  // Get user email from staff table
+  // Get user email from staff table, falling back to username
   const { data: staffData } = await supabase
     .from('staff')
-    .select('email')
+    .select('email, username')
     .eq('username', username)
     .single();
 
-  const userEmail = staffData?.email ? `${staffData.email}@company.com` : `${username}@company.com`;
+  const emailIdentifier = staffData?.email || staffData?.username;
+  const userEmail = formatEmail(emailIdentifier);
+
+  if (!userEmail) {
+    console.warn(`Could not construct a valid email for user: ${username}. Confirmation email will not be sent.`);
+    return { success: false, error: `Could not determine email for user ${username}` };
+  }
 
   return sendAssetNotificationEmail([userEmail], subject, content);
 };
@@ -216,12 +223,13 @@ Vui lòng kiểm tra và xử lý lỗi này.`;
   // Send to admin
   const { data: adminData } = await supabase
     .from('staff')
-    .select('email')
+    .select('email, username')
     .eq('role', 'admin')
     .limit(1)
     .single();
 
-  const adminEmail = adminData?.email ? `${adminData.email}@company.com` : 'admin@company.com';
+  const adminIdentifier = adminData?.email || adminData?.username || 'admin';
+  const adminEmail = formatEmail(adminIdentifier);
 
   return sendAssetNotificationEmail([adminEmail], subject, content);
 };
@@ -240,12 +248,14 @@ export const getAdminEmail = async (): Promise<string | null> => {
   try {
     const { data: adminData } = await supabase
       .from('staff')
-      .select('email')
+      .select('email, username')
       .eq('role', 'admin')
       .limit(1)
       .single();
 
-    return adminData?.email ? `${adminData.email}@company.com` : null;
+    const emailIdentifier = adminData?.email || adminData?.username;
+    const formattedEmail = formatEmail(emailIdentifier);
+    return formattedEmail || null;
   } catch (error) {
     console.error('Error getting admin email:', error);
     return null;

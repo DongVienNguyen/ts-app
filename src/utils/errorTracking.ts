@@ -2,6 +2,7 @@ import { safeDbOperation } from '@/utils/supabaseAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { notificationService } from '@/services/notificationService';
 import emailService from '@/services/emailService';
+import { formatEmail } from '@/utils/emailUtils';
 
 // ... rest of the file remains the same ...
 export interface SystemError {
@@ -302,8 +303,7 @@ export async function captureError(
     const { data: admins, error: adminError } = await supabase
       .from('staff')
       .select('username, email')
-      .eq('role', 'admin')
-      .not('email', 'is', null);
+      .eq('role', 'admin');
 
     if (adminError) {
       console.error('Failed to fetch admins for notification:', adminError);
@@ -366,10 +366,13 @@ export async function captureError(
     if (severity === 'critical' || severity === 'high') {
       console.log(`Sending email and push notifications to ${admins.length} admins for ${severity} error.`);
       // Send emails
-      const emails = admins.map(admin => admin.email!).filter(Boolean);
+      const emails = admins
+        .map(admin => formatEmail(admin.email || admin.username))
+        .filter(Boolean);
+        
       if (emails.length > 0) {
         await emailService.sendEmail({
-          to: emails.map(email => `${email}.hvu@vietcombank.com.vn`),
+          to: emails,
           subject: emailSubject,
           html: emailHtml
         });
