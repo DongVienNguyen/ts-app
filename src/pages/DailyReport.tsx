@@ -879,7 +879,7 @@ export default function DailyReport() {
                   </Dialog>
                 </CardTitle>
                 <CardDescription>
-                  <p>Dấu (*) TS đã được nhắn hơn một lần trong tuần</p>
+                  <span>Dấu (*) TS đã được nhắn hơn một lần trong tuần</span>
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
