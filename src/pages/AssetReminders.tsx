@@ -63,8 +63,8 @@ export default function AssetReminders() {
 
   const tenTSRef = useRef<HTMLInputElement>(null);
   const ngayDenHanRef = useRef<HTMLInputElement>(null);
-  const cbqlnRef = useRef<HTMLInputElement>(null);
-  const cbkhRef = useRef<HTMLInputElement>(null);
+  const cbqlnRef = useRef<HTMLButtonElement>(null);
+  const cbkhRef = useRef<HTMLButtonElement>(null);
 
   const loadInitialData = useCallback(async () => {
     setIsLoading(true);
@@ -329,11 +329,11 @@ export default function AssetReminders() {
                 </div>
                 <div>
                   <Label htmlFor="cbqln">CBQLN</Label>
-                  <AutoCompleteInput ref={cbqlnRef} value={newReminder.cbqln || ''} onChange={(value) => setNewReminder({ ...newReminder, cbqln: value })} suggestions={qlnOptions} placeholder="Chọn hoặc nhập tên nhân viên QLN" className="mt-1" onTabSelect={() => moveToNextField('cbqln')} />
+                  <AutoCompleteInput ref={cbqlnRef} value={newReminder.cbqln || ''} onChange={(value) => setNewReminder({ ...newReminder, cbqln: value })} suggestions={qlnOptions} placeholder="Chọn nhân viên QLN" className="mt-1" onTabSelect={() => moveToNextField('cbqln')} />
                 </div>
                 <div>
                   <Label htmlFor="cbkh">CBKH</Label>
-                  <AutoCompleteInput ref={cbkhRef} value={newReminder.cbkh || ''} onChange={(value) => setNewReminder({ ...newReminder, cbkh: value })} suggestions={khOptions} placeholder="Chọn hoặc nhập tên nhân viên KH" className="mt-1" />
+                  <AutoCompleteInput ref={cbkhRef} value={newReminder.cbkh || ''} onChange={(value) => setNewReminder({ ...newReminder, cbkh: value })} suggestions={khOptions} placeholder="Chọn nhân viên KH" className="mt-1" />
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-4">
