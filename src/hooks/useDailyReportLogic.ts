@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { getAssetTransactions, AssetTransactionFilters } from '@/services/assetService';
+import { getAssetTransactions } from '@/services/assetService';
+import { AssetTransactionFilters } from '@/types/asset';
 import { 
   formatToDDMMYYYY,
   getGMTPlus7Date,

@@ -8,8 +8,9 @@ export const submitAssetTransactions = async (
   multipleAssets: string[],
   username: string
 ) => {
-  console.log('=== ASSET ENTRY SUBMIT START ===');
+  console.log('=== ASSET SUBMISSION PROCESS START ===');
   console.log('Current user:', username);
+  console.log('Form data:', formData);
   
   const transactions: AssetTransactionPayload[] = multipleAssets.map(asset => {
     const [code, year] = asset.split('.');
@@ -19,28 +20,33 @@ export const submitAssetTransactions = async (
       parts_day: formData.parts_day,
       room: formData.room,
       transaction_type: formData.transaction_type,
-      asset_year: parseInt(year),
-      asset_code: parseInt(code),
+      asset_year: parseInt(year, 10),
+      asset_code: parseInt(code, 10),
       note: formData.note || null
     };
   });
   
-  console.log('Submitting transactions:', transactions);
+  console.log('Submitting transactions to service:', transactions);
   
-  // Save to database first
+  // Step 1: Save to database. This is the critical step.
   const savedTransactions = await saveAssetTransactions(transactions);
-  console.log('Successfully saved to database:', savedTransactions);
+  console.log('Database save successful:', savedTransactions);
   
-  // Send email notification after successful save
-  console.log('=== SENDING EMAIL NOTIFICATION ===');
-  const emailResult = await sendAssetTransactionConfirmation(
-    username,
-    savedTransactions,
-    true
-  );
-  console.log('Email notification result:', emailResult);
-  
-  console.log('=== ASSET ENTRY SUBMIT END ===');
-  
-  return { savedTransactions, emailResult };
+  // Step 2: Send email notification. This is a secondary step.
+  try {
+    console.log('Sending email notification...');
+    const emailResult = await sendAssetTransactionConfirmation(
+      username,
+      savedTransactions,
+      true // Assuming this flag means it's a new entry
+    );
+    console.log('Email notification result:', emailResult);
+    console.log('=== ASSET SUBMISSION PROCESS END ===');
+    return { savedTransactions, emailResult };
+  } catch (emailError) {
+    console.error('⚠️ Email sending failed, but database transaction was successful.', emailError);
+    // Do not re-throw the error. The primary action (DB save) succeeded.
+    // The user should be notified of success, maybe with a warning about the email.
+    return { savedTransactions, emailResult: { error: emailError } };
+  }
 };
