@@ -36,7 +36,7 @@ const ComboBox: React.FC<ComboBoxProps> = ({ value, onChange, options, placehold
   };
 
   const handleOptionClick = (option: { value: string; label: string }) => { // Changed type
-    onChange(option.label); // Pass label back to onChange
+    onChange(option.value); // Pass value back to onChange
     setIsOpen(false);
     setSelectedIndex(-1);
   };
