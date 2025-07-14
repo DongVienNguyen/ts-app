@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useSecureAuth } from '@/contexts/AuthContext';
+import { requestNotificationPermission, subscribeUserToPush } from '@/utils/pushNotificationUtils';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -10,6 +12,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function usePWAInstall() {
+  const { user } = useSecureAuth();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [canInstall, setCanInstall] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -47,6 +50,33 @@ export function usePWAInstall() {
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
+
+  // New: Automatically setup push notifications after PWA install
+  useEffect(() => {
+    const setupPushAfterInstall = async () => {
+      // Only run if PWA is installed and user is logged in
+      if (isInstalled && user?.username) {
+        // Check if we've already attempted this in the current session
+        const hasAttempted = sessionStorage.getItem('pwa-push-setup-attempted');
+        if (hasAttempted) {
+          return;
+        }
+        sessionStorage.setItem('pwa-push-setup-attempted', 'true');
+
+        try {
+          const permission = await requestNotificationPermission();
+          if (permission === 'granted') {
+            await subscribeUserToPush(user.username);
+            console.log('✅ Push notifications automatically configured after PWA installation.');
+          }
+        } catch (error) {
+          console.error('Failed to setup push notifications after PWA install:', error);
+        }
+      }
+    };
+
+    setupPushAfterInstall();
+  }, [isInstalled, user]);
 
   const triggerInstall = async () => {
     if (!deferredPrompt) {
