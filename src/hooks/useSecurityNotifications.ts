@@ -26,11 +26,11 @@ export function useSecurityNotifications() {
       const severity = getSeverityLevel(event);
       
       const notification: SecurityNotification = {
-        id: `${event.timestamp}-${Math.random()}`,
+        id: `${event.created_at}-${Math.random()}`,
         event,
         severity,
         read: false,
-        timestamp: new Date(event.timestamp)
+        timestamp: new Date(event.created_at)
       };
 
       setNotifications(prev => [notification, ...prev].slice(0, 100)); // Keep last 100
@@ -76,7 +76,7 @@ export function useSecurityNotifications() {
   }, [isAdmin]);
 
   const getSeverityLevel = (event: SecurityEvent): 'low' | 'medium' | 'high' | 'critical' => {
-    switch (event.type) {
+    switch (event.event_type) {
       case 'LOGIN_FAILED':
         return 'medium';
       case 'ACCOUNT_LOCKED':
@@ -105,7 +105,7 @@ export function useSecurityNotifications() {
       'SESSION_EXPIRED': `Phiên làm việc của ${event.username} đã hết hạn`,
       'TOKEN_VALIDATION_FAILED': `Xác thực token thất bại`
     };
-    return messages[event.type] || `Sự kiện bảo mật: ${event.type}`;
+    return messages[event.event_type] || `Sự kiện bảo mật: ${event.event_type}`;
   };
 
   const markAsRead = (notificationId: string) => {

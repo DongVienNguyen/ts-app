@@ -156,6 +156,7 @@ export class AdvancedSystemHealthService {
         status,
         responseTime,
         lastCheck: new Date().toISOString(),
+        uptime: status === 'healthy' ? 100 : 0,
       };
     });
   }
@@ -173,6 +174,7 @@ export class AdvancedSystemHealthService {
         status,
         responseTime,
         lastCheck: new Date().toISOString(),
+        uptime: status === 'healthy' ? 100 : 0,
       };
     });
   }
@@ -357,8 +359,8 @@ export class AdvancedSystemHealthService {
         memory: { status: 'error', used: 0, total: 100, percentage: 0, peak: 0, lastCheck: new Date().toISOString() },
         performance: { averageResponseTime: 0, totalOperations: 0, slowestOperation: null, fastestOperation: null },
         security: { status: 'error', activeThreats: 0, lastSecurityScan: new Date().toISOString(), failedLogins: 0, lastCheck: new Date().toISOString() },
-        email: { status: 'error', lastCheck: new Date().toISOString() },
-        pushNotification: { status: 'error', lastCheck: new Date().toISOString() },
+        email: { status: 'error', lastCheck: new Date().toISOString(), responseTime: 0, uptime: 0 },
+        pushNotification: { status: 'error', lastCheck: new Date().toISOString(), responseTime: 0, uptime: 0 },
         overall: 'error'
       };
 

@@ -80,12 +80,12 @@ export function SecurityOverview() {
                   {stats.recentEvents.slice(0, 7).map((event) => (
                     <TableRow key={event.id}>
                       <TableCell>
-                        <Badge variant={getEventTypeVariant(event.type)}>{event.type}</Badge>
+                        <Badge variant={getEventTypeVariant(event.event_type)}>{event.event_type}</Badge>
                       </TableCell>
                       <TableCell>{event.username || 'Hệ thống'}</TableCell>
                       <TableCell>{event.ip || 'N/A'}</TableCell>
                       <TableCell className="text-right text-xs text-muted-foreground">
-                        {new Date(event.timestamp).toLocaleString('vi-VN')}
+                        {new Date(event.created_at).toLocaleString('vi-VN')}
                       </TableCell>
                     </TableRow>
                   ))}

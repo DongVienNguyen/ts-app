@@ -2,9 +2,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { isDevelopment } from '@/config';
 
 export interface SecurityEvent {
-  id: string; // Thêm id để phân biệt các sự kiện
-  type: string;
-  timestamp: string;
+  id: string;
+  event_type: string;
+  created_at: string;
   data: any;
   userAgent: string;
   ip?: string;
@@ -33,8 +33,8 @@ export async function logSecurityEventRealTime(
 ) {
   const event: SecurityEvent = {
     id: crypto.randomUUID(), // Tạo ID duy nhất
-    type: eventType,
-    timestamp: new Date().toISOString(),
+    event_type: eventType,
+    created_at: new Date().toISOString(),
     data,
     userAgent: navigator.userAgent,
     username
@@ -104,8 +104,8 @@ export function subscribeToSecurityEvents(
       (payload) => {
         const event: SecurityEvent = {
           id: payload.new.id, // Sử dụng ID từ payload
-          type: payload.new.event_type,
-          timestamp: payload.new.created_at,
+          event_type: payload.new.event_type,
+          created_at: payload.new.created_at,
           data: payload.new.event_data,
           userAgent: payload.new.user_agent,
           ip: payload.new.ip_address,
@@ -137,8 +137,8 @@ export async function getRealTimeSecurityStats(): Promise<RealTimeSecurityStats>
 
     const recentEvents: SecurityEvent[] = events?.map(event => ({
       id: event.id,
-      type: event.event_type,
-      timestamp: event.created_at,
+      event_type: event.event_type,
+      created_at: event.created_at,
       data: event.event_data,
       userAgent: event.user_agent,
       ip: event.ip_address,
@@ -146,13 +146,13 @@ export async function getRealTimeSecurityStats(): Promise<RealTimeSecurityStats>
     })) || [];
 
     // Calculate detailed metrics
-    const loginAttempts = recentEvents.filter(e => e.type === 'LOGIN_ATTEMPT').length;
-    const failedLogins = recentEvents.filter(e => e.type === 'LOGIN_FAILED').length;
-    const successfulLogins = recentEvents.filter(e => e.type === 'LOGIN_SUCCESS').length;
-    const accountLocks = recentEvents.filter(e => e.type === 'ACCOUNT_LOCKED').length;
-    const passwordResets = recentEvents.filter(e => e.type === 'PASSWORD_RESET').length;
+    const loginAttempts = recentEvents.filter(e => e.event_type === 'LOGIN_ATTEMPT').length;
+    const failedLogins = recentEvents.filter(e => e.event_type === 'LOGIN_FAILED').length;
+    const successfulLogins = recentEvents.filter(e => e.event_type === 'LOGIN_SUCCESS').length;
+    const accountLocks = recentEvents.filter(e => e.event_type === 'ACCOUNT_LOCKED').length;
+    const passwordResets = recentEvents.filter(e => e.event_type === 'PASSWORD_RESET').length;
     const suspiciousActivities = recentEvents.filter(e => 
-      e.type === 'SUSPICIOUS_ACTIVITY' || e.type === 'RATE_LIMIT_EXCEEDED'
+      e.event_type === 'SUSPICIOUS_ACTIVITY' || e.event_type === 'RATE_LIMIT_EXCEEDED'
     ).length;
 
     // Calculate threat level based on recent events
@@ -195,14 +195,14 @@ export async function getRealTimeSecurityStats(): Promise<RealTimeSecurityStats>
 
 function calculateThreatLevel(events: SecurityEvent[]): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
   const recentEvents = events.filter(event => {
-    const eventTime = new Date(event.timestamp).getTime();
+    const eventTime = new Date(event.created_at).getTime();
     const oneHourAgo = Date.now() - (60 * 60 * 1000);
     return eventTime > oneHourAgo;
   });
 
-  const failedLogins = recentEvents.filter(e => e.type === 'LOGIN_FAILED').length;
+  const failedLogins = recentEvents.filter(e => e.event_type === 'LOGIN_FAILED').length;
   const suspiciousActivities = recentEvents.filter(e => 
-    e.type === 'SUSPICIOUS_ACTIVITY' || e.type === 'RATE_LIMIT_EXCEEDED'
+    e.event_type === 'SUSPICIOUS_ACTIVITY' || e.event_type === 'RATE_LIMIT_EXCEEDED'
   ).length;
 
   if (failedLogins >= 20 || suspiciousActivities >= 10) return 'CRITICAL';
@@ -213,13 +213,13 @@ function calculateThreatLevel(events: SecurityEvent[]): 'LOW' | 'MEDIUM' | 'HIGH
 
 function calculateSystemHealth(events: SecurityEvent[]): 'HEALTHY' | 'WARNING' | 'CRITICAL' {
   const recentEvents = events.filter(event => {
-    const eventTime = new Date(event.timestamp).getTime();
+    const eventTime = new Date(event.created_at).getTime();
     const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
     return eventTime > thirtyMinutesAgo;
   });
 
   const errorEvents = recentEvents.filter(e => 
-    e.type.includes('ERROR') || e.type.includes('FAILED')
+    e.event_type.includes('ERROR') || e.event_type.includes('FAILED')
   ).length;
 
   if (errorEvents >= 10) return 'CRITICAL';

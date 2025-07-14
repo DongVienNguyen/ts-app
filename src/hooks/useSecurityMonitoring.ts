@@ -32,8 +32,8 @@ async function getSecurityStats(): Promise<SecurityStats> {
 
   const recentEvents: SecurityEvent[] = allEvents.slice(0, 10).map(event => ({
     id: event.id,
-    type: event.event_type,
-    timestamp: event.created_at,
+    event_type: event.event_type,
+    created_at: event.created_at,
     data: event.event_data,
     userAgent: event.user_agent,
     ip: event.ip_address,
@@ -65,16 +65,16 @@ export function useSecurityMonitoring() {
     const eventsForTrend = data?.recentEvents || [];
 
     eventsForTrend.forEach(event => {
-      const date = new Date(event.timestamp).toLocaleDateString('en-CA');
+      const date = new Date(event.created_at).toLocaleDateString('en-CA');
       if (!dailyData[date]) {
         dailyData[date] = { successfulLogins: 0, failedLogins: 0, suspiciousActivities: 0 };
       }
 
-      if (event.type === 'LOGIN_SUCCESS') {
+      if (event.event_type === 'LOGIN_SUCCESS') {
         dailyData[date].successfulLogins++;
-      } else if (event.type === 'LOGIN_FAILED') {
+      } else if (event.event_type === 'LOGIN_FAILED') {
         dailyData[date].failedLogins++;
-      } else if (event.type === 'SUSPICIOUS_ACTIVITY' || event.type === 'RATE_LIMIT_EXCEEDED') {
+      } else if (event.event_type === 'SUSPICIOUS_ACTIVITY' || event.event_type === 'RATE_LIMIT_EXCEEDED') {
         dailyData[date].suspiciousActivities++;
       }
     });
