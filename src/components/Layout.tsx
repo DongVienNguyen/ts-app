@@ -74,7 +74,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       { name: 'Bảo mật', href: '/security-monitor', icon: Shield, show: userIsAdmin },
       { name: 'Lỗi hệ thống', href: '/error-monitoring', icon: Activity, show: userIsAdmin },
       { name: 'Sử dụng', href: '/usage-monitoring', icon: BarChart3, show: userIsAdmin },
-      { name: 'Backup & Restore', href: '/backup', icon: HardDrive, show: userIsAdmin } // Updated href
+      { name: 'Backup & Restore', href: '/system-backup', icon: HardDrive, show: userIsAdmin }
     ].filter(item => item.show);
 
     return (
