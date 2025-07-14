@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useSecureAuth } from '@/contexts/AuthContext';
+import Layout from '@/components/Layout'; // Import the Layout component
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -22,9 +23,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   return (
-    <>
+    <Layout> {/* Wrap children with the Layout component */}
       {children}
-    </>
+    </Layout>
   );
 };
 
