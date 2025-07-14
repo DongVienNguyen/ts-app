@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { Download, X, Smartphone } from 'lucide-react';
 import { Button } from './ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useSecureAuth } from '@/contexts/AuthContext';
 
 export function PWAInstallPrompt() {
   const { canInstall, triggerInstall, isInstalled } = usePWAInstall();
+  const { user } = useSecureAuth();
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOSSafari, setIsIOSSafari] = useState(false);
   const [isAndroidChrome, setIsAndroidChrome] = useState(false);
@@ -23,30 +25,32 @@ export function PWAInstallPrompt() {
     setIsIOSSafari(isIOSSafariDetected);
     setIsAndroidChrome(isAndroidChromeDetected);
 
-    // Check if should show prompt
     const checkShouldShow = () => {
-      const dismissed = localStorage.getItem('pwa-install-dismissed');
-      const lastShown = localStorage.getItem('pwa-install-last-shown');
-      const now = Date.now();
-      
-      // Don't show if dismissed permanently or shown recently (within 24 hours)
-      if (dismissed === 'permanent') return false;
-      if (lastShown && (now - parseInt(lastShown)) < 24 * 60 * 60 * 1000) return false;
-      
-      // Show for iOS Safari or Android Chrome if not installed
-      if ((isIOSSafariDetected || isAndroidChromeDetected || canInstall) && !isInstalled) {
-        // Show after 10 seconds
+      // Don't show if: no user, app already installed, or prompt permanently dismissed
+      if (!user || isInstalled || localStorage.getItem('pwa-install-dismissed') === 'permanent') {
+        setShowPrompt(false);
+        return;
+      }
+
+      // Don't show if already prompted in this session
+      if (sessionStorage.getItem('pwa-prompt-shown-session')) {
+        return;
+      }
+
+      // Show for supported platforms (iOS Safari, Android Chrome, or installable event)
+      if (isIOSSafariDetected || isAndroidChromeDetected || canInstall) {
+        // Show after a short delay for better user experience
         const timer = setTimeout(() => {
           setShowPrompt(true);
-          localStorage.setItem('pwa-install-last-shown', now.toString());
-        }, 10000);
+          sessionStorage.setItem('pwa-prompt-shown-session', 'true');
+        }, 5000); // 5-second delay
 
         return () => clearTimeout(timer);
       }
     };
 
     checkShouldShow();
-  }, [canInstall, isInstalled]);
+  }, [user, canInstall, isInstalled, isIOSSafari, isAndroidChrome]);
 
   const handleInstall = async () => {
     if (canInstall) {
@@ -61,8 +65,6 @@ export function PWAInstallPrompt() {
   const handleDismiss = (permanent = false) => {
     if (permanent) {
       localStorage.setItem('pwa-install-dismissed', 'permanent');
-    } else {
-      localStorage.setItem('pwa-install-dismissed', 'temporary');
     }
     setShowPrompt(false);
   };
