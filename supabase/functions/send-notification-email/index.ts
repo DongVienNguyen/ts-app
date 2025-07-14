@@ -55,7 +55,7 @@ const generateTestEmailHTML = (username: string): string => {
 }
 
 // Send email via Resend API
-const sendEmail = async (recipients: string[], subject: string, emailHTML: string) => {
+const sendEmail = async (recipients: string[], subject: string, bodyHTML: string) => {
   // @ts-ignore
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
   if (!resendApiKey) {
@@ -76,7 +76,7 @@ const sendEmail = async (recipients: string[], subject: string, emailHTML: strin
       from: 'Tài sản - CRC <taisan@caremylife.me>',
       to: recipients,
       subject: subject,
-      html: emailHTML,
+      html: bodyHTML,
     }),
   })
 
@@ -163,13 +163,13 @@ serve(async (req) => {
     }
 
     // Generate email HTML
-    let emailHTML = html
-    if (!emailHTML && type === 'test') {
-      emailHTML = generateTestEmailHTML(data?.username || 'N/A')
+    let finalHtml = html
+    if (!finalHtml && type === 'test') {
+      finalHtml = generateTestEmailHTML(data?.username || 'N/A')
     }
     
-    if (!emailHTML) {
-      emailHTML = '<p>Nội dung email từ hệ thống Tài sản - CRC</p>'
+    if (!finalHtml) {
+      finalHtml = '<p>Nội dung email từ hệ thống Tài sản - CRC</p>'
     }
 
     const recipients = Array.isArray(to) ? to : [to]
@@ -178,7 +178,7 @@ serve(async (req) => {
 
     // Send email
     try {
-      const result = await sendEmail(recipients, subject, emailHTML)
+      const result = await sendEmail(recipients, subject, finalHtml)
       
       return new Response(JSON.stringify({
         success: true,

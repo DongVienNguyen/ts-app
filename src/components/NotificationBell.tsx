@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePageVisibility } from '@/hooks/usePageVisibility';
 import { useSystemNotificationStats } from '@/hooks/useSystemNotificationStats';
+import { toast } from 'sonner';
 
 interface Notification {
   id: string;
@@ -55,11 +56,6 @@ export function NotificationBell() {
       const originalSender = relatedData?.sender;
       const recipient = user?.username;
 
-      // Không gửi thông báo "đã xem" nếu:
-      // 1. Không có người gửi gốc (ví dụ: tin nhắn hệ thống)
-      // 2. Không có người nhận (người dùng hiện tại)
-      // 3. Bản thân thông báo là một "biên nhận đã đọc" (tránh vòng lặp)
-      // 4. Thông báo là một "phản hồi nhanh" (hành động phản hồi nhanh đã là xác nhận)
       if (!originalSender || !recipient || notification.notification_type === 'read_receipt' || notification.notification_type === 'quick_reply') {
         return null;
       }
@@ -79,26 +75,56 @@ export function NotificationBell() {
   const quickActionMutation = useMutation({
     mutationFn: async ({ notification, action }: { notification: Notification, action: string }) => {
       if (!user) throw new Error("User not authenticated");
-      const originalSender = (notification.related_data as any)?.sender || 'admin';
-      const actionMessages: { [key: string]: string } = {
-        'acknowledged': '👍 Đã biết.',
-        'processed': '✅ Đã xử lý.'
-      };
-      const { error } = await supabase.from('notifications').insert({
-        recipient_username: originalSender,
-        title: `Phản hồi nhanh: ${notification.title}`,
-        message: actionMessages[action] || action,
-        notification_type: 'quick_reply',
-        related_data: { original_notification_id: notification.id, replied_by: user.username, sender: user.username }
-      });
-      if (error) throw error;
-      return notification;
+
+      const isSystemMessage = !(notification.related_data as any)?.sender;
+
+      // 1. Send reply ONLY for user-to-user messages
+      if (!isSystemMessage) {
+        const originalSender = (notification.related_data as any).sender;
+        const actionMessages: { [key: string]: string } = {
+          'acknowledged': '👍 Đã biết.',
+          'processed': '✅ Đã xử lý.'
+        };
+        
+        const { error: replyError } = await supabase.from('notifications').insert({
+          recipient_username: originalSender,
+          title: `Phản hồi nhanh: ${notification.title}`,
+          message: actionMessages[action] || action,
+          notification_type: 'quick_reply',
+          related_data: { original_notification_id: notification.id, replied_by: user.username, sender: user.username, action }
+        });
+        if (replyError) throw replyError;
+      }
+
+      // 2. Update the original notification's state for system messages
+      if (isSystemMessage && (action === 'processed' || action === 'acknowledged')) {
+        const currentRelatedData = (notification.related_data || {}) as Record<string, any>;
+        const updatedRelatedData = { ...currentRelatedData, user_action: action };
+        const { error: updateError } = await supabase
+          .from('notifications')
+          .update({ related_data: updatedRelatedData })
+          .eq('id', notification.id);
+        if (updateError) console.error('Lỗi cập nhật trạng thái thông báo:', updateError);
+      }
+
+      return { notification, action, isSystemMessage };
     },
-    onSuccess: (notification) => {
+    onSuccess: ({ action, isSystemMessage }) => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['notifications_conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['system_notification_stats'] });
+
+      const actionText = action === 'acknowledged' ? 'Đã biết' : 'Đã xử lý';
+      if (isSystemMessage) {
+        toast.success(`Đã ghi nhận hành động: "${actionText}"`);
+      } else {
+        toast.success(`Đã gửi phản hồi nhanh: "${actionText}"`);
+      }
     },
-    onError: (error: any) => console.error('Error sending quick action from bell:', error),
+    onError: (error: any) => {
+        toast.error(`Lỗi thực hiện hành động: ${error.message}`);
+        console.error('Error sending quick action from bell:', error);
+    },
   });
 
   const loadNotifications = async () => {
