@@ -30,9 +30,37 @@ export interface ComboBoxProps {
 const ComboBox = React.forwardRef<HTMLButtonElement, ComboBoxProps>(
   ({ options, value, onChange, placeholder, className }, ref) => {
     const [open, setOpen] = React.useState(false)
+    const [search, setSearch] = React.useState('')
+
+    const filteredOptions = React.useMemo(() =>
+      search === ''
+        ? options
+        : options.filter(option =>
+            option.label.toLowerCase().includes(search.toLowerCase())
+          ),
+      [options, search]
+    )
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Tab' && open && filteredOptions.length > 0) {
+        onChange(filteredOptions[0].value)
+        setOpen(false)
+      }
+    }
+
+    const handleSelect = (currentValue: string) => {
+      onChange(currentValue === value ? "" : currentValue)
+      setOpen(false)
+      setSearch('')
+    }
 
     return (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen);
+        if (!isOpen) {
+          setSearch('');
+        }
+      }}>
         <PopoverTrigger asChild>
           <Button
             ref={ref}
@@ -44,23 +72,25 @@ const ComboBox = React.forwardRef<HTMLButtonElement, ComboBoxProps>(
             {value
               ? options.find((option) => option.value === value)?.label
               : placeholder || "Select an option..."}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-0" />
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-full p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
           <Command>
-            <CommandInput placeholder="Search..." />
+            <CommandInput
+              placeholder="Search..."
+              value={search}
+              onValueChange={setSearch}
+              onKeyDown={handleKeyDown}
+            />
             <CommandEmpty>No option found.</CommandEmpty>
             <CommandGroup>
               <CommandList>
-                {options.map((option) => (
+                {filteredOptions.map((option, index) => (
                   <CommandItem
-                    key={option.value}
+                    key={`${option.value}-${index}`}
                     value={option.value}
-                    onSelect={(currentValue) => {
-                      onChange(currentValue === value ? "" : currentValue)
-                      setOpen(false)
-                    }}
+                    onSelect={handleSelect}
                   >
                     <Check
                       className={cn(
