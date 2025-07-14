@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import _ from 'lodash';
 import { supabase } from '@/integrations/supabase/client';
 import { Staff, StaffMember } from '@/types/staff';
 
@@ -11,13 +12,16 @@ export const useStaffData = () => {
     quycrc: [],
   });
 
-  const staffList = useMemo(() => [
-    ...staff.cbqln,
-    ...staff.cbkh,
-    ...staff.ldpcrc,
-    ...staff.cbcrc,
-    ...staff.quycrc,
-  ], [staff]);
+  const staffList = useMemo(() => {
+    const allStaff = [
+      ...staff.cbqln,
+      ...staff.cbkh,
+      ...staff.ldpcrc,
+      ...staff.cbcrc,
+      ...staff.quycrc,
+    ];
+    return _.uniqBy(allStaff, 'ten_nv');
+  }, [staff]);
 
   const loadStaffData = async () => {
     try {

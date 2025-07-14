@@ -147,7 +147,7 @@ const DailyReport = () => {
     if (editingNote) {
       logic.updateNote({ id: editingNote.id, updates: data });
     } else {
-      logic.addNote({ ...data, staff_code: logic.currentUser?.username || 'unknown' });
+      logic.addNote(data);
     }
   };
 
