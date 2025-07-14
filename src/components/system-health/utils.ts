@@ -1,78 +1,62 @@
-import { SystemHealthMetric } from './types';
-import { CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, LucideProps } from 'lucide-react';
+import React from 'react';
 
 export const determineOverallHealth = (
-  dbStatus: SystemHealthMetric['status'],
-  apiStatus: SystemHealthMetric['status'],
-  storageStatus: SystemHealthMetric['status'],
-  memoryStatus: SystemHealthMetric['status'],
-  securityStatus: SystemHealthMetric['status'],
-  emailStatus: SystemHealthMetric['status'],
-  pushNotificationStatus: SystemHealthMetric['status']
-): SystemHealthMetric['status'] => {
-  if (
-    dbStatus === 'error' ||
-    apiStatus === 'error' ||
-    storageStatus === 'error' ||
-    memoryStatus === 'error' ||
-    securityStatus === 'error' ||
-    emailStatus === 'error' ||
-    pushNotificationStatus === 'error'
-  ) {
+  dbStatus: 'healthy' | 'warning' | 'error',
+  apiStatus: 'healthy' | 'warning' | 'error',
+  storageStatus: 'healthy' | 'warning' | 'error',
+  memoryStatus: 'healthy' | 'warning' | 'error',
+  securityStatus: 'healthy' | 'warning' | 'error',
+  emailStatus: 'healthy' | 'warning' | 'error',
+  pushStatus: 'healthy' | 'warning' | 'error'
+): 'healthy' | 'warning' | 'error' => {
+  const statuses = [dbStatus, apiStatus, storageStatus, memoryStatus, securityStatus, emailStatus, pushStatus];
+  if (statuses.some(s => s === 'error')) {
     return 'error';
   }
-  if (
-    dbStatus === 'warning' ||
-    apiStatus === 'warning' ||
-    storageStatus === 'warning' ||
-    memoryStatus === 'warning' ||
-    securityStatus === 'warning' ||
-    emailStatus === 'warning' ||
-    pushNotificationStatus === 'warning'
-  ) {
+  if (statuses.some(s => s === 'warning')) {
     return 'warning';
   }
   return 'healthy';
 };
 
-export const getStatusIcon = (status: SystemHealthMetric['status']) => {
+export const getStatusIcon = (status: 'healthy' | 'warning' | 'error'): React.FC<LucideProps> => {
+  const colorMap = {
+    healthy: 'text-green-500',
+    warning: 'text-yellow-500',
+    error: 'text-red-500',
+  };
+
+  const IconMap = {
+    healthy: CheckCircle,
+    warning: AlertTriangle,
+    error: XCircle,
+  };
+
+  const IconComponent = IconMap[status];
+  const colorClass = colorMap[status];
+
+  return (props) => <IconComponent {...props} className={`${colorClass} ${props.className || ''}`} />;
+};
+
+export const getStatusColor = (status: 'healthy' | 'warning' | 'error'): string => {
   switch (status) {
     case 'healthy':
-      return CheckCircle;
+      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
     case 'warning':
-      return AlertTriangle;
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
     case 'error':
-      return XCircle;
-    default:
-      return CheckCircle;
+      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
   }
 };
 
-export const getStatusColor = (status: SystemHealthMetric['status']) => {
-  switch (status) {
-    case 'healthy':
-      return 'bg-green-100 text-green-800';
-    case 'warning':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'error':
-      return 'bg-red-100 text-red-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-};
+export const formatResponseTime = (ms: number): string => `${Math.round(ms)}ms`;
 
-export const formatResponseTime = (ms: number) => {
-  return `${ms.toFixed(0)}ms`;
-};
+export const formatUptime = (percentage: number): string => `${percentage.toFixed(2)}%`;
 
-export const formatUptime = (percentage: number) => {
-  return `${percentage.toFixed(2)}%`;
-};
+export const formatPercentage = (percentage: number): string => `${Math.round(percentage)}%`;
 
-export const formatPercentage = (percentage: number) => {
-  return `${percentage.toFixed(1)}%`;
-};
-
-export const formatGrowth = (value: number) => {
-  return `${value > 0 ? '+' : ''}${value.toFixed(2)}%`;
+export const formatGrowth = (percentage: number): string => {
+  const sign = percentage >= 0 ? '+' : '';
+  return `${sign}${percentage.toFixed(1)}%/day`;
 };
