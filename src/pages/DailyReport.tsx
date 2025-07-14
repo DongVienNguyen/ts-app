@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import Layout from '@/components/Layout';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -663,493 +664,495 @@ export default function DailyReport() {
   }, [user?.username, takenTransactionIds]); // Depend on user.username
 
   return (
-    <div className="p-4 md:p-8">
-       <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #print-section, #print-section * { visibility: visible; }
-          #print-section { position: absolute; left: 0; top: 0; width: 100%; }
-          .no-print { display: none; }
-        }
-      `}</style>
+    <Layout>
+      <div className="p-4 md:p-8">
+        <style>{`
+          @media print {
+            body * { visibility: hidden; }
+            #print-section, #print-section * { visibility: visible; }
+            #print-section { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none; }
+          }
+        `}</style>
 
-      <div className="mb-8 no-print">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-700 rounded-xl flex items-center justify-center">
-              <FileText className="w-6 h-6 text-white" />
+        <div className="mb-8 no-print">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-700 rounded-xl flex items-center justify-center">
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Danh sách TS cần lấy</h1>
+                {lastUpdated && (
+                  <p className="text-slate-600 text-sm">
+                    Cập nhật lần cuối: {format(lastUpdated, 'HH:mm:ss - dd/MM/yyyy')} (Tự động mỗi 1 phút)
+                  </p>
+                )}
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Danh sách TS cần lấy</h1>
-              {lastUpdated && (
-                <p className="text-slate-600 text-sm">
-                  Cập nhật lần cuối: {format(lastUpdated, 'HH:mm:ss - dd/MM/yyyy')} (Tự động mỗi 1 phút)
-                </p>
-              )}
+            <div className="flex gap-2">
+              <Button
+                onClick={exportToPDF}
+                disabled={isExporting || filteredTransactions.length === 0}
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/25"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {isExporting ? "Đang xuất..." : "Xuất PDF"}
+              </Button>
+              <Button
+                onClick={() => setShowGrouped(!showGrouped)}
+                disabled={filteredTransactions.length === 0 && processedNotes.length === 0}
+                variant="outline"
+                className="bg-white hover:bg-purple-50 border-purple-600 text-purple-600 shadow-lg shadow-purple-500/10"
+              >
+                <ListTree className="w-4 h-4 mr-2" />
+                {showGrouped ? "Ẩn DS" : "Hiện DS"}
+              </Button>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={exportToPDF}
-              disabled={isExporting || filteredTransactions.length === 0}
-              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg shadow-green-500/25"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              {isExporting ? "Đang xuất..." : "Xuất PDF"}
-            </Button>
-            <Button
-              onClick={() => setShowGrouped(!showGrouped)}
-              disabled={filteredTransactions.length === 0 && processedNotes.length === 0}
-              variant="outline"
-              className="bg-white hover:bg-purple-50 border-purple-600 text-purple-600 shadow-lg shadow-purple-500/10"
-            >
-              <ListTree className="w-4 h-4 mr-2" />
-              {showGrouped ? "Ẩn DS" : "Hiện DS"}
-            </Button>
           </div>
         </div>
-      </div>
-      
-      <div className="space-y-6">
-        <Card className="border-0 shadow-xl shadow-slate-100/50 no-print">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
-            <CardTitle className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Bộ lọc danh sách cần xem:
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <RadioGroup value={filterType} onValueChange={setFilterType} className="mb-4 space-y-2">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="morning" id="morning-range" />
-                <Label htmlFor="morning-range" className="font-normal cursor-pointer">
-                  Sáng ngày ({morningDateFormatted})
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="qln_pgd_next_day" id="qln_pgd_next_day-range" />
-                <Label htmlFor="qln_pgd_next_day-range" className="font-normal cursor-pointer">
-                  QLN Sáng & PGD trong ngày ({qlnPgdDateFormatted})
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="afternoon" id="afternoon-range" />
-                <Label htmlFor="afternoon-range" className="font-normal cursor-pointer">
-                  Chiều ngày ({todayFormatted})
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="today" id="today-range" />
-                <Label htmlFor="today-range" className="font-normal cursor-pointer">
-                  Trong ngày hôm nay ({todayFormatted})
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="next_day" id="next_day-range" />
-                <Label htmlFor="next_day-range" className="font-normal cursor-pointer">
-                  Trong ngày kế tiếp ({nextWorkingDayFormatted})
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="custom" id="custom-range" />
-                <Label htmlFor="custom-range" className="font-normal cursor-pointer">Tùy chọn khoảng thời gian</Label>
-              </div>
-            </RadioGroup>
-            {filterType === 'custom' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-200">
-                 <div className="space-y-2">
-                   <Label htmlFor="parts_day_filter">Buổi</Label>
-                   <Select value={customFilters.parts_day} onValueChange={(v) => setCustomFilters({...customFilters, parts_day: v})}>
-                      <SelectTrigger id="parts_day_filter" className="h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500">
-                          <SelectValue placeholder="Chọn buổi" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          <SelectItem value="all">Tất cả</SelectItem>
-                          <SelectItem value="Sáng">Sáng</SelectItem>
-                          <SelectItem value="Chiều">Chiều</SelectItem>
-                      </SelectContent>
-                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="start_date">Từ ngày</Label>
-                  <Input 
-                    id="start_date" 
-                    type="date" 
-                    value={customFilters.start}
-                    onChange={(e) => setCustomFilters({...customFilters, start: e.target.value})}
-                    className="h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="end_date">Đến ngày</Label>
-                  <Input 
-                    id="end_date" 
-                    type="date" 
-                    value={customFilters.end}
-                    onChange={(e) => setCustomFilters({...customFilters, end: e.target.value})}
-                    className="h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      
-        <div id="print-section" className="space-y-6">
-          {showGrouped && (
-            <Card className="border-0 shadow-xl shadow-slate-100/50" id="main-content-section">
-              <CardHeader className="bg-gradient-to-r from-slate-50 to-purple-50 border-b border-slate-200">
-                <CardTitle className="text-lg font-semibold text-slate-800 flex justify-between items-center">
-                  <span>{headerDateDisplay}</span>
-                  <Dialog open={isNotesDialogOpen} onOpenChange={setIsNotesDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="icon" className="h-9 w-9 bg-blue-50 hover:bg-blue-100 border-blue-600 text-blue-600">
-                        <Plus className="w-5 h-5" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Thêm ghi chú đã duyệt</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label>Phòng</Label>
-                          <Select value={noteFormData.room} onValueChange={(value) => setNoteFormData({...noteFormData, room: value})}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Chọn phòng" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="QLN">QLN</SelectItem>
-                              <SelectItem value="CMT8">CMT8</SelectItem>
-                              <SelectItem value="NS">NS</SelectItem>
-                              <SelectItem value="ĐS">ĐS</SelectItem>
-                              <SelectItem value="LĐH">LĐH</SelectItem>
-                              <SelectItem value="NQ">NQ</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Loại tác nghiệp</Label>
-                          <Select value={noteFormData.operation_type} onValueChange={(value) => setNoteFormData({...noteFormData, operation_type: value})}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Chọn loại tác nghiệp" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Hoàn trả">Hoàn trả</SelectItem>
-                              <SelectItem value="Xuất kho">Xuất kho</SelectItem>
-                              <SelectItem value="Nhập kho">Nhập kho</SelectItem>
-                              <SelectItem value="Xuất mượn">Xuất mượn</SelectItem>
-                              <SelectItem value="Thiếu CT">Thiếu CT</SelectItem>
-                              <SelectItem value="Khác">Khác</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Nội dung</Label>
-                          <Textarea
-                            value={noteFormData.content}
-                            onChange={(e) => setNoteFormData({...noteFormData, content: e.target.value})}
-                            placeholder="Nhập nội dung ghi chú..."
-                            className="h-24"
-                          />
-                        </div>
-                        <div className="flex items-end gap-3">
-                          <div className="flex-1 space-y-2">
-                            <Label>Mail đến NV (Tùy chọn)</Label>
-                            <AutoCompleteInput
-                              value={noteFormData.mail_to_nv}
-                              onChange={(value) => setNoteFormData({...noteFormData, mail_to_nv: value})}
-                              suggestions={allStaff.map(s => ({ value: s.email, label: s.ten_nv }))} // Pass value and label
-                              placeholder="Nhập tên nhân viên để gửi email..."
-                            />
-                          </div>
-                          <Button onClick={handleNoteSubmit} className="bg-green-600 hover:bg-green-700 h-10">
-                            Gửi
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </CardTitle>
-                <CardDescription>
-                  <span>Dấu (*) TS đã được nhắn hơn một lần trong tuần</span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-20 px-1">Phòng</TableHead>
-                      <TableHead className="w-14 px-2">Năm</TableHead>
-                      <TableHead className="px-2">Danh sách Mã TS</TableHead>
-                      <TableHead className="w-32 px-1 text-right">Thao tác</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {groupedRows.length > 0 ? groupedRows.map(row => (
-                      <TableRow key={row.id}>
-                        {row.isFullWidth ? (
-                            <TableCell colSpan={3} className="font-bold text-lg px-2 whitespace-pre-wrap">
-                                {row.room}
-                            </TableCell>
-                        ) : (
-                          <>
-                            <TableCell className={`font-bold text-lg px-1`}>
-                              {row.room}
-                            </TableCell>
-                            <TableCell className="font-bold text-lg px-1">{row.year}</TableCell>
-                            <TableCell className={`font-bold text-lg px-2`}>
-                              {row.codes}
-                            </TableCell>
-                          </>
-                        )}
-                        <TableCell className="px-1 text-right">
-                          {row.isNote && (
-                            <div className="flex gap-1 justify-end">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditNote(row.noteData)}
-                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                title="Chỉnh sửa ghi chú"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteNote(row.noteData.id)}
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                title="Xóa ghi chú"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleNoteDone(row.noteData.id)}
-                                className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700 text-white"
-                                title="Đánh dấu đã xử lý"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center h-24">Không có dữ liệu để gom nhóm.</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className="border-0 shadow-xl shadow-slate-100/50">
+        
+        <div className="space-y-6">
+          <Card className="border-0 shadow-xl shadow-slate-100/50 no-print">
             <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
-              <CardTitle className="text-lg font-semibold text-slate-800">
-                Danh sách tài sản cần lấy ({filteredTransactions.length} bản ghi)
+              <CardTitle className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <Filter className="w-5 h-5" />
+                Bộ lọc danh sách cần xem:
               </CardTitle>
-               <CardDescription>{headerDateDisplay}</CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
-              <ReportTable 
-                transactions={paginatedTransactions}
-                isLoading={isLoading}
-                showDateRange={true}
-                showType={true}
-                showTakenCheckbox={true}
-                showTimeNhan={true}
-                showActions={true}
-                takenTransactionIds={takenTransactionIds}
-                onToggleTaken={handleToggleTakenStatus}
-                onEdit={handleEditTransaction}
-                onDelete={handleDeleteTransaction}
-              />
+            <CardContent className="p-6">
+              <RadioGroup value={filterType} onValueChange={setFilterType} className="mb-4 space-y-2">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="morning" id="morning-range" />
+                  <Label htmlFor="morning-range" className="font-normal cursor-pointer">
+                    Sáng ngày ({morningDateFormatted})
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="qln_pgd_next_day" id="qln_pgd_next_day-range" />
+                  <Label htmlFor="qln_pgd_next_day-range" className="font-normal cursor-pointer">
+                    QLN Sáng & PGD trong ngày ({qlnPgdDateFormatted})
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="afternoon" id="afternoon-range" />
+                  <Label htmlFor="afternoon-range" className="font-normal cursor-pointer">
+                    Chiều ngày ({todayFormatted})
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="today" id="today-range" />
+                  <Label htmlFor="today-range" className="font-normal cursor-pointer">
+                    Trong ngày hôm nay ({todayFormatted})
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="next_day" id="next_day-range" />
+                  <Label htmlFor="next_day-range" className="font-normal cursor-pointer">
+                    Trong ngày kế tiếp ({nextWorkingDayFormatted})
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="custom" id="custom-range" />
+                  <Label htmlFor="custom-range" className="font-normal cursor-pointer">Tùy chọn khoảng thời gian</Label>
+                </div>
+              </RadioGroup>
+              {filterType === 'custom' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-200">
+                  <div className="space-y-2">
+                    <Label htmlFor="parts_day_filter">Buổi</Label>
+                    <Select value={customFilters.parts_day} onValueChange={(v) => setCustomFilters({...customFilters, parts_day: v})}>
+                        <SelectTrigger id="parts_day_filter" className="h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500">
+                            <SelectValue placeholder="Chọn buổi" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Tất cả</SelectItem>
+                            <SelectItem value="Sáng">Sáng</SelectItem>
+                            <SelectItem value="Chiều">Chiều</SelectItem>
+                        </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="start_date">Từ ngày</Label>
+                    <Input 
+                      id="start_date" 
+                      type="date" 
+                      value={customFilters.start}
+                      onChange={(e) => setCustomFilters({...customFilters, start: e.target.value})}
+                      className="h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="end_date">Đến ngày</Label>
+                    <Input 
+                      id="end_date" 
+                      type="date" 
+                      value={customFilters.end}
+                      onChange={(e) => setCustomFilters({...customFilters, end: e.target.value})}
+                      className="h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
+        
+          <div id="print-section" className="space-y-6">
+            {showGrouped && (
+              <Card className="border-0 shadow-xl shadow-slate-100/50" id="main-content-section">
+                <CardHeader className="bg-gradient-to-r from-slate-50 to-purple-50 border-b border-slate-200">
+                  <CardTitle className="text-lg font-semibold text-slate-800 flex justify-between items-center">
+                    <span>{headerDateDisplay}</span>
+                    <Dialog open={isNotesDialogOpen} onOpenChange={setIsNotesDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="icon" className="h-9 w-9 bg-blue-50 hover:bg-blue-100 border-blue-600 text-blue-600">
+                          <Plus className="w-5 h-5" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Thêm ghi chú đã duyệt</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label>Phòng</Label>
+                            <Select value={noteFormData.room} onValueChange={(value) => setNoteFormData({...noteFormData, room: value})}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Chọn phòng" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="QLN">QLN</SelectItem>
+                                <SelectItem value="CMT8">CMT8</SelectItem>
+                                <SelectItem value="NS">NS</SelectItem>
+                                <SelectItem value="ĐS">ĐS</SelectItem>
+                                <SelectItem value="LĐH">LĐH</SelectItem>
+                                <SelectItem value="NQ">NQ</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Loại tác nghiệp</Label>
+                            <Select value={noteFormData.operation_type} onValueChange={(value) => setNoteFormData({...noteFormData, operation_type: value})}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Chọn loại tác nghiệp" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Hoàn trả">Hoàn trả</SelectItem>
+                                <SelectItem value="Xuất kho">Xuất kho</SelectItem>
+                                <SelectItem value="Nhập kho">Nhập kho</SelectItem>
+                                <SelectItem value="Xuất mượn">Xuất mượn</SelectItem>
+                                <SelectItem value="Thiếu CT">Thiếu CT</SelectItem>
+                                <SelectItem value="Khác">Khác</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Nội dung</Label>
+                            <Textarea
+                              value={noteFormData.content}
+                              onChange={(e) => setNoteFormData({...noteFormData, content: e.target.value})}
+                              placeholder="Nhập nội dung ghi chú..."
+                              className="h-24"
+                            />
+                          </div>
+                          <div className="flex items-end gap-3">
+                            <div className="flex-1 space-y-2">
+                              <Label>Mail đến NV (Tùy chọn)</Label>
+                              <AutoCompleteInput
+                                value={noteFormData.mail_to_nv}
+                                onChange={(value) => setNoteFormData({...noteFormData, mail_to_nv: value})}
+                                suggestions={allStaff.map(s => ({ value: s.email, label: s.ten_nv }))} // Pass value and label
+                                placeholder="Nhập tên nhân viên để gửi email..."
+                              />
+                            </div>
+                            <Button onClick={handleNoteSubmit} className="bg-green-600 hover:bg-green-700 h-10">
+                              Gửi
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </CardTitle>
+                  <CardDescription>
+                    <span>Dấu (*) TS đã được nhắn hơn một lần trong tuần</span>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-20 px-1">Phòng</TableHead>
+                        <TableHead className="w-14 px-2">Năm</TableHead>
+                        <TableHead className="px-2">Danh sách Mã TS</TableHead>
+                        <TableHead className="w-32 px-1 text-right">Thao tác</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {groupedRows.length > 0 ? groupedRows.map(row => (
+                        <TableRow key={row.id}>
+                          {row.isFullWidth ? (
+                              <TableCell colSpan={3} className="font-bold text-lg px-2 whitespace-pre-wrap">
+                                  {row.room}
+                              </TableCell>
+                          ) : (
+                            <>
+                              <TableCell className={`font-bold text-lg px-1`}>
+                                {row.room}
+                              </TableCell>
+                              <TableCell className="font-bold text-lg px-1">{row.year}</TableCell>
+                              <TableCell className={`font-bold text-lg px-2`}>
+                                {row.codes}
+                              </TableCell>
+                            </>
+                          )}
+                          <TableCell className="px-1 text-right">
+                            {row.isNote && (
+                              <div className="flex gap-1 justify-end">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditNote(row.noteData)}
+                                  className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  title="Chỉnh sửa ghi chú"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteNote(row.noteData.id)}
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  title="Xóa ghi chú"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleNoteDone(row.noteData.id)}
+                                  className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700 text-white"
+                                  title="Đánh dấu đã xử lý"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )) : (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center h-24">Không có dữ liệu để gom nhóm.</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card className="border-0 shadow-xl shadow-slate-100/50">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
+                <CardTitle className="text-lg font-semibold text-slate-800">
+                  Danh sách tài sản cần lấy ({filteredTransactions.length} bản ghi)
+                </CardTitle>
+                <CardDescription>{headerDateDisplay}</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ReportTable 
+                  transactions={paginatedTransactions}
+                  isLoading={isLoading}
+                  showDateRange={true}
+                  showType={true}
+                  showTakenCheckbox={true}
+                  showTimeNhan={true}
+                  showActions={true}
+                  takenTransactionIds={takenTransactionIds}
+                  onToggleTaken={handleToggleTakenStatus}
+                  onEdit={handleEditTransaction}
+                  onDelete={handleDeleteTransaction}
+                />
+              </CardContent>
+            </Card>
+          </div>
         </div>
+
+        {/* Edit Note Dialog */}
+        <Dialog open={isEditNoteDialogOpen} onOpenChange={setIsEditNoteDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Chỉnh sửa ghi chú</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Phòng</Label>
+                <Select value={editNoteFormData.room} onValueChange={(value) => setEditNoteFormData({...editNoteFormData, room: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn phòng" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="QLN">QLN</SelectItem>
+                    <SelectItem value="CMT8">CMT8</SelectItem>
+                    <SelectItem value="NS">NS</SelectItem>
+                    <SelectItem value="ĐS">ĐS</SelectItem>
+                    <SelectItem value="LĐH">LĐH</SelectItem>
+                    <SelectItem value="NQ">NQ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Loại tác nghiệp</Label>
+                <Select value={editNoteFormData.operation_type} onValueChange={(value) => setEditNoteFormData({...editNoteFormData, operation_type: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn loại tác nghiệp" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Hoàn trả">Hoàn trả</SelectItem>
+                    <SelectItem value="Xuất kho">Xuất kho</SelectItem>
+                    <SelectItem value="Nhập kho">Nhập kho</SelectItem>
+                    <SelectItem value="Xuất mượn">Xuất mượn</SelectItem>
+                    <SelectItem value="Thiếu CT">Thiếu CT</SelectItem>
+                    <SelectItem value="Khác">Khác</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Nội dung</Label>
+                <Textarea
+                  value={editNoteFormData.content}
+                  onChange={(e) => setEditNoteFormData({...editNoteFormData, content: e.target.value})}
+                  placeholder="Nhập nội dung ghi chú..."
+                  className="h-24"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setIsEditNoteDialogOpen(false)}>
+                Hủy
+              </Button>
+              <Button onClick={handleUpdateNote} className="bg-blue-600 hover:bg-blue-700">
+                Cập nhật
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Transaction Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Chỉnh sửa giao dịch</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+              <div className="space-y-2">
+                <Label>Ngày giao dịch</Label>
+                <Input
+                  type="date"
+                  value={editFormData.transaction_date || ''}
+                  onChange={(e) => setEditFormData({...editFormData, transaction_date: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Buổi</Label>
+                <Select value={editFormData.parts_day || ''} onValueChange={(value) => setEditFormData({...editFormData, parts_day: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn buổi" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Sáng">Sáng</SelectItem>
+                    <SelectItem value="Chiều">Chiều</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Phòng</Label>
+                <Select value={editFormData.room || ''} onValueChange={(value) => setEditFormData({...editFormData, room: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn phòng" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="QLN">QLN</SelectItem>
+                    <SelectItem value="CMT8">CMT8</SelectItem>
+                    <SelectItem value="NS">NS</SelectItem>
+                    <SelectItem value="ĐS">ĐS</SelectItem>
+                    <SelectItem value="LĐH">LĐH</SelectItem>
+                    <SelectItem value="Khác">Khác</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Loại tác nghiệp</Label>
+                <Select value={editFormData.transaction_type || ''} onValueChange={(value) => setEditFormData({...editFormData, transaction_type: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn loại" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Xuất kho">Xuất kho</SelectItem>
+                    <SelectItem value="Mượn TS">Mượn TS</SelectItem>
+                    <SelectItem value="Thay bìa">Thay bìa</SelectItem>
+                    <SelectItem value="Khác">Khác</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Năm TS</Label>
+                <Input
+                  type="number"
+                  value={editFormData.asset_year || ''}
+                  onChange={(e) => setEditFormData({...editFormData, asset_year: parseInt(e.target.value) || 0})}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Mã TS</Label>
+                <Input
+                  type="number"
+                  value={editFormData.asset_code || ''}
+                  onChange={(e) => setEditFormData({...editFormData, asset_code: parseInt(e.target.value) || 0})}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Ghi chú</Label>
+                <Textarea
+                  value={editFormData.note || ''}
+                  onChange={(e) => setEditFormData({...editFormData, note: e.target.value})}
+                  placeholder="Nhập ghi chú..."
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Hủy
+              </Button>
+              <Button onClick={handleUpdateTransaction} className="bg-blue-600 hover:bg-blue-700">
+                Cập nhật
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Pagination Controls */}
+        {filteredTransactions.length > ITEMS_PER_PAGE && (
+          <div className="flex justify-center items-center gap-4 mt-6 no-print">
+            <Button
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
+              variant="outline"
+              className="bg-white hover:bg-slate-50 text-slate-600 shadow-sm"
+            >
+              <ChevronLeft className="w-4 h-4 mr-2" /> Trước
+            </Button>
+            <span className="text-slate-700 font-medium">
+              Trang {currentPage} trên {totalPages}
+            </span>
+            <Button
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              variant="outline"
+              className="bg-white hover:bg-slate-50 text-slate-600 shadow-sm"
+            >
+              Tiếp <ChevronRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+        )}
       </div>
-
-      {/* Edit Note Dialog */}
-      <Dialog open={isEditNoteDialogOpen} onOpenChange={setIsEditNoteDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Chỉnh sửa ghi chú</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Phòng</Label>
-              <Select value={editNoteFormData.room} onValueChange={(value) => setEditNoteFormData({...editNoteFormData, room: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn phòng" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="QLN">QLN</SelectItem>
-                  <SelectItem value="CMT8">CMT8</SelectItem>
-                  <SelectItem value="NS">NS</SelectItem>
-                  <SelectItem value="ĐS">ĐS</SelectItem>
-                  <SelectItem value="LĐH">LĐH</SelectItem>
-                  <SelectItem value="NQ">NQ</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Loại tác nghiệp</Label>
-              <Select value={editNoteFormData.operation_type} onValueChange={(value) => setEditNoteFormData({...editNoteFormData, operation_type: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn loại tác nghiệp" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Hoàn trả">Hoàn trả</SelectItem>
-                  <SelectItem value="Xuất kho">Xuất kho</SelectItem>
-                  <SelectItem value="Nhập kho">Nhập kho</SelectItem>
-                  <SelectItem value="Xuất mượn">Xuất mượn</SelectItem>
-                  <SelectItem value="Thiếu CT">Thiếu CT</SelectItem>
-                  <SelectItem value="Khác">Khác</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Nội dung</Label>
-              <Textarea
-                value={editNoteFormData.content}
-                onChange={(e) => setEditNoteFormData({...editNoteFormData, content: e.target.value})}
-                placeholder="Nhập nội dung ghi chú..."
-                className="h-24"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setIsEditNoteDialogOpen(false)}>
-              Hủy
-            </Button>
-            <Button onClick={handleUpdateNote} className="bg-blue-600 hover:bg-blue-700">
-              Cập nhật
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Transaction Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Chỉnh sửa giao dịch</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-            <div className="space-y-2">
-              <Label>Ngày giao dịch</Label>
-              <Input
-                type="date"
-                value={editFormData.transaction_date || ''}
-                onChange={(e) => setEditFormData({...editFormData, transaction_date: e.target.value})}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Buổi</Label>
-              <Select value={editFormData.parts_day || ''} onValueChange={(value) => setEditFormData({...editFormData, parts_day: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn buổi" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sáng">Sáng</SelectItem>
-                  <SelectItem value="Chiều">Chiều</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Phòng</Label>
-              <Select value={editFormData.room || ''} onValueChange={(value) => setEditFormData({...editFormData, room: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn phòng" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="QLN">QLN</SelectItem>
-                  <SelectItem value="CMT8">CMT8</SelectItem>
-                  <SelectItem value="NS">NS</SelectItem>
-                  <SelectItem value="ĐS">ĐS</SelectItem>
-                  <SelectItem value="LĐH">LĐH</SelectItem>
-                  <SelectItem value="Khác">Khác</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Loại tác nghiệp</Label>
-              <Select value={editFormData.transaction_type || ''} onValueChange={(value) => setEditFormData({...editFormData, transaction_type: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn loại" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Xuất kho">Xuất kho</SelectItem>
-                  <SelectItem value="Mượn TS">Mượn TS</SelectItem>
-                  <SelectItem value="Thay bìa">Thay bìa</SelectItem>
-                  <SelectItem value="Khác">Khác</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Năm TS</Label>
-              <Input
-                type="number"
-                value={editFormData.asset_year || ''}
-                onChange={(e) => setEditFormData({...editFormData, asset_year: parseInt(e.target.value) || 0})}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Mã TS</Label>
-              <Input
-                type="number"
-                value={editFormData.asset_code || ''}
-                onChange={(e) => setEditFormData({...editFormData, asset_code: parseInt(e.target.value) || 0})}
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Ghi chú</Label>
-              <Textarea
-                value={editFormData.note || ''}
-                onChange={(e) => setEditFormData({...editFormData, note: e.target.value})}
-                placeholder="Nhập ghi chú..."
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Hủy
-            </Button>
-            <Button onClick={handleUpdateTransaction} className="bg-blue-600 hover:bg-blue-700">
-              Cập nhật
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Pagination Controls */}
-      {filteredTransactions.length > ITEMS_PER_PAGE && (
-        <div className="flex justify-center items-center gap-4 mt-6 no-print">
-          <Button
-            onClick={handlePreviousPage}
-            disabled={currentPage === 1}
-            variant="outline"
-            className="bg-white hover:bg-slate-50 text-slate-600 shadow-sm"
-          >
-            <ChevronLeft className="w-4 h-4 mr-2" /> Trước
-          </Button>
-          <span className="text-slate-700 font-medium">
-            Trang {currentPage} trên {totalPages}
-          </span>
-          <Button
-            onClick={handleNextPage}
-            disabled={currentPage === totalPages}
-            variant="outline"
-            className="bg-white hover:bg-slate-50 text-slate-600 shadow-sm"
-          >
-            Tiếp <ChevronRight className="w-4 h-4 ml-2" />
-          </Button>
-        </div>
-      )}
-    </div>
+    </Layout>
   );
 }
