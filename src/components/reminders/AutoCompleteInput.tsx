@@ -1,6 +1,6 @@
 import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
 
@@ -50,7 +50,7 @@ const AutoCompleteInput = forwardRef<HTMLInputElement, AutoCompleteInputProps>((
 
   return (
     <Popover open={open && filteredSuggestions.length > 0} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+      <PopoverAnchor asChild>
         <Input
           ref={inputRef}
           value={value}
@@ -64,7 +64,7 @@ const AutoCompleteInput = forwardRef<HTMLInputElement, AutoCompleteInputProps>((
           autoComplete="off"
           {...props}
         />
-      </PopoverTrigger>
+      </PopoverAnchor>
       <PopoverContent 
         className="w-full p-0" 
         style={{ width: 'var(--radix-popover-trigger-width)' }}
