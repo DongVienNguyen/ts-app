@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
+import Layout from './Layout'; // Import Layout component
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -70,7 +71,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   console.log('✅ ProtectedRoute: Access granted');
-  return <>{children}</>;
+  return <Layout>{children}</Layout>; // Wrap children with Layout
 };
 
 export default ProtectedRoute;

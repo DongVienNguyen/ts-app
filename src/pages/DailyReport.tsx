@@ -25,6 +25,7 @@ import { withCache as fetchWithCache } from "@/utils/cacheManager";
 import { Checkbox } from "@/components/ui/checkbox";
 import AutoCompleteInput from "@/components/reminders/AutoCompleteInput";
 import { Transaction } from '@/types/asset';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 // Helper function to get the current date and time in GMT+7
 const getGMT7CurrentDateTime = () => {
@@ -87,7 +88,7 @@ export default function DailyReport() {
   
   // State để lưu các ID của giao dịch đã được đánh dấu "Đã lấy" (đồng bộ qua database)
   const [takenTransactionIds, setTakenTransactionIds] = useState<Set<string>>(new Set<string>());
-  const [currentStaff, setCurrentStaff] = useState(null);
+  const { user } = useAuth(); // Use user from AuthContext
   
   // State để hiển thị thời gian cập nhật cuối cùng
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -136,21 +137,9 @@ export default function DailyReport() {
     loadAllStaff();
   }, [loadAllStaff]);
 
-  // Load current staff from localStorage on component mount
-  useEffect(() => {
-    try {
-      const staffData = localStorage.getItem('loggedInStaff');
-      if (staffData) {
-        setCurrentStaff(JSON.parse(staffData));
-      }
-    } catch (error) {
-      console.error("Error loading staff data:", error);
-    }
-  }, []);
-
   // Load taken status from database for the current staff and week
   const loadTakenStatus = useCallback(async () => {
-    if (!currentStaff?.username) {
+    if (!user?.username) { // Use user.username instead of currentStaff.username
         setTakenTransactionIds(new Set()); // Clear if no staff
         return;
     }
@@ -158,7 +147,7 @@ export default function DailyReport() {
     try {
       const currentWeek = getCurrentWeekYear();
       const takenStatuses = await TakenAssetStatus.filter({
-        user_username: currentStaff.username,
+        user_username: user.username, // Use user.username
         week_year: currentWeek
       });
       
@@ -168,7 +157,7 @@ export default function DailyReport() {
       console.error("Error loading taken status:", error);
       setTakenTransactionIds(new Set());
     }
-  }, [currentStaff?.username]);
+  }, [user?.username]); // Depend on user.username
 
   // Function để load transactions với cache bỏ qua khi auto-refresh
   const loadAllTransactions = useCallback(async (useCache = true) => {
@@ -208,7 +197,7 @@ export default function DailyReport() {
     loadProcessedNotes(); // Load notes on mount
     
     // Load taken status after transactions and currentStaff are potentially available
-    if (currentStaff?.username) {
+    if (user?.username) { // Use user.username
       loadTakenStatus();
     }
 
@@ -222,7 +211,7 @@ export default function DailyReport() {
     } else {
       setFilterType('qln_pgd_next_day');
     }
-  }, [currentStaff?.username, loadTakenStatus, loadAllTransactions, loadProcessedNotes]);
+  }, [user?.username, loadTakenStatus, loadAllTransactions, loadProcessedNotes]); // Depend on user.username
 
   // Auto-refresh mỗi 1 phút
   useEffect(() => {
@@ -233,14 +222,14 @@ export default function DailyReport() {
         loadProcessedNotes(); // Also refresh notes
         
         // Reload taken status if needed
-        if (currentStaff?.username) {
+        if (user?.username) { // Use user.username
           loadTakenStatus();
         }
       }
     }, 60000); // 1 phút = 60000ms
 
     return () => clearInterval(interval);
-  }, [loadAllTransactions, loadProcessedNotes, loadTakenStatus, currentStaff?.username]);
+  }, [loadAllTransactions, loadProcessedNotes, loadTakenStatus, user?.username]); // Depend on user.username
 
   // Effect to reset current page when filters change
   useEffect(() => {
@@ -380,7 +369,7 @@ export default function DailyReport() {
 
   // Handle note submission
   const handleNoteSubmit = useCallback(async () => {
-    if (!currentStaff?.username) {
+    if (!user?.username) { // Use user.username instead of currentStaff.username
       alert("Bạn cần đăng nhập để tạo ghi chú.");
       return;
     }
@@ -392,7 +381,7 @@ export default function DailyReport() {
     try {
       await ProcessedNote.create({
         ...noteFormData,
-        staff_code: currentStaff?.username || 'unknown'
+        staff_code: user?.username || 'unknown' // Use user.username
       });
       
       // Gửi email nếu có người nhận
@@ -405,7 +394,7 @@ export default function DailyReport() {
                   <p><strong>Nội dung:</strong></p>
                   <p style="white-space: pre-wrap;">${noteFormData.content}</p>
                   <br>
-                  <p><em>Ghi chú được tạo bởi: ${currentStaff?.staff_name || currentStaff?.username || 'N/A'}</em></p>
+                  <p><em>Ghi chú được tạo bởi: ${user?.staff_name || user?.username || 'N/A'}</em></p>
               `;
               await SendEmail({
                   to: recipient.email, // Use recipient.email directly
@@ -423,7 +412,7 @@ export default function DailyReport() {
       console.error("Error creating note or sending email:", error);
       alert("Lỗi khi tạo ghi chú. Vui lòng thử lại.");
     }
-  }, [noteFormData, currentStaff, loadProcessedNotes, allStaff]);
+  }, [noteFormData, user, loadProcessedNotes, allStaff]); // Depend on user
 
   // Handle note completion
   const handleNoteDone = useCallback(async (noteId) => {
@@ -624,7 +613,7 @@ export default function DailyReport() {
   }, [filterType, customFilters]);
 
   const handleToggleTakenStatus = useCallback(async (transactionId) => {
-    if (!currentStaff?.username) {
+    if (!user?.username) { // Use user.username
         console.warn("Cannot toggle taken status: No staff logged in.");
         return;
     }
@@ -637,7 +626,7 @@ export default function DailyReport() {
         // Xóa đánh dấu - tìm và xóa record trong database
         const existingStatuses = await TakenAssetStatus.filter({
           transaction_id: transactionId,
-          user_username: currentStaff.username,
+          user_username: user.username, // Use user.username
           week_year: currentWeek
         });
         
@@ -655,7 +644,7 @@ export default function DailyReport() {
         // Thêm đánh dấu - tạo record mới trong database
         await TakenAssetStatus.create({
           transaction_id: transactionId,
-          user_username: currentStaff.username,
+          user_username: user.username, // Use user.username
           week_year: currentWeek,
           marked_at: new Date().toISOString()
         });
@@ -671,7 +660,7 @@ export default function DailyReport() {
       console.error("Error toggling taken status:", error);
       alert("Lỗi khi thay đổi trạng thái đã lấy. Vui lòng thử lại.");
     }
-  }, [currentStaff?.username, takenTransactionIds]);
+  }, [user?.username, takenTransactionIds]); // Depend on user.username
 
   return (
     <div className="p-4 md:p-8">
