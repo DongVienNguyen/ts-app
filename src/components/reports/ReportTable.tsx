@@ -1,6 +1,8 @@
 import React from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Edit, Trash2 } from 'lucide-react';
 
 interface ReportTableProps {
   transactions: any[]; // Replace 'any' with actual transaction type if available
@@ -10,6 +12,7 @@ interface ReportTableProps {
   showTakenCheckbox: boolean;
   showTimeNhan: boolean;
   showActions: boolean;
+  showStaffCode: boolean;
   takenTransactionIds: Set<string>;
   onToggleTaken: (id: string) => void;
   onEdit: (transaction: any) => void;
@@ -24,6 +27,7 @@ const ReportTable: React.FC<ReportTableProps> = ({
   showTakenCheckbox,
   showTimeNhan,
   showActions,
+  showStaffCode,
   takenTransactionIds,
   onToggleTaken,
   onEdit,
@@ -41,29 +45,22 @@ const ReportTable: React.FC<ReportTableProps> = ({
     <Table>
       <TableHeader>
         <TableRow>
-          {showDateRange && <TableHead>Ngày</TableHead>}
-          <TableHead>Buổi</TableHead>
+          {showTakenCheckbox && <TableHead className="text-center w-16">Đã lấy</TableHead>}
           <TableHead>Phòng</TableHead>
-          {showType && <TableHead>Loại</TableHead>}
           <TableHead>Năm TS</TableHead>
           <TableHead>Mã TS</TableHead>
+          {showType && <TableHead>Loại</TableHead>}
+          {showDateRange && <TableHead>Ngày</TableHead>}
+          <TableHead>Buổi</TableHead>
           <TableHead>Ghi chú</TableHead>
-          {showTimeNhan && <TableHead>Thời gian nhận</TableHead>}
-          {showTakenCheckbox && <TableHead className="text-center">Đã lấy</TableHead>}
+          {showStaffCode && <TableHead>CB</TableHead>}
+          {showTimeNhan && <TableHead>Time nhắn</TableHead>}
           {showActions && <TableHead className="text-right">Thao tác</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
         {transactions.map((transaction) => (
           <TableRow key={transaction.id}>
-            {showDateRange && <TableCell>{format(new Date(transaction.transaction_date), 'dd/MM/yyyy')}</TableCell>}
-            <TableCell>{transaction.parts_day}</TableCell>
-            <TableCell>{transaction.room}</TableCell>
-            {showType && <TableCell>{transaction.transaction_type}</TableCell>}
-            <TableCell>{transaction.asset_year}</TableCell>
-            <TableCell>{transaction.asset_code}</TableCell>
-            <TableCell>{transaction.note}</TableCell>
-            {showTimeNhan && <TableCell>{format(new Date(transaction.created_at), 'HH:mm:ss')}</TableCell>}
             {showTakenCheckbox && (
               <TableCell className="text-center">
                 <input
@@ -74,10 +71,35 @@ const ReportTable: React.FC<ReportTableProps> = ({
                 />
               </TableCell>
             )}
+            <TableCell>{transaction.room}</TableCell>
+            <TableCell>{transaction.asset_year}</TableCell>
+            <TableCell>{transaction.asset_code}</TableCell>
+            {showType && <TableCell>{transaction.transaction_type}</TableCell>}
+            {showDateRange && <TableCell>{format(new Date(transaction.transaction_date), 'dd/MM/yyyy')}</TableCell>}
+            <TableCell>{transaction.parts_day}</TableCell>
+            <TableCell>{transaction.note}</TableCell>
+            {showStaffCode && <TableCell>{transaction.staff_code}</TableCell>}
+            {showTimeNhan && <TableCell>{format(new Date(transaction.created_at), 'HH:mm - dd/MM')}</TableCell>}
             {showActions && (
               <TableCell className="text-right">
-                <button onClick={() => onEdit(transaction)} className="text-blue-500 hover:text-blue-700 mr-2">Sửa</button>
-                <button onClick={() => onDelete(transaction.id)} className="text-red-500 hover:text-red-700">Xóa</button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onEdit(transaction)}
+                  className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  title="Sửa giao dịch"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onDelete(transaction.id)}
+                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  title="Xóa giao dịch"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </TableCell>
             )}
           </TableRow>

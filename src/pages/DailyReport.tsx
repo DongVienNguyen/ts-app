@@ -965,6 +965,7 @@ export default function DailyReport() {
                   showTakenCheckbox={true}
                   showTimeNhan={true}
                   showActions={true}
+                  showStaffCode={true}
                   takenTransactionIds={takenTransactionIds}
                   onToggleTaken={handleToggleTakenStatus}
                   onEdit={handleEditTransaction}
