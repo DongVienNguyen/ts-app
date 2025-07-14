@@ -233,9 +233,9 @@ const CRCReminders = () => {
 
   const filteredReminders = reminders.filter(r => [r.loai_bt_crc, r.ldpcrc, r.cbcrc, r.quycrc].some(val => val?.toLowerCase().includes(searchTerm.toLowerCase())));
   const filteredSentReminders = sentReminders.filter(r => [r.loai_bt_crc, r.ldpcrc, r.cbcrc, r.quycrc].some(val => val?.toLowerCase().includes(sentSearchTerm.toLowerCase())));
-  const ldpcrcOptions = staff.ldpcrc.map(m => `${m.ten_nv} (${m.email})`);
-  const cbcrcOptions = staff.cbcrc.map(m => `${m.ten_nv} (${m.email})`);
-  const quycrcOptions = staff.quycrc.map(m => `${m.ten_nv} (${m.email})`);
+  const ldpcrcOptions = staff.ldpcrc.map(m => ({ value: m.id, label: `${m.ten_nv} (${m.email})` }));
+  const cbcrcOptions = staff.cbcrc.map(m => ({ value: m.id, label: `${m.ten_nv} (${m.email})` }));
+  const quycrcOptions = staff.quycrc.map(m => ({ value: m.id, label: `${m.ten_nv} (${m.email})` }));
 
   return (
     <Layout>

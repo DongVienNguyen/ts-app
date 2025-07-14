@@ -16,8 +16,8 @@ interface AssetReminderFormProps {
   setSelectedCBKH: (value: string) => void;
   selectedCBQLN: string;
   setSelectedCBQLN: (value: string) => void;
-  cbkhOptions: string[];
-  cbqlnOptions: string[];
+  cbkhOptions: { value: string; label: string }[];
+  cbqlnOptions: { value: string; label: string }[];
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
   isLoading: boolean;

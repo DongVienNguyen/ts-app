@@ -21,7 +21,7 @@ import { ProcessedNote, ProcessedNoteInsert, ProcessedNoteUpdate } from '@/types
 import { useStaffData } from '@/hooks/useStaffData';
 import ComboBox from '@/components/ComboBox';
 
-const NoteDialog = ({ open, onOpenChange, note, onSubmit, allStaffNames }: { open: boolean, onOpenChange: (open: boolean) => void, note: ProcessedNote | null, onSubmit: (data: any) => void, allStaffNames: string[] }) => {
+const NoteDialog = ({ open, onOpenChange, note, onSubmit, allStaffNames }: { open: boolean, onOpenChange: (open: boolean) => void, note: ProcessedNote | null, onSubmit: (data: any) => void, allStaffNames: { value: string, label: string }[] }) => {
   const [formData, setFormData] = useState<any>({});
 
   React.useEffect(() => {
@@ -125,7 +125,7 @@ const EditTransactionDialog = ({ open, onOpenChange, transaction, onSubmit }: { 
 const DailyReport = () => {
   const logic = useDailyReportLogic();
   const { staffList } = useStaffData();
-  const allStaffNames = useMemo(() => staffList.map(s => s.ten_nv), [staffList]);
+  const allStaffNames = useMemo(() => staffList.map(s => ({ value: s.id, label: s.ten_nv })), [staffList]); // Map to { value: id, label: ten_nv }
 
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<ProcessedNote | null>(null);

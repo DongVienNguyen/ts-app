@@ -18,9 +18,9 @@ interface CRCReminderFormProps {
   setSelectedCBCRC: (value: string) => void;
   selectedQuyLCRC: string;
   setSelectedQuyLCRC: (value: string) => void;
-  ldpcrcOptions: string[];
-  cbcrcOptions: string[];
-  quycrcOptions: string[];
+  ldpcrcOptions: { value: string; label: string }[];
+  cbcrcOptions: { value: string; label: string }[];
+  quycrcOptions: { value: string; label: string }[];
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
   isLoading: boolean;

@@ -162,8 +162,8 @@ const AssetReminders = () => {
     (reminder.cbqln && reminder.cbqln.toLowerCase().includes(sentSearchTerm.toLowerCase()))
   );
 
-  const cbkhOptions = staff.cbkh.map(member => member.ten_nv);
-  const cbqlnOptions = staff.cbqln.map(member => member.ten_nv);
+  const cbkhOptions = staff.cbkh.map(member => ({ value: member.id, label: member.ten_nv }));
+  const cbqlnOptions = staff.cbqln.map(member => ({ value: member.id, label: member.ten_nv }));
 
   return (
     <Layout>
