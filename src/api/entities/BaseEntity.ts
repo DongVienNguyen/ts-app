@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 
-export class BaseEntity<T extends keyof Database['public']['Tables']> {
+export class BaseEntity<T extends string> {
   protected tableName: T;
 
   constructor(tableName: T) {
@@ -9,7 +9,7 @@ export class BaseEntity<T extends keyof Database['public']['Tables']> {
   }
 
   async list(orderBy?: string, limit?: number): Promise<any[]> {
-    let query = supabase.from(this.tableName).select('*');
+    let query = supabase.from(this.tableName as any).select('*'); // Changed to 'as any'
     if (orderBy) {
       const [column, direction] = orderBy.startsWith('-') ? [orderBy.substring(1), 'desc'] : [orderBy, 'asc'];
       query = query.order(column as any, { ascending: direction === 'asc' });
@@ -22,8 +22,8 @@ export class BaseEntity<T extends keyof Database['public']['Tables']> {
     return data as any[];
   }
 
-  async filter(filters: Partial<Database['public']['Tables'][T]['Row']>): Promise<any[]> {
-    let query = supabase.from(this.tableName).select('*');
+  async filter(filters: Record<string, any>): Promise<any[]> {
+    let query = supabase.from(this.tableName as any).select('*'); // Changed to 'as any'
     for (const key in filters) {
       if (filters.hasOwnProperty(key)) {
         query = query.eq(key as any, (filters as any)[key]);
@@ -34,20 +34,20 @@ export class BaseEntity<T extends keyof Database['public']['Tables']> {
     return data as any[];
   }
 
-  async create(payload: Database['public']['Tables'][T]['Insert']): Promise<any> {
-    const { data, error } = await supabase.from(this.tableName).insert(payload as any).select().single();
+  async create(payload: Record<string, any>): Promise<any> {
+    const { data, error } = await supabase.from(this.tableName as any).insert(payload as any).select().single(); // Changed to 'as any'
     if (error) throw new Error(`Failed to create ${String(this.tableName)}: ${error.message}`);
     return data as any;
   }
 
-  async update(id: string, payload: Database['public']['Tables'][T]['Update']): Promise<any> {
-    const { data, error } = await supabase.from(this.tableName).update(payload as any).eq('id', id).select().single();
+  async update(id: string, payload: Record<string, any>): Promise<any> {
+    const { data, error } = await supabase.from(this.tableName as any).update(payload as any).eq('id', id).select().single(); // Changed to 'as any'
     if (error) throw new Error(`Failed to update ${String(this.tableName)}: ${error.message}`);
     return data as any;
   }
 
   async delete(id: string): Promise<void> {
-    const { error } = await supabase.from(this.tableName).delete().eq('id', id);
+    const { error } = await supabase.from(this.tableName as any).delete().eq('id', id); // Changed to 'as any'
     if (error) throw new Error(`Failed to delete ${String(this.tableName)}: ${error.message}`);
   }
 }

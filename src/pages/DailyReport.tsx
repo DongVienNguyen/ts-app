@@ -86,7 +86,7 @@ export default function DailyReport() {
   const ITEMS_PER_PAGE = 30;
   
   // State để lưu các ID của giao dịch đã được đánh dấu "Đã lấy" (đồng bộ qua database)
-  const [takenTransactionIds, setTakenTransactionIds] = useState(new Set());
+  const [takenTransactionIds, setTakenTransactionIds] = useState<Set<string>>(new Set<string>());
   const [currentStaff, setCurrentStaff] = useState(null);
   
   // State để hiển thị thời gian cập nhật cuối cùng
