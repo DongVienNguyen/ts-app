@@ -1,148 +1,147 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { SystemError, SystemAlert, SystemStatus, getErrorStatistics } from '@/utils/errorTracking';
+import { healthCheckService } from '@/services/healthCheckService';
 import { toast } from 'sonner';
-import { SystemError, SystemAlert } from '@/utils/errorTracking';
-import { AuthenticatedStaff } from '@/contexts/AuthContext';
-import { AdvancedSystemHealthService } from '@/components/system-health/AdvancedSystemHealthService';
-import { SystemHealth } from '@/components/system-health/types'; // Import SystemHealth
+import { useAuth } from '@/contexts/AuthContext';
+import { SystemHealth } from '../components/system-health/types'; // Import SystemHealth
 
-// Removed HealthSummary interface as it was causing type conflicts
+export interface ErrorStats {
+  totalErrors: number;
+  criticalErrors: number;
+  resolvedErrors: number;
+  errorRate: number;
+  topErrorTypes: { type: string; count: number }[];
+  errorTrend: { date: string; count: number }[];
+  byType: { [key: string]: number };
+  bySeverity: { [key: string]: number };
+  byBrowser: { [key: string]: number };
+  byOS: { [key: string]: number };
+  recent: SystemError[];
+}
 
-export const useErrorMonitoringData = (user?: AuthenticatedStaff | null) => {
-  const queryClient = useQueryClient();
+export type RealtimeStatus = 'connected' | 'disconnected' | 'error';
+
+const initialErrorStats: ErrorStats = {
+  totalErrors: 0,
+  criticalErrors: 0,
+  resolvedErrors: 0,
+  errorRate: 0,
+  topErrorTypes: [],
+  errorTrend: [],
+  byType: {},
+  bySeverity: {},
+  byBrowser: {},
+  byOS: {},
+  recent: [],
+};
+
+export const useErrorMonitoringData = () => {
+  const { user } = useAuth();
+  const [errorStats, setErrorStats] = useState<ErrorStats>(initialErrorStats);
+  const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
+  const [systemAlerts, setSystemAlerts] = useState<SystemAlert[]>([]);
+  const [health, setHealth] = useState<SystemHealth | null>(null); // Thay đổi kiểu dữ liệu và giá trị khởi tạo
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'disconnected'>('connected');
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('disconnected');
 
-  const { data: errorStatsData, isLoading: isErrorStatsLoading } = useQuery({
-    queryKey: ['errorStats'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('system_errors')
-        .select('severity, status', { count: 'exact' });
+  const fetchAllData = useCallback(async (isInitialLoad = false) => {
+    if (isInitialLoad) setIsLoading(true);
+    else setIsRefreshing(true);
 
-      if (error) throw error;
-
-      const totalErrors = data?.length || 0;
-      const criticalErrors = data?.filter(e => e.severity === 'critical').length || 0;
-      const resolvedErrors = data?.filter(e => e.status === 'resolved').length || 0;
-      const errorRate = totalErrors / 7; // Assuming 7 days for now
-
-      return { totalErrors, criticalErrors, resolvedErrors, errorRate };
-    },
-    staleTime: 1000 * 60, // 1 minute
-  });
-
-  const { data: recentErrorsData, isLoading: isRecentErrorsLoading } = useQuery({
-    queryKey: ['recentErrors'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('system_errors')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10); // Limit to 10 recent errors for dashboard display
-
-      if (error) throw error;
-      return data as SystemError[];
-    },
-    staleTime: 1000 * 10, // 10 seconds
-  });
-
-  const { data: systemAlertsData, isLoading: isSystemAlertsLoading } = useQuery({
-    queryKey: ['systemAlerts'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('system_alerts')
-        .select('*')
-        .eq('acknowledged', false) // Only fetch unacknowledged alerts
-        .order('created_at', { ascending: false })
-        .limit(5); // Limit to 5 recent alerts for dashboard display
-
-      if (error) throw error;
-      return data as SystemAlert[];
-    },
-    staleTime: 1000 * 10, // 10 seconds
-  });
-
-  const { data: healthData, isLoading: isHealthLoading } = useQuery<SystemHealth | null>({ // Specify return type as SystemHealth | null
-    queryKey: ['systemHealth'],
-    queryFn: async () => {
-      return await AdvancedSystemHealthService.checkSystemHealth();
-    },
-    staleTime: 1000 * 60, // 1 minute
-  });
-
-  const refreshAll = useCallback(async () => {
-    setIsRefreshing(true);
     try {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['errorStats'] }),
-        queryClient.invalidateQueries({ queryKey: ['recentErrors'] }),
-        queryClient.invalidateQueries({ queryKey: ['systemAlerts'] }),
-        queryClient.invalidateQueries({ queryKey: ['systemHealth'] }),
+      const [errors, alerts, healthStatus] = await Promise.all([
+        supabase.from('system_errors').select('*').order('created_at', { ascending: false }).limit(200),
+        supabase.from('system_alerts').select('*').eq('acknowledged', false).order('created_at', { ascending: false }),
+        healthCheckService.getHealthSummary(), // Thay đổi lời gọi hàm
       ]);
-      toast.success('Dữ liệu đã được làm mới.');
+
+      if (errors.error) throw errors.error;
+      if (alerts.error) throw alerts.error;
+
+      const typedErrors = errors.data as SystemError[];
+      setRecentErrors(typedErrors);
+      setErrorStats(getErrorStatistics(typedErrors));
+      setSystemAlerts(alerts.data as SystemAlert[]);
+      setHealth(healthStatus);
     } catch (error) {
-      console.error('Error refreshing data:', error);
-      toast.error('Không thể làm mới dữ liệu.');
+      console.error("Error fetching monitoring data:", error);
+      toast.error("Không thể tải dữ liệu giám sát.");
     } finally {
-      setIsRefreshing(false);
+      if (isInitialLoad) setIsLoading(false);
+      else setIsRefreshing(false);
     }
-  }, [queryClient]);
+  }, []);
+
+  const handleNewError = useCallback((payload: any) => {
+    const newError = { ...payload.new, isNew: true } as SystemError;
+    setRecentErrors(prevErrors => {
+      const updatedErrors = [newError, ...prevErrors];
+      setErrorStats(getErrorStatistics(updatedErrors)); // Đã thêm dấu đóng ngoặc đơn ở đây
+      return updatedErrors;
+    });
+    toast.warning(`Lỗi mới: ${newError.error_message}`);
+  }, []);
+
+  const handleNewAlert = useCallback((payload: any) => {
+    const newAlert = { ...payload.new, isNew: true } as SystemAlert;
+    setSystemAlerts(prev => [newAlert, ...prev]);
+    toast.error(`Cảnh báo hệ thống mới: ${newAlert.message}`, {
+      duration: 10000,
+    });
+  }, []);
+
+  useEffect(() => {
+    fetchAllData(true);
+
+    const errorChannel = supabase.channel('system_errors-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'system_errors' }, handleNewError)
+      .subscribe((status) => setRealtimeStatus(status === 'SUBSCRIBED' ? 'connected' : 'disconnected'));
+
+    const alertChannel = supabase.channel('system_alerts-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'system_alerts' }, handleNewAlert)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(errorChannel);
+      supabase.removeChannel(alertChannel);
+    };
+  }, [fetchAllData, handleNewError, handleNewAlert]);
 
   const acknowledgeAlert = useCallback(async (alertId: string) => {
     if (!user) {
       toast.error('Bạn phải đăng nhập để thực hiện hành động này.');
       return;
     }
+
     const { error } = await supabase
       .from('system_alerts')
-      .update({ acknowledged: true, acknowledged_by: user.username, acknowledged_at: new Date().toISOString() })
+      .update({
+        acknowledged: true,
+        acknowledged_by: user.username,
+        acknowledged_at: new Date().toISOString(),
+      })
       .eq('id', alertId);
 
     if (error) {
-      toast.error('Không thể ghi nhận cảnh báo.');
+      toast.error('Ghi nhận cảnh báo thất bại.');
+      console.error('Error acknowledging alert:', error);
     } else {
       toast.success('Cảnh báo đã được ghi nhận.');
-      queryClient.invalidateQueries({ queryKey: ['systemAlerts'] }); // Refresh alerts after acknowledging
+      setSystemAlerts(prev => prev.filter(a => a.id !== alertId));
     }
-  }, [queryClient, user]);
+  }, [user]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('error-monitoring-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_errors' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['errorStats'] });
-        queryClient.invalidateQueries({ queryKey: ['recentErrors'] });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_alerts' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['systemAlerts'] });
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          setRealtimeStatus('connected');
-        } else {
-          setRealtimeStatus('disconnected');
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
-
-  const isLoading = isErrorStatsLoading || isRecentErrorsLoading || isSystemAlertsLoading || isHealthLoading;
-
-  const errorStats = errorStatsData || { totalErrors: 0, criticalErrors: 0, resolvedErrors: 0, errorRate: 0 };
-  const recentErrors = recentErrorsData || [];
-  const systemAlerts = systemAlertsData || [];
-  const health = healthData; // healthData is already SystemHealth | null
+  const refreshAll = useCallback(async () => {
+    await fetchAllData(false);
+  }, [fetchAllData]);
 
   return {
     errorStats,
     recentErrors,
     systemAlerts,
-    health, // This will now be SystemHealth | null
+    health,
     isLoading,
     isRefreshing,
     realtimeStatus,
