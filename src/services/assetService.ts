@@ -62,3 +62,28 @@ export const getAssetTransactions = async (
 
   return data as Transaction[];
 };
+
+export const updateAssetTransaction = async (id: string, updates: Partial<Transaction>): Promise<Transaction> => {
+  const { data, error } = await supabase
+    .from('asset_transactions')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) {
+    console.error('❌ Supabase error updating asset transaction:', error);
+    throw new Error(`Không thể cập nhật giao dịch: ${error.message}`);
+  }
+  return data as Transaction;
+};
+
+export const deleteAssetTransaction = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('asset_transactions')
+    .delete()
+    .eq('id', id);
+  if (error) {
+    console.error('❌ Supabase error deleting asset transaction:', error);
+    throw new Error(`Không thể xóa giao dịch: ${error.message}`);
+  }
+};

@@ -1,134 +1,233 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { getAssetTransactions } from '@/services/assetService';
-import { AssetTransactionFilters } from '@/types/asset';
-import { 
-  formatToDDMMYYYY,
-  getGMTPlus7Date,
-  getNextWorkingDay,
-  getDateBasedOnTime,
-  getDefaultEndDate
-} from '@/utils/dateUtils';
-import { groupTransactions, getFilterDisplayTextUtil } from '@/utils/reportUtils';
-import { Tables } from '@/integrations/supabase/types';
-
-type Transaction = Tables<'asset_transactions'>;
+import _ from 'lodash';
+import { format, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
+import { getAssetTransactions, updateAssetTransaction, deleteAssetTransaction } from '@/services/assetService';
+import { getProcessedNotes, addProcessedNote, updateProcessedNote, deleteProcessedNote, getTakenAssetStatus, addTakenAssetStatus, deleteTakenAssetStatus } from '@/services/reportService';
+import { sendEmail } from '@/services/emailService';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { getMorningTargetDate, getNextWorkingDay, getCurrentWeekYear, formatToDDMMYYYY } from '@/utils/dateUtils';
+import { Transaction, AssetTransactionFilters } from '@/types/asset';
+import { ProcessedNote, ProcessedNoteInsert, ProcessedNoteUpdate, TakenAssetStatusInsert } from '@/types/report';
+import { formatEmail } from '@/utils/emailUtils';
 
 export const useDailyReportLogic = () => {
-  const [isExporting, setIsExporting] = useState(false);
-  const [showGrouped, setShowGrouped] = useState(true);
+  const queryClient = useQueryClient();
+  const { user: currentUser } = useCurrentUser();
+
+  // --- STATE MANAGEMENT ---
   const [filterType, setFilterType] = useState('qln_pgd_next_day');
   const [customFilters, setCustomFilters] = useState({
-    start: '',
-    end: '',
-    parts_day: 'all'
+    start: format(new Date(), 'yyyy-MM-dd'),
+    end: format(new Date(), 'yyyy-MM-dd'),
+    parts_day: "all"
   });
-  const [currentPage, setCurrentPage] = useState(1);
-  const resultsRef = useRef<HTMLDivElement>(null);
+  const [showGrouped, setShowGrouped] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const ITEMS_PER_PAGE = 10;
+  // --- DATA FETCHING (REACT QUERY) ---
+  const { data: allTransactions = [], isLoading: isLoadingTransactions } = useQuery({
+    queryKey: ['allAssetTransactions'],
+    queryFn: () => getAssetTransactions({}), // Fetch all initially
+    staleTime: 60 * 1000, // 1 minute
+    refetchInterval: 60 * 1000, // Auto-refresh every minute
+    onSuccess: () => setLastUpdated(new Date()),
+  });
 
-  const [gmtPlus7Date] = useState(() => getGMTPlus7Date());
-  const [morningTargetDate] = useState(() => getDateBasedOnTime('00:00')); // Fixed: Pass '00:00' as argument
-  const [nextWorkingDayDate] = useState(() => getNextWorkingDay(gmtPlus7Date));
-  const [defaultEndDate] = useState(() => getDefaultEndDate());
+  const { data: processedNotes = [], isLoading: isLoadingNotes } = useQuery({
+    queryKey: ['processedNotes'],
+    queryFn: getProcessedNotes,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
 
-  const dateStrings = useMemo(() => ({
-    todayFormatted: formatToDDMMYYYY(gmtPlus7Date),
-    morningTargetFormatted: formatToDDMMYYYY(morningTargetDate),
-    nextWorkingDayFormatted: formatToDDMMYYYY(nextWorkingDayDate),
-  }), [gmtPlus7Date, morningTargetDate, nextWorkingDayDate]);
-
-  const currentQueryFilters = useMemo(() => {
-    const filters: AssetTransactionFilters = {};
-    const todayStr = gmtPlus7Date.toISOString().split('T')[0];
-    const morningTargetStr = morningTargetDate.toISOString().split('T')[0];
-    const nextWorkingDayStr = nextWorkingDayDate.toISOString().split('T')[0];
-
-    if (filterType === 'custom') {
-      if (customFilters.start && customFilters.end) {
-        filters.startDate = customFilters.start;
-        filters.endDate = customFilters.end;
-        filters.parts_day = customFilters.parts_day as 'Sáng' | 'Chiều' | 'all';
-      } else {
-        return {};
-      }
-    } else {
-      switch (filterType) {
-        case 'qln_pgd_next_day':
-          filters.isQlnPgdNextDay = true;
-          filters.startDate = morningTargetStr;
-          break;
-        case 'morning':
-          filters.startDate = morningTargetStr;
-          filters.endDate = morningTargetStr;
-          filters.parts_day = 'Sáng';
-          break;
-        case 'afternoon':
-          filters.startDate = nextWorkingDayStr;
-          filters.endDate = nextWorkingDayStr;
-          filters.parts_day = 'Chiều';
-          break;
-        case 'today':
-          filters.startDate = todayStr;
-          filters.endDate = todayStr;
-          break;
-        case 'next_day':
-          filters.startDate = nextWorkingDayStr;
-          filters.endDate = nextWorkingDayStr;
-          break;
-        default:
-          return {};
-      }
-    }
-    return filters;
-  }, [filterType, customFilters, gmtPlus7Date, morningTargetDate, nextWorkingDayDate]);
-
-  useEffect(() => {
-    setCustomFilters({
-      start: gmtPlus7Date.toISOString().split('T')[0],
-      end: defaultEndDate.toISOString().split('T')[0],
-      parts_day: 'all'
-    });
-  }, [gmtPlus7Date, defaultEndDate]);
-
-  const { data: transactions = [], isLoading } = useQuery({
-    queryKey: ['assetTransactions', currentQueryFilters],
-    queryFn: async () => (await getAssetTransactions(currentQueryFilters)) as Transaction[],
-    enabled: !!currentQueryFilters.startDate,
-    staleTime: 5 * 60 * 1000,
+  const currentWeekYear = useMemo(() => getCurrentWeekYear(), []);
+  const { data: takenTransactionIds = new Set<string>(), isLoading: isLoadingTakenStatus } = useQuery({
+    queryKey: ['takenAssetStatus', currentUser?.username, currentWeekYear],
+    queryFn: async () => {
+      const ids = await getTakenAssetStatus(currentUser!.username, currentWeekYear);
+      return new Set(ids);
+    },
+    enabled: !!currentUser?.username,
   });
   
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [transactions]);
+  const isLoading = isLoadingTransactions || isLoadingNotes || isLoadingTakenStatus;
 
-  useEffect(() => {
-    const isMobile = window.innerWidth < 768;
-    if (isMobile && transactions.length > 0 && resultsRef.current) {
-      setTimeout(() => {
-        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 300);
-    }
-  }, [transactions]);
+  // --- FILTERING AND GROUPING LOGIC ---
+  const filteredTransactions = useMemo(() => {
+    if (allTransactions.length === 0) return [];
+    
+    let filtered: Transaction[];
+    const today = new Date();
+    const morningTargetDate = getMorningTargetDate();
+    const nextWorkingDay = getNextWorkingDay(today);
 
-  const handleCustomFilter = () => {
-    if (customFilters.start && customFilters.end) {
-      setFilterType('custom');
+    if (filterType === 'qln_pgd_next_day') {
+      const formattedTargetDate = format(morningTargetDate, 'yyyy-MM-dd');
+      const pgdRooms = ['CMT8', 'NS', 'ĐS', 'LĐH'];
+      filtered = allTransactions.filter(t => {
+        const isDateMatch = format(new Date(t.transaction_date), 'yyyy-MM-dd') === formattedTargetDate;
+        if (!isDateMatch) return false;
+        const isMorning = t.parts_day === 'Sáng';
+        const isPgdAfternoon = t.parts_day === 'Chiều' && pgdRooms.includes(t.room);
+        return isMorning || isPgdAfternoon;
+      });
+    } else if (filterType === 'custom') {
+        const dateFilterStart = new Date(customFilters.start + 'T00:00:00');
+        const dateFilterEnd = new Date(customFilters.end + 'T23:59:59');
+        filtered = allTransactions.filter(t => {
+            const transactionDate = new Date(t.transaction_date);
+            const isDateMatch = transactionDate >= dateFilterStart && transactionDate <= dateFilterEnd;
+            const isPartsMatch = customFilters.parts_day === 'all' || t.parts_day === customFilters.parts_day;
+            return isDateMatch && isPartsMatch;
+        });
     } else {
-      toast.warning("Vui lòng chọn cả ngày bắt đầu và ngày kết thúc.");
+        let targetDate: Date;
+        let partsFilter: string | null = null;
+        switch(filterType) {
+            case 'morning':
+                targetDate = morningTargetDate;
+                partsFilter = "Sáng";
+                break;
+            case 'afternoon':
+                targetDate = nextWorkingDay;
+                partsFilter = "Chiều";
+                break;
+            case 'today':
+                targetDate = today;
+                break;
+            case 'next_day':
+                targetDate = nextWorkingDay;
+                break;
+            default:
+                targetDate = today;
+        }
+        const formattedTargetDate = format(targetDate, 'yyyy-MM-dd');
+        filtered = allTransactions.filter(t => {
+            const isDateMatch = format(new Date(t.transaction_date), 'yyyy-MM-dd') === formattedTargetDate;
+            const isPartsMatch = !partsFilter || t.parts_day === partsFilter;
+            return isDateMatch && isPartsMatch;
+        });
     }
+    
+    return _.orderBy(filtered, ['room', 'asset_year', t => parseInt(String(t.asset_code)) || 0], ['asc', 'asc', 'asc']);
+  }, [allTransactions, filterType, customFilters]);
+
+  const groupedRows = useMemo(() => {
+    const transactionsForGrouping = filteredTransactions.filter(t => !takenTransactionIds.has(t.id));
+    if (!showGrouped || (transactionsForGrouping.length === 0 && processedNotes.length === 0)) return [];
+
+    const startOfThisWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const endOfThisWeek = endOfWeek(new Date(), { weekStartsOn: 1 });
+    
+    const assetFrequencyThisWeek = new Map<string, number>();
+    allTransactions.forEach(t => {
+      if (isWithinInterval(new Date(t.transaction_date), { start: startOfThisWeek, end: endOfThisWeek })) {
+        const key = `${t.room}-${t.asset_year}-${t.asset_code}`;
+        assetFrequencyThisWeek.set(key, (assetFrequencyThisWeek.get(key) || 0) + 1);
+      }
+    });
+
+    const groupedByRoom = _.groupBy(transactionsForGrouping, 'room');
+    const roomOrder = ['QLN', 'CMT8', 'NS', 'ĐS', 'LĐH', 'DVKH'];
+    const sortedRooms = Object.keys(groupedByRoom).sort((a, b) => {
+      const indexA = roomOrder.indexOf(a);
+      const indexB = roomOrder.indexOf(b);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+
+    const rows: any[] = [];
+    sortedRooms.forEach(room => {
+      const groupedByYear = _.groupBy(groupedByRoom[room], 'asset_year');
+      Object.keys(groupedByYear).sort().forEach(year => {
+        const codesWithStatus = _.sortBy(groupedByYear[year], t => t.asset_code)
+          .map(t => {
+            const key = `${t.room}-${t.asset_year}-${t.asset_code}`;
+            return (assetFrequencyThisWeek.get(key) || 0) > 1 ? `${t.asset_code}*` : t.asset_code;
+          });
+        rows.push({ id: `${room}-${year}`, room, year, codes: codesWithStatus.join(', '), isNote: false });
+      });
+    });
+
+    processedNotes.forEach(note => {
+      rows.push({
+        id: `note-${note.id}`,
+        room: `${note.room} - ${note.operation_type}: ${note.content}`,
+        isNote: true,
+        noteData: note,
+      });
+    });
+
+    return rows;
+  }, [showGrouped, filteredTransactions, takenTransactionIds, processedNotes, allTransactions]);
+
+  // --- MUTATIONS ---
+  const invalidateQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ['allAssetTransactions'] });
+    queryClient.invalidateQueries({ queryKey: ['processedNotes'] });
+    queryClient.invalidateQueries({ queryKey: ['takenAssetStatus'] });
   };
 
-  const groupedRows = useMemo(() => groupTransactions(transactions as Transaction[]), [transactions]);
+  const useGenericMutation = (mutationFn: any, successMessage: string, errorMessage: string) => {
+    return useMutation({
+      mutationFn,
+      onSuccess: () => {
+        toast.success(successMessage);
+        invalidateQueries();
+      },
+      onError: (error: Error) => toast.error(errorMessage, { description: error.message }),
+    });
+  };
 
-  const paginatedTransactions = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return transactions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [transactions, currentPage]);
+  const updateTransactionMutation = useGenericMutation(
+    (vars: { id: string, updates: Partial<Transaction> }) => updateAssetTransaction(vars.id, vars.updates),
+    "Giao dịch đã được cập nhật.", "Lỗi cập nhật giao dịch."
+  );
 
-  const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);
+  const deleteTransactionMutation = useGenericMutation(deleteAssetTransaction, "Giao dịch đã được xóa.", "Lỗi xóa giao dịch.");
+  const addNoteMutation = useGenericMutation(addProcessedNote, "Ghi chú đã được thêm.", "Lỗi thêm ghi chú.");
+  const updateNoteMutation = useGenericMutation(
+    (vars: { id: string, updates: ProcessedNoteUpdate }) => updateProcessedNote(vars.id, vars.updates),
+    "Ghi chú đã được cập nhật.", "Lỗi cập nhật ghi chú."
+  );
+  const deleteNoteMutation = useGenericMutation(deleteProcessedNote, "Ghi chú đã được xóa.", "Lỗi xóa ghi chú.");
+
+  const toggleTakenStatusMutation = useMutation({
+    mutationFn: async (transaction: Transaction) => {
+      if (!currentUser?.username) throw new Error("User not found");
+      const weekYear = getCurrentWeekYear();
+      const isTaken = takenTransactionIds.has(transaction.id);
+      if (isTaken) {
+        await deleteTakenAssetStatus(transaction.id, currentUser.username, weekYear);
+      } else {
+        await addTakenAssetStatus({ transaction_id: transaction.id, user_username: currentUser.username, week_year: weekYear });
+      }
+    },
+    onSuccess: () => {
+      toast.success("Cập nhật trạng thái thành công.");
+      queryClient.invalidateQueries({ queryKey: ['takenAssetStatus', currentUser?.username, currentWeekYear] });
+    },
+    onError: (error: Error) => toast.error("Lỗi cập nhật trạng thái.", { description: error.message }),
+  });
+
+  // --- HANDLERS ---
+  const handleNoteSubmit = async (noteData: ProcessedNoteInsert) => {
+    await addNoteMutation.mutateAsync(noteData);
+    if (noteData.mail_to_nv) {
+      const email = formatEmail(noteData.mail_to_nv);
+      if (email) {
+        await sendEmail({
+          to: email,
+          subject: `Thông báo ghi chú đã duyệt: ${noteData.operation_type} - ${noteData.room}`,
+          html: `<p><strong>Phòng:</strong> ${noteData.room}</p><p><strong>Loại tác nghiệp:</strong> ${noteData.operation_type}</p><p><strong>Nội dung:</strong></p><p>${noteData.content}</p>`,
+        });
+      }
+    }
+  };
 
   const exportToPDF = () => {
     setIsExporting(true);
@@ -138,16 +237,13 @@ export const useDailyReportLogic = () => {
     }, 500);
   };
 
-  const getFilterDisplayText = () => {
-    return getFilterDisplayTextUtil({
-      filterType,
-      dateStrings,
-      customFilters,
-    });
-  };
-
   return {
-    transactions,
+    // Data
+    filteredTransactions,
+    groupedRows,
+    processedNotes,
+    takenTransactionIds,
+    // State
     isLoading,
     isExporting,
     showGrouped,
@@ -156,15 +252,17 @@ export const useDailyReportLogic = () => {
     setFilterType,
     customFilters,
     setCustomFilters,
-    currentPage,
-    setCurrentPage,
-    resultsRef,
-    handleCustomFilter,
-    groupedRows,
-    paginatedTransactions,
-    totalPages,
+    lastUpdated,
+    // Mutations
+    updateTransaction: updateTransactionMutation.mutateAsync,
+    deleteTransaction: deleteTransactionMutation.mutateAsync,
+    addNote: handleNoteSubmit,
+    updateNote: updateNoteMutation.mutateAsync,
+    deleteNote: deleteNoteMutation.mutateAsync,
+    toggleTakenStatus: toggleTakenStatusMutation.mutateAsync,
+    // Handlers
     exportToPDF,
-    getFilterDisplayText,
-    dateStrings,
+    // Current User
+    currentUser,
   };
 };

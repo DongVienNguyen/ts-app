@@ -1,4 +1,4 @@
-import { format, isToday, isYesterday, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
+import { format, isToday, isYesterday, differenceInDays, formatDistanceToNowStrict, addDays, startOfWeek, endOfWeek, getWeek, getYear } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { Tables } from '@/integrations/supabase/types';
 
@@ -40,6 +40,28 @@ export const groupNotificationsByDate = (notifications: Notification[]): Record<
   });
 
   return groups;
+};
+
+export const getMorningTargetDate = (): Date => {
+    const now = new Date();
+    // Use GMT+7 for time check by getting the hour in that timezone
+    const gmt7Hour = parseInt(format(now, 'H', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const gmt7Minute = now.getMinutes();
+    const timeValue = gmt7Hour * 100 + gmt7Minute;
+
+    // From 08:06 onwards, target is the next working day
+    if (timeValue >= 806) {
+        return getNextWorkingDay(now);
+    }
+    // Before 08:06, target is the current day
+    return now;
+}
+
+export const getCurrentWeekYear = (): string => {
+  const now = new Date();
+  const year = getYear(now);
+  const week = getWeek(now, { weekStartsOn: 1 }); // Week starts on Monday
+  return `${year}-${String(week).padStart(2, '0')}`;
 };
 
 export const getGMTPlus7Date = (): Date => {
