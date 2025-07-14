@@ -125,7 +125,7 @@ const EditTransactionDialog = ({ open, onOpenChange, transaction, onSubmit }: { 
 const DailyReport = () => {
   const logic = useDailyReportLogic();
   const { staffList } = useStaffData();
-  const allStaffNames = useMemo(() => staffList.map(s => ({ value: s.id, label: s.ten_nv })), [staffList]); // Map to { value: id, label: ten_nv }
+  const allStaffNames = useMemo(() => staffList.map(s => ({ value: s.email, label: s.ten_nv })), [staffList]); // Map to { value: email, label: ten_nv }
 
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<ProcessedNote | null>(null);
