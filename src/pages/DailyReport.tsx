@@ -380,6 +380,10 @@ export default function DailyReport() {
 
   // Handle note submission
   const handleNoteSubmit = useCallback(async () => {
+    if (!currentStaff?.username) {
+      alert("Bạn cần đăng nhập để tạo ghi chú.");
+      return;
+    }
     if (!noteFormData.room || !noteFormData.operation_type || !noteFormData.content.trim()) {
       alert("Vui lòng nhập đầy đủ thông tin ghi chú (Phòng, Loại tác nghiệp, Nội dung).");
       return;
