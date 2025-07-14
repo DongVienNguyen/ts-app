@@ -1,274 +1,268 @@
-import React, { useState, useEffect } from 'react';
-import { Clock, AlertCircle } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import Layout from '@/components/Layout';
-import { supabase } from '@/integrations/supabase/client';
-import { sendAssetNotificationEmail } from '@/services/emailService';
-import { useCRCData } from '@/hooks/useCRCData';
-import DayMonthInput from '@/components/DayMonthInput';
-import ComboBox from '@/components/ComboBox';
-import CRCReminderTable from '@/components/CRCReminderTable';
-import SentCRCReminderTable from '@/components/SentCRCReminderTable';
-import { isDayMonthDueOrOverdue } from '@/utils/dateUtils';
-import { sendPushNotification } from '@/services/notificationService';
-import { Tables, TablesInsert } from '@/integrations/supabase/types';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { FileCheck, Send, Trash2, Plus, Edit, Trash } from "lucide-react";
+import { format } from "date-fns";
+import { toast } from "sonner";
 
-type CRCReminder = Tables<'crc_reminders'>;
-type StaffMember = Tables<'ldpcrc'>;
+import Layout from "@/components/Layout";
+import AutoCompleteInput from "@/components/reminders/AutoCompleteInput";
+import DateInput from "@/components/reminders/DateInput";
 
-const CRCReminders = () => {
-  const {
-    staff,
-    reminders,
-    sentReminders,
-    isLoading,
-    loadAllData,
-    refreshData
-  } = useCRCData();
+import { useSecureAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Tables, TablesInsert } from "@/integrations/supabase/types";
+import { CRCReminder } from "@/api/entities/CRCReminder";
+import { SentCRCReminder } from "@/api/entities/SentCRCReminder";
+import { LDPCRC } from "@/api/entities/LDPCRC";
+import { CBCRC } from "@/api/entities/CBCRC";
+import { QUYCRC } from "@/api/entities/QUYCRC";
+import { emailService } from "@/services/emailService";
+import { sendPushNotification } from "@/services/notificationService";
 
-  const [message, setMessage] = useState({ type: '', text: '' });
-  const [searchTerm, setSearchTerm] = useState('');
+type Reminder = Tables<'crc_reminders'>;
+type SentReminder = Tables<'sent_crc_reminders'>;
+type Staff = Tables<'ldpcrc'> | Tables<'cbcrc'> | Tables<'quycrc'>;
+
+const getUniqueStaffOptions = (staffList: Staff[]) => {
+  if (!staffList) return [];
+  const unique = new Map<string, { value: string; label: string }>();
+  staffList.forEach(s => {
+    if (s.ten_nv && !unique.has(s.ten_nv)) {
+      unique.set(s.ten_nv, { value: s.ten_nv, label: s.ten_nv });
+    }
+  });
+  return Array.from(unique.values());
+};
+
+export default function CRCReminders() {
+  const { user } = useSecureAuth();
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [sentReminders, setSentReminders] = useState<SentReminder[]>([]);
+  const [ldpcrcStaff, setLdpcrcStaff] = useState<Tables<'ldpcrc'>[]>([]);
+  const [cbcrcStaff, setCbcrcStaff] = useState<Tables<'cbcrc'>[]>([]);
+  const [quycrcStaff, setQuycrcStaff] = useState<Tables<'quycrc'>[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   
-  const [loaiCRC, setLoaiCRC] = useState('');
-  const [ngayThucHien, setNgayThucHien] = useState('');
-  const [selectedLDPCRC, setSelectedLDPCRC] = useState('');
-  const [selectedCBCRC, setSelectedCBCRC] = useState('');
-  const [selectedQuyLCRC, setSelectedQuyLCRC] = useState('');
-  const [editingReminder, setEditingReminder] = useState<CRCReminder | null>(null);
-  const [sentSearchTerm, setSentSearchTerm] = useState('');
+  const [newReminder, setNewReminder] = useState<Partial<TablesInsert<'crc_reminders'>>>({
+    loai_bt_crc: "",
+    ngay_thuc_hien: format(new Date(), 'dd-MM'),
+    ldpcrc: "",
+    cbcrc: "", 
+    quycrc: ""
+  });
+
+  const loaiCRCRef = useRef<HTMLInputElement>(null);
+  const ngayThucHienRef = useRef<HTMLInputElement>(null);
+  const ldpcrcRef = useRef<HTMLInputElement>(null);
+  const cbcrcRef = useRef<HTMLInputElement>(null);
+  const quycrcRef = useRef<HTMLInputElement>(null);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [reminderData, sentData, ldpcrcData, cbcrcData, quycrcData] = await Promise.all([
+        CRCReminder.list('-created_at'),
+        SentCRCReminder.list('-sent_date'),
+        LDPCRC.list(),
+        CBCRC.list(),
+        QUYCRC.list(),
+      ]);
+      setReminders(reminderData.filter(r => !r.is_sent));
+      setSentReminders(sentData);
+      setLdpcrcStaff(ldpcrcData);
+      setCbcrcStaff(cbcrcData);
+      setQuycrcStaff(quycrcData);
+    } catch (error) {
+      console.error("Error loading data:", error);
+      toast.error("Không thể tải danh sách nhắc nhở.");
+    }
+  }, []);
 
   useEffect(() => {
-    loadAllData();
-  }, [loadAllData]);
+    setIsLoading(true);
+    loadData().finally(() => setIsLoading(false));
+  }, [loadData]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage({ type: '', text: '' });
-    
-    if (!loaiCRC || !ngayThucHien) {
-      setMessage({ type: 'error', text: "Vui lòng điền đầy đủ thông tin bắt buộc" });
+  const handleSave = useCallback(async () => {
+    if (!newReminder.loai_bt_crc || !newReminder.ngay_thuc_hien) {
+      toast.error("Vui lòng nhập loại BT CRC và ngày thực hiện!");
       return;
     }
 
-    try {
-      const extractName = (value: string) => value ? (value.match(/^(.+?)\s*\(/) || [null, value])[1]?.trim() : null;
-
-      const reminderData: Partial<CRCReminder> = {
-        loai_bt_crc: loaiCRC,
-        ngay_thuc_hien: ngayThucHien,
-        ldpcrc: extractName(selectedLDPCRC),
-        cbcrc: extractName(selectedCBCRC),
-        quycrc: extractName(selectedQuyLCRC),
-        is_sent: false
-      };
-
-      if (editingReminder) {
-        const { error } = await supabase.from('crc_reminders').update(reminderData).eq('id', editingReminder.id);
-        if (error) throw error;
-        setMessage({ type: 'success', text: "Cập nhật nhắc nhở CRC thành công" });
-      } else {
-        const { error } = await supabase.from('crc_reminders').insert([reminderData as TablesInsert<'crc_reminders'>]);
-        if (error) throw error;
-        setMessage({ type: 'success', text: "Thêm nhắc nhở CRC thành công" });
+    const promise = new Promise<string>(async (resolve, reject) => {
+      try {
+        if (editingReminder) {
+          await CRCReminder.update(editingReminder.id, newReminder);
+        } else {
+          await CRCReminder.create(newReminder);
+        }
+        resolve(editingReminder ? "Cập nhật thành công!" : "Thêm thành công!");
+      } catch (error) {
+        reject(error);
       }
+    });
 
-      resetForm();
-      refreshData();
-    } catch (error: any) {
-      setMessage({ type: 'error', text: `Không thể lưu nhắc nhở CRC: ${error.message}` });
-    }
-  };
+    toast.promise(promise, {
+      loading: 'Đang lưu...',
+      success: (message) => {
+        setNewReminder({ loai_bt_crc: "", ngay_thuc_hien: format(new Date(), 'dd-MM'), ldpcrc: "", cbcrc: "", quycrc: "" });
+        setEditingReminder(null);
+        loadData();
+        setTimeout(() => loaiCRCRef.current?.focus(), 100);
+        return message;
+      },
+      error: 'Có lỗi xảy ra khi lưu!',
+    });
+  }, [editingReminder, newReminder, loadData]);
 
-  const resetForm = () => {
-    setLoaiCRC('');
-    setNgayThucHien('');
-    setSelectedLDPCRC('');
-    setSelectedCBCRC('');
-    setSelectedQuyLCRC('');
-    setEditingReminder(null);
-  };
-
-  const handleEdit = (reminder: CRCReminder) => {
+  const editReminder = useCallback((reminder: Reminder) => {
     setEditingReminder(reminder);
-    setLoaiCRC(reminder.loai_bt_crc);
-    setNgayThucHien(reminder.ngay_thuc_hien);
-    
-    const formatStaffValue = (name: string | null, staffList: StaffMember[]) => {
-      if (!name) return '';
-      const staffMember = staffList.find(s => s.ten_nv === name);
-      return staffMember ? `${staffMember.ten_nv} (${staffMember.email})` : name;
-    };
+    setNewReminder({
+      loai_bt_crc: reminder.loai_bt_crc,
+      ngay_thuc_hien: reminder.ngay_thuc_hien,
+      ldpcrc: reminder.ldpcrc || "",
+      cbcrc: reminder.cbcrc || "",
+      quycrc: reminder.quycrc || ""
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => loaiCRCRef.current?.focus(), 100);
+  }, []);
 
-    setSelectedLDPCRC(formatStaffValue(reminder.ldpcrc, staff.ldpcrc));
-    setSelectedCBCRC(formatStaffValue(reminder.cbcrc, staff.cbcrc));
-    setSelectedQuyLCRC(formatStaffValue(reminder.quycrc, staff.quycrc));
-  };
+  const cancelEdit = useCallback(() => {
+    setEditingReminder(null);
+    setNewReminder({ loai_bt_crc: "", ngay_thuc_hien: format(new Date(), 'dd-MM'), ldpcrc: "", cbcrc: "", quycrc: "" });
+  }, []);
 
-  const handleDelete = async (id: string) => {
-    setMessage({ type: '', text: '' });
-    try {
-      const { error } = await supabase.from('crc_reminders').delete().eq('id', id);
-      if (error) throw error;
-      setMessage({ type: 'success', text: "Xóa nhắc nhở CRC thành công" });
-      refreshData();
-    } catch (error) {
-      setMessage({ type: 'error', text: "Không thể xóa nhắc nhở CRC" });
-    }
-  };
+  const sendSingleReminder = useCallback(async (reminder: Reminder) => {
+    const promise = new Promise(async (resolve, reject) => {
+      try {
+        const staffMap = new Map<string, Staff>();
+        [...ldpcrcStaff, ...cbcrcStaff, ...quycrcStaff].forEach(s => staffMap.set(s.ten_nv, s));
 
-  const getEmailTemplate = (loaiCRC: string, ngayThucHien: string, ldpcrc: string, cbcrc: string, quycrc: string) => {
-    const participants = [ldpcrc, cbcrc, quycrc].filter(p => p && p !== 'Chưa chọn').map(p => `bạn ${p}`);
-    const greeting = participants.length > 0 ? `Xin chào ${participants.join(', ')}, ` : 'Xin chào, ';
-    return `${greeting}Có yêu cầu duyệt CRC loại ${loaiCRC} cần thực hiện vào ngày ${ngayThucHien}, các bạn hãy hoàn thành duyệt CRC trước 14 giờ 00 ngày ${ngayThucHien}. Trân trọng cám ơn.`;
-  };
+        const recipients = [reminder.ldpcrc, reminder.cbcrc, reminder.quycrc].filter((name): name is string => !!name);
+        const recipientEmails = recipients.map(name => staffMap.get(name)?.email).filter((email): email is string => !!email);
 
-  const createNotification = async (recipientUsername: string, title: string, message: string) => {
-    if (!recipientUsername) return;
-    await supabase.from('notifications').insert({
-      recipient_username: recipientUsername,
-      title,
-      message,
-      notification_type: 'crc_reminder',
-    } as TablesInsert<'notifications'>);
-  };
+        if (recipientEmails.length > 0) {
+          const emailSubject = `🔥 Nhắc duyệt CRC: ${reminder.loai_bt_crc} ngày ${reminder.ngay_thuc_hien}`;
+          const emailContent = `Xin chào các bạn,\n\nCó chứng từ CRC: ${reminder.loai_bt_crc} được thực hiện vào ngày ${reminder.ngay_thuc_hien} chưa được duyệt đúng trên chương trình CRC, Anh chị em vui lòng duyệt chứng từ CRC đúng theo quy định.\n\nTrân trọng cám ơn.`;
+          await emailService.sendAssetNotificationEmail(recipientEmails, emailSubject, emailContent);
+        }
 
-  const sendSingleReminder = async (reminder: CRCReminder) => {
-    setMessage({ type: '', text: '' });
-    try {
-      if (!isDayMonthDueOrOverdue(reminder.ngay_thuc_hien)) {
-        setMessage({ type: 'info', text: "Nhắc nhở CRC này chưa đến hạn" });
-        return;
-      }
-
-      const getRecipient = (name: string | null, staffList: StaffMember[]) => {
-        if (!name || name === 'Chưa chọn') return null;
-        return staffList.find(m => m.ten_nv === name) || null;
-      };
-
-      const recipientsInfo = [
-        getRecipient(reminder.ldpcrc, staff.ldpcrc),
-        getRecipient(reminder.cbcrc, staff.cbcrc),
-        getRecipient(reminder.quycrc, staff.quycrc)
-      ].filter((r): r is StaffMember => r !== null);
-
-      const recipientEmails = recipientsInfo.map(r => `${r.email}.hvu@vietcombank.com.vn`);
-
-      if (recipientEmails.length === 0) {
-        setMessage({ type: 'error', text: "Không tìm thấy người nhận email" });
-        return;
-      }
-
-      const subject = `Nhắc nhở duyệt CRC: ${reminder.loai_bt_crc}`;
-      const content = getEmailTemplate(reminder.loai_bt_crc, reminder.ngay_thuc_hien, reminder.ldpcrc || 'Chưa chọn', reminder.cbcrc || 'Chưa chọn', reminder.quycrc || 'Chưa chọn');
-      const emailResult = await sendAssetNotificationEmail(recipientEmails, subject, content);
-      
-      if (emailResult.success) {
-        const sentData = { ...reminder, is_sent: true, sent_date: new Date().toISOString().split('T')[0] };
-        delete (sentData as Partial<CRCReminder>).id;
-        await supabase.from('sent_crc_reminders').insert([sentData as TablesInsert<'sent_crc_reminders'>]);
-        await supabase.from('crc_reminders').delete().eq('id', reminder.id);
-        
-        const notifMessage = `Yêu cầu duyệt CRC loại "${reminder.loai_bt_crc}" cần thực hiện vào ngày ${reminder.ngay_thuc_hien}.`;
-        const pushPayload = {
-            title: 'Nhắc nhở duyệt CRC',
-            body: notifMessage,
-            url: '/crc-reminders'
-        };
-        for (const recipient of recipientsInfo) {
-          if (recipient) {
-            createNotification(recipient.email, 'Nhắc nhở duyệt CRC', notifMessage);
-            sendPushNotification(recipient.email, pushPayload);
+        for (const name of recipients) {
+          const staff = staffMap.get(name);
+          if (staff?.email) {
+            const username = staff.email.split('@')[0];
+            const notifMessage = `Yêu cầu duyệt CRC loại "${reminder.loai_bt_crc}" cần thực hiện vào ngày ${reminder.ngay_thuc_hien}.`;
+            await supabase.from('notifications').insert({ recipient_username: username, title: 'Nhắc nhở duyệt CRC', message: notifMessage, notification_type: 'crc_reminder' });
+            await sendPushNotification(username, { title: 'Nhắc nhở duyệt CRC', body: notifMessage, url: '/crc-reminders' });
           }
         }
 
-        setMessage({ type: 'success', text: "Đã gửi email và chuyển sang danh sách đã gửi" });
-        refreshData();
-      } else {
-        throw new Error(emailResult.error || 'Unknown email error');
+        await SentCRCReminder.create({ ...reminder, sent_date: new Date().toISOString() });
+        await CRCReminder.delete(reminder.id);
+        resolve(true);
+      } catch (error) {
+        reject(error);
       }
-    } catch (error: any) {
-      setMessage({ type: 'error', text: `Không thể gửi email: ${error.message}` });
-    }
-  };
+    });
 
-  const sendReminders = async () => {
-    setMessage({ type: '', text: '' });
-    const dueReminders = reminders.filter(r => isDayMonthDueOrOverdue(r.ngay_thuc_hien));
-    if (dueReminders.length === 0) {
-      setMessage({ type: 'info', text: "Không có nhắc nhở CRC nào đến hạn hoặc quá hạn" });
+    toast.promise(promise, {
+      loading: 'Đang gửi nhắc nhở...',
+      success: 'Đã gửi email và thông báo!',
+      error: 'Gửi thất bại!',
+      finally: () => loadData(),
+    });
+  }, [ldpcrcStaff, cbcrcStaff, quycrcStaff, loadData]);
+
+  const sendAllReminders = useCallback(() => {
+    if (reminders.length === 0) {
+      toast.info("Không có nhắc nhở nào trong danh sách chờ.");
       return;
     }
-    for (const reminder of dueReminders) {
-      await sendSingleReminder(reminder);
-    }
-  };
+    reminders.forEach(sendSingleReminder);
+  }, [reminders, sendSingleReminder]);
 
-  const handleDeleteSentReminder = async (id: string) => {
-    setMessage({ type: '', text: '' });
-    try {
-      const { error } = await supabase.from('sent_crc_reminders').delete().eq('id', id);
-      if (error) throw error;
-      setMessage({ type: 'success', text: "Xóa nhắc nhở đã gửi thành công" });
-      refreshData();
-    } catch (error: any) {
-      setMessage({ type: 'error', text: `Không thể xóa nhắc nhở đã gửi: ${error.message}` });
+  const deleteReminder = useCallback(async (id: string, isSent = false) => {
+    if (user?.role !== 'admin') {
+      toast.error("Chỉ quản trị viên mới có quyền xóa!");
+      return;
     }
-  };
+    if (!window.confirm("Bạn có chắc chắn muốn xóa mục này?")) return;
 
-  const handleDeleteAllSentCRCReminders = async () => {
-    setMessage({ type: '', text: '' });
-    try {
+    const promise = isSent ? SentCRCReminder.delete(id) : CRCReminder.delete(id);
+    toast.promise(promise, {
+      loading: 'Đang xóa...',
+      success: 'Xóa thành công!',
+      error: 'Xóa thất bại!',
+      finally: () => loadData(),
+    });
+  }, [user, loadData]);
+
+  const deleteAllSent = useCallback(async () => {
+    if (user?.role !== 'admin') {
+      toast.error("Chỉ quản trị viên mới có quyền xóa!");
+      return;
+    }
+    if (!window.confirm("Bạn có chắc chắn muốn xóa tất cả lịch sử đã gửi?")) return;
+
+    const promise = (async () => {
       const { error } = await supabase.from('sent_crc_reminders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (error) throw error;
-      setMessage({ type: 'success', text: "Đã xóa tất cả nhắc nhở CRC đã gửi thành công." });
-      refreshData();
-    } catch (error: any) {
-      setMessage({ type: 'error', text: `Không thể xóa tất cả nhắc nhở CRC đã gửi: ${error.message}` });
-    }
-  };
+    })();
+    toast.promise(promise, {
+      loading: 'Đang xóa tất cả...',
+      success: 'Đã xóa toàn bộ lịch sử!',
+      error: 'Xóa toàn bộ thất bại!',
+      finally: () => loadData(),
+    });
+  }, [user, loadData]);
 
-  const filteredReminders = reminders.filter(r => [r.loai_bt_crc, r.ldpcrc, r.cbcrc, r.quycrc].some(val => val?.toLowerCase().includes(searchTerm.toLowerCase())));
-  const filteredSentReminders = sentReminders.filter(r => [r.loai_bt_crc, r.ldpcrc, r.cbcrc, r.quycrc].some(val => val?.toLowerCase().includes(sentSearchTerm.toLowerCase())));
-  const ldpcrcOptions = staff.ldpcrc.map(m => ({ value: m.id, label: `${m.ten_nv} (${m.email})` }));
-  const cbcrcOptions = staff.cbcrc.map(m => ({ value: m.id, label: `${m.ten_nv} (${m.email})` }));
-  const quycrcOptions = staff.quycrc.map(m => ({ value: m.id, label: `${m.ten_nv} (${m.email})` }));
+  const moveToNextField = useCallback((currentField: 'loaiCRC' | 'ngayThucHien' | 'ldpcrc' | 'cbcrc') => {
+    setTimeout(() => {
+      switch (currentField) {
+        case 'loaiCRC': ngayThucHienRef.current?.focus(); break;
+        case 'ngayThucHien': ldpcrcRef.current?.focus(); break;
+        case 'ldpcrc': cbcrcRef.current?.focus(); break;
+        case 'cbcrc': quycrcRef.current?.focus(); break;
+      }
+    }, 100);
+  }, []);
+
+  const ldpcrcOptions = useMemo(() => getUniqueStaffOptions(ldpcrcStaff), [ldpcrcStaff]);
+  const cbcrcOptions = useMemo(() => getUniqueStaffOptions(cbcrcStaff), [cbcrcStaff]);
+  const quycrcOptions = useMemo(() => getUniqueStaffOptions(quycrcStaff), [quycrcStaff]);
 
   return (
     <Layout>
-      <div className="space-y-6 p-6">
-        <div className="flex items-center space-x-4">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full"><Clock className="w-6 h-6 text-blue-600" /></div>
+      <div className="p-4 md:p-6 space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg">
+            <FileCheck className="w-6 h-6 text-white" />
+          </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Nhắc duyệt CRC</h1>
-            <p className="text-gray-600">Quản lý và gửi nhắc nhở về việc duyệt CRC đến hạn</p>
+            <p className="text-gray-600">Quản lý và gửi nhắc nhở duyệt chứng từ CRC</p>
           </div>
         </div>
 
-        {message.text && (
-          <Alert variant={message.type === 'error' ? 'destructive' : 'default'} className={message.type === 'success' ? 'bg-green-100 border-green-400 text-green-800' : message.type === 'info' ? 'bg-blue-100 border-blue-400 text-blue-800' : ''}>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{message.text}</AlertDescription>
-          </Alert>
-        )}
-
         <Card>
-          <CardHeader><CardTitle>Thêm nhắc nhở CRC</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{editingReminder ? 'Chỉnh sửa' : 'Thêm'} nhắc nhở CRC</CardTitle></CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label htmlFor="loaiCRC">Loại BT CRC</Label><Input id="loaiCRC" value={loaiCRC} onChange={(e) => setLoaiCRC(e.target.value)} placeholder="Nhập/xuất/mượn - Số - Tên TS" className="mt-1" /></div>
-                <div><Label htmlFor="ngayThucHien">Ngày thực hiện</Label><DayMonthInput value={ngayThucHien} onChange={setNgayThucHien} placeholder="26-06" className="mt-1" /></div>
-                <div><Label htmlFor="cbcrc">CBCRC</Label><ComboBox value={selectedCBCRC} onChange={setSelectedCBCRC} options={cbcrcOptions} placeholder="Nhập tên CB làm CRC" className="mt-1" /></div>
-                <div><Label htmlFor="ldpcrc">LDPCRC</Label><ComboBox value={selectedLDPCRC} onChange={setSelectedLDPCRC} options={ldpcrcOptions} placeholder="Nhập tên LDP duyệt CRC" className="mt-1" /></div>
-                <div><Label htmlFor="quycrc">QUYÇRC</Label><ComboBox value={selectedQuyLCRC} onChange={setSelectedQuyLCRC} options={quycrcOptions} placeholder="Nhập tên Thủ quỹ duyệt CRC" className="mt-1" /></div>
+                <div className="md:col-span-2"><Label htmlFor="loaiCRC">Loại BT CRC</Label><Input id="loaiCRC" ref={loaiCRCRef} value={newReminder.loai_bt_crc || ''} onChange={(e) => setNewReminder({ ...newReminder, loai_bt_crc: e.target.value })} placeholder="Nhập/xuất/mượn - Số - Tên TS" className="mt-1" onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && moveToNextField('loaiCRC')} /></div>
+                <div><Label htmlFor="ngayThucHien">Ngày thực hiện</Label><DateInput id="ngayThucHien" ref={ngayThucHienRef} value={newReminder.ngay_thuc_hien || ''} onChange={(value) => setNewReminder({ ...newReminder, ngay_thuc_hien: value })} className="mt-1" onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && moveToNextField('ngayThucHien')} /></div>
+                <div><Label htmlFor="ldpcrc">LĐPCRC</Label><AutoCompleteInput ref={ldpcrcRef} value={newReminder.ldpcrc || ''} onChange={(value) => setNewReminder({ ...newReminder, ldpcrc: value })} suggestions={ldpcrcOptions} placeholder="Nhập tên LĐP duyệt CRC" className="mt-1" onTabSelect={() => moveToNextField('ldpcrc')} /></div>
+                <div><Label htmlFor="cbcrc">CBCRC</Label><AutoCompleteInput ref={cbcrcRef} value={newReminder.cbcrc || ''} onChange={(value) => setNewReminder({ ...newReminder, cbcrc: value })} suggestions={cbcrcOptions} placeholder="Nhập tên CB làm CRC" className="mt-1" onTabSelect={() => moveToNextField('cbcrc')} /></div>
+                <div><Label htmlFor="quycrc">QUYCRC</Label><AutoCompleteInput ref={quycrcRef} value={newReminder.quycrc || ''} onChange={(value) => setNewReminder({ ...newReminder, quycrc: value })} suggestions={quycrcOptions} placeholder="Nhập tên Thủ quỹ duyệt CRC" className="mt-1" /></div>
               </div>
-              <div className="flex justify-end space-x-4 pt-4">
-                <Button type="button" variant="outline" onClick={resetForm}>Clear</Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={isLoading}>+ Thêm nhắc nhở</Button>
+              <div className="flex justify-end gap-3 pt-4">
+                {editingReminder && <Button type="button" onClick={cancelEdit} variant="outline">Hủy</Button>}
+                <Button type="submit" className="bg-blue-600 hover:bg-blue-700"><Plus className="w-4 h-4 mr-2" />{editingReminder ? 'Cập nhật' : 'Thêm nhắc nhở'}</Button>
               </div>
             </form>
           </CardContent>
@@ -276,34 +270,28 @@ const CRCReminders = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Danh sách chờ gửi ({filteredReminders.length})</CardTitle>
-            <Button onClick={sendReminders} className="bg-green-600 hover:bg-green-700" disabled={isLoading}>Gửi tất cả</Button>
+            <CardTitle>Danh sách chờ gửi ({reminders.length})</CardTitle>
+            <Button onClick={sendAllReminders} className="bg-green-600 hover:bg-green-700"><Send className="w-4 h-4 mr-2" />Gửi tất cả</Button>
           </CardHeader>
-          <CardContent>
-            <div className="mb-4">
-              <Input
-                placeholder="Tìm kiếm nhắc nhở CRC..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
-            </div>
-            <CRCReminderTable filteredReminders={filteredReminders} isLoading={isLoading} isDayMonthDueOrOverdue={isDayMonthDueOrOverdue} onSendSingleReminder={sendSingleReminder} onEdit={handleEdit} onDelete={handleDelete} />
-          </CardContent>
+          <CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Loại BT CRC</TableHead><TableHead>Ngày thực hiện</TableHead><TableHead>LĐPCRC</TableHead><TableHead>CBCRC</TableHead><TableHead>QUYCRC</TableHead><TableHead>Thao tác</TableHead></TableRow></TableHeader><TableBody>
+            {isLoading ? <TableRow><TableCell colSpan={6} className="text-center h-24">Đang tải...</TableCell></TableRow> : reminders.map((r) => (
+              <TableRow key={r.id}><TableCell className="font-medium">{r.loai_bt_crc}</TableCell><TableCell>{r.ngay_thuc_hien}</TableCell><TableCell>{r.ldpcrc || '-'}</TableCell><TableCell>{r.cbcrc || '-'}</TableCell><TableCell>{r.quycrc || '-'}</TableCell><TableCell><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => sendSingleReminder(r)} title="Gửi"><Send className="w-4 h-4 text-green-600" /></Button><Button variant="ghost" size="icon" onClick={() => editReminder(r)} title="Sửa"><Edit className="w-4 h-4 text-blue-600" /></Button>{user?.role === 'admin' && <Button variant="ghost" size="icon" onClick={() => deleteReminder(r.id)} title="Xóa"><Trash2 className="w-4 h-4 text-red-600" /></Button>}</div></TableCell></TableRow>
+            ))}
+          </TableBody></Table></div></CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Danh sách đã gửi ({filteredSentReminders.length})</CardTitle>
-            <Button onClick={handleDeleteAllSentCRCReminders} variant="destructive" disabled={isLoading}>Xóa tất cả</Button>
+            <CardTitle>Danh sách đã gửi ({sentReminders.length})</CardTitle>
+            {user?.role === 'admin' && <Button onClick={deleteAllSent} variant="destructive"><Trash className="w-4 h-4 mr-2" />Xóa tất cả</Button>}
           </CardHeader>
-          <CardContent>
-            <SentCRCReminderTable filteredSentReminders={filteredSentReminders} sentSearchTerm={sentSearchTerm} setSentSearchTerm={setSentSearchTerm} isLoading={isLoading} onDeleteSentReminder={handleDeleteSentReminder} />
-          </CardContent>
+          <CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Loại BT CRC</TableHead><TableHead>Ngày thực hiện</TableHead><TableHead>LĐPCRC</TableHead><TableHead>CBCRC</TableHead><TableHead>QUYCRC</TableHead><TableHead>Ngày gửi</TableHead>{user?.role === 'admin' && <TableHead>Thao tác</TableHead>}</TableRow></TableHeader><TableBody>
+            {isLoading ? <TableRow><TableCell colSpan={7} className="text-center h-24">Đang tải...</TableCell></TableRow> : sentReminders.map((r) => (
+              <TableRow key={r.id}><TableCell className="font-medium">{r.loai_bt_crc}</TableCell><TableCell>{r.ngay_thuc_hien}</TableCell><TableCell>{r.ldpcrc || '-'}</TableCell><TableCell>{r.cbcrc || '-'}</TableCell><TableCell>{r.quycrc || '-'}</TableCell><TableCell>{r.sent_date ? format(new Date(r.sent_date), 'dd/MM/yyyy') : '-'}</TableCell>{user?.role === 'admin' && <TableCell><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => deleteReminder(r.id, true)} title="Xóa"><Trash2 className="w-4 h-4 text-red-600" /></Button></div></TableCell>}</TableRow>
+            ))}
+          </TableBody></Table></div></CardContent>
         </Card>
       </div>
     </Layout>
   );
-};
-
-export default CRCReminders;
+}
