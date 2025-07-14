@@ -1,12 +1,13 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Send, Loader2, AlertTriangle } from 'lucide-react';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface SubmitButtonsProps {
   isFormValid: boolean;
   isSubmitting: boolean;
   isRestrictedTime: boolean;
   onSubmit: () => Promise<void>;
+  onClear: () => void;
 }
 
 const SubmitButtons: React.FC<SubmitButtonsProps> = ({
@@ -14,66 +15,32 @@ const SubmitButtons: React.FC<SubmitButtonsProps> = ({
   isSubmitting,
   isRestrictedTime,
   onSubmit,
+  onClear,
 }) => {
-  const handleClear = () => {
-    // Clear form logic would be handled by parent component
-    window.location.reload();
-  };
+  const { user: currentUser } = useCurrentUser();
+
+  if (isRestrictedTime && currentUser?.role !== 'admin') {
+    return (
+      <div className="text-center pt-4">
+        <div className="text-orange-600 font-medium mb-2">Không thể lưu dữ liệu trong giờ nghỉ</div>
+        <div className="text-sm text-orange-500">Vui lòng liên hệ qua Zalo</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex justify-between items-center pt-4">
-      <Button
-        type="button"
-        variant="outline"
-        onClick={handleClear}
-        disabled={isSubmitting}
-        className="px-6"
-      >
+    <div className="flex justify-end pt-4 gap-2">
+      <Button type="button" onClick={onClear} variant="outline" disabled={isSubmitting}>
         Clear
       </Button>
-
-      <div className="flex space-x-4">
-        <Button
-          type="button"
-          variant="outline"
-          className="text-blue-600 border-blue-300 hover:bg-blue-50"
-          disabled={isSubmitting}
-        >
-          📧 Test Email
-        </Button>
-
-        <Button
-          type="button"
-          variant="outline"
-          className="text-red-600 border-red-300 hover:bg-red-50"
-          disabled={isSubmitting}
-        >
-          ⚠️ Báo lỗi và gửi hình lỗi
-        </Button>
-
-        <Button
-          onClick={onSubmit}
-          disabled={!isFormValid || isSubmitting || isRestrictedTime}
-          className="bg-green-600 hover:bg-green-700 text-white px-8"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Đang gửi...
-            </>
-          ) : isRestrictedTime ? (
-            <>
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              Khung giờ cấm
-            </>
-          ) : (
-            <>
-              <Send className="w-4 h-4 mr-2" />
-              Gửi thông báo
-            </>
-          )}
-        </Button>
-      </div>
+      <Button
+        type="button"
+        onClick={onSubmit}
+        disabled={!isFormValid || isSubmitting}
+        className="px-8 py-3 h-auto bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg transition-all duration-200 shadow-lg shadow-green-500/25"
+      >
+        {isSubmitting ? "Đang gửi..." : "Gửi thông báo"}
+      </Button>
     </div>
   );
 };

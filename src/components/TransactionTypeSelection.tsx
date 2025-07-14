@@ -1,7 +1,6 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowRightLeft } from 'lucide-react';
 
 interface TransactionTypeSelectionProps {
   selectedType: string;
@@ -13,20 +12,17 @@ const TransactionTypeSelection: React.FC<TransactionTypeSelectionProps> = ({
   onTypeChange,
 }) => {
   const transactionTypes = [
-    { value: 'xuat', label: 'Xuất' },
-    { value: 'muon', label: 'Mượn' },
-    { value: 'thay_bia', label: 'Thay bìa' },
+    { value: 'Xuất kho', label: 'Xuất kho' },
+    { value: 'Mượn TS', label: 'Mượn TS' },
+    { value: 'Thay bìa', label: 'Thay bìa' },
   ];
 
   return (
     <div className="space-y-2">
-      <Label className="text-base font-medium text-gray-900 flex items-center space-x-2">
-        <ArrowRightLeft className="w-4 h-4 text-blue-600" />
-        <span>Loại tác nghiệp Xuất/Mượn/Thay bìa</span>
-      </Label>
+      <Label className="text-sm font-medium text-slate-700">Loại tác nghiệp Xuất/Mượn/Thay bìa</Label>
       <Select value={selectedType} onValueChange={onTypeChange}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder="Chọn loại tác nghiệp" />
+        <SelectTrigger className="h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500">
+          <SelectValue placeholder="Chọn Mượn/Xuất TS/Thay bìa" />
         </SelectTrigger>
         <SelectContent>
           {transactionTypes.map((type) => (

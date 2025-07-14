@@ -12,23 +12,16 @@ const RoomSelection: React.FC<RoomSelectionProps> = ({
   selectedRoom,
   onRoomChange,
 }) => {
-  const rooms = [
-    'A101', 'A102', 'A103', 'A104', 'A105',
-    'B101', 'B102', 'B103', 'B104', 'B105',
-    'C101', 'C102', 'C103', 'C104', 'C105',
-    'D101', 'D102', 'D103', 'D104', 'D105',
-    'Phòng họp 1', 'Phòng họp 2', 'Phòng họp 3',
-    'Kho tài sản', 'Phòng IT', 'Phòng kế toán'
-  ];
+  const rooms = ['QLN', 'CMT8', 'NS', 'ĐS', 'LĐH', 'DVKH'];
 
   return (
     <div className="space-y-2">
-      <Label className="text-base font-medium text-gray-900 flex items-center space-x-2">
-        <Building className="w-4 h-4 text-green-600" />
+      <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+        <Building className="w-4 h-4" />
         <span>Tài sản của phòng</span>
       </Label>
       <Select value={selectedRoom} onValueChange={onRoomChange}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500">
           <SelectValue placeholder="Chọn phòng" />
         </SelectTrigger>
         <SelectContent>
