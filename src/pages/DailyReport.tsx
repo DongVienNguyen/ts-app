@@ -429,17 +429,6 @@ function DailyReport() {
     }
   }, [user?.username, takenTransactionIds]);
 
-  // Add placeholder handlers for edit and delete
-  const handleEditTransaction = useCallback((transaction: any) => {
-    console.log('Edit transaction:', transaction);
-    // Placeholder - implement edit functionality if needed
-  }, []);
-
-  const handleDeleteTransaction = useCallback((transactionId: string) => {
-    console.log('Delete transaction:', transactionId);
-    // Placeholder - implement delete functionality if needed
-  }, []);
-
   return (
     <Layout>
       <div className="p-4 md:p-8">
@@ -573,8 +562,6 @@ function DailyReport() {
                 showActions={true}
                 takenTransactionIds={takenTransactionIds}
                 onToggleTaken={handleToggleTakenStatus}
-                onEdit={handleEditTransaction}
-                onDelete={handleDeleteTransaction}
               />
             </CardContent>
           </Card>
