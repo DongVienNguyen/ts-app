@@ -45,7 +45,7 @@ export const groupNotificationsByDate = (notifications: Notification[]): Record<
 export const getMorningTargetDate = (): Date => {
     const now = new Date();
     // Use GMT+7 for time check by getting the hour in that timezone
-    const gmt7Hour = parseInt(format(now, 'H', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const gmt7Hour = parseInt(format(now, 'H'));
     const gmt7Minute = now.getMinutes();
     const timeValue = gmt7Hour * 100 + gmt7Minute;
 

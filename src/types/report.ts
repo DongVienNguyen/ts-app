@@ -1,4 +1,4 @@
-import { Tables, TablesInsert, TablesUpdate } from './supabase';
+import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
 
 // Manually define types for new tables as they are not in the generated types yet.
 export interface ProcessedNote {

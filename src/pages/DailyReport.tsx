@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FileText, Download, ListTree, Plus, Edit, Trash2, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -132,11 +132,11 @@ const DailyReport = () => {
   const [isEditTxDialogOpen, setIsEditTxDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
-  const { paginatedData, currentPage, totalPages, handleNextPage, handlePrevPage, setCurrentPage } = usePagination(logic.filteredTransactions, 30);
+  const { paginatedData, currentPage, totalPages, nextPage, prevPage, goToPage } = usePagination<Transaction>({data: logic.filteredTransactions, itemsPerPage: 30});
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [logic.filterType, logic.customFilters, setCurrentPage]);
+    goToPage(1);
+  }, [logic.filterType, logic.customFilters, goToPage]);
 
   const handleOpenNoteDialog = (note: ProcessedNote | null = null) => {
     setEditingNote(note);
@@ -219,9 +219,9 @@ const DailyReport = () => {
 
         {!logic.showGrouped && logic.filteredTransactions.length > 30 && (
           <div className="flex justify-center items-center gap-4 mt-6 no-print">
-            <Button onClick={handlePrevPage} disabled={currentPage === 1} variant="outline"><ChevronLeft className="w-4 h-4 mr-2" /> Trước</Button>
+            <Button onClick={prevPage} disabled={currentPage === 1} variant="outline"><ChevronLeft className="w-4 h-4 mr-2" /> Trước</Button>
             <span>Trang {currentPage} trên {totalPages}</span>
-            <Button onClick={handleNextPage} disabled={currentPage === totalPages} variant="outline">Tiếp <ChevronRight className="w-4 h-4 ml-2" /></Button>
+            <Button onClick={nextPage} disabled={currentPage === totalPages} variant="outline">Tiếp <ChevronRight className="w-4 h-4 ml-2" /></Button>
           </div>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, UseMutationOptions } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import _ from 'lodash';
 import { format, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
@@ -28,13 +28,18 @@ export const useDailyReportLogic = () => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // --- DATA FETCHING (REACT QUERY) ---
-  const { data: allTransactions = [], isLoading: isLoadingTransactions } = useQuery({
+  const { data: allTransactions = [], isLoading: isLoadingTransactions, isSuccess } = useQuery({
     queryKey: ['allAssetTransactions'],
     queryFn: () => getAssetTransactions({}), // Fetch all initially
     staleTime: 60 * 1000, // 1 minute
     refetchInterval: 60 * 1000, // Auto-refresh every minute
-    onSuccess: () => setLastUpdated(new Date()),
   });
+
+  useEffect(() => {
+    if (isSuccess) {
+      setLastUpdated(new Date());
+    }
+  }, [isSuccess, allTransactions]);
 
   const { data: processedNotes = [], isLoading: isLoadingNotes } = useQuery({
     queryKey: ['processedNotes'],
@@ -172,8 +177,12 @@ export const useDailyReportLogic = () => {
     queryClient.invalidateQueries({ queryKey: ['takenAssetStatus'] });
   };
 
-  const useGenericMutation = (mutationFn: any, successMessage: string, errorMessage: string) => {
-    return useMutation({
+  const useGenericMutation = <TVariables, TData>(
+    mutationFn: (vars: TVariables) => Promise<TData>,
+    successMessage: string,
+    errorMessage: string
+  ) => {
+    return useMutation<TData, Error, TVariables>({
       mutationFn,
       onSuccess: () => {
         toast.success(successMessage);

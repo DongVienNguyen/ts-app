@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Staff, StaffMember } from '@/types/staff';
 
@@ -10,6 +10,14 @@ export const useStaffData = () => {
     cbcrc: [],
     quycrc: [],
   });
+
+  const staffList = useMemo(() => [
+    ...staff.cbqln,
+    ...staff.cbkh,
+    ...staff.ldpcrc,
+    ...staff.cbcrc,
+    ...staff.quycrc,
+  ], [staff]);
 
   const loadStaffData = async () => {
     try {
@@ -54,5 +62,5 @@ export const useStaffData = () => {
     loadStaffData();
   }, []);
 
-  return { staff, loadStaffData };
+  return { staff, staffList, loadStaffData };
 };
