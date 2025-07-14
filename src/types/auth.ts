@@ -10,6 +10,7 @@ export interface Staff {
   locked_at?: string;
   created_at?: string;
   updated_at?: string;
+  email?: string;
 }
 
 export interface LoginRequest {

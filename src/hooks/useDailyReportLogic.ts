@@ -225,11 +225,11 @@ export const useDailyReportLogic = () => {
 
   // --- HANDLERS ---
   const handleNoteSubmit = async (noteData: ProcessedNoteInsert) => {
-    if (!currentUser?.username) {
+    if (!currentUser?.email) { // Changed from username to email
       toast.error("Bạn cần đăng nhập để thêm ghi chú.");
       return;
     }
-    await addNoteMutation.mutateAsync({ ...noteData, staff_code: currentUser.username });
+    await addNoteMutation.mutateAsync({ ...noteData, staff_code: currentUser.email }); // Changed from username to email
     if (noteData.mail_to_nv) {
       const email = formatEmail(noteData.mail_to_nv);
       if (email) {
