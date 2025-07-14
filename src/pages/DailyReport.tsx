@@ -177,11 +177,11 @@ export default function DailyReport() {
       let transactions;
       if (useCache) {
         transactions = await fetchWithCache('daily_report_transactions', async () => {
-          return await AssetTransaction.list('-created_date', 1000);
+          return await AssetTransaction.list('-created_at', 1000);
         }, 60000); // Cache for 1 minute
       } else {
         // Bỏ qua cache khi auto-refresh để lấy dữ liệu mới nhất
-        transactions = await AssetTransaction.list('-created_date', 1000);
+        transactions = await AssetTransaction.list('-created_at', 1000);
       }
       setAllTransactions(Array.isArray(transactions) ? transactions : []);
       setLastUpdated(getGMT7CurrentDateTime()); // Set last updated time using GMT+7
