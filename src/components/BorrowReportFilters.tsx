@@ -35,14 +35,14 @@ const BorrowReportFilters = React.memo(({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Filter className="w-5 h-5 mr-2 text-green-600" />
+      <Card className="border-0 shadow-xl shadow-slate-100/50">
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b border-slate-200">
+          <CardTitle className="flex items-center text-lg font-semibold text-slate-800">
+            <Filter className="w-5 h-5 mr-2" />
             Bộ lọc thời gian
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -71,14 +71,14 @@ const BorrowReportFilters = React.memo(({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Building2 className="w-5 h-5 mr-2 text-green-600" />
+      <Card className="border-0 shadow-xl shadow-slate-100/50">
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-green-50 border-b border-slate-200">
+          <CardTitle className="flex items-center text-lg font-semibold text-slate-800">
+            <Building2 className="w-5 h-5 mr-2" />
             Hiển thị danh sách theo từng phòng
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <Select value={selectedRoom} onValueChange={setSelectedRoom}>
             <SelectTrigger>
               <SelectValue placeholder="Chọn phòng..." />

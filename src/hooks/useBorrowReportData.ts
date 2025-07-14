@@ -3,8 +3,13 @@ import { getAssetTransactions } from '@/services/assetService';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Tables } from '@/integrations/supabase/types';
+import _ from 'lodash';
 
 type Transaction = Tables<'asset_transactions'>;
+
+export type GroupedTransaction = Transaction & {
+  transaction_count: number;
+};
 
 interface DateRange {
   start: string;
@@ -21,15 +26,14 @@ export const useBorrowReportData = () => {
   const [selectedRoom, setSelectedRoom] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const ITEMS_PER_PAGE = 10;
+  const ITEMS_PER_PAGE = 30;
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
         const data = await getAssetTransactions();
-        const borrowTransactions = (data as Transaction[]).filter(t => t.transaction_type === 'Mượn TS');
-        setAllTransactions(borrowTransactions);
+        setAllTransactions(data as Transaction[]);
       } catch (error) {
         console.error("Error fetching borrow report data:", error);
         toast.error("Không thể tải dữ liệu báo cáo mượn tài sản.");
@@ -41,20 +45,62 @@ export const useBorrowReportData = () => {
   }, []);
 
   const filteredTransactions = useMemo(() => {
-    return allTransactions.filter(t => {
+    if (allTransactions.length === 0) return [];
+
+    const exportedAssetKeys = new Set<string>();
+    allTransactions.forEach(t => {
+      if (t.transaction_type === 'Xuất kho') {
+        exportedAssetKeys.add(`${t.room}-${t.asset_year}-${t.asset_code}`);
+      }
+    });
+
+    const currentlyBorrowed = allTransactions.filter(t => {
+      if (t.transaction_type === 'Mượn TS') {
+        const assetKey = `${t.room}-${t.asset_year}-${t.asset_code}`;
+        return !exportedAssetKeys.has(assetKey);
+      }
+      return false;
+    });
+
+    const startDate = dateRange.start ? new Date(`${dateRange.start}T00:00:00`) : null;
+    const endDate = dateRange.end ? new Date(`${dateRange.end}T23:59:59`) : null;
+
+    const dateAndRoomFiltered = currentlyBorrowed.filter(t => {
       const transactionDate = new Date(t.transaction_date);
-      const startDate = dateRange.start ? new Date(dateRange.start) : null;
-      const endDate = dateRange.end ? new Date(dateRange.end) : null;
-
-      if (startDate) startDate.setHours(0, 0, 0, 0);
-      if (endDate) endDate.setHours(23, 59, 59, 999);
-
       const inDateRange = (!startDate || transactionDate >= startDate) && (!endDate || transactionDate <= endDate);
       const inRoom = selectedRoom === 'all' || t.room === selectedRoom;
-
       return inDateRange && inRoom;
     });
+
+    const groupedMap = new Map<string, GroupedTransaction>();
+    dateAndRoomFiltered.forEach(transaction => {
+      const key = `${transaction.room}-${transaction.asset_year}-${transaction.asset_code}`;
+      const existing = groupedMap.get(key);
+
+      if (!existing) {
+        groupedMap.set(key, {
+          ...transaction,
+          transaction_count: 1,
+        });
+      } else {
+        existing.transaction_count += 1;
+        if (new Date(transaction.transaction_date) > new Date(existing.transaction_date)) {
+          existing.transaction_date = transaction.transaction_date;
+          existing.parts_day = transaction.parts_day;
+          existing.staff_code = transaction.staff_code;
+          existing.note = transaction.note;
+        }
+      }
+    });
+
+    const finalFiltered = Array.from(groupedMap.values());
+    
+    return _.orderBy(finalFiltered, ['room', 'asset_year', t => t.asset_code], ['asc', 'asc', 'asc']);
   }, [allTransactions, dateRange, selectedRoom]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [dateRange, selectedRoom]);
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -73,7 +119,7 @@ export const useBorrowReportData = () => {
       return;
     }
 
-    const headers = ['STT', 'Phòng', 'Năm TS', 'Mã TS', 'Loại', 'Ngày', 'CB'];
+    const headers = ['STT', 'Phòng', 'Năm TS', 'Mã TS', 'Trạng thái', 'Ngày', 'CB'];
     const csvContent = [
       headers.join(','),
       ...filteredTransactions.map((t, index) => [

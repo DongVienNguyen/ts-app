@@ -1,10 +1,14 @@
 import React, { Dispatch, SetStateAction } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Transaction } from '@/types/asset';
+import { Tables } from '@/integrations/supabase/types';
+import { format } from 'date-fns';
+
+type Transaction = Tables<'asset_transactions'>;
+export type ReportTransaction = Transaction & { transaction_count?: number };
 
 export interface BorrowReportTableProps {
-  transactions: Transaction[];
+  transactions: ReportTransaction[];
   currentPage: number;
   setCurrentPage: Dispatch<SetStateAction<number>>;
   totalPages: number;
@@ -32,6 +36,7 @@ const BorrowReportTable: React.FC<BorrowReportTableProps> = ({
               <TableHead>Năm TS</TableHead>
               <TableHead>Mã TS</TableHead>
               <TableHead>Ghi chú</TableHead>
+              <TableHead>Số lần mượn</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -39,18 +44,19 @@ const BorrowReportTable: React.FC<BorrowReportTableProps> = ({
               transactions.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell>{transaction.staff_code}</TableCell>
-                  <TableCell>{transaction.transaction_date}</TableCell>
+                  <TableCell>{format(new Date(transaction.transaction_date), 'dd/MM/yyyy')}</TableCell>
                   <TableCell>{transaction.parts_day}</TableCell>
                   <TableCell>{transaction.room}</TableCell>
                   <TableCell>{transaction.transaction_type}</TableCell>
                   <TableCell>{transaction.asset_year}</TableCell>
                   <TableCell>{transaction.asset_code}</TableCell>
                   <TableCell>{transaction.note}</TableCell>
+                  <TableCell>{transaction.transaction_count}</TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={8} className="text-center">
+                <TableCell colSpan={9} className="text-center">
                   Không có dữ liệu giao dịch.
                 </TableCell>
               </TableRow>
@@ -59,7 +65,7 @@ const BorrowReportTable: React.FC<BorrowReportTableProps> = ({
         </Table>
       </div>
 
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center no-print">
         <Button
           onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
           disabled={currentPage === 1}
