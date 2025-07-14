@@ -9,8 +9,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const FROM_EMAIL = 'Tài sản - CRC <onboarding@resend.dev>';
-
 const generateTestEmailHTML = (username: string): string => {
   return `
     <!DOCTYPE html>
@@ -68,12 +66,12 @@ const sendEmailViaResend = async (recipients: string[], subject: string, bodyHTM
   }
 
   console.log('📧 Sending email via Resend...')
-  console.log(`📧 From: ${FROM_EMAIL}`)
+  console.log('📧 From: Tài sản - CRC <taisan@caremylife.me>')
   console.log('📧 To:', recipients.join(', '))
   console.log('📧 Subject:', subject)
   
   const emailPayload = {
-    from: FROM_EMAIL,
+    from: 'Tài sản - CRC <taisan@caremylife.me>',
     to: recipients,
     subject: subject,
     html: bodyHTML,
@@ -159,7 +157,7 @@ serve(async (req) => {
         service: {
           configured: !!resendKey,
           status: resendKey ? 'Ready' : 'Not configured',
-          from: FROM_EMAIL
+          from: 'Tài sản - CRC <taisan@caremylife.me>'
         },
         timestamp: new Date().toISOString()
       }), {
@@ -206,7 +204,7 @@ serve(async (req) => {
         success: true,
         data: result,
         message: 'Email sent successfully',
-        from: FROM_EMAIL
+        from: 'Tài sản - CRC <taisan@caremylife.me>'
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
