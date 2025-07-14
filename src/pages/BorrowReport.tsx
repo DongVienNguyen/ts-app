@@ -22,6 +22,7 @@ const BorrowReport = () => {
     totalPages,
     rooms,
     exportToCSV,
+    ITEMS_PER_PAGE,
   } = useBorrowReportData();
 
   const handlePrint = () => {
@@ -42,8 +43,27 @@ const BorrowReport = () => {
     <Layout>
       <ErrorBoundary>
         <div className="space-y-6 p-6 md:p-8">
-          <div className="no-print">
+          <div className="flex justify-between items-start no-print">
             <BorrowReportHeader />
+            <div className="flex justify-end gap-2">
+              <Button
+                onClick={exportToCSV}
+                disabled={filteredTransactions.length === 0}
+                variant="outline"
+                className="bg-white hover:bg-green-50 border-green-600 text-green-600 shadow-lg shadow-green-500/10"
+              >
+                <FileUp className="w-4 h-4 mr-2" />
+                Xuất Excel
+              </Button>
+              <Button
+                onClick={handlePrint}
+                disabled={filteredTransactions.length === 0}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Xuất PDF
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-6 no-print">
@@ -54,26 +74,6 @@ const BorrowReport = () => {
               setSelectedRoom={setSelectedRoom}
               rooms={rooms}
             />
-          </div>
-
-          <div className="flex justify-end gap-2 no-print">
-            <Button
-              onClick={exportToCSV}
-              disabled={filteredTransactions.length === 0}
-              variant="outline"
-              className="bg-white hover:bg-green-50 border-green-600 text-green-600 shadow-lg shadow-green-500/10"
-            >
-              <FileUp className="w-4 h-4 mr-2" />
-              Xuất Excel
-            </Button>
-            <Button
-              onClick={handlePrint}
-              disabled={filteredTransactions.length === 0}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Xuất PDF
-            </Button>
           </div>
 
           <div id="print-section">
@@ -88,6 +88,7 @@ const BorrowReport = () => {
                   setCurrentPage={setCurrentPage}
                   totalPages={totalPages}
                   totalRecords={filteredTransactions.length}
+                  itemsPerPage={ITEMS_PER_PAGE}
                 />
               </CardContent>
             </Card>

@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Tables } from '@/integrations/supabase/types';
 import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 type Transaction = Tables<'asset_transactions'>;
 export type ReportTransaction = Transaction & { transaction_count?: number };
@@ -13,6 +14,7 @@ export interface BorrowReportTableProps {
   setCurrentPage: Dispatch<SetStateAction<number>>;
   totalPages: number;
   totalRecords: number;
+  itemsPerPage: number;
 }
 
 const BorrowReportTable: React.FC<BorrowReportTableProps> = ({
@@ -21,6 +23,7 @@ const BorrowReportTable: React.FC<BorrowReportTableProps> = ({
   setCurrentPage,
   totalPages,
   totalRecords,
+  itemsPerPage,
 }) => {
   return (
     <div className="space-y-4">
@@ -28,35 +31,35 @@ const BorrowReportTable: React.FC<BorrowReportTableProps> = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Mã NV</TableHead>
-              <TableHead>Ngày GD</TableHead>
-              <TableHead>Ca</TableHead>
+              <TableHead>STT</TableHead>
               <TableHead>Phòng</TableHead>
-              <TableHead>Loại GD</TableHead>
               <TableHead>Năm TS</TableHead>
               <TableHead>Mã TS</TableHead>
-              <TableHead>Ghi chú</TableHead>
-              <TableHead>Số lần mượn</TableHead>
+              <TableHead>Loại</TableHead>
+              <TableHead>Ngày</TableHead>
+              <TableHead>Số lần</TableHead>
+              <TableHead>CB</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {transactions.length > 0 ? (
-              transactions.map((transaction) => (
+              transactions.map((transaction, index) => (
                 <TableRow key={transaction.id}>
-                  <TableCell>{transaction.staff_code}</TableCell>
-                  <TableCell>{format(new Date(transaction.transaction_date), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell>{transaction.parts_day}</TableCell>
+                  <TableCell>{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                   <TableCell>{transaction.room}</TableCell>
-                  <TableCell>{transaction.transaction_type}</TableCell>
                   <TableCell>{transaction.asset_year}</TableCell>
                   <TableCell>{transaction.asset_code}</TableCell>
-                  <TableCell>{transaction.note}</TableCell>
-                  <TableCell>{transaction.transaction_count}</TableCell>
+                  <TableCell>{transaction.transaction_type}</TableCell>
+                  <TableCell>{format(new Date(transaction.transaction_date), 'dd/MM/yyyy')}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{transaction.transaction_count}x</Badge>
+                  </TableCell>
+                  <TableCell>{transaction.staff_code}</TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={9} className="text-center">
+                <TableCell colSpan={8} className="text-center">
                   Không có dữ liệu giao dịch.
                 </TableCell>
               </TableRow>
@@ -65,7 +68,7 @@ const BorrowReportTable: React.FC<BorrowReportTableProps> = ({
         </Table>
       </div>
 
-      <div className="flex justify-between items-center no-print">
+      <div className="flex justify-between items-center no-print p-4">
         <Button
           onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
           disabled={currentPage === 1}
