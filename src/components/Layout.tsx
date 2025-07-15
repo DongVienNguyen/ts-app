@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom'; // Removed useNavigate as it's not used
+import { Link, useLocation } from 'react-router-dom';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { 
@@ -31,10 +31,16 @@ import {
   Activity,
   Key,
   Settings,
-  HardDrive
+  HardDrive,
+  BellRing,
+  Download
 } from 'lucide-react';
 import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
 import { NotificationBell } from '@/components/NotificationBell';
+import { requestNotificationPermission, subscribeUserToPush } from '@/utils/pushNotificationUtils';
+import { toast } from 'sonner';
+import { usePushNotificationStatus } from '@/hooks/usePushNotificationStatus';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -44,14 +50,108 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, logout } = useSecureAuth();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
+  
+  const { status: pushStatus, refreshStatus } = usePushNotificationStatus();
+  const { canInstall, triggerInstall } = usePWAInstall();
 
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [location.pathname]);
 
-  if (!user) {
-    return null;
+  // Fix: Don't render layout on login page
+  if (location.pathname === '/login') {
+    return <>{children}</>;
   }
+
+  // Fix: Show a loading spinner if user is not yet available on a protected route
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  const handleInstallPWA = async () => {
+    const success = await triggerInstall();
+    if (success) {
+      toast.success('Ứng dụng đã được cài đặt thành công!');
+    }
+  };
+
+  const handleEnableNotifications = async () => {
+    if (!user || !user.username) return;
+    
+    setIsEnablingNotifications(true);
+    
+    try {
+      const permission = await requestNotificationPermission();
+      
+      if (permission === 'granted') {
+        const subscriptionSuccess = await subscribeUserToPush(user.username);
+        if (subscriptionSuccess) {
+          toast.success('🔔 Push Notifications đã bật!', {
+            description: 'Bạn sẽ nhận được các thông báo quan trọng.',
+          });
+        } else {
+          toast.warning('⚠️ Hỗ trợ thông báo hạn chế', {
+            description: 'Không thể đăng ký push, nhưng bạn sẽ nhận thông báo khi app đang mở.',
+          });
+        }
+      } else if (permission === 'denied') {
+        toast.error('❌ Thông báo bị chặn', {
+          description: 'Vui lòng bật trong cài đặt trình duyệt để nhận cảnh báo.',
+        });
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi bật thông báo:', error);
+      toast.error('❌ Thiết lập thông báo thất bại.');
+    } finally {
+      setIsEnablingNotifications(false);
+      refreshStatus();
+    }
+  };
+
+  const renderSetupButtons = (isMobile = false, onLinkClick?: () => void) => {
+    const showNotificationSetupButton = pushStatus !== 'granted' && pushStatus !== 'unsupported' && pushStatus !== 'loading';
+
+    return (
+      <div className={`flex items-center gap-2 ${isMobile ? 'flex-col w-full' : ''}`}>
+        {canInstall && (
+          <Button
+            variant="outline"
+            size={isMobile ? 'default' : 'sm'}
+            onClick={() => {
+              handleInstallPWA();
+              if (isMobile && onLinkClick) onLinkClick();
+            }}
+            className={`items-center text-blue-600 border-blue-400 hover:bg-blue-50 hover:text-blue-700 animate-pulse ${isMobile ? 'w-full' : ''}`}
+            title="Cài đặt ứng dụng PWA để truy cập nhanh hơn"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Cài đặt App
+          </Button>
+        )}
+        {showNotificationSetupButton && (
+          <Button
+            variant="outline"
+            size={isMobile ? 'default' : 'sm'}
+            onClick={() => {
+              handleEnableNotifications();
+              if (isMobile && onLinkClick) onLinkClick();
+            }}
+            disabled={isEnablingNotifications}
+            className={`items-center text-yellow-600 border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700 animate-pulse ${isMobile ? 'w-full' : ''}`}
+            title="Cài đặt thông báo để nhận cảnh báo real-time"
+          >
+            <BellRing className="h-4 w-4 mr-2" />
+            {isEnablingNotifications ? 'Đang cài đặt...' : 'Cài đặt thông báo'}
+          </Button>
+        )}
+      </div>
+    );
+  };
 
   const SidebarContent = ({ onLinkClick }: { onLinkClick?: () => void }) => {
     const [isSystemDropdownOpen, setIsSystemDropdownOpen] = useState(false);
@@ -74,7 +174,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       { name: 'Bảo mật', href: '/security-monitor', icon: Shield, show: userIsAdmin },
       { name: 'Lỗi hệ thống', href: '/error-monitoring', icon: Activity, show: userIsAdmin },
       { name: 'Sử dụng', href: '/usage-monitoring', icon: BarChart3, show: userIsAdmin },
-      { name: 'Backup & Restore', href: '/backup', icon: HardDrive, show: userIsAdmin } // Updated href
+      { name: 'Backup & Restore', href: '/backup', icon: HardDrive, show: userIsAdmin }
     ].filter(item => item.show);
 
     return (
@@ -89,6 +189,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
         <nav className="flex flex-1 flex-col">
           <ul role="list" className="flex flex-1 flex-col gap-y-7">
+            <li className="px-2 py-4 border-b border-gray-200 lg:hidden">
+              {renderSetupButtons(true, onLinkClick)}
+            </li>
             <li>
               <ul role="list" className="-mx-2 space-y-1">
                 {mainNavigationItems.map((item) => {
@@ -215,6 +318,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="h-6 w-px bg-gray-200 lg:hidden" aria-hidden="true" />
 
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 justify-end items-center">
+            <div className="hidden lg:flex items-center gap-x-2">
+              {renderSetupButtons(false)}
+            </div>
             <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
