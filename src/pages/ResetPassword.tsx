@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { resetPassword } from '@/services/secureAuthService';
 import { toast } from 'sonner';
-import Layout from '@/components/Layout';
 
 const ResetPassword = () => {
   const navigate = useNavigate();

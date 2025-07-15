@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { sendErrorReport } from '@/services/emailService';
 import { toast } from 'sonner';
-import Layout from '@/components/Layout';
 
 const ErrorReport = () => {
   const navigate = useNavigate();

@@ -127,7 +127,7 @@ const PushNotificationTester = () => {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-push-notification', {
+      const { error } = await supabase.functions.invoke('send-push-notification', {
         body: {
           username: user.username,
           payload: {
