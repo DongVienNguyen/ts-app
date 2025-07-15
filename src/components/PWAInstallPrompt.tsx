@@ -38,12 +38,7 @@ export function PWAInstallPrompt() {
         setShowPrompt(false);
         return;
       }
-      if (localStorage.getItem('pwa-install-dismissed') === 'permanent') {
-        console.log('PWAInstallPrompt: Abort - Permanently dismissed.');
-        setShowPrompt(false);
-        return;
-      }
-
+      
       if (sessionStorage.getItem('pwa-prompt-shown-session')) {
         console.log('PWAInstallPrompt: Abort - Already shown this session.');
         return;
@@ -71,15 +66,13 @@ export function PWAInstallPrompt() {
       const success = await triggerInstall();
       if (success) {
         setShowPrompt(false);
-        localStorage.setItem('pwa-install-dismissed', 'permanent');
       }
     }
   };
 
-  const handleDismiss = (permanent = false) => {
-    if (permanent) {
-      localStorage.setItem('pwa-install-dismissed', 'permanent');
-    }
+  const handleDismiss = () => {
+    // This now only dismisses the prompt for the current view.
+    // The session storage check prevents it from reappearing in the same session.
     setShowPrompt(false);
   };
 
@@ -132,14 +125,14 @@ export function PWAInstallPrompt() {
                   Sử dụng Chrome hoặc Edge để cài đặt
                 </div>
               )}
-              <Button onClick={() => handleDismiss(false)} variant="ghost" size="sm">
+              <Button onClick={handleDismiss} variant="ghost" size="sm">
                 Để sau
               </Button>
             </div>
           )}
         </div>
         <div className="flex flex-col space-y-1">
-          <Button onClick={() => handleDismiss(true)} variant="ghost" size="icon" className="h-6 w-6">
+          <Button onClick={handleDismiss} variant="ghost" size="icon" className="h-6 w-6">
             <X className="h-4 w-4" />
           </Button>
         </div>

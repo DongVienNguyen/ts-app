@@ -1,20 +1,22 @@
 // public/sw.js
+console.log('Service Worker: Script loading.');
 
-// On install, activate immediately to ensure the latest version is used.
 self.addEventListener('install', event => {
-  console.log('Service Worker: installing...');
-  event.waitUntil(self.skipWaiting());
+  console.log('Service Worker: Event "install" received. Attempting to install...');
+  event.waitUntil(
+    self.skipWaiting().then(() => console.log('Service Worker: skipWaiting() completed, worker will activate.'))
+  );
 });
 
-// On activate, take control of all clients to apply updates without a page reload.
 self.addEventListener('activate', event => {
-  console.log('Service Worker: activating...');
-  event.waitUntil(self.clients.claim());
+  console.log('Service Worker: Event "activate" received. Worker is now active.');
+  event.waitUntil(
+    self.clients.claim().then(() => console.log('Service Worker: clients.claim() completed, worker now controls the page.'))
+  );
 });
 
-// Listener for push events
 self.addEventListener('push', event => {
-  console.log('Service Worker: Push event received.');
+  console.log('Service Worker: Event "push" received.');
 
   try {
     if (!event.data) {
@@ -30,17 +32,17 @@ self.addEventListener('push', event => {
       icon: data.icon || '/icon-192x192.png',
       badge: data.badge || '/icon-192x192.png',
       tag: data.tag,
-      data: data.data // This should contain the URL to open, e.g., { url: '/error-monitoring' }
+      data: data.data
     };
 
     console.log('Service Worker: Showing notification with options:', options);
     event.waitUntil(
       self.registration.showNotification(data.title, options)
+        .then(() => console.log('Service Worker: Notification shown successfully.'))
+        .catch(err => console.error('Service Worker: Error showing notification:', err))
     );
-    console.log('Service Worker: Notification shown.');
   } catch (e) {
     console.error('Error processing push event:', e);
-    // Fallback notification
     event.waitUntil(
       self.registration.showNotification('Bạn có thông báo mới', {
         body: 'Không thể hiển thị nội dung. Vui lòng mở ứng dụng để xem.',
@@ -50,27 +52,26 @@ self.addEventListener('push', event => {
   }
 });
 
-// Listener for notification click events
 self.addEventListener('notificationclick', event => {
+  console.log('Service Worker: Event "notificationclick" received.');
   event.notification.close();
 
   const notificationData = event.notification.data;
+  console.log('Service Worker: Notification data:', notificationData);
   const urlToOpen = notificationData?.url || '/';
-  const notificationId = notificationData?.id;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
-      // Check if a window/tab with the app is already open.
       for (const client of windowClients) {
-        // If a window is open, focus it and send a message to navigate.
         if ('focus' in client) {
-          client.postMessage({ type: 'NAVIGATE_TO_NOTIFICATION', url: urlToOpen, notificationId });
+          console.log('Service Worker: Found an open client, focusing and sending message.');
+          client.postMessage({ type: 'NAVIGATE_TO_NOTIFICATION', url: urlToOpen });
           return client.focus();
         }
       }
 
-      // If no window is open, open a new one.
       if (clients.openWindow) {
+        console.log('Service Worker: No open client found, opening a new window.');
         return clients.openWindow(urlToOpen);
       }
     })
