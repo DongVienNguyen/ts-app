@@ -65,13 +65,24 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
+      window.addEventListener('load', () => {
+        // Hide loading screen
+        setTimeout(() => {
+          const loading = document.getElementById('loading');
+          if (loading) {
+            loading.style.opacity = '0';
+            loading.style.transition = 'opacity 0.5s ease';
+            setTimeout(() => { loading.style.display = 'none'; }, 500);
+          }
+        }, 500);
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
           navigator.serviceWorker.register('/sw.js').then(reg => {
             console.log('SW registered.', reg);
           }).catch(err => console.log('SW registration failed: ', err));
-        });
-      }
+        }
+      });
     </script>
   </body>
 </html>
