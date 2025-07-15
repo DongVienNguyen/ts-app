@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { RealTimeStatusIndicator } from '@/components/error-monitoring/RealTimeStatusIndicator';
 import { AdminToolsPanel } from '@/components/admin/AdminToolsPanel';
+import { useExternalAssetSync } from '@/hooks/useExternalAssetSync';
+import { ExternalSyncStatus } from '@/components/error-monitoring/ExternalSyncStatus';
 
 const ErrorMonitoring = () => {
   const { user } = useAuth();
@@ -23,6 +25,7 @@ const ErrorMonitoring = () => {
     acknowledgeAlert,
   } = useErrorMonitoringData();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const externalSync = useExternalAssetSync();
 
   if (!user) {
     return (
@@ -66,6 +69,9 @@ const ErrorMonitoring = () => {
           <TabsTrigger value="admin-tools">Công cụ Admin</TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard" className="mt-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
+            <ExternalSyncStatus {...externalSync} />
+          </div>
           <ErrorMonitoringDashboard
             errorStats={errorStats}
             recentErrors={recentErrors}
