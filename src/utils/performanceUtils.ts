@@ -26,7 +26,8 @@ export async function monitorResources(): Promise<void> {
     if ('connection' in navigator) {
       const connection = (navigator as any).connection;
       if (connection?.effectiveType) {
-        const value = { '4g': 4, '3g': 3, '2g': 2 }[connection.effectiveType] || 1;
+        const valueMap: Record<string, number> = { '4g': 4, '3g': 3, '2g': 2, 'slow-2g': 1 };
+        const value = valueMap[connection.effectiveType] || 1;
         await logSystemMetric({ metric_type: 'network', metric_name: 'effective_type', metric_value: value, metric_unit: 'generation' });
       }
     }
