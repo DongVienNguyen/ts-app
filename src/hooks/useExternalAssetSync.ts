@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { captureError } from '@/utils/errorTracking';
 
@@ -11,10 +11,14 @@ export const useExternalAssetSync = () => {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [syncCount, setSyncCount] = useState(0);
+  const isSyncingRef = useRef(false);
 
   const syncData = useCallback(async () => {
-    if (isSyncing) return;
+    if (isSyncingRef.current) {
+      return;
+    }
 
+    isSyncingRef.current = true;
     setIsSyncing(true);
     setError(null);
 
@@ -27,6 +31,11 @@ export const useExternalAssetSync = () => {
       });
 
       if (!response.ok) {
+        if (response.status === 429) {
+          setError('Quá nhiều yêu cầu. Sẽ thử lại sau ít phút.');
+          console.warn('Too Many Requests (429) from external API. Pausing for next interval.');
+          return;
+        }
         throw new Error(`Lỗi API: ${response.status} ${response.statusText}`);
       }
 
@@ -41,10 +50,10 @@ export const useExternalAssetSync = () => {
       if (dataToProcess.length === 0) {
         setLastSyncTime(new Date());
         setIsSyncing(false);
+        isSyncingRef.current = false;
         return;
       }
 
-      // Lấy danh sách mã nhân viên hợp lệ từ bảng staff
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
         .select('username');
@@ -57,7 +66,6 @@ export const useExternalAssetSync = () => {
 
       const transformedData = dataToProcess.map((item: any) => {
         const providedStaffCode = item.staff_code;
-        // Kiểm tra nếu staff_code tồn tại và hợp lệ, nếu không thì dùng 'external_sync'
         const finalStaffCode = providedStaffCode && validStaffCodes.has(providedStaffCode)
           ? providedStaffCode
           : 'external_sync';
@@ -70,7 +78,7 @@ export const useExternalAssetSync = () => {
           transaction_type: item.transaction_type || 'Unknown',
           asset_year: item.asset_year || new Date().getFullYear(),
           asset_code: item.asset_code || 0,
-          staff_code: finalStaffCode, // Sử dụng mã nhân viên đã được xác thực
+          staff_code: finalStaffCode,
           note: item.note || 'Synced from external API',
           source: 'external_api'
         };
@@ -99,9 +107,10 @@ export const useExternalAssetSync = () => {
         additionalData: { apiUrl: EXTERNAL_API_URL }
       });
     } finally {
+      isSyncingRef.current = false;
       setIsSyncing(false);
     }
-  }, [isSyncing]);
+  }, []);
 
   useEffect(() => {
     syncData();
