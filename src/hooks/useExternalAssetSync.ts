@@ -20,14 +20,18 @@ export const useExternalAssetSync = () => {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [syncCount, setSyncCount] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused] = useState(() => getStoredValue('sync:isPaused', false));
   const [notifyByEmail, setNotifyByEmail] = useState(() => getStoredValue('sync:notifyByEmail', true));
   const [notifyByPush, setNotifyByPush] = useState(() => getStoredValue('sync:notifyByPush', true));
   const isSyncingRef = useRef(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const togglePause = useCallback(() => {
-    setIsPaused(p => !p);
+    setIsPaused(current => {
+      const newValue = !current;
+      localStorage.setItem('sync:isPaused', JSON.stringify(newValue));
+      return newValue;
+    });
   }, []);
 
   const toggleEmailNotification = useCallback(() => {

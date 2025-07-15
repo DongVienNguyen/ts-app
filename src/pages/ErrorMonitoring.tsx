@@ -66,12 +66,10 @@ const ErrorMonitoring = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="dashboard">Bảng điều khiển</TabsTrigger>
+          <TabsTrigger value="external-sync">Đồng bộ API Ngoài</TabsTrigger>
           <TabsTrigger value="admin-tools">Công cụ Admin</TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard" className="mt-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-4">
-            <ExternalSyncStatus {...externalSync} />
-          </div>
           <ErrorMonitoringDashboard
             errorStats={errorStats}
             recentErrors={recentErrors}
@@ -81,6 +79,11 @@ const ErrorMonitoring = () => {
             refreshAll={refreshAll}
             acknowledgeAlert={acknowledgeAlert}
           />
+        </TabsContent>
+        <TabsContent value="external-sync" className="mt-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <ExternalSyncStatus {...externalSync} />
+          </div>
         </TabsContent>
         <TabsContent value="admin-tools" className="mt-6">
           <AdminToolsPanel />
