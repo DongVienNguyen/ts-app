@@ -492,8 +492,6 @@ export function getErrorStatistics(errors: SystemError[]) {
     bySeverity[error.severity || 'medium'] = (bySeverity[error.severity || 'medium'] || 0) + 1;
 
     // Parse user agent for browser and OS
-    console.log(`[DEBUG] Processing error ID: ${error.id}, Type: ${error.error_type}, Raw User Agent: "${error.user_agent}"`); // Debug log
-
     let browser = 'Unknown';
     let os = 'Unknown';
 

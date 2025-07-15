@@ -11,7 +11,9 @@ export const usePushNotificationStatus = () => {
   const isVisible = usePageVisibility();
 
   const checkStatus = useCallback(async () => {
+    console.log('[Push Status] Checking...');
     if (!user) {
+      console.log('[Push Status] Result: unauthenticated');
       setStatus('unauthenticated');
       return;
     }
@@ -21,24 +23,28 @@ export const usePushNotificationStatus = () => {
     const { supported, reasons } = checkPushNotificationSupport();
     if (!supported) {
       console.warn('Push notifications not supported:', reasons);
+      console.log('[Push Status] Result: unsupported');
       setStatus('unsupported');
       return;
     }
 
     const permission = Notification.permission;
+    console.log(`[Push Status] Notification.permission: ${permission}`);
     if (permission === 'denied') {
+      console.log('[Push Status] Result: denied');
       setStatus('denied');
       return;
     }
 
     const isSubscribed = await hasActivePushSubscription(user.username);
+    console.log(`[Push Status] hasActivePushSubscription: ${isSubscribed}`);
     if (isSubscribed) {
+      console.log('[Push Status] Result: subscribed');
       setStatus('subscribed');
       return;
     }
     
-    // If not subscribed, and permission is not denied, we need to prompt.
-    // This covers both 'default' and 'granted' (where subscription might have failed or been removed).
+    console.log('[Push Status] Result: prompt_required');
     setStatus('prompt_required');
   }, [user]);
 

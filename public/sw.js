@@ -14,8 +14,16 @@ self.addEventListener('activate', event => {
 
 // Listener for push events
 self.addEventListener('push', event => {
+  console.log('Service Worker: Push event received.');
+
   try {
+    if (!event.data) {
+      console.error('Service Worker: Push event but no data');
+      return;
+    }
+
     const data = event.data.json();
+    console.log('Service Worker: Push data parsed:', data);
     
     const options = {
       body: data.body,
@@ -25,9 +33,11 @@ self.addEventListener('push', event => {
       data: data.data // This should contain the URL to open, e.g., { url: '/error-monitoring' }
     };
 
+    console.log('Service Worker: Showing notification with options:', options);
     event.waitUntil(
       self.registration.showNotification(data.title, options)
     );
+    console.log('Service Worker: Notification shown.');
   } catch (e) {
     console.error('Error processing push event:', e);
     // Fallback notification

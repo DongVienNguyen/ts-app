@@ -18,17 +18,20 @@ export function usePWAInstall() {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
+    console.log('usePWAInstall: Hook mounted.');
     // Check if app is already installed
     const checkIfInstalled = () => {
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
       const isInWebAppiOS = (window.navigator as any).standalone === true;
       setIsInstalled(isStandalone || isInWebAppiOS);
+      console.log(`usePWAInstall: Initial check - isInstalled: ${isStandalone || isInWebAppiOS}`);
     };
 
     checkIfInstalled();
 
     // Listen for the beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
+      console.log('usePWAInstall: beforeinstallprompt event fired.');
       e.preventDefault();
       const promptEvent = e as BeforeInstallPromptEvent;
       setDeferredPrompt(promptEvent);
@@ -37,6 +40,7 @@ export function usePWAInstall() {
 
     // Listen for the appinstalled event
     const handleAppInstalled = () => {
+      console.log('usePWAInstall: appinstalled event fired.');
       setIsInstalled(true);
       setCanInstall(false);
       setDeferredPrompt(null);

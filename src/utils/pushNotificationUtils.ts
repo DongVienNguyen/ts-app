@@ -285,30 +285,46 @@ export function checkPushNotificationSupport(): {
 
   if (!('serviceWorker' in navigator)) {
     supported = false;
-    reasons.push('Service Worker không được hỗ trợ');
+    const reason = 'Service Worker không được hỗ trợ';
+    reasons.push(reason);
+    console.warn(`[Push Support Check] Failed: ${reason}`);
   }
 
   if (!('PushManager' in window)) {
     supported = false;
-    reasons.push('Push Manager không được hỗ trợ');
+    const reason = 'Push Manager không được hỗ trợ';
+    reasons.push(reason);
+    console.warn(`[Push Support Check] Failed: ${reason}`);
   }
 
   if (!('Notification' in window)) {
     supported = false;
-    reasons.push('Notification API không được hỗ trợ');
+    const reason = 'Notification API không được hỗ trợ';
+    reasons.push(reason);
+    console.warn(`[Push Support Check] Failed: ${reason}`);
   }
 
   if (!VAPID_PUBLIC_KEY) {
     supported = false;
-    reasons.push('VAPID Public Key chưa được cấu hình');
+    const reason = 'VAPID Public Key chưa được cấu hình';
+    reasons.push(reason);
+    console.warn(`[Push Support Check] Failed: ${reason}`);
   } else if (!isValidVAPIDKey(VAPID_PUBLIC_KEY)) {
     supported = false;
-    reasons.push('VAPID Public Key không hợp lệ');
+    const reason = 'VAPID Public Key không hợp lệ';
+    reasons.push(reason);
+    console.warn(`[Push Support Check] Failed: ${reason}`);
   }
 
   if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
     supported = false;
-    reasons.push('Push Notifications yêu cầu HTTPS');
+    const reason = 'Push Notifications yêu cầu HTTPS';
+    reasons.push(reason);
+    console.warn(`[Push Support Check] Failed: ${reason}`);
+  }
+
+  if (supported) {
+    console.log('[Push Support Check] All checks passed.');
   }
 
   return { supported, reasons };

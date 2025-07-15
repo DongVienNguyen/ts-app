@@ -26,26 +26,40 @@ export function PWAInstallPrompt() {
   // Effect to decide whether to show the prompt based on various conditions
   useEffect(() => {
     const checkShouldShow = () => {
-      // Don't show if: no user, app already installed, or prompt permanently dismissed
-      if (!user || isInstalled || localStorage.getItem('pwa-install-dismissed') === 'permanent') {
+      console.log('PWAInstallPrompt: Checking conditions...', { user: !!user, isInstalled, canInstall, isIOSSafari, isAndroidChrome });
+
+      if (!user) {
+        console.log('PWAInstallPrompt: Abort - No user.');
+        setShowPrompt(false);
+        return;
+      }
+      if (isInstalled) {
+        console.log('PWAInstallPrompt: Abort - Already installed.');
+        setShowPrompt(false);
+        return;
+      }
+      if (localStorage.getItem('pwa-install-dismissed') === 'permanent') {
+        console.log('PWAInstallPrompt: Abort - Permanently dismissed.');
         setShowPrompt(false);
         return;
       }
 
-      // Don't show if already prompted in this session
       if (sessionStorage.getItem('pwa-prompt-shown-session')) {
+        console.log('PWAInstallPrompt: Abort - Already shown this session.');
         return;
       }
 
-      // Show for supported platforms (iOS Safari, Android Chrome, or installable event)
       if (isIOSSafari || isAndroidChrome || canInstall) {
-        // Show after a short delay for better user experience
+        console.log('PWAInstallPrompt: Conditions met. Scheduling prompt.');
         const timer = setTimeout(() => {
+          console.log('PWAInstallPrompt: Showing prompt now.');
           setShowPrompt(true);
           sessionStorage.setItem('pwa-prompt-shown-session', 'true');
-        }, 5000); // 5-second delay
+        }, 5000);
 
         return () => clearTimeout(timer);
+      } else {
+        console.log('PWAInstallPrompt: Conditions not met for showing prompt.');
       }
     };
 
