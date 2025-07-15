@@ -40,35 +40,16 @@
     
     <!-- Apple Touch Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png" />
-    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png" />
-    <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png" />
-    <link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png" />
-    <link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png" />
-    <link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png" />
-    <link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png" />
-    <link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png" />
     
     <!-- Android Chrome Icons -->
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png" />
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png" />
     
-    <!-- Prevent zoom on input focus (iOS) -->
     <style>
-      input[type="text"], input[type="email"], input[type="password"], textarea, select {
-        font-size: 16px !important;
-      }
-      
-      /* Prevent pull-to-refresh */
       body {
         overscroll-behavior-y: contain;
-      }
-      
-      /* Optimize for mobile */
-      * {
         -webkit-tap-highlight-color: transparent;
       }
-      
-      /* Loading screen with green TS theme */
       #loading {
         position: fixed;
         top: 0;
@@ -83,7 +64,6 @@
         z-index: 9999;
         color: #ffffff;
       }
-      
       .spinner {
         width: 50px;
         height: 50px;
@@ -93,155 +73,40 @@
         animation: spin 1s linear infinite;
         margin-bottom: 20px;
       }
-      
       .loading-text {
         font-size: 18px;
         font-weight: 600;
-        margin-bottom: 8px;
         color: #ffffff;
       }
-      
-      .loading-subtitle {
-        font-size: 14px;
-        opacity: 0.8;
-        color: #f8fafc;
-      }
-      
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
-      
-      /* React Error Fallback */
-      .react-error-fallback {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #fef2f2;
-        padding: 20px;
-      }
     </style>
   </head>
   <body>
-    <!-- Loading screen -->
     <div id="loading">
       <div class="spinner"></div>
       <div class="loading-text">TS Manager</div>
-      <div class="loading-subtitle">Hệ thống Quản lý Tài sản</div>
     </div>
-    
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- Service Worker Registration - CHỈ kiểm tra cập nhật khi load app -->
     <script>
-      // Enhanced error handling
-      window.addEventListener('error', function(e) {
-        console.error('🚨 Global error:', e.error);
-        if (e.error && e.error.message && e.error.message.includes('useEffect')) {
-          console.error('🚨 React Hook Error detected - attempting recovery...');
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
-        }
-      });
-
-      // Hide loading screen when app loads
       window.addEventListener('load', () => {
         setTimeout(() => {
           const loading = document.getElementById('loading');
           if (loading) {
             loading.style.opacity = '0';
             loading.style.transition = 'opacity 0.5s ease';
-            setTimeout(() => {
-              loading.style.display = 'none';
-            }, 500);
+            setTimeout(() => { loading.style.display = 'none'; }, 500);
           }
-        }, 1000);
+        }, 500);
       });
-      
-      // Biến để đảm bảo chỉ kiểm tra cập nhật 1 lần
-      let hasCheckedForUpdates = false;
-      
-      // Register service worker - CHỈ kiểm tra cập nhật 1 lần khi load app
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-              
-              // CHỈ kiểm tra cập nhật 1 lần khi load app
-              if (!hasCheckedForUpdates) {
-                hasCheckedForUpdates = true;
-                registration.update().then(() => {
-                  console.log('✅ Single update check completed');
-                });
-              }
-              
-              // Handle updates - TỰ ĐỘNG cập nhật dưới nền
-              registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                if (newWorker) {
-                  newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed') {
-                      if (navigator.serviceWorker.controller) {
-                        // TỰ ĐỘNG cập nhật dưới nền - KHÔNG thông báo
-                        console.log('🔄 Auto-updating in background...');
-                        newWorker.postMessage({ type: 'SKIP_WAITING' });
-                        // Không reload ngay - để người dùng sử dụng tiếp
-                      } else {
-                        console.log('✅ TS Manager is ready for offline use');
-                      }
-                    }
-                  });
-                }
-              });
-              
-              // Listen for controlling service worker change
-              navigator.serviceWorker.addEventListener('controllerchange', () => {
-                console.log('🔄 Service Worker updated silently');
-                // KHÔNG auto-reload - để người dùng sử dụng tiếp
-              });
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
-            });
-        });
-      }
-      
-      // Prevent zoom on double tap (iOS Safari)
-      let lastTouchEnd = 0;
-      document.addEventListener('touchend', function (event) {
-        const now = (new Date()).getTime();
-        if (now - lastTouchEnd <= 300) {
-          event.preventDefault();
-        }
-        lastTouchEnd = now;
-      }, false);
-      
-      // Optimize viewport for mobile
-      function setViewport() {
-        const viewport = document.querySelector('meta[name="viewport"]');
-        if (viewport) {
-          if (window.innerWidth <= 768) {
-            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-          } else {
-            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
-          }
-        }
-      }
-      
-      setViewport();
-      window.addEventListener('resize', setViewport);
-      
-      // Performance monitoring
-      if ('performance' in window) {
-        window.addEventListener('load', () => {
-          setTimeout(() => {
-            const perfData = performance.getEntriesByType('navigation')[0];
-            console.log('TS Manager page load time:', perfData.loadEventEnd - perfData.loadEventStart, 'ms');
-          }, 0);
+          navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('SW registered.', reg);
+          }).catch(err => console.log('SW registration failed: ', err));
         });
       }
     </script>

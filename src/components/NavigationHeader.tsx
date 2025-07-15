@@ -47,6 +47,8 @@ export const NavigationHeader: React.FC = () => {
   const { status: pushStatus, refreshStatus } = usePushNotificationStatus();
   const { canInstall, triggerInstall } = usePWAInstall();
 
+  console.log('[NavigationHeader] Rendering with status:', { canInstall, pushStatus });
+
   if (!user) {
     return null;
   }

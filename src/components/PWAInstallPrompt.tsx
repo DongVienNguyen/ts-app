@@ -56,15 +56,18 @@ export function PWAInstallPrompt() {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-green-700 text-white shadow-lg animate-slide-in-up">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-3">
-          <div className="flex items-center">
+        <div className="flex items-center justify-between py-3 space-x-4">
+          {/* Left side: Icon and text */}
+          <div className="flex items-center flex-1 min-w-0">
             <Smartphone className="h-8 w-8 mr-4 flex-shrink-0" />
-            <div>
-              <p className="font-bold">Cài đặt TS Manager</p>
-              <p className="text-sm opacity-90 hidden sm:block">Truy cập nhanh hơn và nhận thông báo từ màn hình chính.</p>
+            <div className="min-w-0">
+              <p className="font-bold truncate">Cài đặt TS Manager</p>
+              <p className="text-sm opacity-90 hidden sm:block">Truy cập nhanh hơn và nhận thông báo.</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2 sm:space-x-4">
+
+          {/* Right side: Action buttons */}
+          <div className="flex items-center space-x-2 flex-shrink-0">
             {isIOSSafari ? (
               <div className="flex items-center space-x-2 text-sm bg-white/20 px-3 py-1.5 rounded-md">
                 <span>Nhấn</span>
