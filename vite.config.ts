@@ -39,7 +39,7 @@ export default defineConfig({
         ],
       },
     }),
-    visualizer({ open: true, gzipSize: true, brotliSize: true }) as any,
+    visualizer({ open: false, gzipSize: true, brotliSize: true }) as any,
   ],
   resolve: {
     alias: {
