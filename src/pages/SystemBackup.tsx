@@ -24,7 +24,6 @@ import BackupPerformanceCard from '@/components/backup/BackupPerformanceCard';
 import BackupAnalyticsCard from '@/components/backup/BackupAnalyticsCard';
 import RestoreActionsCard from '@/components/backup/RestoreActionsCard';
 import { useBackupOperations } from '@/hooks/useBackupOperations';
-import Layout from '@/components/Layout';
 import { supabase } from '@/integrations/supabase/client';
 
 const SystemBackup: React.FC = () => {
@@ -57,30 +56,26 @@ const SystemBackup: React.FC = () => {
   // Show access denied for non-admin users
   if (canAccess === false) {
     return (
-      <Layout>
-        <div className="p-6">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Chỉ admin mới có thể truy cập trang System Backup.
-            </AlertDescription>
-          </Alert>
-        </div>
-      </Layout>
+      <div className="p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Chỉ admin mới có thể truy cập trang System Backup.
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
   // Show loading state while checking access
   if (canAccess === undefined) {
     return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Đang kiểm tra quyền truy cập...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang kiểm tra quyền truy cập...</p>
         </div>
-      </Layout>
+      </div>
     );
   }
 
@@ -283,187 +278,185 @@ const SystemBackup: React.FC = () => {
   };
 
   return (
-    <Layout>
-      <div className="space-y-6 p-4 md:p-6">
-        {/* Header Section */}
-        <div className="space-y-4">
-          <BackupHeader />
-          
-          {/* Backup Metrics Header */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* System Status */}
-            <Card className={`bg-gradient-to-r ${
-              metrics.isRunning ? 'from-yellow-50 to-yellow-100 border-yellow-200' :
-              metrics.lastBackupStatus === 'success' ? 'from-green-50 to-green-100 border-green-200' :
-              'from-red-50 to-red-100 border-red-200'
-            }`}>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${
-                    metrics.isRunning ? 'bg-yellow-500' :
-                    metrics.lastBackupStatus === 'success' ? 'bg-green-500' :
-                    'bg-red-500'
+    <div className="space-y-6 p-4 md:p-6">
+      {/* Header Section */}
+      <div className="space-y-4">
+        <BackupHeader />
+        
+        {/* Backup Metrics Header */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* System Status */}
+          <Card className={`bg-gradient-to-r ${
+            metrics.isRunning ? 'from-yellow-50 to-yellow-100 border-yellow-200' :
+            metrics.lastBackupStatus === 'success' ? 'from-green-50 to-green-100 border-green-200' :
+            'from-red-50 to-red-100 border-red-200'
+          }`}>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className={`p-2 rounded-lg ${
+                  metrics.isRunning ? 'bg-yellow-500' :
+                  metrics.lastBackupStatus === 'success' ? 'bg-green-500' :
+                  'bg-red-500'
+                }`}>
+                  <HardDrive className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className={`text-sm font-medium ${
+                    metrics.isRunning ? 'text-yellow-900' :
+                    metrics.lastBackupStatus === 'success' ? 'text-green-900' :
+                    'text-red-900'
                   }`}>
-                    <HardDrive className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${
-                      metrics.isRunning ? 'text-yellow-900' :
-                      metrics.lastBackupStatus === 'success' ? 'text-green-900' :
-                      'text-red-900'
-                    }`}>
-                      Trạng thái Hệ thống
-                    </p>
-                    <p className={`text-xs ${
-                      metrics.isRunning ? 'text-yellow-700' :
-                      metrics.lastBackupStatus === 'success' ? 'text-green-700' :
-                      'text-red-700'
-                    }`}>
-                      {metrics.isRunning ? 'Đang xử lý...' :
-                       metrics.lastBackupStatus === 'success' ? 'Sẵn sàng' :
-                       'Cần kiểm tra'}
-                    </p>
-                  </div>
-                  <Badge 
-                    variant="secondary" 
-                    className={`${
-                      metrics.isRunning ? 'bg-yellow-100 text-yellow-800' :
-                      metrics.lastBackupStatus === 'success' ? 'bg-green-100 text-green-800' :
-                      'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {metrics.isRunning ? 'BUSY' :
-                     metrics.lastBackupStatus === 'success' ? 'READY' :
-                     'ERROR'}
-                  </Badge>
+                    Trạng thái Hệ thống
+                  </p>
+                  <p className={`text-xs ${
+                    metrics.isRunning ? 'text-yellow-700' :
+                    metrics.lastBackupStatus === 'success' ? 'text-green-700' :
+                    'text-red-700'
+                  }`}>
+                    {metrics.isRunning ? 'Đang xử lý...' :
+                     metrics.lastBackupStatus === 'success' ? 'Sẵn sàng' :
+                     'Cần kiểm tra'}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+                <Badge 
+                  variant="secondary" 
+                  className={`${
+                    metrics.isRunning ? 'bg-yellow-100 text-yellow-800' :
+                    metrics.lastBackupStatus === 'success' ? 'bg-green-100 text-green-800' :
+                    'bg-red-100 text-red-800'
+                  }`}
+                >
+                  {metrics.isRunning ? 'BUSY' :
+                   metrics.lastBackupStatus === 'success' ? 'READY' :
+                   'ERROR'}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Total Backups */}
-            <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-500 rounded-lg">
-                    <Database className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-blue-900">Tổng Backup</p>
-                    <p className="text-xs text-blue-700">Đã tạo</p>
-                  </div>
-                  <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                    {metrics.totalBackups}
-                  </Badge>
+          {/* Total Backups */}
+          <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <Database className="h-5 w-5 text-white" />
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900">Tổng Backup</p>
+                  <p className="text-xs text-blue-700">Đã tạo</p>
+                </div>
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                  {metrics.totalBackups}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Success Rate */}
-            <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-500 rounded-lg">
-                    <Shield className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-green-900">Tỷ lệ Thành công</p>
-                    <p className="text-xs text-green-700">Backup thành công</p>
-                  </div>
-                  <Badge variant="secondary" className="bg-green-100 text-green-800">
-                    {metrics.successRate}%
-                  </Badge>
+          {/* Success Rate */}
+          <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-green-500 rounded-lg">
+                  <Shield className="h-5 w-5 text-white" />
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-900">Tỷ lệ Thành công</p>
+                  <p className="text-xs text-green-700">Backup thành công</p>
+                </div>
+                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                  {metrics.successRate}%
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Auto Backup */}
-            <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-purple-500 rounded-lg">
-                    <Clock className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-purple-900">Auto Backup</p>
-                    <p className="text-xs text-purple-700">
-                      {backupStatus.autoBackupEnabled ? 'Đã bật' : 'Đã tắt'}
-                    </p>
-                  </div>
-                  <Badge 
-                    variant="secondary" 
-                    className={`${
-                      backupStatus.autoBackupEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {backupStatus.autoBackupEnabled ? 'ON' : 'OFF'}
-                  </Badge>
+          {/* Auto Backup */}
+          <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-500 rounded-lg">
+                  <Clock className="h-5 w-5 text-white" />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-purple-900">Auto Backup</p>
+                  <p className="text-xs text-purple-700">
+                    {backupStatus.autoBackupEnabled ? 'Đã bật' : 'Đã tắt'}
+                  </p>
+                </div>
+                <Badge 
+                  variant="secondary" 
+                  className={`${
+                    backupStatus.autoBackupEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {backupStatus.autoBackupEnabled ? 'ON' : 'OFF'}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-
-        {/* Error Alerts */}
-        {backupStatus.error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>Backup Error: {backupStatus.error}</AlertDescription>
-          </Alert>
-        )}
-
-        {restoreStatus.error && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>Restore Error: {restoreStatus.error}</AlertDescription>
-          </Alert>
-        )}
-        
-        {/* Progress Card - Always visible when running */}
-        {(backupStatus.isRunning || restoreStatus.isRunning) && (
-          <BackupProgressCard 
-            isRunning={backupStatus.isRunning || restoreStatus.isRunning} 
-            progress={backupStatus.isRunning ? backupStatus.progress : restoreStatus.progress} 
-            currentStep={backupStatus.isRunning ? backupStatus.currentStep : restoreStatus.currentStep} 
-            estimatedTimeRemaining={backupStatus.isRunning ? backupStatus.estimatedTimeRemaining : restoreStatus.estimatedTimeRemaining} 
-            onCancel={handleCancelBackup} 
-          />
-        )}
-        
-        {/* Tab Navigation */}
-        <Select value={activeTab} onValueChange={setActiveTab}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Chọn chức năng..." />
-          </SelectTrigger>
-          <SelectContent>
-            {tabs.map(tab => (
-              <SelectItem key={tab.value} value={tab.value} disabled={tab.disabled}>
-                <div className="flex items-center gap-2">
-                  <tab.icon className="h-4 w-4" />
-                  {tab.label}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Tab Content */}
-        {renderContent()}
-
-        {/* Footer */}
-        <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
-          <CardContent className="p-4">
-            <div className="text-center text-sm text-gray-600">
-              <p className="font-medium mb-1">Hệ thống Backup - Tài sản CRC</p>
-              <p>
-                Cập nhật lần cuối: {new Date().toLocaleString('vi-VN')} | 
-                Trạng thái: {metrics.isRunning ? '🟡 Đang xử lý' : metrics.lastBackupStatus === 'success' ? '🟢 Sẵn sàng' : '🔴 Lỗi'} | 
-                Auto: {backupStatus.autoBackupEnabled ? '✅ Bật' : '❌ Tắt'}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
-    </Layout>
+
+      {/* Error Alerts */}
+      {backupStatus.error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Backup Error: {backupStatus.error}</AlertDescription>
+        </Alert>
+      )}
+
+      {restoreStatus.error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Restore Error: {restoreStatus.error}</AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Progress Card - Always visible when running */}
+      {(backupStatus.isRunning || restoreStatus.isRunning) && (
+        <BackupProgressCard 
+          isRunning={backupStatus.isRunning || restoreStatus.isRunning} 
+          progress={backupStatus.isRunning ? backupStatus.progress : restoreStatus.progress} 
+          currentStep={backupStatus.isRunning ? backupStatus.currentStep : restoreStatus.currentStep} 
+          estimatedTimeRemaining={backupStatus.isRunning ? backupStatus.estimatedTimeRemaining : restoreStatus.estimatedTimeRemaining} 
+          onCancel={handleCancelBackup} 
+        />
+      )}
+      
+      {/* Tab Navigation */}
+      <Select value={activeTab} onValueChange={setActiveTab}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Chọn chức năng..." />
+        </SelectTrigger>
+        <SelectContent>
+          {tabs.map(tab => (
+            <SelectItem key={tab.value} value={tab.value} disabled={tab.disabled}>
+              <div className="flex items-center gap-2">
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* Tab Content */}
+      {renderContent()}
+
+      {/* Footer */}
+      <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
+        <CardContent className="p-4">
+          <div className="text-center text-sm text-gray-600">
+            <p className="font-medium mb-1">Hệ thống Backup - Tài sản CRC</p>
+            <p>
+              Cập nhật lần cuối: {new Date().toLocaleString('vi-VN')} | 
+              Trạng thái: {metrics.isRunning ? '🟡 Đang xử lý' : metrics.lastBackupStatus === 'success' ? '🟢 Sẵn sàng' : '🔴 Lỗi'} | 
+              Auto: {backupStatus.autoBackupEnabled ? '✅ Bật' : '❌ Tắt'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

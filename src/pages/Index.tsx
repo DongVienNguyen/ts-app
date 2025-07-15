@@ -119,109 +119,107 @@ const Index = () => {
   );
 
   return (
-    <Layout>
-      <div className="space-y-6">
-        {user?.role === 'admin' && <UnresolvedErrorsBanner />}
+    <div className="space-y-6">
+      {user?.role === 'admin' && <UnresolvedErrorsBanner />}
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              Chào mừng, {user?.staff_name || user?.username}!
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Hệ thống quản lý tài sản - Dashboard chính
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <NotificationBell />
-            <div className="text-right">
-              <div className="text-sm text-gray-500">Vai trò</div>
-              <div className="font-medium capitalize">{user?.role}</div>
-            </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Chào mừng, {user?.staff_name || user?.username}!
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Hệ thống quản lý tài sản - Dashboard chính
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <NotificationBell />
+          <div className="text-right">
+            <div className="text-sm text-gray-500">Vai trò</div>
+            <div className="font-medium capitalize">{user?.role}</div>
           </div>
         </div>
+      </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Thao Tác Nhanh
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {quickActions.map((action, index) => (
+              <ActionCard key={index} action={action} />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {user?.role === 'admin' && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              Thao Tác Nhanh
+              <Users className="h-5 w-5" />
+              Chức Năng Quản Trị
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {quickActions.map((action, index) => (
+              {adminActions.map((action, index) => (
                 <ActionCard key={index} action={action} />
               ))}
             </div>
           </CardContent>
         </Card>
+      )}
 
-        {user?.role === 'admin' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Chức Năng Quản Trị
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {adminActions.map((action, index) => (
-                  <ActionCard key={index} action={action} />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className={`p-3 rounded-lg ${systemStatusInfo.iconBg}`}>
-                  <Activity className={`h-6 w-6 ${systemStatusInfo.iconColor}`} />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Trạng thái hệ thống</p>
-                  {isLoading ? (
-                    <Skeleton className="h-7 w-40 mt-1" />
-                  ) : (
-                    <p className={`text-lg font-semibold ${systemStatusInfo.color}`}>{systemStatusInfo.text}</p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <StatCard 
-            title="Người dùng online" 
-            value={`${stats.onlineUsers} người`} 
-            icon={Users} 
-            color="bg-blue-500" 
-            isLoading={isLoading} 
-          />
-          <StatCard 
-            title="Giao dịch hôm nay" 
-            value={`${stats.transactionsToday} GD`} 
-            icon={BarChart3} 
-            color="bg-purple-500" 
-            isLoading={isLoading} 
-          />
-        </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Hoạt Động Gần Đây</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => refetchActivities()}>
-              <RefreshCw className={`h-4 w-4 ${isActivityLoading ? 'animate-spin' : ''}`} />
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <RealtimeActivityFeed activities={activities} isLoading={isActivityLoading} />
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className={`p-3 rounded-lg ${systemStatusInfo.iconBg}`}>
+                <Activity className={`h-6 w-6 ${systemStatusInfo.iconColor}`} />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Trạng thái hệ thống</p>
+                {isLoading ? (
+                  <Skeleton className="h-7 w-40 mt-1" />
+                ) : (
+                  <p className={`text-lg font-semibold ${systemStatusInfo.color}`}>{systemStatusInfo.text}</p>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
+        <StatCard 
+          title="Người dùng online" 
+          value={`${stats.onlineUsers} người`} 
+          icon={Users} 
+          color="bg-blue-500" 
+          isLoading={isLoading} 
+        />
+        <StatCard 
+          title="Giao dịch hôm nay" 
+          value={`${stats.transactionsToday} GD`} 
+          icon={BarChart3} 
+          color="bg-purple-500" 
+          isLoading={isLoading} 
+        />
       </div>
-    </Layout>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Hoạt Động Gần Đây</CardTitle>
+          <Button variant="ghost" size="sm" onClick={() => refetchActivities()}>
+            <RefreshCw className={`h-4 w-4 ${isActivityLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <RealtimeActivityFeed activities={activities} isLoading={isActivityLoading} />
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

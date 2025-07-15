@@ -8,7 +8,6 @@ import { FileCheck, Send, Trash2, Plus, Edit, Trash } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-import Layout from "@/components/Layout";
 import AutoCompleteInput from "@/components/reminders/AutoCompleteInput";
 import DateInput from "@/components/reminders/DateInput";
 
@@ -237,61 +236,59 @@ export default function CRCReminders() {
   const quycrcOptions = useMemo(() => getUniqueStaffOptions(quycrcStaff), [quycrcStaff]);
 
   return (
-    <Layout>
-      <div className="p-4 md:p-6 space-y-6">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg">
-            <FileCheck className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Nhắc duyệt CRC</h1>
-            <p className="text-gray-600">Quản lý và gửi nhắc nhở duyệt chứng từ CRC</p>
-          </div>
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg">
+          <FileCheck className="w-6 h-6 text-white" />
         </div>
-
-        <Card>
-          <CardHeader><CardTitle>{editingReminder ? 'Chỉnh sửa' : 'Thêm'} nhắc nhở CRC</CardTitle></CardHeader>
-          <CardContent>
-            <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2"><Label htmlFor="loaiCRC">Loại BT CRC</Label><Input id="loaiCRC" ref={loaiCRCRef} value={newReminder.loai_bt_crc || ''} onChange={(e) => setNewReminder({ ...newReminder, loai_bt_crc: e.target.value })} placeholder="Nhập/xuất/mượn - Số - Tên TS" className="mt-1" onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && moveToNextField('loaiCRC')} /></div>
-                <div><Label htmlFor="ngayThucHien">Ngày thực hiện</Label><DateInput id="ngayThucHien" ref={ngayThucHienRef} value={newReminder.ngay_thuc_hien || ''} onChange={(value) => setNewReminder({ ...newReminder, ngay_thuc_hien: value })} className="mt-1" onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && moveToNextField('ngayThucHien')} /></div>
-                <div><Label htmlFor="ldpcrc">LĐPCRC</Label><AutoCompleteInput ref={ldpcrcRef} value={newReminder.ldpcrc || ''} onChange={(value) => setNewReminder({ ...newReminder, ldpcrc: value })} suggestions={ldpcrcOptions} placeholder="Nhập tên LĐP duyệt CRC" className="mt-1" onTabSelect={() => moveToNextField('ldpcrc')} /></div>
-                <div><Label htmlFor="cbcrc">CBCRC</Label><AutoCompleteInput ref={cbcrcRef} value={newReminder.cbcrc || ''} onChange={(value) => setNewReminder({ ...newReminder, cbcrc: value })} suggestions={cbcrcOptions} placeholder="Nhập tên CB làm CRC" className="mt-1" onTabSelect={() => moveToNextField('cbcrc')} /></div>
-                <div><Label htmlFor="quycrc">QUYCRC</Label><AutoCompleteInput ref={quycrcRef} value={newReminder.quycrc || ''} onChange={(value) => setNewReminder({ ...newReminder, quycrc: value })} suggestions={quycrcOptions} placeholder="Nhập tên Thủ quỹ duyệt CRC" className="mt-1" /></div>
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                {editingReminder && <Button type="button" onClick={cancelEdit} variant="outline">Hủy</Button>}
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700"><Plus className="w-4 h-4 mr-2" />{editingReminder ? 'Cập nhật' : 'Thêm nhắc nhở'}</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Danh sách chờ gửi ({reminders.length})</CardTitle>
-            <Button onClick={sendAllReminders} className="bg-green-600 hover:bg-green-700"><Send className="w-4 h-4 mr-2" />Gửi tất cả</Button>
-          </CardHeader>
-          <CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Loại BT CRC</TableHead><TableHead>Ngày thực hiện</TableHead><TableHead>LĐPCRC</TableHead><TableHead>CBCRC</TableHead><TableHead>QUYCRC</TableHead><TableHead>Thao tác</TableHead></TableRow></TableHeader><TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={6} className="text-center h-24">Đang tải...</TableCell></TableRow> : reminders.map((r) => (
-              <TableRow key={r.id}><TableCell className="font-medium">{r.loai_bt_crc}</TableCell><TableCell>{r.ngay_thuc_hien}</TableCell><TableCell>{r.ldpcrc || '-'}</TableCell><TableCell>{r.cbcrc || '-'}</TableCell><TableCell>{r.quycrc || '-'}</TableCell><TableCell><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => sendSingleReminder(r)} title="Gửi"><Send className="w-4 h-4 text-green-600" /></Button><Button variant="ghost" size="icon" onClick={() => editReminder(r)} title="Sửa"><Edit className="w-4 h-4 text-blue-600" /></Button>{user?.role === 'admin' && <Button variant="ghost" size="icon" onClick={() => deleteReminder(r.id)} title="Xóa"><Trash2 className="w-4 h-4 text-red-600" /></Button>}</div></TableCell></TableRow>
-            ))}
-          </TableBody></Table></div></CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Danh sách đã gửi ({sentReminders.length})</CardTitle>
-            {user?.role === 'admin' && <Button onClick={deleteAllSent} variant="destructive"><Trash className="w-4 h-4 mr-2" />Xóa tất cả</Button>}
-          </CardHeader>
-          <CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Loại BT CRC</TableHead><TableHead>Ngày thực hiện</TableHead><TableHead>LĐPCRC</TableHead><TableHead>CBCRC</TableHead><TableHead>QUYCRC</TableHead><TableHead>Ngày gửi</TableHead>{user?.role === 'admin' && <TableHead>Thao tác</TableHead>}</TableRow></TableHeader><TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={7} className="text-center h-24">Đang tải...</TableCell></TableRow> : sentReminders.map((r) => (
-              <TableRow key={r.id}><TableCell className="font-medium">{r.loai_bt_crc}</TableCell><TableCell>{r.ngay_thuc_hien}</TableCell><TableCell>{r.ldpcrc || '-'}</TableCell><TableCell>{r.cbcrc || '-'}</TableCell><TableCell>{r.quycrc || '-'}</TableCell><TableCell>{r.sent_date ? format(new Date(r.sent_date), 'dd/MM/yyyy') : '-'}</TableCell>{user?.role === 'admin' && <TableCell><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => deleteReminder(r.id, true)} title="Xóa"><Trash2 className="w-4 h-4 text-red-600" /></Button></div></TableCell>}</TableRow>
-            ))}
-          </TableBody></Table></div></CardContent>
-        </Card>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Nhắc duyệt CRC</h1>
+          <p className="text-gray-600">Quản lý và gửi nhắc nhở duyệt chứng từ CRC</p>
+        </div>
       </div>
-    </Layout>
+
+      <Card>
+        <CardHeader><CardTitle>{editingReminder ? 'Chỉnh sửa' : 'Thêm'} nhắc nhở CRC</CardTitle></CardHeader>
+        <CardContent>
+          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2"><Label htmlFor="loaiCRC">Loại BT CRC</Label><Input id="loaiCRC" ref={loaiCRCRef} value={newReminder.loai_bt_crc || ''} onChange={(e) => setNewReminder({ ...newReminder, loai_bt_crc: e.target.value })} placeholder="Nhập/xuất/mượn - Số - Tên TS" className="mt-1" onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && moveToNextField('loaiCRC')} /></div>
+              <div><Label htmlFor="ngayThucHien">Ngày thực hiện</Label><DateInput id="ngayThucHien" ref={ngayThucHienRef} value={newReminder.ngay_thuc_hien || ''} onChange={(value) => setNewReminder({ ...newReminder, ngay_thuc_hien: value })} className="mt-1" onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && moveToNextField('ngayThucHien')} /></div>
+              <div><Label htmlFor="ldpcrc">LĐPCRC</Label><AutoCompleteInput ref={ldpcrcRef} value={newReminder.ldpcrc || ''} onChange={(value) => setNewReminder({ ...newReminder, ldpcrc: value })} suggestions={ldpcrcOptions} placeholder="Nhập tên LĐP duyệt CRC" className="mt-1" onTabSelect={() => moveToNextField('ldpcrc')} /></div>
+              <div><Label htmlFor="cbcrc">CBCRC</Label><AutoCompleteInput ref={cbcrcRef} value={newReminder.cbcrc || ''} onChange={(value) => setNewReminder({ ...newReminder, cbcrc: value })} suggestions={cbcrcOptions} placeholder="Nhập tên CB làm CRC" className="mt-1" onTabSelect={() => moveToNextField('cbcrc')} /></div>
+              <div><Label htmlFor="quycrc">QUYCRC</Label><AutoCompleteInput ref={quycrcRef} value={newReminder.quycrc || ''} onChange={(value) => setNewReminder({ ...newReminder, quycrc: value })} suggestions={quycrcOptions} placeholder="Nhập tên Thủ quỹ duyệt CRC" className="mt-1" /></div>
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+              {editingReminder && <Button type="button" onClick={cancelEdit} variant="outline">Hủy</Button>}
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700"><Plus className="w-4 h-4 mr-2" />{editingReminder ? 'Cập nhật' : 'Thêm nhắc nhở'}</Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Danh sách chờ gửi ({reminders.length})</CardTitle>
+          <Button onClick={sendAllReminders} className="bg-green-600 hover:bg-green-700"><Send className="w-4 h-4 mr-2" />Gửi tất cả</Button>
+        </CardHeader>
+        <CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Loại BT CRC</TableHead><TableHead>Ngày thực hiện</TableHead><TableHead>LĐPCRC</TableHead><TableHead>CBCRC</TableHead><TableHead>QUYCRC</TableHead><TableHead>Thao tác</TableHead></TableRow></TableHeader><TableBody>
+          {isLoading ? <TableRow><TableCell colSpan={6} className="text-center h-24">Đang tải...</TableCell></TableRow> : reminders.map((r) => (
+            <TableRow key={r.id}><TableCell className="font-medium">{r.loai_bt_crc}</TableCell><TableCell>{r.ngay_thuc_hien}</TableCell><TableCell>{r.ldpcrc || '-'}</TableCell><TableCell>{r.cbcrc || '-'}</TableCell><TableCell>{r.quycrc || '-'}</TableCell><TableCell><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => sendSingleReminder(r)} title="Gửi"><Send className="w-4 h-4 text-green-600" /></Button><Button variant="ghost" size="icon" onClick={() => editReminder(r)} title="Sửa"><Edit className="w-4 h-4 text-blue-600" /></Button>{user?.role === 'admin' && <Button variant="ghost" size="icon" onClick={() => deleteReminder(r.id)} title="Xóa"><Trash2 className="w-4 h-4 text-red-600" /></Button>}</div></TableCell></TableRow>
+          ))}
+        </TableBody></Table></div></CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Danh sách đã gửi ({sentReminders.length})</CardTitle>
+          {user?.role === 'admin' && <Button onClick={deleteAllSent} variant="destructive"><Trash className="w-4 h-4 mr-2" />Xóa tất cả</Button>}
+        </CardHeader>
+        <CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Loại BT CRC</TableHead><TableHead>Ngày thực hiện</TableHead><TableHead>LĐPCRC</TableHead><TableHead>CBCRC</TableHead><TableHead>QUYCRC</TableHead><TableHead>Ngày gửi</TableHead>{user?.role === 'admin' && <TableHead>Thao tác</TableHead>}</TableRow></TableHeader><TableBody>
+          {isLoading ? <TableRow><TableCell colSpan={7} className="text-center h-24">Đang tải...</TableCell></TableRow> : sentReminders.map((r) => (
+            <TableRow key={r.id}><TableCell className="font-medium">{r.loai_bt_crc}</TableCell><TableCell>{r.ngay_thuc_hien}</TableCell><TableCell>{r.ldpcrc || '-'}</TableCell><TableCell>{r.cbcrc || '-'}</TableCell><TableCell>{r.quycrc || '-'}</TableCell><TableCell>{r.sent_date ? format(new Date(r.sent_date), 'dd/MM/yyyy') : '-'}</TableCell>{user?.role === 'admin' && <TableCell><div className="flex gap-1"><Button variant="ghost" size="icon" onClick={() => deleteReminder(r.id, true)} title="Xóa"><Trash2 className="w-4 h-4 text-red-600" /></Button></div></TableCell>}</TableRow>
+          ))}
+        </TableBody></Table></div></CardContent>
+      </Card>
+    </div>
   );
 }

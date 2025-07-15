@@ -318,9 +318,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="h-6 w-px bg-gray-200 lg:hidden" aria-hidden="true" />
 
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 justify-end items-center">
-            <div className="hidden lg:flex items-center gap-x-2">
-              {renderSetupButtons(false)}
-            </div>
             <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -342,6 +339,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <p className="text-sm text-gray-500 truncate">{user.role} - {user.department}</p>
                 </div>
                 <DropdownMenuSeparator />
+                <div className="px-2 py-1">
+                  <div className="space-y-1">
+                    {renderSetupButtons(true)}
+                  </div>
+                </div>
+                {(canInstall || (pushStatus !== 'granted' && pushStatus !== 'unsupported' && pushStatus !== 'loading')) && <DropdownMenuSeparator />}
                 <DropdownMenuItem asChild>
                   <Link to="/reset-password" className="flex items-center cursor-pointer">
                     <Key className="w-4 h-4 mr-2" />
