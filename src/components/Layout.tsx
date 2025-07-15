@@ -47,7 +47,7 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user, logout } = useSecureAuth();
+  const { user, logout, loading } = useSecureAuth();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
@@ -59,18 +59,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setIsSidebarOpen(false);
   }, [location.pathname]);
 
-  // Fix: Don't render layout on login page
-  if (location.pathname === '/login') {
-    return <>{children}</>;
-  }
-
-  // Fix: Show a loading spinner if user is not yet available on a protected route
-  if (!user) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
       </div>
     );
+  }
+
+  // If not loading, and we are on login or there is no user, just render children
+  // This allows Login page to render, and ProtectedRoute to handle redirects
+  if (location.pathname === '/login' || !user) {
+    return <>{children}</>;
   }
 
   const handleInstallPWA = async () => {
