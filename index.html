@@ -112,53 +112,6 @@
         100% { transform: rotate(360deg); }
       }
       
-      /* PWA install button with green TS theme */
-      .pwa-install-banner {
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        right: 20px;
-        background: linear-gradient(135deg, #14532d 0%, #15803d 100%);
-        color: #ffffff;
-        padding: 16px;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(20, 83, 45, 0.3);
-        display: none;
-        align-items: center;
-        justify-content: space-between;
-        z-index: 1000;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-      }
-      
-      .pwa-install-banner.show {
-        display: flex;
-      }
-      
-      .pwa-install-text {
-        flex: 1;
-        margin-right: 12px;
-      }
-      
-      .pwa-install-button {
-        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-        color: #14532d;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-weight: 600;
-        cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      
-      .pwa-close-button {
-        background: none;
-        border: none;
-        color: #ffffff;
-        font-size: 20px;
-        cursor: pointer;
-        margin-left: 8px;
-      }
-
       /* React Error Fallback */
       .react-error-fallback {
         min-height: 100vh;
@@ -176,16 +129,6 @@
       <div class="spinner"></div>
       <div class="loading-text">TS Manager</div>
       <div class="loading-subtitle">Hệ thống Quản lý Tài sản</div>
-    </div>
-    
-    <!-- PWA Install Banner -->
-    <div id="pwa-install-banner" class="pwa-install-banner">
-      <div class="pwa-install-text">
-        <div style="font-weight: 600; margin-bottom: 4px;">Cài đặt TS Manager</div>
-        <div style="font-size: 12px; opacity: 0.9;">Truy cập nhanh hơn từ màn hình chính</div>
-      </div>
-      <button id="pwa-install-button" class="pwa-install-button">Cài đặt</button>
-      <button id="pwa-close-button" class="pwa-close-button">&times;</button>
     </div>
     
     <div id="root"></div>
@@ -266,50 +209,6 @@
             });
         });
       }
-      
-      // PWA install prompt - KHÔNG hiện thông báo "Nhấn để sao chép URL"
-      let deferredPrompt;
-      const installBanner = document.getElementById('pwa-install-banner');
-      const installButton = document.getElementById('pwa-install-button');
-      const closeButton = document.getElementById('pwa-close-button');
-      
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault(); // Ngăn thông báo mặc định của browser
-        deferredPrompt = e;
-        
-        // Show install banner after delay if not dismissed
-        setTimeout(() => {
-          if (deferredPrompt && !localStorage.getItem('pwa-install-dismissed')) {
-            installBanner.classList.add('show');
-          }
-        }, 5000);
-      });
-      
-      installButton.addEventListener('click', () => {
-        if (deferredPrompt) {
-          deferredPrompt.prompt();
-          deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-              console.log('User accepted the TS Manager install prompt');
-            } else {
-              console.log('User dismissed the TS Manager install prompt');
-            }
-            deferredPrompt = null;
-            installBanner.classList.remove('show');
-          });
-        }
-      });
-      
-      closeButton.addEventListener('click', () => {
-        installBanner.classList.remove('show');
-        localStorage.setItem('pwa-install-dismissed', 'true');
-      });
-      
-      // Handle app installed
-      window.addEventListener('appinstalled', (evt) => {
-        console.log('TS Manager was installed');
-        installBanner.classList.remove('show');
-      });
       
       // Prevent zoom on double tap (iOS Safari)
       let lastTouchEnd = 0;

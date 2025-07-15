@@ -13,7 +13,7 @@ export const usePushNotificationStatus = () => {
   const checkStatus = useCallback(async () => {
     console.log('[Push Status] Checking...');
     if (!user) {
-      console.log('[Push Status] Result: unauthenticated');
+      console.log('[Push Status] Final Result: unauthenticated');
       setStatus('unauthenticated');
       return;
     }
@@ -23,7 +23,7 @@ export const usePushNotificationStatus = () => {
     const { supported, reasons } = checkPushNotificationSupport();
     if (!supported) {
       console.warn('Push notifications not supported:', reasons);
-      console.log('[Push Status] Result: unsupported');
+      console.log('[Push Status] Final Result: unsupported');
       setStatus('unsupported');
       return;
     }
@@ -31,7 +31,7 @@ export const usePushNotificationStatus = () => {
     const permission = Notification.permission;
     console.log(`[Push Status] Notification.permission: ${permission}`);
     if (permission === 'denied') {
-      console.log('[Push Status] Result: denied');
+      console.log('[Push Status] Final Result: denied');
       setStatus('denied');
       return;
     }
@@ -39,23 +39,21 @@ export const usePushNotificationStatus = () => {
     const isSubscribed = await hasActivePushSubscription(user.username);
     console.log(`[Push Status] hasActivePushSubscription: ${isSubscribed}`);
     if (isSubscribed) {
-      console.log('[Push Status] Result: subscribed');
+      console.log('[Push Status] Final Result: subscribed');
       setStatus('subscribed');
       return;
     }
     
-    console.log('[Push Status] Result: prompt_required');
+    console.log('[Push Status] Final Result: prompt_required');
     setStatus('prompt_required');
   }, [user]);
 
   useEffect(() => {
-    // Check status on mount, when user changes, or when tab becomes visible
     if (isVisible) {
       checkStatus();
     }
   }, [user, isVisible, checkStatus]);
 
-  // Function to manually re-check status, e.g., after a user action
   const refreshStatus = useCallback(() => {
     checkStatus();
   }, [checkStatus]);

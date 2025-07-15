@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, X, Smartphone } from 'lucide-react';
+import { Download, X, Smartphone, Share } from 'lucide-react';
 import { Button } from './ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useSecureAuth } from '@/contexts/AuthContext';
@@ -9,57 +9,32 @@ export function PWAInstallPrompt() {
   const { user } = useSecureAuth();
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOSSafari, setIsIOSSafari] = useState(false);
-  const [isAndroidChrome, setIsAndroidChrome] = useState(false);
 
-  // Detect platform once on component mount
   useEffect(() => {
     const ua = navigator.userAgent;
     const isIOS = /iPad|iPhone|iPod/.test(ua);
     const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
     setIsIOSSafari(isIOS && isSafari);
-
-    const isAndroid = /Android/.test(ua);
-    const isChrome = /Chrome/.test(ua);
-    setIsAndroidChrome(isAndroid && isChrome);
   }, []);
 
-  // Effect to decide whether to show the prompt based on various conditions
   useEffect(() => {
     const checkShouldShow = () => {
-      console.log('PWAInstallPrompt: Checking conditions...', { user: !!user, isInstalled, canInstall, isIOSSafari, isAndroidChrome });
-
-      if (!user) {
-        console.log('PWAInstallPrompt: Abort - No user.');
+      if (!user || isInstalled || sessionStorage.getItem('pwa-prompt-shown-session')) {
         setShowPrompt(false);
         return;
       }
-      if (isInstalled) {
-        console.log('PWAInstallPrompt: Abort - Already installed.');
-        setShowPrompt(false);
-        return;
-      }
-      
-      if (sessionStorage.getItem('pwa-prompt-shown-session')) {
-        console.log('PWAInstallPrompt: Abort - Already shown this session.');
-        return;
-      }
 
-      if (isIOSSafari || isAndroidChrome || canInstall) {
-        console.log('PWAInstallPrompt: Conditions met. Scheduling prompt.');
+      if (isIOSSafari || canInstall) {
         const timer = setTimeout(() => {
-          console.log('PWAInstallPrompt: Showing prompt now.');
           setShowPrompt(true);
           sessionStorage.setItem('pwa-prompt-shown-session', 'true');
         }, 5000);
-
         return () => clearTimeout(timer);
-      } else {
-        console.log('PWAInstallPrompt: Conditions not met for showing prompt.');
       }
     };
 
     checkShouldShow();
-  }, [user, canInstall, isInstalled, isIOSSafari, isAndroidChrome]);
+  }, [user, canInstall, isInstalled, isIOSSafari]);
 
   const handleInstall = async () => {
     if (canInstall) {
@@ -71,8 +46,6 @@ export function PWAInstallPrompt() {
   };
 
   const handleDismiss = () => {
-    // This now only dismisses the prompt for the current view.
-    // The session storage check prevents it from reappearing in the same session.
     setShowPrompt(false);
   };
 
@@ -81,60 +54,35 @@ export function PWAInstallPrompt() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-sm z-50 bg-white p-4 rounded-lg shadow-xl border-2 border-green-200 animate-slide-in-up">
-      <div className="flex items-start space-x-3">
-        <div className="flex-shrink-0 pt-1">
-          {isIOSSafari ? (
-            <Smartphone className="h-6 w-6 text-blue-600" />
-          ) : isAndroidChrome ? (
-            <Smartphone className="h-6 w-6 text-green-600" />
-          ) : (
-            <Download className="h-6 w-6 text-primary" />
-          )}
-        </div>
-        <div className="flex-1">
-          <p className="font-semibold text-gray-900">📱 Cài đặt TS Manager</p>
-          <p className="text-sm text-gray-600 mt-1">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-green-700 text-white shadow-lg animate-slide-in-up">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between py-3">
+          <div className="flex items-center">
+            <Smartphone className="h-8 w-8 mr-4 flex-shrink-0" />
+            <div>
+              <p className="font-bold">Cài đặt TS Manager</p>
+              <p className="text-sm opacity-90 hidden sm:block">Truy cập nhanh hơn và nhận thông báo từ màn hình chính.</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {isIOSSafari ? (
-              <>Nhấn nút <strong>Chia sẻ</strong> → <strong>Thêm vào Màn hình chính</strong> để cài đặt ứng dụng</>
-            ) : isAndroidChrome ? (
-              <>Cài đặt ứng dụng để truy cập nhanh hơn và nhận thông báo đẩy</>
+              <div className="flex items-center space-x-2 text-sm bg-white/20 px-3 py-1.5 rounded-md">
+                <span>Nhấn</span>
+                <Share className="h-5 w-5" />
+                <span className="hidden sm:inline">và "Thêm vào MH chính"</span>
+              </div>
             ) : (
-              <>Cài đặt ứng dụng để sử dụng offline và nhận thông báo</>
-            )}
-          </p>
-          
-          {isIOSSafari ? (
-            <div className="mt-3 p-2 bg-blue-50 rounded-lg">
-              <p className="text-xs text-blue-800">
-                <strong>Hướng dẫn iOS Safari:</strong><br/>
-                1. Nhấn nút <strong>Chia sẻ</strong> (⬆️) ở thanh công cụ<br/>
-                2. Cuộn xuống và chọn <strong>"Thêm vào Màn hình chính"</strong><br/>
-                3. Nhấn <strong>"Thêm"</strong> để hoàn tất
-              </p>
-            </div>
-          ) : (
-            <div className="flex space-x-2 mt-3">
-              {canInstall ? (
-                <Button onClick={handleInstall} size="sm" className="bg-green-600 hover:bg-green-700">
+              canInstall && (
+                <Button onClick={handleInstall} size="sm" className="bg-white text-green-700 hover:bg-gray-200">
                   <Download className="h-4 w-4 mr-2" />
-                  Cài đặt ngay
+                  Cài đặt
                 </Button>
-              ) : (
-                <div className="text-xs text-gray-500">
-                  Sử dụng Chrome hoặc Edge để cài đặt
-                </div>
-              )}
-              <Button onClick={handleDismiss} variant="ghost" size="sm">
-                Để sau
-              </Button>
-            </div>
-          )}
-        </div>
-        <div className="flex flex-col space-y-1">
-          <Button onClick={handleDismiss} variant="ghost" size="icon" className="h-6 w-6">
-            <X className="h-4 w-4" />
-          </Button>
+              )
+            )}
+            <button onClick={handleDismiss} title="Đóng" className="p-1 rounded-full hover:bg-white/20 transition-colors">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
