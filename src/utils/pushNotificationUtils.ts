@@ -326,9 +326,15 @@ export async function hasActivePushSubscription(username: string): Promise<boole
       .from('push_subscriptions')
       .select('id, subscription')
       .eq('username', username)
-      .single();
+      .limit(1) // Ensure we only get one record
+      .maybeSingle(); // Return the single record or null, without erroring on multiple results
 
-    if (error || !data) {
+    if (error) {
+      console.error("Error checking push subscription:", error);
+      return false;
+    }
+    
+    if (!data) {
       return false;
     }
 
@@ -340,6 +346,7 @@ export async function hasActivePushSubscription(username: string): Promise<boole
 
     return true;
   } catch (error) {
+    console.error("Unexpected error in hasActivePushSubscription:", error);
     return false;
   }
 }
