@@ -80,10 +80,28 @@ export async function logSecurityEventRealTime(
 // Get client IP address (simplified version)
 async function getClientIP(): Promise<string | null> {
   try {
-    const response = await fetch('https://api.ipify.org?format=json');
+    // Use a timeout to prevent long waits on network issues
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2-second timeout
+
+    const response = await fetch('https://api.ipify.org?format=json', {
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.warn(`[Security] Failed to get IP from ipify. Status: ${response.status}`);
+      return null;
+    }
     const data = await response.json();
     return data.ip;
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('[Security] IP address fetch timed out.');
+    } else {
+      console.warn('[Security] Could not fetch IP address. The user might be offline or an ad-blocker might be interfering.');
+    }
     return null;
   }
 }

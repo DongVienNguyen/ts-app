@@ -1,5 +1,17 @@
 // public/sw.js
 
+// On install, activate immediately to ensure the latest version is used.
+self.addEventListener('install', event => {
+  console.log('Service Worker: installing...');
+  event.waitUntil(self.skipWaiting());
+});
+
+// On activate, take control of all clients to apply updates without a page reload.
+self.addEventListener('activate', event => {
+  console.log('Service Worker: activating...');
+  event.waitUntil(self.clients.claim());
+});
+
 // Listener for push events
 self.addEventListener('push', event => {
   try {

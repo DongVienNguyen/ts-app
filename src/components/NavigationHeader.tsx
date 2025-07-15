@@ -23,15 +23,16 @@ import {
   BarChart3,
   Home,
   Key,
-  Smartphone,
   Settings,
   ChevronDown,
-  HardDrive
+  HardDrive,
+  BellRing
 } from 'lucide-react';
 import { isAdmin, isNqOrAdmin } from '@/utils/permissions';
 import { NotificationBell } from '@/components/NotificationBell';
 import { requestNotificationPermission, subscribeUserToPush } from '@/utils/pushNotificationUtils';
 import { toast } from 'sonner';
+import { usePushNotificationStatus } from '@/hooks/usePushNotificationStatus';
 
 export const NavigationHeader: React.FC = () => {
   // ALL HOOKS MUST BE CALLED UNCONDITIONALLY AT THE TOP
@@ -40,8 +41,9 @@ export const NavigationHeader: React.FC = () => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
-  const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false); // New state for system menu
+  const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
   const isMountedRef = useRef(false);
+  const { status: pushStatus, refreshStatus } = usePushNotificationStatus();
 
   // useEffect MUST be called unconditionally
   useEffect(() => {
@@ -127,6 +129,7 @@ export const NavigationHeader: React.FC = () => {
       });
     } finally {
       setIsEnablingNotifications(false);
+      refreshStatus();
     }
   };
 
@@ -157,20 +160,6 @@ export const NavigationHeader: React.FC = () => {
 
   // Check if any system menu item is currently active
   const isSystemMenuActive = systemNavItems.some(item => location.pathname === item.href);
-
-  // SIMPLE DEBUG LOGGING
-  console.log('🚀 NAVIGATION RENDER:', {
-    user: user?.username,
-    role: user?.role,
-    department: user?.department,
-    userIsAdmin,
-    userIsNqOrAdmin,
-    mainNavItems: mainNavItems.length,
-    systemNavItems: systemNavItems.length,
-    systemItemNames: systemNavItems.map(item => item.name),
-    currentPath: location.pathname,
-    isSystemMenuActive
-  });
 
   return (
     <header className="bg-white shadow-sm border-b">
@@ -245,7 +234,22 @@ export const NavigationHeader: React.FC = () => {
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 md:space-x-4">
+            {/* Realtime Notification Setup Button */}
+            {pushStatus === 'prompt_required' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEnableNotifications}
+                disabled={isEnablingNotifications}
+                className="hidden md:flex items-center text-yellow-600 border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700 animate-pulse"
+                title="Cài đặt thông báo để nhận cảnh báo real-time"
+              >
+                <BellRing className="h-4 w-4 mr-2" />
+                {isEnablingNotifications ? 'Đang cài đặt...' : 'Cài đặt thông báo'}
+              </Button>
+            )}
+
             {/* Notification Bell */}
             <NotificationBell />
 
@@ -268,14 +272,6 @@ export const NavigationHeader: React.FC = () => {
                     {user.role} - {user.department}
                   </div>
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={handleEnableNotifications}
-                  disabled={isEnablingNotifications}
-                >
-                  <Smartphone className="mr-2 h-4 w-4" />
-                  {isEnablingNotifications ? 'Đang bật...' : 'Bật thông báo đẩy'}
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link to="/reset-password" className="flex items-center">
@@ -311,10 +307,27 @@ export const NavigationHeader: React.FC = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200">
             <div className="px-2 pt-2 pb-3 space-y-1">
+              {/* Realtime Notification Setup Button for Mobile */}
+              {pushStatus === 'prompt_required' && (
+                <div className="px-1 pb-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      handleEnableNotifications();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    disabled={isEnablingNotifications}
+                    className="w-full flex justify-center items-center text-yellow-600 border-yellow-400 hover:bg-yellow-50 hover:text-yellow-700 animate-pulse"
+                  >
+                    <BellRing className="h-4 w-4 mr-2" />
+                    {isEnablingNotifications ? 'Đang cài đặt...' : 'Cài đặt thông báo'}
+                  </Button>
+                </div>
+              )}
+
               {/* MAIN NAVIGATION ITEMS ONLY */}
               {mainNavItems.map((item) => {
                 const isActive = location.pathname === item.href;
-                console.log(`📱 Mobile Main Item: ${item.name}`);
                 return (
                   <Link
                     key={item.href}
@@ -343,7 +356,6 @@ export const NavigationHeader: React.FC = () => {
                   {/* System Items */}
                   {systemNavItems.map((item) => {
                     const isActive = location.pathname === item.href;
-                    console.log(`📱 Mobile System Item: ${item.name}`);
                     return (
                       <Link
                         key={item.href}

@@ -1,0 +1,18 @@
+FROM node:20.19.3-alpine AS builder
+
+WORKDIR /app
+
+COPY . .
+
+RUN npm i
+RUN npm run build
+
+FROM node:20.19.3-alpine
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 7000
+RUN npm install -g serve
+
+ENTRYPOINT ["serve", "-s", "dist", "-l", "7000"]
+

@@ -11,20 +11,20 @@ export function PWAInstallPrompt() {
   const [isIOSSafari, setIsIOSSafari] = useState(false);
   const [isAndroidChrome, setIsAndroidChrome] = useState(false);
 
+  // Detect platform once on component mount
   useEffect(() => {
-    // Detect iOS Safari
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-    const isIOSSafariDetected = isIOS && isSafari;
-    
-    // Detect Android Chrome
-    const isAndroid = /Android/.test(navigator.userAgent);
-    const isChrome = /Chrome/.test(navigator.userAgent);
-    const isAndroidChromeDetected = isAndroid && isChrome;
-    
-    setIsIOSSafari(isIOSSafariDetected);
-    setIsAndroidChrome(isAndroidChromeDetected);
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua);
+    const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
+    setIsIOSSafari(isIOS && isSafari);
 
+    const isAndroid = /Android/.test(ua);
+    const isChrome = /Chrome/.test(ua);
+    setIsAndroidChrome(isAndroid && isChrome);
+  }, []);
+
+  // Effect to decide whether to show the prompt based on various conditions
+  useEffect(() => {
     const checkShouldShow = () => {
       // Don't show if: no user, app already installed, or prompt permanently dismissed
       if (!user || isInstalled || localStorage.getItem('pwa-install-dismissed') === 'permanent') {
@@ -38,7 +38,7 @@ export function PWAInstallPrompt() {
       }
 
       // Show for supported platforms (iOS Safari, Android Chrome, or installable event)
-      if (isIOSSafariDetected || isAndroidChromeDetected || canInstall) {
+      if (isIOSSafari || isAndroidChrome || canInstall) {
         // Show after a short delay for better user experience
         const timer = setTimeout(() => {
           setShowPrompt(true);
