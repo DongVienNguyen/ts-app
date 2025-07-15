@@ -57,8 +57,10 @@ export function PWAInstallPrompt() {
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-green-700 text-white shadow-lg animate-slide-in-up">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between py-3 space-x-4">
-          {/* Left side: Icon and text */}
           <div className="flex items-center flex-1 min-w-0">
+            <button onClick={handleDismiss} title="Đóng" className="p-1 rounded-full hover:bg-white/20 transition-colors mr-3">
+              <X className="h-5 w-5" />
+            </button>
             <Smartphone className="h-8 w-8 mr-4 flex-shrink-0" />
             <div className="min-w-0">
               <p className="font-bold truncate">Cài đặt TS Manager</p>
@@ -66,7 +68,6 @@ export function PWAInstallPrompt() {
             </div>
           </div>
 
-          {/* Right side: Action buttons */}
           <div className="flex items-center space-x-2 flex-shrink-0">
             {isIOSSafari ? (
               <div className="flex items-center space-x-2 text-sm bg-white/20 px-3 py-1.5 rounded-md">
@@ -82,9 +83,6 @@ export function PWAInstallPrompt() {
                 </Button>
               )
             )}
-            <button onClick={handleDismiss} title="Đóng" className="p-1 rounded-full hover:bg-white/20 transition-colors">
-              <X className="h-5 w-5" />
-            </button>
           </div>
         </div>
       </div>

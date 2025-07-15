@@ -3,8 +3,9 @@ import { Staff } from '@/types/auth';
 import { secureLoginUser, validateSession } from '@/services/secureAuthService';
 import { toast } from 'sonner';
 import { updateSupabaseAuthToken } from '@/integrations/supabase/client';
+import { subscribeUserToPush, hasActivePushSubscription, checkPushNotificationSupport } from '@/utils/pushNotificationUtils';
 
-export interface AuthenticatedStaff extends Staff { // Added export keyword
+export interface AuthenticatedStaff extends Staff {
   token?: string;
 }
 
@@ -24,74 +25,90 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthenticatedStaff | null>(null);
-  const [loading, setLoading] = useState(true); // Start with loading true
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const restoreSession = async () => {
-      console.log('🚀 [AUTH] AuthProvider mounted, checking for existing session');
       setLoading(true);
       try {
         const token = localStorage.getItem('auth_token');
         if (validateSession() && token) {
           const userStr = localStorage.getItem('auth_user');
           const storedUser: AuthenticatedStaff = JSON.parse(userStr!);
-          
           await updateSupabaseAuthToken(token);
-
           setUser(storedUser);
-          console.log('✅ [AUTH] Session restored for user:', storedUser.username);
         } else {
-          console.log('🔎 [AUTH] No valid session found. Clearing session.');
           await updateSupabaseAuthToken(null);
-          localStorage.removeItem('auth_user');
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('auth_login_time');
+          localStorage.clear();
           setUser(null);
         }
       } catch (error) {
         console.error('❌ [AUTH] Error restoring session, clearing session.', error);
         await updateSupabaseAuthToken(null);
-        localStorage.removeItem('auth_user');
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_login_time');
+        localStorage.clear();
         setUser(null);
       } finally {
         setLoading(false);
       }
     };
-    
     restoreSession();
   }, []);
 
+  // Auto-subscribe to push notifications if permission is already granted
+  useEffect(() => {
+    const autoSubscribe = async () => {
+      if (user && user.username) {
+        console.log('[Push Auto-Sub] Checking conditions for user:', user.username);
+        const { supported } = checkPushNotificationSupport();
+        if (!supported) {
+          console.log('[Push Auto-Sub] Not supported.');
+          return;
+        }
+
+        if (Notification.permission === 'granted') {
+          console.log('[Push Auto-Sub] Permission is granted.');
+          const isAlreadySubscribed = await hasActivePushSubscription(user.username);
+          console.log(`[Push Auto-Sub] Already subscribed in DB: ${isAlreadySubscribed}`);
+          if (!isAlreadySubscribed) {
+            console.log('[Push Auto-Sub] Not subscribed in DB. Attempting silent subscription...');
+            toast.info('Đang thiết lập thông báo đẩy...');
+            const success = await subscribeUserToPush(user.username);
+            if (success) {
+              toast.success('🔔 Thiết lập thông báo đẩy thành công!');
+              console.log('[Push Auto-Sub] Silent subscription successful.');
+            } else {
+              toast.error('Lỗi khi tự động thiết lập thông báo đẩy.');
+              console.error('[Push Auto-Sub] Silent subscription failed.');
+            }
+          }
+        } else {
+          console.log(`[Push Auto-Sub] Permission is not 'granted' (it's '${Notification.permission}'). Skipping.`);
+        }
+      }
+    };
+
+    // Run after a short delay to ensure everything is settled
+    const timer = setTimeout(autoSubscribe, 2000);
+    return () => clearTimeout(timer);
+  }, [user]);
+
   const login = async (username: string, password: string) => {
-    console.log('🔐 [AUTH] Starting login process for:', username);
     setLoading(true);
     try {
       const result = await secureLoginUser(username, password);
-      
       if (result.success && result.user && result.token) {
         const authenticatedUser: AuthenticatedStaff = { ...result.user, token: result.token };
-        
-        console.log('[AUTH] Login API success. Token received. Updating Supabase client...');
         await updateSupabaseAuthToken(result.token);
-        console.log('[AUTH] Supabase client update awaited and completed. Now setting user state.');
-
         localStorage.setItem('auth_user', JSON.stringify(authenticatedUser));
         localStorage.setItem('auth_token', result.token);
         localStorage.setItem('auth_login_time', Date.now().toString());
-        
         setUser(authenticatedUser);
-        
         toast.success("Đăng nhập thành công!", { id: 'login-success', duration: 3000 });
-        
-        console.log('✅ [AUTH] Set user state and finished login process for:', authenticatedUser.username);
         return { success: true };
       } else {
-        console.log('❌ [AUTH] Login failed:', result.error);
         return { success: false, error: result.error || 'Đăng nhập thất bại' };
       }
     } catch (error: any) {
-      console.error('❌ [AUTH] Login error:', error);
       return { success: false, error: error.message || 'Lỗi hệ thống' };
     } finally {
       setLoading(false);
@@ -99,23 +116,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = async () => {
-    console.log('🚪 [AUTH] Logging out user');
     setLoading(true);
-    
     await updateSupabaseAuthToken(null);
-    
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_login_time');
-    
+    localStorage.clear();
     setUser(null);
-    
     toast.success('Đã đăng xuất');
     setLoading(false);
   };
 
   const checkAuth = async () => {
-    console.log('🔄 [AUTH] Manual checkAuth triggered.');
     setLoading(true);
     try {
       const token = localStorage.getItem('auth_token');
@@ -133,12 +142,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-    };
-
-  const value: AuthContextType = { user, loading, login, logout, checkAuth };
+  };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, loading, login, logout, checkAuth }}>
       {children}
     </AuthContext.Provider>
   );

@@ -9,6 +9,8 @@ import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useEffect, Suspense, lazy } from 'react';
 import { memoryManager } from '@/utils/memoryManager';
+import { toast } from 'sonner';
+import { Bell } from 'lucide-react';
 
 // Lazy load all pages for better performance
 const Index = lazy(() => import('@/pages/Index'));
@@ -85,6 +87,24 @@ function AppContent() {
         } else {
           window.location.href = targetUrl;
         }
+      }
+      
+      // New: Handle in-app notifications
+      if (event.data?.type === 'SHOW_IN_APP_NOTIFICATION') {
+        const { title, options } = event.data.payload;
+        console.log('App.tsx: Received in-app notification from SW:', { title, options });
+        toast(title, {
+          description: options.body,
+          icon: <Bell className="h-4 w-4" />,
+          action: {
+            label: 'Xem',
+            onClick: () => {
+              if (options.data?.url) {
+                window.location.href = options.data.url;
+              }
+            },
+          },
+        });
       }
     };
 

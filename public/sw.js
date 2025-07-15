@@ -1,77 +1,85 @@
 // public/sw.js
-console.log('Service Worker: Script loading.');
+console.log('Service Worker: Script loading (v2).');
 
 self.addEventListener('install', event => {
-  console.log('Service Worker: Event "install" received. Attempting to install...');
-  event.waitUntil(
-    self.skipWaiting().then(() => console.log('Service Worker: skipWaiting() completed, worker will activate.'))
-  );
+  console.log('Service Worker: Event "install" received.');
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', event => {
-  console.log('Service Worker: Event "activate" received. Worker is now active.');
-  event.waitUntil(
-    self.clients.claim().then(() => console.log('Service Worker: clients.claim() completed, worker now controls the page.'))
-  );
+  console.log('Service Worker: Event "activate" received.');
+  event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('push', event => {
   console.log('Service Worker: Event "push" received.');
+  if (!event.data) {
+    console.error('Service Worker: Push event but no data');
+    return;
+  }
 
-  try {
-    if (!event.data) {
-      console.error('Service Worker: Push event but no data');
-      return;
+  const data = event.data.json();
+  console.log('Service Worker: Push data parsed:', data);
+
+  const options = {
+    body: data.body,
+    icon: data.icon || '/icon-192x192.png',
+    badge: data.badge || '/icon-192x192.png',
+    tag: data.tag,
+    data: data.data,
+  };
+
+  const promiseChain = clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true
+  }).then(windowClients => {
+    let clientIsVisible = false;
+    for (const client of windowClients) {
+      if (client.visibilityState === 'visible') {
+        clientIsVisible = true;
+        break;
+      }
     }
 
-    const data = event.data.json();
-    console.log('Service Worker: Push data parsed:', data);
-    
-    const options = {
-      body: data.body,
-      icon: data.icon || '/icon-192x192.png',
-      badge: data.badge || '/icon-192x192.png',
-      tag: data.tag,
-      data: data.data
-    };
+    if (clientIsVisible) {
+      console.log('Service Worker: App is visible. Sending message to client for in-app notification.');
+      // Send a message to the client to show an in-app notification
+      windowClients.forEach(client => {
+        if (client.visibilityState === 'visible') {
+          client.postMessage({
+            type: 'SHOW_IN_APP_NOTIFICATION',
+            payload: { title: data.title, options }
+          });
+        }
+      });
+    } else {
+      console.log('Service Worker: App is not visible. Showing system notification.');
+      // Show a system notification
+      return self.registration.showNotification(data.title, options);
+    }
+  });
 
-    console.log('Service Worker: Showing notification with options:', options);
-    event.waitUntil(
-      self.registration.showNotification(data.title, options)
-        .then(() => console.log('Service Worker: Notification shown successfully.'))
-        .catch(err => console.error('Service Worker: Error showing notification:', err))
-    );
-  } catch (e) {
-    console.error('Error processing push event:', e);
-    event.waitUntil(
-      self.registration.showNotification('Bạn có thông báo mới', {
-        body: 'Không thể hiển thị nội dung. Vui lòng mở ứng dụng để xem.',
-        icon: '/icon-192x192.png'
-      })
-    );
-  }
+  event.waitUntil(promiseChain);
 });
+
 
 self.addEventListener('notificationclick', event => {
   console.log('Service Worker: Event "notificationclick" received.');
   event.notification.close();
 
   const notificationData = event.notification.data;
-  console.log('Service Worker: Notification data:', notificationData);
   const urlToOpen = notificationData?.url || '/';
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      // Check if there is a window client to focus
       for (const client of windowClients) {
-        if ('focus' in client) {
-          console.log('Service Worker: Found an open client, focusing and sending message.');
-          client.postMessage({ type: 'NAVIGATE_TO_NOTIFICATION', url: urlToOpen });
+        if (client.url === urlToOpen && 'focus' in client) {
           return client.focus();
         }
       }
-
+      // If not, open a new window
       if (clients.openWindow) {
-        console.log('Service Worker: No open client found, opening a new window.');
         return clients.openWindow(urlToOpen);
       }
     })

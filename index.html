@@ -6,44 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Hệ thống Quản lý Tài sản - TS Manager</title>
     
-    <!-- PWA Manifest -->
+    <!-- AGGRESSIVE CACHE CONTROL -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
     <link rel="manifest" href="/manifest.json" />
-    
-    <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#14532d" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="TS Manager" />
-    <meta name="msapplication-TileColor" content="#14532d" />
-    <meta name="msapplication-tap-highlight" content="no" />
-    
-    <!-- Prevent caching of HTML -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-    
-    <!-- SEO Meta Tags -->
-    <meta name="description" content="Hệ thống quản lý tài sản TS với AI và thông báo đẩy" />
-    <meta name="keywords" content="quản lý tài sản, TS manager, asset management, AI, thông báo" />
-    <meta name="author" content="TS Asset Management System" />
-    
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Hệ thống Quản lý Tài sản - TS Manager" />
-    <meta property="og:description" content="Hệ thống quản lý tài sản TS với AI và thông báo đẩy" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="/icon-512x512.png" />
-    
-    <!-- Standard Icons -->
-    <link rel="icon" type="image/png" sizes="16x16" href="/icon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32x32.png" />
-    
-    <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png" />
-    
-    <!-- Android Chrome Icons -->
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png" />
     
     <style>
       body {
@@ -90,18 +63,8 @@
       <div class="loading-text">TS Manager</div>
     </div>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/main.tsx?v=1.1.0"></script>
     <script>
-      window.addEventListener('load', () => {
-        setTimeout(() => {
-          const loading = document.getElementById('loading');
-          if (loading) {
-            loading.style.opacity = '0';
-            loading.style.transition = 'opacity 0.5s ease';
-            setTimeout(() => { loading.style.display = 'none'; }, 500);
-          }
-        }, 500);
-      });
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').then(reg => {
