@@ -31,8 +31,6 @@ export const useExternalAssetSync = () => {
       }
 
       const externalData = await response.json();
-
-      // API có thể trả về mảng trực tiếp, hoặc trong thuộc tính 'data'
       const dataToProcess = Array.isArray(externalData) ? externalData : externalData?.data;
 
       if (!Array.isArray(dataToProcess)) {
@@ -41,24 +39,42 @@ export const useExternalAssetSync = () => {
       }
 
       if (dataToProcess.length === 0) {
-        console.log('Không có dữ liệu mới để đồng bộ.');
         setLastSyncTime(new Date());
         setIsSyncing(false);
         return;
       }
 
-      const transformedData = dataToProcess.map((item: any) => ({
-        external_id: item.id, // Giả định API trả về trường 'id'
-        transaction_date: item.transaction_date || new Date().toISOString().split('T')[0],
-        parts_day: item.parts_day || 'Cả ngày',
-        room: item.room || 'Unknown',
-        transaction_type: item.transaction_type || 'Unknown',
-        asset_year: item.asset_year || new Date().getFullYear(),
-        asset_code: item.asset_code || 0,
-        staff_code: item.staff_code || 'external_sync',
-        note: item.note || 'Synced from external API',
-        source: 'external_api'
-      }));
+      // Lấy danh sách mã nhân viên hợp lệ từ bảng staff
+      const { data: staffData, error: staffError } = await supabase
+        .from('staff')
+        .select('username');
+
+      if (staffError) {
+        throw new Error(`Lỗi khi lấy danh sách nhân viên: ${staffError.message}`);
+      }
+
+      const validStaffCodes = new Set(staffData.map(s => s.username));
+
+      const transformedData = dataToProcess.map((item: any) => {
+        const providedStaffCode = item.staff_code;
+        // Kiểm tra nếu staff_code tồn tại và hợp lệ, nếu không thì dùng 'external_sync'
+        const finalStaffCode = providedStaffCode && validStaffCodes.has(providedStaffCode)
+          ? providedStaffCode
+          : 'external_sync';
+
+        return {
+          external_id: item.id,
+          transaction_date: item.transaction_date || new Date().toISOString().split('T')[0],
+          parts_day: item.parts_day || 'Cả ngày',
+          room: item.room || 'Unknown',
+          transaction_type: item.transaction_type || 'Unknown',
+          asset_year: item.asset_year || new Date().getFullYear(),
+          asset_code: item.asset_code || 0,
+          staff_code: finalStaffCode, // Sử dụng mã nhân viên đã được xác thực
+          note: item.note || 'Synced from external API',
+          source: 'external_api'
+        };
+      });
 
       const { error: upsertError } = await supabase
         .from('asset_transactions')
@@ -76,7 +92,6 @@ export const useExternalAssetSync = () => {
       setError(errorMessage);
       console.error('Lỗi đồng bộ dữ liệu từ API ngoài:', e);
 
-      // Gửi thông báo lỗi đến admin
       await captureError(e instanceof Error ? e : new Error(errorMessage), {
         functionName: 'useExternalAssetSync.syncData',
         severity: 'high',
@@ -89,11 +104,8 @@ export const useExternalAssetSync = () => {
   }, [isSyncing]);
 
   useEffect(() => {
-    // Chạy lần đầu ngay lập tức
     syncData();
-
     const intervalId = setInterval(syncData, SYNC_INTERVAL);
-
     return () => clearInterval(intervalId);
   }, [syncData]);
 
