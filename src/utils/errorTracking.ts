@@ -280,11 +280,13 @@ export async function captureError(
     userId?: string;
     severity?: 'low' | 'medium' | 'high' | 'critical';
     additionalData?: any;
-    errorType?: string; // Thêm thuộc tính này
+    errorType?: string;
+    disableEmail?: boolean; // Added for toggling notifications
+    disablePush?: boolean;  // Added for toggling notifications
   }
 ): Promise<void> {
   const errorData: SystemError = {
-    error_type: context?.errorType || error.name || 'Error', // Sử dụng errorType từ context nếu có
+    error_type: context?.errorType || error.name || 'Error',
     error_message: error.message,
     error_stack: error.stack,
     function_name: context?.functionName,
@@ -292,13 +294,12 @@ export async function captureError(
     request_url: window.location.href,
     user_agent: navigator.userAgent,
     severity: context?.severity || 'medium',
-    status: 'open', // Default to 'open' status
+    status: 'open',
     error_data: context?.additionalData
   };
 
   await logSystemError(errorData);
 
-  // --- START: New Notification Logic ---
   try {
     const { data: admins, error: adminError } = await supabase
       .from('staff')
@@ -315,7 +316,6 @@ export async function captureError(
       return;
     }
 
-    // Create in-app notifications for admins
     const inAppNotificationPayload = {
       title: `Lỗi Hệ thống: ${errorData.severity?.toUpperCase()}`,
       message: errorData.error_message.substring(0, 250),
@@ -363,57 +363,65 @@ export async function captureError(
 
     const severity = errorData.severity;
 
-    // Chỉ gửi email/push nếu không phải lỗi đồng bộ API để tránh spam
-    if (errorData.error_type !== 'API_SYNC_FAILURE') {
+    // --- START: Modified Notification Logic ---
+    if (errorData.error_type === 'API_SYNC_FAILURE') {
+      const sendEmail = !context?.disableEmail;
+      const sendPush = !context?.disablePush;
+
+      if (sendEmail) {
+        console.log(`Sending email notifications to ${admins.length} admins for API_SYNC_FAILURE.`);
+        const emails = admins.map(admin => formatEmail(admin.email || admin.username)).filter(Boolean);
+        if (emails.length > 0) {
+          await emailService.sendEmail({ to: emails, subject: emailSubject, html: emailHtml });
+        }
+      }
+      if (sendPush) {
+        console.log(`Sending push notifications to ${admins.length} admins for API_SYNC_FAILURE.`);
+        for (const admin of admins) {
+          await notificationService.sendPushNotification(admin.username, pushPayload);
+        }
+      }
+      if (!sendEmail && !sendPush) {
+        console.log(`⚠️ Đã bỏ qua email/push notification cho lỗi ${errorData.error_type} theo cấu hình.`);
+      }
+    } else {
+      // Original logic for all other errors
       if (severity === 'critical' || severity === 'high') {
         console.log(`Sending email and push notifications to ${admins.length} admins for ${severity} error.`);
-        // Send emails
-        const emails = admins
-          .map(admin => formatEmail(admin.email || admin.username))
-          .filter(Boolean);
-        
+        const emails = admins.map(admin => formatEmail(admin.email || admin.username)).filter(Boolean);
         if (emails.length > 0) {
-          await emailService.sendEmail({
-            to: emails,
-            subject: emailSubject,
-            html: emailHtml
-          });
+          await emailService.sendEmail({ to: emails, subject: emailSubject, html: emailHtml });
         }
-        // Send push notifications
         for (const admin of admins) {
           await notificationService.sendPushNotification(admin.username, pushPayload);
         }
       } else if (severity === 'medium') {
         console.log(`Sending push notifications to ${admins.length} admins for ${severity} error.`);
-        // Send push notifications only
         for (const admin of admins) {
           await notificationService.sendPushNotification(admin.username, pushPayload);
         }
       }
-    } else {
-      console.log(`⚠️ Đã bỏ qua email/push notification cho lỗi ${errorData.error_type} để tránh spam.`);
     }
+    // --- END: Modified Notification Logic ---
+
   } catch (notificationError) {
     console.error('❌ Failed to send error notifications:', notificationError);
   }
-  // --- END: New Notification Logic ---
 
-  // If the error is critical, create a system alert
   if (errorData.severity === 'critical') {
     await createSystemAlert({
-      alert_id: crypto.randomUUID(), // Generate a unique ID for each alert instance
+      alert_id: crypto.randomUUID(),
       rule_name: 'Critical Application Error Detected',
       severity: 'critical',
       message: `Lỗi nghiêm trọng: ${errorData.error_message} tại ${errorData.function_name || 'unknown function'}.`,
       metric: 'error_count',
-      current_value: 1, // Assuming one critical error
-      threshold: 0, // Any critical error triggers an alert
+      current_value: 1,
+      threshold: 0,
       acknowledged: false,
-      rule_id: 'critical_application_error', // Thêm rule_id để khắc phục lỗi not-null constraint
+      rule_id: 'critical_application_error',
     });
   }
 
-  // Also log performance metrics if it's a performance-related error
   if (error.message.includes('timeout') || error.message.includes('slow')) {
     await logSystemMetric({
       metric_type: 'error',
@@ -427,7 +435,6 @@ export async function captureError(
     });
   }
 
-  // Call global error handler if set
   if (globalErrorHandler) {
     try {
       globalErrorHandler(error, context);
@@ -439,7 +446,6 @@ export async function captureError(
 
 // Setup global error handling
 export function setupGlobalErrorHandling(): void {
-  // Handle unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
     console.error('🚨 Unhandled promise rejection:', event.reason);
     
@@ -451,7 +457,6 @@ export function setupGlobalErrorHandling(): void {
     });
   });
 
-  // Handle uncaught errors
   window.addEventListener('error', (event) => {
     console.error('🚨 Uncaught error:', event.error);
     
@@ -484,7 +489,6 @@ export function getErrorStatistics(errors: SystemError[]) {
   const byOS: { [key: string]: number } = {};
   const errorTrend: { date: string; count: number }[] = [];
 
-  // Initialize errorTrend for the last 7 days
   const today = new Date();
   for (let i = 6; i >= 0; i--) {
     const date = new Date(today);
@@ -496,11 +500,9 @@ export function getErrorStatistics(errors: SystemError[]) {
     byType[error.error_type] = (byType[error.error_type] || 0) + 1;
     bySeverity[error.severity || 'medium'] = (bySeverity[error.severity || 'medium'] || 0) + 1;
 
-    // Parse user agent for browser and OS
     let browser = 'Unknown';
     let os = 'Unknown';
 
-    // Check if user_agent is a non-empty string and not literally "null"
     if (error.user_agent && typeof error.user_agent === 'string' && error.user_agent.trim() !== '' && error.user_agent.toLowerCase() !== 'null') {
       const userAgent = error.user_agent.toLowerCase();
 
@@ -520,7 +522,6 @@ export function getErrorStatistics(errors: SystemError[]) {
     byBrowser[browser] = (byBrowser[browser] || 0) + 1;
     byOS[os] = (byOS[os] || 0) + 1;
 
-    // Update error trend
     if (error.created_at) {
       const errorDate = new Date(error.created_at).toISOString().split('T')[0];
       const trendEntry = errorTrend.find(entry => entry.date === errorDate);
@@ -540,8 +541,8 @@ export function getErrorStatistics(errors: SystemError[]) {
     .slice(0, 5)
     .map(([type, count]) => ({ type, count }));
 
-  console.log('getErrorStatistics - Final byBrowser:', byBrowser); // New debug log
-  console.log('getErrorStatistics - Final byOS:', byOS);     // New debug log
+  console.log('getErrorStatistics - Final byBrowser:', byBrowser);
+  console.log('getErrorStatistics - Final byOS:', byOS);
 
   return {
     totalErrors,
