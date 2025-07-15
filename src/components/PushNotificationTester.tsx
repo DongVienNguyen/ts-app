@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bell, BellOff, TestTube, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Bell, BellOff, TestTube, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   requestNotificationPermission, 
   subscribeUserToPush, 
   unsubscribeFromPush,
-  checkPushNotificationSupport 
+  checkPushNotificationSupport,
+  hasActivePushSubscription
 } from '@/utils/pushNotificationUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,29 +17,44 @@ import { useAuth } from '@/contexts/AuthContext';
 const PushNotificationTester = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [supportInfo, setSupportInfo] = useState<{supported: boolean; reasons: string[]}>({
     supported: false,
     reasons: []
   });
   const { user } = useAuth();
 
+  const checkSubscriptionStatus = useCallback(async () => {
+    if (!user?.username) {
+      setIsSubscribed(false);
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const subscribed = await hasActivePushSubscription(user.username);
+      setIsSubscribed(subscribed);
+    } catch (error) {
+      console.error('Error checking subscription status:', error);
+      toast.error('Lỗi khi kiểm tra trạng thái đăng ký');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.username]);
+
   useEffect(() => {
-    // Check initial permission status
+    setIsLoading(true);
     if ('Notification' in window) {
       setPermission(Notification.permission);
     }
-
-    // Check push notification support
     const support = checkPushNotificationSupport();
     setSupportInfo(support);
-    console.log('🔍 Push notification support:', support);
-  }, []);
+    checkSubscriptionStatus();
+  }, [checkSubscriptionStatus]);
 
   const handleRequestPermission = async () => {
     setIsLoading(true);
     try {
-      console.log('📱 Requesting notification permission...');
       const newPermission = await requestNotificationPermission();
       setPermission(newPermission);
       
@@ -63,7 +79,6 @@ const PushNotificationTester = () => {
 
     setIsLoading(true);
     try {
-      console.log('🔔 Subscribing to push notifications...');
       const success = await subscribeUserToPush(user.username);
       
       if (success) {
@@ -88,7 +103,6 @@ const PushNotificationTester = () => {
 
     setIsLoading(true);
     try {
-      console.log('🔕 Unsubscribing from push notifications...');
       const success = await unsubscribeFromPush(user.username);
       
       if (success) {
@@ -113,8 +127,6 @@ const PushNotificationTester = () => {
 
     setIsLoading(true);
     try {
-      console.log('🧪 Testing push notification...');
-      
       const { data, error } = await supabase.functions.invoke('send-push-notification', {
         body: {
           username: user.username,
@@ -133,14 +145,11 @@ const PushNotificationTester = () => {
       });
 
       if (error) {
-        console.error('❌ Error sending test notification:', error);
         toast.error('Lỗi khi gửi thông báo test: ' + error.message);
       } else {
-        console.log('✅ Test notification sent:', data);
         toast.success('🎉 Thông báo test đã được gửi!');
       }
     } catch (error) {
-      console.error('❌ Error testing notification:', error);
       toast.error('Lỗi khi test thông báo');
     } finally {
       setIsLoading(false);
@@ -161,13 +170,17 @@ const PushNotificationTester = () => {
   return (
     <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Bell className="w-5 h-5 text-blue-600" />
-          <span>🧪 Test Push Notifications</span>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Bell className="w-5 h-5 text-blue-600" />
+            <span>🧪 Test Push Notifications</span>
+          </div>
+          <Button variant="ghost" size="icon" onClick={checkSubscriptionStatus} disabled={isLoading}>
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Support Status */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="font-semibold mb-2 flex items-center">
             <AlertCircle className="w-4 h-4 mr-2" />
@@ -191,7 +204,6 @@ const PushNotificationTester = () => {
           )}
         </div>
 
-        {/* Permission Status */}
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-semibold">Quyền thông báo:</h3>
@@ -200,22 +212,24 @@ const PushNotificationTester = () => {
           {getPermissionBadge()}
         </div>
 
-        {/* Subscription Status */}
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-semibold">Trạng thái đăng ký:</h3>
             <p className="text-sm text-gray-600">Đăng ký nhận thông báo đẩy</p>
           </div>
-          <Badge className={isSubscribed ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-            {isSubscribed ? (
-              <><Bell className="w-3 h-3 mr-1" />Đã đăng ký</>
-            ) : (
-              <><BellOff className="w-3 h-3 mr-1" />Chưa đăng ký</>
-            )}
-          </Badge>
+          {isLoading ? (
+            <Badge className="bg-gray-100 text-gray-800">Đang kiểm tra...</Badge>
+          ) : (
+            <Badge className={isSubscribed ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+              {isSubscribed ? (
+                <><Bell className="w-3 h-3 mr-1" />Đã đăng ký</>
+              ) : (
+                <><BellOff className="w-3 h-3 mr-1" />Chưa đăng ký</>
+              )}
+            </Badge>
+          )}
         </div>
 
-        {/* Action Buttons */}
         <div className="space-y-3">
           {permission !== 'granted' && (
             <Button 
@@ -264,14 +278,12 @@ const PushNotificationTester = () => {
           )}
         </div>
 
-        {/* User Info */}
         {user?.username && (
           <div className="bg-blue-50 p-3 rounded-lg text-sm">
             <strong>Người dùng:</strong> {user.username}
           </div>
         )}
 
-        {/* Instructions */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <h4 className="font-semibold text-yellow-800 mb-2">📋 Hướng dẫn:</h4>
           <ol className="text-sm text-yellow-700 space-y-1 list-decimal list-inside">
