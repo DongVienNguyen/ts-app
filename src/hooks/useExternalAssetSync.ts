@@ -4,7 +4,7 @@ import { captureError } from '@/utils/errorTracking';
 
 const EXTERNAL_API_URL = 'https://app.base44.com/api/apps/684d56312caf55a7b8e58907/entities/AssetTransaction';
 const API_KEY = 'eeeb5fbcbdd84a068c2784590a803161';
-const SYNC_INTERVAL = 5000; // 5 giây
+const SYNC_INTERVAL = 60000; // 60 giây
 
 export const useExternalAssetSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
