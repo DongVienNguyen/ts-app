@@ -15,7 +15,7 @@ import { Copy, Save, Trash2 } from 'lucide-react'; // Import Trash2 icon
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { SystemError } from '@/utils/errorTracking';
+import { SystemError } from '@/types/system';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';

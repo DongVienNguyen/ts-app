@@ -3,7 +3,7 @@ import { CheckCircle, Eye, Filter, List, Layers, Download, Trash2 } from 'lucide
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { SystemError } from '@/utils/errorTracking';
+import { SystemError } from '@/types/system';
 import { ErrorFilters, ErrorFilters as ErrorFiltersComponent } from './ErrorFilters';
 import { ErrorDetailsModal } from './ErrorDetailsModal';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +14,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { startOfDay, endOfDay } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
 import { SmartPagination } from '@/components/SmartPagination';
-import { getSeverityColor } from '@/utils/errorTracking';
+import { getSeverityColor } from '@/utils/errorAnalytics';
 import { convertToCSV, downloadCSV } from '@/utils/csvUtils';
 import clsx from 'clsx';
 import {

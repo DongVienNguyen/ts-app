@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
-import { SystemStatus } from '@/utils/errorTracking';
+import { SystemStatus } from '@/types/system';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Define the structure for service health

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { SystemMetric } from '@/utils/errorTracking';
+import { SystemMetric } from '@/types/system';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 

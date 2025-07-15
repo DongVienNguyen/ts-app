@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { captureError } from '@/utils/errorTracking';
+import { captureError } from '@/utils/errorHandling';
 
 const EXTERNAL_API_URL = 'https://app.base44.com/api/apps/684d56312caf55a7b8e58907/entities/AssetTransaction';
 const API_KEY = 'eeeb5fbcbdd84a068c2784590a803161';

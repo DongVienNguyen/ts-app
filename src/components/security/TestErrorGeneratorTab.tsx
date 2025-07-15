@@ -7,11 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useSecureAuth } from '@/contexts/AuthContext';
-import { captureError, SystemError } from '@/utils/errorTracking';
+import { captureError } from '@/utils/errorHandling';
+import { SystemError } from '@/types/system';
 import { RefreshCw, Trash2, PlusCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { getSeverityColor } from '@/utils/errorTracking';
+import { getSeverityColor } from '@/utils/errorAnalytics';
 import { SmartPagination } from '@/components/SmartPagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';

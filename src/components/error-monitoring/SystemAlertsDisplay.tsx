@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, BellOff, CheckCircle } from 'lucide-react';
-import { SystemAlert, getSeverityColor } from '@/utils/errorTracking';
+import { SystemAlert } from '@/types/system';
+import { getSeverityColor } from '@/utils/errorAnalytics';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import {

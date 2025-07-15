@@ -1,5 +1,5 @@
 import { safeDbOperation } from '@/utils/supabaseAuth';
-import { SystemAlert } from '@/utils/errorTracking';
+import { SystemAlert } from '@/types/system';
 
 export const systemAlertService = {
   /**

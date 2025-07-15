@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { updateSystemStatus, logSystemMetric } from '@/utils/errorTracking';
+import { updateSystemStatus, logSystemMetric } from '@/services/systemLogService';
 
 export class NotificationService {
   private static instance: NotificationService;

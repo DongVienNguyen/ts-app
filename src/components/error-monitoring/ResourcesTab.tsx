@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 import { RealTimeMonitor } from '@/components/system-health/RealTimeMonitor';
-import { SystemMetric } from '@/utils/errorTracking';
+import { SystemMetric } from '@/types/system';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'; // Thêm CardDescription vào đây
 
 interface ResourcesTabProps {

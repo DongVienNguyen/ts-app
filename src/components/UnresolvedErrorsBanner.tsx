@@ -4,7 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Link } from 'react-router-dom';
-import { SystemError } from '@/utils/errorTracking';
+import { SystemError } from '@/types/system';
 
 export const UnresolvedErrorsBanner = () => {
   const [unresolvedErrors, setUnresolvedErrors] = useState<SystemError[]>([]);

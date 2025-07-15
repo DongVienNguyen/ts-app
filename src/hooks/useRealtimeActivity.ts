@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { SystemError } from '@/utils/errorTracking';
+import { SystemError } from '@/types/system';
 import { Tables } from '@/integrations/supabase/types';
 
 type SecurityEvent = Tables<'security_events'>;

@@ -3,7 +3,7 @@ import { ErrorOverviewCards } from './error-monitoring/ErrorOverviewCards';
 import { ServiceStatusTab, ServiceHealth } from './error-monitoring/ServiceStatusTab';
 import { SystemAlertsDisplay } from './error-monitoring/SystemAlertsDisplay';
 import { ErrorListTab } from './error-monitoring/ErrorListTab';
-import { SystemError, SystemAlert, SystemStatus } from '@/utils/errorTracking';
+import { SystemError, SystemAlert, SystemStatus } from '@/types/system';
 import { SystemHealth } from '@/components/system-health/types';
 import { SystemHealthGrid } from './system-health/SystemHealthGrid';
 import { SystemHealthMetric } from './system-health/types';

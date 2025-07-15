@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { SystemError, SystemAlert, getErrorStatistics } from '@/utils/errorTracking';
+import { SystemError, SystemAlert } from '@/types/system';
+import { getErrorStatistics } from '@/utils/errorAnalytics';
 import { healthCheckService } from '@/services/healthCheckService';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
