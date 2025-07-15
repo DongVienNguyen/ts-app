@@ -61,13 +61,21 @@ const generateTestEmailHTML = (username: string): string => {
 const sendEmailViaResend = async (recipients: string[], subject: string, bodyHTML: string) => {
   // @ts-ignore
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
+  // @ts-ignore
+  const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'Tài sản - CRC <taisan@caremylife.me>'
+
   if (!resendApiKey) {
     console.error('❌ RESEND_API_KEY not configured')
     throw new Error('RESEND_API_KEY not configured')
   }
 
+  // @ts-ignore
+  if (!Deno.env.get('RESEND_FROM_EMAIL')) {
+    console.warn('⚠️ RESEND_FROM_EMAIL is not set in project secrets. Using default value. This may fail if the domain is not verified in your Resend account.')
+  }
+
   console.log('📧 === EMAIL SENDING DEBUG INFO ===')
-  console.log('📧 From: Tài sản - CRC <taisan@caremylife.me>')
+  console.log(`📧 From: ${fromEmail}`)
   console.log('📧 To Recipients:', recipients)
   console.log('📧 Recipients Count:', recipients.length)
   console.log('📧 Subject:', subject)
@@ -76,7 +84,7 @@ const sendEmailViaResend = async (recipients: string[], subject: string, bodyHTM
   console.log('📧 API Key Length:', resendApiKey ? resendApiKey.length : 0)
   
   const emailPayload = {
-    from: 'Tài sản - CRC <taisan@caremylife.me>',
+    from: fromEmail,
     to: recipients,
     subject: subject,
     html: bodyHTML,
@@ -180,6 +188,8 @@ serve(async (req) => {
       console.log('🔍 Performing API check...')
       // @ts-ignore
       const resendKey = Deno.env.get('RESEND_API_KEY')
+      // @ts-ignore
+      const fromEmailCheck = Deno.env.get('RESEND_FROM_EMAIL') || 'Tài sản - CRC <taisan@caremylife.me>'
 
       return new Response(JSON.stringify({
         success: true,
@@ -187,7 +197,7 @@ serve(async (req) => {
         service: {
           configured: !!resendKey,
           status: resendKey ? 'Ready' : 'Not configured',
-          from: 'Tài sản - CRC <taisan@caremylife.me>'
+          from: fromEmailCheck
         },
         timestamp: new Date().toISOString()
       }), {
