@@ -61,27 +61,12 @@ const generateTestEmailHTML = (username: string): string => {
 const sendEmailViaResend = async (recipients: string[], subject: string, bodyHTML: string) => {
   // @ts-ignore
   const resendApiKey = Deno.env.get('RESEND_API_KEY')
-  // @ts-ignore
-  const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'Tài sản - CRC <taisan@caremylife.me>'
+  const fromEmail = 'onboarding@resend.dev'
 
   if (!resendApiKey) {
     console.error('❌ RESEND_API_KEY not configured')
     throw new Error('RESEND_API_KEY not configured')
   }
-
-  // @ts-ignore
-  if (!Deno.env.get('RESEND_FROM_EMAIL')) {
-    console.warn('⚠️ RESEND_FROM_EMAIL is not set in project secrets. Using default value. This may fail if the domain is not verified in your Resend account.')
-  }
-
-  console.log('📧 === EMAIL SENDING DEBUG INFO ===')
-  console.log(`📧 From: ${fromEmail}`)
-  console.log('📧 To Recipients:', recipients)
-  console.log('📧 Recipients Count:', recipients.length)
-  console.log('📧 Subject:', subject)
-  console.log('📧 HTML Length:', bodyHTML.length)
-  console.log('📧 API Key Present:', !!resendApiKey)
-  console.log('📧 API Key Length:', resendApiKey ? resendApiKey.length : 0)
   
   const emailPayload = {
     from: fromEmail,
@@ -90,10 +75,7 @@ const sendEmailViaResend = async (recipients: string[], subject: string, bodyHTM
     html: bodyHTML,
   }
   
-  console.log('📧 Email Payload:', JSON.stringify(emailPayload, null, 2))
-  
   try {
-    console.log('📧 Calling Resend API...')
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -102,70 +84,31 @@ const sendEmailViaResend = async (recipients: string[], subject: string, bodyHTM
       },
       body: JSON.stringify(emailPayload),
     })
-
-    console.log('📧 Resend API Response Status:', response.status)
-    console.log('📧 Resend API Response Headers:', Object.fromEntries(response.headers.entries()))
     
     const result = await response.json()
-    console.log('📧 Resend API Response Body:', JSON.stringify(result, null, 2))
     
     if (!response.ok) {
-      console.error('❌ Resend API Error Details:')
-      console.error('❌ Status:', response.status)
-      console.error('❌ Status Text:', response.statusText)
-      console.error('❌ Response:', result)
       throw new Error(`Resend API error (${response.status}): ${result.message || JSON.stringify(result)}`)
     }
 
-    console.log('✅ Email sent successfully via Resend')
     return result
 
   } catch (fetchError: any) {
-    console.error('❌ Fetch Error:', fetchError)
-    console.error('❌ Fetch Error Message:', fetchError.message)
-    console.error('❌ Fetch Error Stack:', fetchError.stack)
     throw fetchError
   }
 }
 
 // @ts-ignore
 serve(async (req) => {
-  console.log('🚀 === EDGE FUNCTION START ===')
-  console.log('🚀 Method:', req.method)
-  console.log('🚀 URL:', req.url)
-  console.log('🚀 Headers:', Object.fromEntries(req.headers.entries()))
-  
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    console.log('✅ CORS preflight handled')
     return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    // Parse request body
     let requestBody: any
     try {
-      const bodyText = await req.text()
-      console.log('📝 Raw request body length:', bodyText.length)
-      console.log('📝 Raw request body preview:', bodyText.substring(0, 500))
-      
-      if (!bodyText || bodyText.trim() === '') {
-        console.error('❌ Request body is empty')
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Request body is empty'
-        }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        })
-      }
-      
-      requestBody = JSON.parse(bodyText)
-      console.log('✅ Request parsed successfully')
-      console.log('📝 Request keys:', Object.keys(requestBody))
-      console.log('📝 Request body:', JSON.stringify(requestBody, null, 2))
+      requestBody = await req.json()
     } catch (parseError: any) {
-      console.error('❌ JSON parse error:', parseError)
       return new Response(JSON.stringify({
         success: false,
         error: `Invalid JSON in request body: ${parseError.message}`
@@ -176,20 +119,11 @@ serve(async (req) => {
     }
 
     const { to, subject, html, type, data } = requestBody
-    console.log('📋 === REQUEST PARAMETERS ===')
-    console.log('📋 To:', to)
-    console.log('📋 Subject:', subject)
-    console.log('📋 Type:', type)
-    console.log('📋 Has HTML:', !!html)
-    console.log('📋 Has Data:', !!data)
 
-    // Handle API check
     if (type === 'api_check') {
-      console.log('🔍 Performing API check...')
       // @ts-ignore
       const resendKey = Deno.env.get('RESEND_API_KEY')
-      // @ts-ignore
-      const fromEmailCheck = Deno.env.get('RESEND_FROM_EMAIL') || 'Tài sản - CRC <taisan@caremylife.me>'
+      const fromEmailCheck = 'onboarding@resend.dev'
 
       return new Response(JSON.stringify({
         success: true,
@@ -206,11 +140,7 @@ serve(async (req) => {
       })
     }
 
-    // Validate required fields
     if (!to || !subject) {
-      console.error('❌ Missing required fields')
-      console.error('❌ To present:', !!to)
-      console.error('❌ Subject present:', !!subject)
       return new Response(JSON.stringify({
         success: false,
         error: 'Missing required fields: to, subject'
@@ -220,63 +150,35 @@ serve(async (req) => {
       })
     }
 
-    // Generate email HTML
     let finalHtml = html
     if (!finalHtml && type === 'test') {
-      console.log('📝 Generating test email HTML...')
       finalHtml = generateTestEmailHTML(data?.username || 'N/A')
     }
     
     if (!finalHtml) {
-      console.log('📝 Using default email HTML...')
       finalHtml = '<p>Nội dung email từ hệ thống Tài sản - CRC</p>'
     }
 
     const recipients = Array.isArray(to) ? to : [to]
-    console.log('📧 === EMAIL PREPARATION ===')
-    console.log('📧 Recipients Array:', recipients)
-    console.log('📧 Recipients Count:', recipients.length)
-    console.log('📧 Subject:', subject)
-    console.log('📧 HTML Length:', finalHtml.length)
 
-    // Send email
     try {
-      console.log('📧 Starting email send process...')
       const result = await sendEmailViaResend(recipients, subject, finalHtml)
-      console.log('✅ === EMAIL SENT SUCCESSFULLY ===')
-      console.log('✅ Result:', result)
       
       return new Response(JSON.stringify({
         success: true,
         data: result,
         message: 'Email sent successfully',
-        from: 'Tài sản - CRC <taisan@caremylife.me>',
+        from: 'onboarding@resend.dev',
         to: recipients,
-        debug: {
-          recipientsCount: recipients.length,
-          htmlLength: finalHtml.length,
-          timestamp: new Date().toISOString()
-        }
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       })
 
     } catch (sendError: any) {
-      console.error('❌ === EMAIL SEND ERROR ===')
-      console.error('❌ Error:', sendError)
-      console.error('❌ Error Message:', sendError.message)
-      console.error('❌ Error Stack:', sendError.stack)
-      
       return new Response(JSON.stringify({
         success: false,
         error: `Email send failed: ${sendError.message}`,
-        details: {
-          errorType: sendError.constructor.name,
-          errorMessage: sendError.message,
-          recipients: recipients,
-          timestamp: new Date().toISOString()
-        }
       }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -284,16 +186,9 @@ serve(async (req) => {
     }
 
   } catch (error: any) {
-    console.error('❌ === UNEXPECTED ERROR ===')
-    console.error('❌ Error:', error)
-    console.error('❌ Error Message:', error.message)
-    console.error('❌ Error Stack:', error.stack)
-    
     return new Response(JSON.stringify({
       success: false,
       error: `Unexpected error: ${error.message}`,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
     }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders }

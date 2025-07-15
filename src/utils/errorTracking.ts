@@ -363,30 +363,35 @@ export async function captureError(
 
     const severity = errorData.severity;
 
-    if (severity === 'critical' || severity === 'high') {
-      console.log(`Sending email and push notifications to ${admins.length} admins for ${severity} error.`);
-      // Send emails
-      const emails = admins
-        .map(admin => formatEmail(admin.email || admin.username))
-        .filter(Boolean);
+    // Chỉ gửi email/push nếu không phải lỗi đồng bộ API để tránh spam
+    if (errorData.error_type !== 'API_SYNC_FAILURE') {
+      if (severity === 'critical' || severity === 'high') {
+        console.log(`Sending email and push notifications to ${admins.length} admins for ${severity} error.`);
+        // Send emails
+        const emails = admins
+          .map(admin => formatEmail(admin.email || admin.username))
+          .filter(Boolean);
         
-      if (emails.length > 0) {
-        await emailService.sendEmail({
-          to: emails,
-          subject: emailSubject,
-          html: emailHtml
-        });
+        if (emails.length > 0) {
+          await emailService.sendEmail({
+            to: emails,
+            subject: emailSubject,
+            html: emailHtml
+          });
+        }
+        // Send push notifications
+        for (const admin of admins) {
+          await notificationService.sendPushNotification(admin.username, pushPayload);
+        }
+      } else if (severity === 'medium') {
+        console.log(`Sending push notifications to ${admins.length} admins for ${severity} error.`);
+        // Send push notifications only
+        for (const admin of admins) {
+          await notificationService.sendPushNotification(admin.username, pushPayload);
+        }
       }
-      // Send push notifications
-      for (const admin of admins) {
-        await notificationService.sendPushNotification(admin.username, pushPayload);
-      }
-    } else if (severity === 'medium') {
-      console.log(`Sending push notifications to ${admins.length} admins for ${severity} error.`);
-      // Send push notifications only
-      for (const admin of admins) {
-        await notificationService.sendPushNotification(admin.username, pushPayload);
-      }
+    } else {
+      console.log(`⚠️ Đã bỏ qua email/push notification cho lỗi ${errorData.error_type} để tránh spam.`);
     }
   } catch (notificationError) {
     console.error('❌ Failed to send error notifications:', notificationError);
