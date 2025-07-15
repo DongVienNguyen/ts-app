@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { requestNotificationPermission, subscribeUserToPush } from '@/utils/pushNotificationUtils';
+import { toast } from 'sonner';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -70,11 +71,17 @@ export function usePWAInstall() {
         try {
           const permission = await requestNotificationPermission();
           if (permission === 'granted') {
-            await subscribeUserToPush(user.username);
-            console.log('✅ Push notifications automatically configured after PWA installation.');
+            const success = await subscribeUserToPush(user.username);
+            if (success) {
+              console.log('✅ Push notifications automatically configured after PWA installation.');
+              toast.success('🔔 Push Notifications đã được kích hoạt!');
+            } else {
+              toast.error('Lỗi kích hoạt thông báo đẩy sau khi cài đặt PWA.');
+            }
           }
         } catch (error) {
           console.error('Failed to setup push notifications after PWA install:', error);
+          toast.error('Lỗi kích hoạt thông báo đẩy sau khi cài đặt PWA.');
         }
       }
     };

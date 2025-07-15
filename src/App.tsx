@@ -1,218 +1,60 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from '@/components/ui/sonner';
-import { ThemeProvider } from '@/contexts/ThemeContext';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
+import Layout from '@/components/Layout';
+import Login from '@/pages/Login';
+import Index from '@/pages/Index';
+import AssetEntry from '@/pages/AssetEntry';
+import DailyReport from '@/pages/DailyReport';
+import BorrowReport from '@/pages/BorrowReport';
+import AssetReminders from '@/pages/AssetReminders';
+import CRCReminders from '@/pages/CRCReminders';
+import OtherAssets from '@/pages/OtherAssets';
+import Notifications from '@/pages/Notifications';
+import DataManagement from '@/pages/DataManagement';
+import SecurityMonitor from '@/pages/SecurityMonitor';
+import ErrorMonitoring from '@/pages/ErrorMonitoring';
+import UsageMonitoring from '@/pages/UsageMonitoring';
+import SystemBackup from '@/pages/SystemBackup';
+import ResetPassword from '@/pages/ResetPassword';
+import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { NotificationPermissionPrompt } from '@/components/NotificationPermissionPrompt';
-import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
-import ErrorBoundary from '@/components/ErrorBoundary';
-import { useEffect, Suspense, lazy } from 'react';
-import { memoryManager } from '@/utils/memoryManager';
-import { toast } from 'sonner';
-import { Bell } from 'lucide-react';
-
-// Lazy load all pages for better performance
-const Index = lazy(() => import('@/pages/Index'));
-const Login = lazy(() => import('@/pages/Login'));
-const AssetEntry = lazy(() => import('@/pages/AssetEntry'));
-const DailyReport = lazy(() => import('@/pages/DailyReport'));
-const BorrowReport = lazy(() => import('@/pages/BorrowReport'));
-const AssetReminders = lazy(() => import('@/pages/AssetReminders'));
-const CRCReminders = lazy(() => import('@/pages/CRCReminders'));
-const OtherAssets = lazy(() => import('@/pages/OtherAssets'));
-const ResetPassword = lazy(() => import('@/pages/ResetPassword')); // Added lazy import for ResetPassword
-
-// Heavy admin pages - lazy load with higher priority
-const DataManagement = lazy(() => import('@/pages/DataManagement'));
-const SecurityMonitor = lazy(() => import('@/pages/SecurityMonitor'));
-const ErrorMonitoring = lazy(() => import('@/pages/ErrorMonitoring'));
-const UsageMonitoring = lazy(() => import('@/pages/UsageMonitoring'));
-const SystemBackup = lazy(() => import('@/pages/SystemBackup'));
-const Notifications = lazy(() => import('@/pages/Notifications')); // Lazy load Notifications page
-const NotFound = lazy(() => import('@/pages/NotFound'));
-
-// Loading component
-export const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="flex flex-col items-center space-y-4">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      <p className="text-gray-600 animate-pulse">Đang tải trang...</p>
-    </div>
-  </div>
-);
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: 1,
-      // Enable background refetch for better UX
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
-    },
-  },
-});
-
-function AppContent() {
-  // Initialize memory management
-  useEffect(() => {
-    console.log('🧠 Initializing memory management...');
-    
-    // Set cleanup threshold to 85%
-    memoryManager.setCleanupThreshold(85);
-    
-    // Log initial memory stats
-    const stats = memoryManager.getMemoryStats();
-    if (stats) {
-      console.log('🧠 Initial memory usage:', `${stats.usagePercentage.toFixed(1)}%`);
-    }
-
-    // Cleanup on app unmount
-    return () => {
-      memoryManager.stopMonitoring();
-    };
-  }, []);
-
-  // Listen for service worker navigation messages
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'NAVIGATE_TO_NOTIFICATION') {
-        const targetUrl = event.data.url || '/notifications';
-        const notificationId = event.data.notificationId;
-        
-        // Navigate to the target URL
-        if (notificationId) {
-          window.location.href = `${targetUrl}?id=${notificationId}`;
-        } else {
-          window.location.href = targetUrl;
-        }
-      }
-      
-      // New: Handle in-app notifications
-      if (event.data?.type === 'SHOW_IN_APP_NOTIFICATION') {
-        const { title, options } = event.data.payload;
-        console.log('App.tsx: Received in-app notification from SW:', { title, options });
-        toast(title, {
-          description: options.body,
-          icon: <Bell className="h-4 w-4" />,
-          action: {
-            label: 'Xem',
-            onClick: () => {
-              if (options.data?.url) {
-                window.location.href = options.data.url;
-              }
-            },
-          },
-        });
-      }
-    };
-
-    // Listen for messages from service worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', handleMessage);
-      
-      return () => {
-        navigator.serviceWorker.removeEventListener('message', handleMessage);
-      };
-    }
-  }, []);
-
-  return (
-    <>
-      <Router>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
-            <Route path="/asset-entry" element={
-              <ProtectedRoute>
-                <AssetEntry />
-              </ProtectedRoute>
-            } />
-            <Route path="/daily-report" element={
-              <ProtectedRoute>
-                <DailyReport />
-              </ProtectedRoute>
-            } />
-            <Route path="/borrow-report" element={
-              <ProtectedRoute>
-                <BorrowReport />
-              </ProtectedRoute>
-            } />
-            <Route path="/asset-reminders" element={
-              <ProtectedRoute>
-                <AssetReminders />
-              </ProtectedRoute>
-            } />
-            <Route path="/crc-reminders" element={
-              <ProtectedRoute>
-                <CRCReminders />
-              </ProtectedRoute>
-            } />
-            <Route path="/other-assets" element={
-              <ProtectedRoute>
-                <OtherAssets />
-              </ProtectedRoute>
-            } />
-            
-            {/* Heavy admin pages with suspense */}
-            <Route path="/data-management" element={
-              <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                  <DataManagement />
-                </Suspense>
-              </ProtectedRoute>
-            } />
-            <Route path="/security-monitor" element={
-              <ProtectedRoute>
-                <Suspense fallback={<PageLoader />}>
-                  <SecurityMonitor />
-                </Suspense>
-              </ProtectedRoute>
-            } />
-            <Route path="/error-monitoring" element={<ProtectedRoute><ErrorMonitoring /></ProtectedRoute>} />
-            <Route path="/usage-monitoring" element={<ProtectedRoute><UsageMonitoring /></ProtectedRoute>}/>
-            <Route path="/backup" element={<ProtectedRoute><SystemBackup /></ProtectedRoute>} />
-            <Route path="/notifications" element={
-              <ProtectedRoute>
-                <Notifications />
-              </ProtectedRoute>
-            } />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-        
-        {/* Global Components */}
-        <NotificationPermissionPrompt />
-        <PWAInstallPrompt />
-        <Toaster 
-          position="top-right" 
-          closeButton={true}
-          richColors={true}
-          duration={2000}
-          visibleToasts={3}
-        />
-      </Router>
-    </>
-  );
-}
+import { Toaster } from "@/components/ui/sonner"
+import { isAdmin, isNqOrAdmin } from './utils/permissions';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { NotificationPermissionPrompt } from './components/NotificationPermissionPrompt';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthProvider>
-            <AppContent />
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
+      <AuthProvider>
+        <Router>
+          <Layout>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/asset-entry" element={<ProtectedRoute><AssetEntry /></ProtectedRoute>} />
+              <Route path="/daily-report" element={<ProtectedRoute><DailyReport /></ProtectedRoute>} />
+              <Route path="/borrow-report" element={<ProtectedRoute requiredRole={isNqOrAdmin}><BorrowReport /></ProtectedRoute>} />
+              <Route path="/asset-reminders" element={<ProtectedRoute requiredRole={isNqOrAdmin}><AssetReminders /></ProtectedRoute>} />
+              <Route path="/crc-reminders" element={<ProtectedRoute requiredRole={isNqOrAdmin}><CRCReminders /></ProtectedRoute>} />
+              <Route path="/other-assets" element={<ProtectedRoute requiredRole={isNqOrAdmin}><OtherAssets /></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+              <Route path="/data-management" element={<ProtectedRoute requiredRole={isAdmin}><DataManagement /></ProtectedRoute>} />
+              <Route path="/security-monitor" element={<ProtectedRoute requiredRole={isAdmin}><SecurityMonitor /></ProtectedRoute>} />
+              <Route path="/error-monitoring" element={<ProtectedRoute requiredRole={isAdmin}><ErrorMonitoring /></ProtectedRoute>} />
+              <Route path="/usage-monitoring" element={<ProtectedRoute requiredRole={isAdmin}><UsageMonitoring /></ProtectedRoute>} />
+              <Route path="/backup" element={<ProtectedRoute requiredRole={isAdmin}><SystemBackup /></ProtectedRoute>} />
+              <Route path="/reset-password" element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />
+              <Route path="/404" element={<NotFound />} />
+              <Route path="*" element={<Navigate to="/404" replace />} />
+            </Routes>
+          </Layout>
+        </Router>
+        <Toaster richColors position="top-right" />
+        <PWAInstallPrompt />
+        <NotificationPermissionPrompt />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

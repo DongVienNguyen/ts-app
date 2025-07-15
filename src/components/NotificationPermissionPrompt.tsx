@@ -1,14 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, X, Smartphone, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { useSecureAuth } from '@/contexts/AuthContext';
 import { requestNotificationPermission, subscribeUserToPush } from '@/utils/pushNotificationUtils';
-import { useAutoNotificationSetup } from '@/hooks/useAutoNotificationSetup';
+import { usePushNotificationStatus } from '@/hooks/usePushNotificationStatus';
 
 export function NotificationPermissionPrompt() {
   const { user } = useSecureAuth();
-  const { showManualPrompt, setShowManualPrompt } = useAutoNotificationSetup();
+  const { status, refreshStatus } = usePushNotificationStatus();
+  const [isDismissed, setIsDismissed] = useState(() => localStorage.getItem('notification-permission-dismissed') === 'true');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    if (status === 'granted' || status === 'denied') {
+      localStorage.removeItem('notification-permission-dismissed');
+      setIsDismissed(false);
+    }
+  }, [status]);
 
   const handleEnableNotifications = async () => {
     if (!user) return;
@@ -18,9 +26,7 @@ export function NotificationPermissionPrompt() {
       const permission = await requestNotificationPermission();
       if (permission === 'granted') {
         await subscribeUserToPush(user.username);
-        setShowManualPrompt(false);
         
-        // Show success notification
         if ('serviceWorker' in navigator) {
           const registration = await navigator.serviceWorker.ready;
           registration.showNotification('🎉 Thông báo đã được bật!', {
@@ -31,21 +37,22 @@ export function NotificationPermissionPrompt() {
             requireInteraction: false
           });
         }
-      } else {
-        handleDismiss();
       }
+      refreshStatus();
     } catch (error) {
       console.error('Error enabling notifications:', error);
-      handleDismiss();
     } finally {
       setIsProcessing(false);
+      handleDismiss();
     }
   };
 
   const handleDismiss = () => {
     localStorage.setItem('notification-permission-dismissed', 'true');
-    setShowManualPrompt(false);
+    setIsDismissed(true);
   };
+
+  const showManualPrompt = (status as any) === 'prompt' && !isDismissed;
 
   if (!showManualPrompt || !user) {
     return null;
