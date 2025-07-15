@@ -71,15 +71,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log(`[Push Auto-Sub] Already subscribed in DB: ${isAlreadySubscribed}`);
           if (!isAlreadySubscribed) {
             console.log('[Push Auto-Sub] Not subscribed in DB. Attempting silent subscription...');
-            toast.info('Đang thiết lập thông báo đẩy...');
+            toast.info('Đang tự động thiết lập thông báo đẩy...');
             const success = await subscribeUserToPush(user.username);
             if (success) {
               toast.success('🔔 Thiết lập thông báo đẩy thành công!');
               console.log('[Push Auto-Sub] Silent subscription successful.');
             } else {
-              toast.error('Lỗi khi tự động thiết lập thông báo đẩy.');
+              toast.error('Lỗi khi tự động thiết lập thông báo đẩy.', {
+                description: 'Vui lòng thử lại từ trang cài đặt hoặc thanh điều hướng.'
+              });
               console.error('[Push Auto-Sub] Silent subscription failed.');
             }
+            // Dispatch event regardless of success to trigger UI refresh
+            window.dispatchEvent(new CustomEvent('push-subscription-changed'));
           }
         } else {
           console.log(`[Push Auto-Sub] Permission is not 'granted' (it's '${Notification.permission}'). Skipping.`);
@@ -88,7 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     // Run after a short delay to ensure everything is settled
-    const timer = setTimeout(autoSubscribe, 2000);
+    const timer = setTimeout(autoSubscribe, 2500);
     return () => clearTimeout(timer);
   }, [user]);
 

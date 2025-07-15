@@ -1,62 +1,64 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSecureAuth } from '@/contexts/AuthContext';
 import { checkPushNotificationSupport, hasActivePushSubscription } from '@/utils/pushNotificationUtils';
-import { usePageVisibility } from './usePageVisibility';
+import { useSecureAuth } from '@/contexts/AuthContext';
 
-export type PushStatus = 'loading' | 'unsupported' | 'denied' | 'prompt_required' | 'subscribed' | 'unauthenticated';
+type PushStatus = 'supported' | 'unsupported' | 'granted' | 'denied' | 'prompt_required' | 'loading';
 
-export const usePushNotificationStatus = () => {
+export function usePushNotificationStatus() {
   const { user } = useSecureAuth();
   const [status, setStatus] = useState<PushStatus>('loading');
-  const isVisible = usePageVisibility();
+  const [reasons, setReasons] = useState<string[]>([]);
 
-  const checkStatus = useCallback(async () => {
-    console.log('[Push Status] Checking...');
-    if (!user) {
-      console.log('[Push Status] Final Result: unauthenticated');
-      setStatus('unauthenticated');
+  const refreshStatus = useCallback(async () => {
+    if (!user?.username) {
+      setStatus('loading');
       return;
     }
 
     setStatus('loading');
-
-    const { supported, reasons } = checkPushNotificationSupport();
+    
+    const { supported, reasons: supportReasons } = checkPushNotificationSupport();
     if (!supported) {
-      console.warn('Push notifications not supported:', reasons);
-      console.log('[Push Status] Final Result: unsupported');
       setStatus('unsupported');
+      setReasons(supportReasons);
       return;
     }
 
     const permission = Notification.permission;
-    console.log(`[Push Status] Notification.permission: ${permission}`);
     if (permission === 'denied') {
-      console.log('[Push Status] Final Result: denied');
       setStatus('denied');
       return;
     }
 
-    const isSubscribed = await hasActivePushSubscription(user.username);
-    console.log(`[Push Status] hasActivePushSubscription: ${isSubscribed}`);
-    if (isSubscribed) {
-      console.log('[Push Status] Final Result: subscribed');
-      setStatus('subscribed');
-      return;
+    if (permission === 'granted') {
+      const isSubscribed = await hasActivePushSubscription(user.username);
+      if (isSubscribed) {
+        setStatus('granted');
+      } else {
+        setStatus('prompt_required');
+      }
+    } else { // 'default'
+      setStatus('prompt_required');
     }
-    
-    console.log('[Push Status] Final Result: prompt_required');
-    setStatus('prompt_required');
-  }, [user]);
+  }, [user?.username]);
 
   useEffect(() => {
-    if (isVisible) {
-      checkStatus();
-    }
-  }, [user, isVisible, checkStatus]);
+    refreshStatus();
+  }, [refreshStatus]);
 
-  const refreshStatus = useCallback(() => {
-    checkStatus();
-  }, [checkStatus]);
+  // Add event listener to refresh status on demand
+  useEffect(() => {
+    const handleSubscriptionChange = () => {
+      console.log('[usePushNotificationStatus] Detected subscription change. Refreshing status.');
+      refreshStatus();
+    };
 
-  return { status, refreshStatus };
-};
+    window.addEventListener('push-subscription-changed', handleSubscriptionChange);
+    
+    return () => {
+      window.removeEventListener('push-subscription-changed', handleSubscriptionChange);
+    };
+  }, [refreshStatus]);
+
+  return { status, reasons, refreshStatus };
+}
