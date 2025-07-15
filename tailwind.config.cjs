@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   // Remove darkMode configuration - no dark mode support
   content: [
     './pages/**/*.{ts,tsx}',
