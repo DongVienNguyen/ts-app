@@ -28,58 +28,16 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 
 export async function subscribeUserToPush(username: string): Promise<boolean> {
   try {
-    // Check if we're in development environment
-    const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    
-    if (isDevelopment) {
-      // SILENT development mode - không hiện thông báo
-      return await handleDevelopmentMode(username);
-    }
-
-    // Production environment - SILENT push notification setup
-    return await setupProductionPushNotifications(username);
+    // Always use the real push notification setup
+    return await setupPushNotifications(username);
     
   } catch (error: unknown) {
     console.error('Lỗi khi đăng ký nhận thông báo đẩy:', error);
-    
-    // KHÔNG hiện fallback notification
     return false;
   }
 }
 
-async function handleDevelopmentMode(username: string): Promise<boolean> {
-  try {
-    // KHÔNG hiện thông báo development - chỉ setup silent
-    
-    // Save a mock subscription to database for development
-    const mockSubscription = {
-      endpoint: `mock-endpoint-${username}-${Date.now()}`,
-      keys: {
-        p256dh: 'mock-p256dh-key',
-        auth: 'mock-auth-key'
-      }
-    };
-
-    const { error } = await supabase
-      .from('push_subscriptions')
-      .upsert({
-        username,
-        subscription: mockSubscription as any
-      }, {
-        onConflict: 'username'
-      });
-
-    if (error) {
-      return false;
-    }
-
-    return true;
-  } catch (devError) {
-    return false;
-  }
-}
-
-async function setupProductionPushNotifications(username: string): Promise<boolean> {
+async function setupPushNotifications(username: string): Promise<boolean> {
   // Check basic support
   if (!('serviceWorker' in navigator)) {
     throw new Error('Service Worker not supported');
@@ -182,7 +140,6 @@ async function setupProductionPushNotifications(username: string): Promise<boole
     throw error;
   }
 
-  // KHÔNG hiện test notification - setup hoàn tất silent
   console.log('✅ Push notifications setup completed silently');
 
   return true;
@@ -367,11 +324,21 @@ export async function hasActivePushSubscription(username: string): Promise<boole
   try {
     const { data, error } = await supabase
       .from('push_subscriptions')
-      .select('id')
+      .select('id, subscription')
       .eq('username', username)
       .single();
 
-    return !error && !!data;
+    if (error || !data) {
+      return false;
+    }
+
+    // Check if it's a mock subscription
+    const subscription = data.subscription as any;
+    if (subscription?.endpoint?.startsWith('mock-endpoint')) {
+      return false;
+    }
+
+    return true;
   } catch (error) {
     return false;
   }
