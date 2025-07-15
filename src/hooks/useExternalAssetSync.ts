@@ -32,18 +32,22 @@ export const useExternalAssetSync = () => {
 
       const externalData = await response.json();
 
-      if (!Array.isArray(externalData.data)) {
+      // API có thể trả về mảng trực tiếp, hoặc trong thuộc tính 'data'
+      const dataToProcess = Array.isArray(externalData) ? externalData : externalData?.data;
+
+      if (!Array.isArray(dataToProcess)) {
+        console.error('Cấu trúc dữ liệu API không như mong đợi:', externalData);
         throw new Error('Dữ liệu trả về từ API không phải là một mảng.');
       }
 
-      if (externalData.data.length === 0) {
+      if (dataToProcess.length === 0) {
         console.log('Không có dữ liệu mới để đồng bộ.');
         setLastSyncTime(new Date());
         setIsSyncing(false);
         return;
       }
 
-      const transformedData = externalData.data.map((item: any) => ({
+      const transformedData = dataToProcess.map((item: any) => ({
         external_id: item.id, // Giả định API trả về trường 'id'
         transaction_date: item.transaction_date || new Date().toISOString().split('T')[0],
         parts_day: item.parts_day || 'Cả ngày',
