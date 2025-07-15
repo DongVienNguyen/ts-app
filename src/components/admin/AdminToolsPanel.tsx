@@ -75,37 +75,7 @@ export function AdminToolsPanel() {
       </div>
 
       {/* Main Tools */}
-      <Accordion type="single" collapsible className="w-full" defaultValue="email-management">
-        {/* Email Management */}
-        <AccordionItem value="email-management" className="border rounded-lg mb-4">
-          <AccordionTrigger className="px-6 py-4 hover:no-underline">
-            <div className="flex items-center gap-4 w-full">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500 rounded-lg">
-                  <Mail className="h-5 w-5 text-white" />
-                </div>
-                <div className="text-left">
-                  <span className="font-semibold text-lg">Quản lý Email</span>
-                  <p className="text-sm text-gray-600 mt-1">Cài đặt, kiểm tra và quản lý hệ thống email</p>
-                </div>
-              </div>
-              <div className="ml-auto flex gap-2">
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                  <Settings className="h-3 w-3 mr-1" />
-                  Config
-                </Badge>
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                  <TestTube className="h-3 w-3 mr-1" />
-                  Test
-                </Badge>
-              </div>
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="px-6 pb-6">
-            <AdminEmailSettings />
-          </AccordionContent>
-        </AccordionItem>
-
+      <Accordion type="single" collapsible className="w-full" defaultValue="push-notifications">
         {/* Push Notifications */}
         <AccordionItem value="push-notifications" className="border rounded-lg mb-4">
           <AccordionTrigger className="px-6 py-4 hover:no-underline">
@@ -133,6 +103,36 @@ export function AdminToolsPanel() {
           </AccordionTrigger>
           <AccordionContent className="px-6 pb-6">
             <PushNotificationTester />
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Email Management */}
+        <AccordionItem value="email-management" className="border rounded-lg mb-4">
+          <AccordionTrigger className="px-6 py-4 hover:no-underline">
+            <div className="flex items-center gap-4 w-full">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <Mail className="h-5 w-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <span className="font-semibold text-lg">Quản lý Email</span>
+                  <p className="text-sm text-gray-600 mt-1">Cài đặt, kiểm tra và quản lý hệ thống email</p>
+                </div>
+              </div>
+              <div className="ml-auto flex gap-2">
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                  <Settings className="h-3 w-3 mr-1" />
+                  Config
+                </Badge>
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  <TestTube className="h-3 w-3 mr-1" />
+                  Test
+                </Badge>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6">
+            <AdminEmailSettings />
           </AccordionContent>
         </AccordionItem>
 

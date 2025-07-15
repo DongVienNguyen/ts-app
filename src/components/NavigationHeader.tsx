@@ -122,7 +122,11 @@ export const NavigationHeader: React.FC = () => {
 
   const isSystemMenuActive = systemNavItems.some(item => location.pathname === item.href);
 
-  const renderSetupButtons = (isMobile = false) => (
+  const renderSetupButtons = (isMobile = false) => {
+    // Show notification button if not granted, not unsupported, and not loading
+    const showNotificationSetupButton = pushStatus !== 'granted' && pushStatus !== 'unsupported' && pushStatus !== 'loading';
+
+    return (
     <>
       {canInstall && (
         <Button
@@ -136,7 +140,7 @@ export const NavigationHeader: React.FC = () => {
           Cài đặt App
         </Button>
       )}
-      {pushStatus === 'prompt_required' && (
+      {showNotificationSetupButton && (
         <Button
           variant="outline"
           size={isMobile ? 'default' : 'sm'}
@@ -150,7 +154,7 @@ export const NavigationHeader: React.FC = () => {
         </Button>
       )}
     </>
-  );
+  )};
 
   return (
     <header className="bg-white shadow-sm border-b">
